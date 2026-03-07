@@ -1,0 +1,212 @@
+/**
+ * ============================================================
+ *  CRICKET CLUB PORTAL — Google Apps Script (Web App API)
+ * ============================================================
+ *
+ *  HOW TO SET UP:
+ *  1. Go to https://script.google.com and create a new project
+ *  2. Delete any existing code in Code.gs
+ *  3. Paste this entire script into Code.gs
+ *  4. Click Deploy → New deployment
+ *  5. Choose "Web app" as type
+ *  6. Set "Execute as" → Me
+ *  7. Set "Who has access" → Anyone
+ *  8. Click Deploy and copy the Web App URL
+ *  9. Paste the URL into the Cricket Club Portal admin settings
+ *
+ *  The script will auto-create a Google Sheet named
+ *  "CricketClubPortal" in your Google Drive with all required tabs.
+ * ============================================================
+ */
+
+// ──────── CONFIG ────────
+const SHEET_NAME = "CricketClubPortal";
+
+const TABS = {
+  Players:          ["player_id","name","username","password","phone","role","status"],
+  Tournaments:      ["tournament_id","name","format","overs","description"],
+  Seasons:          ["season_id","tournament_id","year","start_date","end_date","status"],
+  Matches:          ["match_id","season_id","tournament_id","date","team_a","team_b","venue","status","toss_winner","toss_decision","result","man_of_match"],
+  BattingScorecard: ["id","match_id","player_id","team","runs","balls","fours","sixes","strike_rate","how_out","bowler_id"],
+  BowlingScorecard: ["id","match_id","player_id","team","overs","maidens","runs_conceded","wickets","economy","extras"],
+  Announcements:    ["id","title","message","date","active","created_by"],
+  Messages:         ["id","from_id","to_id","subject","body","date","read","reply_to"],
+};
+
+// ──────── HELPERS ────────
+function getOrCreateSpreadsheet() {
+  const files = DriveApp.getFilesByName(SHEET_NAME);
+  if (files.hasNext()) return SpreadsheetApp.open(files.next());
+  return SpreadsheetApp.create(SHEET_NAME);
+}
+
+function getOrCreateSheet(ss, tabName) {
+  let sheet = ss.getSheetByName(tabName);
+  if (!sheet) {
+    sheet = ss.insertSheet(tabName);
+    sheet.appendRow(TABS[tabName]);
+    // Bold + freeze header
+    sheet.getRange(1, 1, 1, TABS[tabName].length).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function sheetToJson(sheet) {
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+  const headers = data[0];
+  return data.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = row[i]; });
+    return obj;
+  });
+}
+
+function findRowIndex(sheet, keyCol, keyVal) {
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const colIdx = headers.indexOf(keyCol);
+  if (colIdx === -1) return -1;
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][colIdx]) === String(keyVal)) return i + 1; // 1-indexed
+  }
+  return -1;
+}
+
+function getKeyColumn(tabName) {
+  const map = {
+    Players: "player_id", Tournaments: "tournament_id", Seasons: "season_id",
+    Matches: "match_id", BattingScorecard: "id", BowlingScorecard: "id",
+    Announcements: "id", Messages: "id",
+  };
+  return map[tabName] || "id";
+}
+
+// ──────── CORS ────────
+function setCorsHeaders(output) {
+  // ContentService handles CORS for web apps automatically
+  return output;
+}
+
+// ──────── GET ────────
+function doGet(e) {
+  const action = e.parameter.action || "get";
+  const ss = getOrCreateSpreadsheet();
+
+  if (action === "get") {
+    const tabName = e.parameter.sheet;
+    if (!tabName || !TABS[tabName]) {
+      return ContentService.createTextOutput(JSON.stringify({ error: "Invalid sheet name" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    const sheet = getOrCreateSheet(ss, tabName);
+    const data = sheetToJson(sheet);
+    return ContentService.createTextOutput(JSON.stringify(data))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "seed") {
+    // Create all tabs with headers
+    Object.keys(TABS).forEach(tabName => getOrCreateSheet(ss, tabName));
+    return ContentService.createTextOutput(JSON.stringify({ success: true, message: "All tabs created" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "seedWithData") {
+    // Create tabs and insert mock data (sent as POST usually, but support GET too)
+    Object.keys(TABS).forEach(tabName => getOrCreateSheet(ss, tabName));
+    return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Tabs created. Send POST with mock data to populate." }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ error: "Unknown action" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ──────── POST ────────
+function doPost(e) {
+  const ss = getOrCreateSpreadsheet();
+  let body;
+  try {
+    body = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Invalid JSON" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const { action, sheet: tabName, data } = body;
+
+  // ── SEED action: create tabs + insert bulk data ──
+  if (action === "seed") {
+    try {
+      const seedData = data; // { Players: [...], Tournaments: [...], ... }
+      Object.keys(TABS).forEach(tab => {
+        const sheet = getOrCreateSheet(ss, tab);
+        if (seedData[tab] && seedData[tab].length > 0) {
+          // Clear existing data (keep headers)
+          if (sheet.getLastRow() > 1) {
+            sheet.deleteRows(2, sheet.getLastRow() - 1);
+          }
+          const headers = TABS[tab];
+          const rows = seedData[tab].map(item =>
+            headers.map(h => item[h] !== undefined ? item[h] : "")
+          );
+          if (rows.length > 0) {
+            sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+          }
+        }
+      });
+      return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Seeded all tabs" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  // ── Standard CRUD ──
+  if (!tabName || !TABS[tabName]) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Invalid sheet" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  const sheet = getOrCreateSheet(ss, tabName);
+  const headers = TABS[tabName];
+  const keyCol = getKeyColumn(tabName);
+
+  if (action === "add") {
+    const row = headers.map(h => data[h] !== undefined ? data[h] : "");
+    sheet.appendRow(row);
+    return ContentService.createTextOutput(JSON.stringify({ success: true }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "update") {
+    const keyVal = data[keyCol];
+    const rowIdx = findRowIndex(sheet, keyCol, keyVal);
+    if (rowIdx === -1) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    const row = headers.map(h => data[h] !== undefined ? data[h] : "");
+    sheet.getRange(rowIdx, 1, 1, headers.length).setValues([row]);
+    return ContentService.createTextOutput(JSON.stringify({ success: true }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "delete") {
+    const keyVal = data[keyCol];
+    const rowIdx = findRowIndex(sheet, keyCol, keyVal);
+    if (rowIdx === -1) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    sheet.deleteRow(rowIdx);
+    return ContentService.createTextOutput(JSON.stringify({ success: true }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Unknown action" }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
