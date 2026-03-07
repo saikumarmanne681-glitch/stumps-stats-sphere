@@ -2,12 +2,20 @@ import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, 
 import { mockPlayers, mockTournaments, mockSeasons, mockMatches, mockBattingScorecard, mockBowlingScorecard, mockAnnouncements, mockMessages } from './mockData';
 
 // Google Apps Script Web App URL — user will configure this
-const APPS_SCRIPT_URL = localStorage.getItem('appsScriptUrl') || '';
+let APPS_SCRIPT_URL = localStorage.getItem('appsScriptUrl') || '';
 
-const USE_MOCK = !APPS_SCRIPT_URL;
+export function getAppsScriptUrl() {
+  return APPS_SCRIPT_URL;
+}
+
+export function isConnected() {
+  return !!APPS_SCRIPT_URL;
+}
+
+const USE_MOCK = () => !APPS_SCRIPT_URL;
 
 async function fetchSheet<T>(sheet: string): Promise<T[]> {
-  if (USE_MOCK) {
+  if (USE_MOCK()) {
     const mockMap: Record<string, unknown[]> = {
       Players: mockPlayers,
       Tournaments: mockTournaments,
@@ -26,14 +34,39 @@ async function fetchSheet<T>(sheet: string): Promise<T[]> {
 }
 
 async function writeSheet<T>(sheet: string, action: 'add' | 'update' | 'delete', payload: T): Promise<boolean> {
-  if (USE_MOCK) return true;
+  if (USE_MOCK()) return true;
   const res = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ action, sheet, data: payload }),
   });
   const result = await res.json();
   return result.success;
+}
+
+export async function seedGoogleSheet(): Promise<{ success: boolean; message: string }> {
+  if (USE_MOCK()) return { success: false, message: 'Connect Google Sheets first (set Apps Script URL)' };
+  try {
+    const seedData = {
+      Players: mockPlayers,
+      Tournaments: mockTournaments,
+      Seasons: mockSeasons,
+      Matches: mockMatches,
+      BattingScorecard: mockBattingScorecard,
+      BowlingScorecard: mockBowlingScorecard,
+      Announcements: mockAnnouncements,
+      Messages: mockMessages,
+    };
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'seed', data: seedData }),
+    });
+    const result = await res.json();
+    return { success: result.success, message: result.message || 'Done' };
+  } catch (err) {
+    return { success: false, message: String(err) };
+  }
 }
 
 export const api = {
@@ -80,5 +113,5 @@ export const api = {
 
 export function setAppsScriptUrl(url: string) {
   localStorage.setItem('appsScriptUrl', url);
-  window.location.reload();
+  APPS_SCRIPT_URL = url;
 }

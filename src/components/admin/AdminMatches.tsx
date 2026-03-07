@@ -7,71 +7,268 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { mockMatches, mockSeasons, mockTournaments, mockPlayers, mockBattingScorecard, mockBowlingScorecard } from '@/lib/mockData';
-import { Match, BattingScorecard, BowlingScorecard } from '@/lib/types';
+import { Match, BattingScorecard, BowlingScorecard, Player } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+
+interface PlayerPerformance {
+  player_id: string;
+  team: string;
+  // batting
+  bat_runs: number;
+  bat_balls: number;
+  bat_fours: number;
+  bat_sixes: number;
+  bat_how_out: string;
+  bat_bowler_id: string;
+  // bowling
+  bowl_overs: number;
+  bowl_maidens: number;
+  bowl_runs: number;
+  bowl_wickets: number;
+  bowl_extras: number;
+  // flags
+  did_bat: boolean;
+  did_bowl: boolean;
+}
+
+const emptyPerformance = (playerId: string, team: string): PlayerPerformance => ({
+  player_id: playerId,
+  team,
+  bat_runs: 0, bat_balls: 0, bat_fours: 0, bat_sixes: 0, bat_how_out: '', bat_bowler_id: '',
+  bowl_overs: 0, bowl_maidens: 0, bowl_runs: 0, bowl_wickets: 0, bowl_extras: 0,
+  did_bat: false, did_bowl: false,
+});
 
 export function AdminMatches() {
   const [matches, setMatches] = useState<Match[]>(mockMatches);
   const [batting, setBatting] = useState<BattingScorecard[]>(mockBattingScorecard);
   const [bowling, setBowling] = useState<BowlingScorecard[]>(mockBowlingScorecard);
   const [editMatch, setEditMatch] = useState<Match | null>(null);
-  const [editBat, setEditBat] = useState<BattingScorecard | null>(null);
-  const [editBowl, setEditBowl] = useState<BowlingScorecard | null>(null);
   const [matchOpen, setMatchOpen] = useState(false);
-  const [batOpen, setBatOpen] = useState(false);
-  const [bowlOpen, setBowlOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<string>('');
+
+  // Scorecard entry state
+  const [scorecardOpen, setScorecardOpen] = useState(false);
+  const [scorecardMatchId, setScorecardMatchId] = useState('');
+  const [teamAPlayers, setTeamAPlayers] = useState<string[]>([]);
+  const [teamBPlayers, setTeamBPlayers] = useState<string[]>([]);
+  const [performances, setPerformances] = useState<PlayerPerformance[]>([]);
+  const [scorecardTeamTab, setScorecardTeamTab] = useState<'teamA' | 'teamB'>('teamA');
+
   const { toast } = useToast();
 
   const emptyMatch: Match = { match_id: '', season_id: '', tournament_id: '', date: '', team_a: '', team_b: '', venue: '', status: 'scheduled', toss_winner: '', toss_decision: '', result: '', man_of_match: '' };
-  const emptyBat: BattingScorecard = { id: '', match_id: '', player_id: '', team: '', runs: 0, balls: 0, fours: 0, sixes: 0, strike_rate: 0, how_out: '', bowler_id: '' };
-  const emptyBowl: BowlingScorecard = { id: '', match_id: '', player_id: '', team: '', overs: 0, maidens: 0, runs_conceded: 0, wickets: 0, economy: 0, extras: 0 };
 
+  // ─── Match CRUD ───
   const saveMatch = () => {
     if (!editMatch?.team_a || !editMatch?.team_b) { toast({ title: 'Error', description: 'Fill teams', variant: 'destructive' }); return; }
     if (editMatch.match_id) {
       setMatches(prev => prev.map(m => m.match_id === editMatch.match_id ? editMatch : m));
     } else {
-      setMatches(prev => [...prev, { ...editMatch, match_id: `M${String(prev.length + 1).padStart(3, '0')}` }]);
+      const newId = `M${String(matches.length + 1).padStart(3, '0')}`;
+      setMatches(prev => [...prev, { ...editMatch, match_id: newId }]);
     }
-    toast({ title: 'Saved' }); setMatchOpen(false);
+    toast({ title: 'Match Saved' }); setMatchOpen(false);
   };
 
-  const saveBat = () => {
-    if (!editBat?.player_id) { toast({ title: 'Error', description: 'Select player', variant: 'destructive' }); return; }
-    const sr = editBat.balls > 0 ? (editBat.runs / editBat.balls) * 100 : 0;
-    const entry = { ...editBat, strike_rate: Math.round(sr * 100) / 100 };
-    if (entry.id) {
-      setBatting(prev => prev.map(b => b.id === entry.id ? entry : b));
+  // ─── Open Scorecard Entry ───
+  const openScorecardEntry = (matchId: string) => {
+    const match = matches.find(m => m.match_id === matchId);
+    if (!match) return;
+    setScorecardMatchId(matchId);
+
+    // Pre-select players already in the scorecard
+    const existingBatPlayerTeamA = batting.filter(b => b.match_id === matchId && b.team === match.team_a).map(b => b.player_id);
+    const existingBatPlayerTeamB = batting.filter(b => b.match_id === matchId && b.team === match.team_b).map(b => b.player_id);
+    const existingBowlPlayerTeamA = bowling.filter(b => b.match_id === matchId && b.team === match.team_a).map(b => b.player_id);
+    const existingBowlPlayerTeamB = bowling.filter(b => b.match_id === matchId && b.team === match.team_b).map(b => b.player_id);
+
+    const allTeamAIds = [...new Set([...existingBatPlayerTeamA, ...existingBowlPlayerTeamA])];
+    const allTeamBIds = [...new Set([...existingBatPlayerTeamB, ...existingBowlPlayerTeamB])];
+
+    setTeamAPlayers(allTeamAIds);
+    setTeamBPlayers(allTeamBIds);
+
+    // Build performances from existing data
+    const perfs: PlayerPerformance[] = [];
+    const addPerf = (pid: string, team: string) => {
+      const batEntry = batting.find(b => b.match_id === matchId && b.player_id === pid && b.team === team);
+      const bowlEntry = bowling.find(b => b.match_id === matchId && b.player_id === pid && b.team === team);
+      perfs.push({
+        player_id: pid,
+        team,
+        bat_runs: batEntry?.runs || 0,
+        bat_balls: batEntry?.balls || 0,
+        bat_fours: batEntry?.fours || 0,
+        bat_sixes: batEntry?.sixes || 0,
+        bat_how_out: batEntry?.how_out || '',
+        bat_bowler_id: batEntry?.bowler_id || '',
+        bowl_overs: bowlEntry?.overs || 0,
+        bowl_maidens: bowlEntry?.maidens || 0,
+        bowl_runs: bowlEntry?.runs_conceded || 0,
+        bowl_wickets: bowlEntry?.wickets || 0,
+        bowl_extras: bowlEntry?.extras || 0,
+        did_bat: !!batEntry,
+        did_bowl: !!bowlEntry,
+      });
+    };
+
+    allTeamAIds.forEach(pid => addPerf(pid, match.team_a));
+    allTeamBIds.forEach(pid => addPerf(pid, match.team_b));
+
+    setPerformances(perfs);
+    setScorecardTeamTab('teamA');
+    setScorecardOpen(true);
+  };
+
+  // ─── Toggle player in team ───
+  const togglePlayer = (playerId: string, team: 'A' | 'B') => {
+    const match = matches.find(m => m.match_id === scorecardMatchId);
+    if (!match) return;
+    const teamName = team === 'A' ? match.team_a : match.team_b;
+    const setPlayers = team === 'A' ? setTeamAPlayers : setTeamBPlayers;
+    const currentPlayers = team === 'A' ? teamAPlayers : teamBPlayers;
+
+    if (currentPlayers.includes(playerId)) {
+      setPlayers(prev => prev.filter(id => id !== playerId));
+      setPerformances(prev => prev.filter(p => !(p.player_id === playerId && p.team === teamName)));
     } else {
-      setBatting(prev => [...prev, { ...entry, id: `B${String(prev.length + 1).padStart(3, '0')}` }]);
+      setPlayers(prev => [...prev, playerId]);
+      setPerformances(prev => [...prev, emptyPerformance(playerId, teamName)]);
     }
-    toast({ title: 'Saved' }); setBatOpen(false);
   };
 
-  const saveBowl = () => {
-    if (!editBowl?.player_id) { toast({ title: 'Error', description: 'Select player', variant: 'destructive' }); return; }
-    const eco = editBowl.overs > 0 ? editBowl.runs_conceded / editBowl.overs : 0;
-    const entry = { ...editBowl, economy: Math.round(eco * 100) / 100 };
-    if (entry.id) {
-      setBowling(prev => prev.map(b => b.id === entry.id ? entry : b));
-    } else {
-      setBowling(prev => [...prev, { ...entry, id: `BW${String(prev.length + 1).padStart(3, '0')}` }]);
-    }
-    toast({ title: 'Saved' }); setBowlOpen(false);
+  // ─── Update performance ───
+  const updatePerf = (playerId: string, team: string, field: keyof PlayerPerformance, value: unknown) => {
+    setPerformances(prev => prev.map(p =>
+      p.player_id === playerId && p.team === team ? { ...p, [field]: value } : p
+    ));
   };
 
+  // ─── Save all scorecard ───
+  const saveScorecard = () => {
+    const match = matches.find(m => m.match_id === scorecardMatchId);
+    if (!match) return;
+
+    // Remove old entries for this match
+    let newBatting = batting.filter(b => b.match_id !== scorecardMatchId);
+    let newBowling = bowling.filter(b => b.match_id !== scorecardMatchId);
+
+    let batCounter = newBatting.length;
+    let bowlCounter = newBowling.length;
+
+    performances.forEach(p => {
+      if (p.did_bat) {
+        batCounter++;
+        const sr = p.bat_balls > 0 ? (p.bat_runs / p.bat_balls) * 100 : 0;
+        newBatting.push({
+          id: `B${String(batCounter).padStart(3, '0')}`,
+          match_id: scorecardMatchId,
+          player_id: p.player_id,
+          team: p.team,
+          runs: p.bat_runs,
+          balls: p.bat_balls,
+          fours: p.bat_fours,
+          sixes: p.bat_sixes,
+          strike_rate: Math.round(sr * 100) / 100,
+          how_out: p.bat_how_out,
+          bowler_id: p.bat_bowler_id,
+        });
+      }
+      if (p.did_bowl) {
+        bowlCounter++;
+        const eco = p.bowl_overs > 0 ? p.bowl_runs / p.bowl_overs : 0;
+        newBowling.push({
+          id: `BW${String(bowlCounter).padStart(3, '0')}`,
+          match_id: scorecardMatchId,
+          player_id: p.player_id,
+          team: p.team,
+          overs: p.bowl_overs,
+          maidens: p.bowl_maidens,
+          runs_conceded: p.bowl_runs,
+          wickets: p.bowl_wickets,
+          economy: Math.round(eco * 100) / 100,
+          extras: p.bowl_extras,
+        });
+      }
+    });
+
+    setBatting(newBatting);
+    setBowling(newBowling);
+    toast({ title: 'Scorecard Saved', description: `Saved ${performances.filter(p => p.did_bat).length} batting & ${performances.filter(p => p.did_bowl).length} bowling entries` });
+    setScorecardOpen(false);
+  };
+
+  const sel = matches.find(m => m.match_id === selectedMatch);
   const matchBatting = batting.filter(b => b.match_id === selectedMatch);
   const matchBowling = bowling.filter(b => b.match_id === selectedMatch);
-  const sel = matches.find(m => m.match_id === selectedMatch);
+
+  const renderPlayerPerformanceRow = (perf: PlayerPerformance) => {
+    const player = mockPlayers.find(p => p.player_id === perf.player_id);
+    return (
+      <div key={`${perf.player_id}-${perf.team}`} className="border rounded-lg p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="font-medium text-sm">{player?.name || perf.player_id} <span className="text-xs text-muted-foreground">({perf.player_id})</span></span>
+          <Badge variant="outline" className="text-xs">{perf.team}</Badge>
+        </div>
+
+        {/* Batting toggle + fields */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Checkbox checked={perf.did_bat} onCheckedChange={c => updatePerf(perf.player_id, perf.team, 'did_bat', !!c)} />
+            <Label className="text-sm font-semibold">🏏 Batted</Label>
+          </div>
+          {perf.did_bat && (
+            <div className="grid grid-cols-3 gap-2 pl-6">
+              <div><Label className="text-xs">Runs</Label><Input type="number" className="h-8 text-sm" value={perf.bat_runs} onChange={e => updatePerf(perf.player_id, perf.team, 'bat_runs', Number(e.target.value))} /></div>
+              <div><Label className="text-xs">Balls</Label><Input type="number" className="h-8 text-sm" value={perf.bat_balls} onChange={e => updatePerf(perf.player_id, perf.team, 'bat_balls', Number(e.target.value))} /></div>
+              <div><Label className="text-xs">4s</Label><Input type="number" className="h-8 text-sm" value={perf.bat_fours} onChange={e => updatePerf(perf.player_id, perf.team, 'bat_fours', Number(e.target.value))} /></div>
+              <div><Label className="text-xs">6s</Label><Input type="number" className="h-8 text-sm" value={perf.bat_sixes} onChange={e => updatePerf(perf.player_id, perf.team, 'bat_sixes', Number(e.target.value))} /></div>
+              <div><Label className="text-xs">How Out</Label><Input className="h-8 text-sm" value={perf.bat_how_out} onChange={e => updatePerf(perf.player_id, perf.team, 'bat_how_out', e.target.value)} placeholder="caught, not out..." /></div>
+              <div><Label className="text-xs">Bowler</Label>
+                <Select value={perf.bat_bowler_id} onValueChange={v => updatePerf(perf.player_id, perf.team, 'bat_bowler_id', v)}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="-" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=" ">N/A</SelectItem>
+                    {mockPlayers.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bowling toggle + fields */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Checkbox checked={perf.did_bowl} onCheckedChange={c => updatePerf(perf.player_id, perf.team, 'did_bowl', !!c)} />
+            <Label className="text-sm font-semibold">🎯 Bowled</Label>
+          </div>
+          {perf.did_bowl && (
+            <div className="grid grid-cols-3 gap-2 pl-6">
+              <div><Label className="text-xs">Overs</Label><Input type="number" step="0.1" className="h-8 text-sm" value={perf.bowl_overs} onChange={e => updatePerf(perf.player_id, perf.team, 'bowl_overs', Number(e.target.value))} /></div>
+              <div><Label className="text-xs">Maidens</Label><Input type="number" className="h-8 text-sm" value={perf.bowl_maidens} onChange={e => updatePerf(perf.player_id, perf.team, 'bowl_maidens', Number(e.target.value))} /></div>
+              <div><Label className="text-xs">Runs</Label><Input type="number" className="h-8 text-sm" value={perf.bowl_runs} onChange={e => updatePerf(perf.player_id, perf.team, 'bowl_runs', Number(e.target.value))} /></div>
+              <div><Label className="text-xs">Wickets</Label><Input type="number" className="h-8 text-sm" value={perf.bowl_wickets} onChange={e => updatePerf(perf.player_id, perf.team, 'bowl_wickets', Number(e.target.value))} /></div>
+              <div><Label className="text-xs">Extras</Label><Input type="number" className="h-8 text-sm" value={perf.bowl_extras} onChange={e => updatePerf(perf.player_id, perf.team, 'bowl_extras', Number(e.target.value))} /></div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const scorecardMatch = matches.find(m => m.match_id === scorecardMatchId);
 
   return (
     <div className="space-y-6">
-      {/* Matches */}
+      {/* ── Matches List ── */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="font-display">🏏 Matches</CardTitle>
@@ -121,16 +318,20 @@ export function AdminMatches() {
             <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Date</TableHead><TableHead>Teams</TableHead><TableHead>Status</TableHead><TableHead>Result</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
             <TableBody>
               {matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(m => (
-                <TableRow key={m.match_id} className={selectedMatch === m.match_id ? 'bg-primary/5' : ''} onClick={() => setSelectedMatch(m.match_id)}>
-                  <TableCell className="font-mono text-xs cursor-pointer">{m.match_id}</TableCell>
+                <TableRow key={m.match_id} className={selectedMatch === m.match_id ? 'bg-primary/5' : ''}>
+                  <TableCell className="font-mono text-xs">{m.match_id}</TableCell>
                   <TableCell>{m.date ? format(new Date(m.date), 'dd MMM yyyy') : '-'}</TableCell>
                   <TableCell className="font-medium">{m.team_a} vs {m.team_b}</TableCell>
                   <TableCell><Badge variant={m.status === 'completed' ? 'default' : 'secondary'}>{m.status}</Badge></TableCell>
                   <TableCell className="text-xs max-w-[150px] truncate">{m.result || '-'}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditMatch(m); setMatchOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                      <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setMatches(prev => prev.filter(x => x.match_id !== m.match_id)); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                      <Button size="icon" variant="ghost" title="Edit match" onClick={() => { setEditMatch(m); setMatchOpen(true); }}><Pencil className="h-3 w-3" /></Button>
+                      <Button size="icon" variant="ghost" title="Edit scorecard" onClick={() => openScorecardEntry(m.match_id)}>
+                        <Users className="h-3 w-3 text-primary" />
+                      </Button>
+                      <Button size="icon" variant="ghost" title="View scorecard" onClick={() => setSelectedMatch(selectedMatch === m.match_id ? '' : m.match_id)}>📊</Button>
+                      <Button size="icon" variant="ghost" onClick={() => { setMatches(prev => prev.filter(x => x.match_id !== m.match_id)); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -140,129 +341,136 @@ export function AdminMatches() {
         </CardContent>
       </Card>
 
-      {/* Scorecard for selected match */}
+      {/* ── Scorecard Entry Dialog ── */}
+      <Dialog open={scorecardOpen} onOpenChange={setScorecardOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              📊 Scorecard Entry — {scorecardMatch?.team_a} vs {scorecardMatch?.team_b} ({scorecardMatchId})
+            </DialogTitle>
+          </DialogHeader>
+
+          <Tabs value={scorecardTeamTab} onValueChange={v => setScorecardTeamTab(v as 'teamA' | 'teamB')} className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="grid grid-cols-2">
+              <TabsTrigger value="teamA">{scorecardMatch?.team_a || 'Team A'} ({teamAPlayers.length})</TabsTrigger>
+              <TabsTrigger value="teamB">{scorecardMatch?.team_b || 'Team B'} ({teamBPlayers.length})</TabsTrigger>
+            </TabsList>
+
+            <ScrollArea className="flex-1 mt-4">
+              <TabsContent value="teamA" className="space-y-4 mt-0">
+                {/* Player selection for Team A */}
+                <div className="border rounded-lg p-3">
+                  <Label className="text-sm font-semibold mb-2 block">Select players for {scorecardMatch?.team_a}:</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Same player can appear in both teams</p>
+                  <div className="flex flex-wrap gap-2">
+                    {mockPlayers.filter(p => p.status === 'active').map(p => (
+                      <label key={p.player_id} className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm">
+                        <Checkbox checked={teamAPlayers.includes(p.player_id)} onCheckedChange={() => togglePlayer(p.player_id, 'A')} />
+                        {p.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Performances for Team A */}
+                {performances.filter(p => p.team === scorecardMatch?.team_a).map(renderPlayerPerformanceRow)}
+              </TabsContent>
+
+              <TabsContent value="teamB" className="space-y-4 mt-0">
+                <div className="border rounded-lg p-3">
+                  <Label className="text-sm font-semibold mb-2 block">Select players for {scorecardMatch?.team_b}:</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Same player can appear in both teams</p>
+                  <div className="flex flex-wrap gap-2">
+                    {mockPlayers.filter(p => p.status === 'active').map(p => (
+                      <label key={p.player_id} className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm">
+                        <Checkbox checked={teamBPlayers.includes(p.player_id)} onCheckedChange={() => togglePlayer(p.player_id, 'B')} />
+                        {p.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {performances.filter(p => p.team === scorecardMatch?.team_b).map(renderPlayerPerformanceRow)}
+              </TabsContent>
+            </ScrollArea>
+          </Tabs>
+
+          <div className="flex justify-end gap-2 pt-4 border-t mt-2">
+            <Button variant="outline" onClick={() => setScorecardOpen(false)}>Cancel</Button>
+            <Button onClick={saveScorecard}>💾 Save All Scorecard</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── View Scorecard ── */}
       {selectedMatch && sel && (
         <Card>
           <CardHeader>
             <CardTitle className="font-display">📊 Scorecard — {sel.team_a} vs {sel.team_b} ({sel.match_id})</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="batting">
+            <Tabs defaultValue="teamA_view">
               <TabsList>
-                <TabsTrigger value="batting">Batting</TabsTrigger>
-                <TabsTrigger value="bowling">Bowling</TabsTrigger>
+                <TabsTrigger value="teamA_view">{sel.team_a}</TabsTrigger>
+                <TabsTrigger value="teamB_view">{sel.team_b}</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="batting" className="mt-4">
-                <div className="flex justify-end mb-2">
-                  <Dialog open={batOpen} onOpenChange={setBatOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" onClick={() => setEditBat({ ...emptyBat, match_id: selectedMatch })}><Plus className="h-4 w-4 mr-1" /> Add Batting</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader><DialogTitle>Batting Entry</DialogTitle></DialogHeader>
-                      <div className="space-y-3">
-                        <div><Label>Player</Label>
-                          <Select value={editBat?.player_id || ''} onValueChange={v => setEditBat(prev => prev ? { ...prev, player_id: v } : null)}>
-                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                            <SelectContent>{mockPlayers.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name} ({p.player_id})</SelectItem>)}</SelectContent>
-                          </Select></div>
-                        <div><Label>Team</Label><Input value={editBat?.team || ''} onChange={e => setEditBat(prev => prev ? { ...prev, team: e.target.value } : null)} placeholder={`${sel.team_a} or ${sel.team_b}`} /></div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div><Label>Runs</Label><Input type="number" value={editBat?.runs || 0} onChange={e => setEditBat(prev => prev ? { ...prev, runs: Number(e.target.value) } : null)} /></div>
-                          <div><Label>Balls</Label><Input type="number" value={editBat?.balls || 0} onChange={e => setEditBat(prev => prev ? { ...prev, balls: Number(e.target.value) } : null)} /></div>
-                          <div><Label>4s</Label><Input type="number" value={editBat?.fours || 0} onChange={e => setEditBat(prev => prev ? { ...prev, fours: Number(e.target.value) } : null)} /></div>
-                          <div><Label>6s</Label><Input type="number" value={editBat?.sixes || 0} onChange={e => setEditBat(prev => prev ? { ...prev, sixes: Number(e.target.value) } : null)} /></div>
-                        </div>
-                        <div><Label>How Out</Label><Input value={editBat?.how_out || ''} onChange={e => setEditBat(prev => prev ? { ...prev, how_out: e.target.value } : null)} placeholder="caught, bowled, not out, etc." /></div>
-                        <div><Label>Bowler</Label>
-                          <Select value={editBat?.bowler_id || ''} onValueChange={v => setEditBat(prev => prev ? { ...prev, bowler_id: v } : null)}>
-                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="">N/A</SelectItem>
-                              {mockPlayers.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select></div>
-                        <Button onClick={saveBat} className="w-full">Save</Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                <Table>
-                  <TableHeader><TableRow><TableHead>Player</TableHead><TableHead>Team</TableHead><TableHead>R</TableHead><TableHead>B</TableHead><TableHead>4s</TableHead><TableHead>6s</TableHead><TableHead>SR</TableHead><TableHead>Out</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {matchBatting.map(b => (
-                      <TableRow key={b.id}>
-                        <TableCell>{mockPlayers.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
-                        <TableCell>{b.team}</TableCell>
-                        <TableCell className="font-bold">{b.runs}</TableCell>
-                        <TableCell>{b.balls}</TableCell>
-                        <TableCell>{b.fours}</TableCell>
-                        <TableCell>{b.sixes}</TableCell>
-                        <TableCell>{b.strike_rate.toFixed(1)}</TableCell>
-                        <TableCell className="text-xs">{b.how_out}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" onClick={() => { setEditBat(b); setBatOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                            <Button size="icon" variant="ghost" onClick={() => { setBatting(prev => prev.filter(x => x.id !== b.id)); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TabsContent>
+              {[sel.team_a, sel.team_b].map((team, idx) => {
+                const teamBat = matchBatting.filter(b => b.team === team);
+                const teamBowl = matchBowling.filter(b => b.team === team);
+                const totalRuns = teamBat.reduce((s, b) => s + b.runs, 0);
+                const totalWickets = teamBat.filter(b => b.how_out && b.how_out !== 'not out').length;
 
-              <TabsContent value="bowling" className="mt-4">
-                <div className="flex justify-end mb-2">
-                  <Dialog open={bowlOpen} onOpenChange={setBowlOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" onClick={() => setEditBowl({ ...emptyBowl, match_id: selectedMatch })}><Plus className="h-4 w-4 mr-1" /> Add Bowling</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader><DialogTitle>Bowling Entry</DialogTitle></DialogHeader>
-                      <div className="space-y-3">
-                        <div><Label>Player</Label>
-                          <Select value={editBowl?.player_id || ''} onValueChange={v => setEditBowl(prev => prev ? { ...prev, player_id: v } : null)}>
-                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                            <SelectContent>{mockPlayers.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name} ({p.player_id})</SelectItem>)}</SelectContent>
-                          </Select></div>
-                        <div><Label>Team</Label><Input value={editBowl?.team || ''} onChange={e => setEditBowl(prev => prev ? { ...prev, team: e.target.value } : null)} /></div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div><Label>Overs</Label><Input type="number" step="0.1" value={editBowl?.overs || 0} onChange={e => setEditBowl(prev => prev ? { ...prev, overs: Number(e.target.value) } : null)} /></div>
-                          <div><Label>Maidens</Label><Input type="number" value={editBowl?.maidens || 0} onChange={e => setEditBowl(prev => prev ? { ...prev, maidens: Number(e.target.value) } : null)} /></div>
-                          <div><Label>Runs</Label><Input type="number" value={editBowl?.runs_conceded || 0} onChange={e => setEditBowl(prev => prev ? { ...prev, runs_conceded: Number(e.target.value) } : null)} /></div>
-                          <div><Label>Wickets</Label><Input type="number" value={editBowl?.wickets || 0} onChange={e => setEditBowl(prev => prev ? { ...prev, wickets: Number(e.target.value) } : null)} /></div>
-                          <div><Label>Extras</Label><Input type="number" value={editBowl?.extras || 0} onChange={e => setEditBowl(prev => prev ? { ...prev, extras: Number(e.target.value) } : null)} /></div>
-                        </div>
-                        <Button onClick={saveBowl} className="w-full">Save</Button>
+                return (
+                  <TabsContent key={team} value={idx === 0 ? 'teamA_view' : 'teamB_view'} className="mt-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-display text-lg font-bold">{team}</span>
+                      <Badge className="bg-primary text-primary-foreground">{totalRuns}/{totalWickets}</Badge>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-semibold mb-2">Batting</h4>
+                      <Table>
+                        <TableHeader><TableRow><TableHead>Player</TableHead><TableHead>R</TableHead><TableHead>B</TableHead><TableHead>4s</TableHead><TableHead>6s</TableHead><TableHead>SR</TableHead><TableHead>Out</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                          {teamBat.map(b => (
+                            <TableRow key={b.id}>
+                              <TableCell className="font-medium">{mockPlayers.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                              <TableCell className="font-bold">{b.runs}</TableCell>
+                              <TableCell>{b.balls}</TableCell>
+                              <TableCell>{b.fours}</TableCell>
+                              <TableCell>{b.sixes}</TableCell>
+                              <TableCell>{b.strike_rate.toFixed(1)}</TableCell>
+                              <TableCell className="text-xs">{b.how_out}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {teamBowl.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2">Bowling</h4>
+                        <Table>
+                          <TableHeader><TableRow><TableHead>Player</TableHead><TableHead>O</TableHead><TableHead>M</TableHead><TableHead>R</TableHead><TableHead>W</TableHead><TableHead>Eco</TableHead></TableRow></TableHeader>
+                          <TableBody>
+                            {teamBowl.map(b => (
+                              <TableRow key={b.id}>
+                                <TableCell className="font-medium">{mockPlayers.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                                <TableCell>{b.overs}</TableCell>
+                                <TableCell>{b.maidens}</TableCell>
+                                <TableCell>{b.runs_conceded}</TableCell>
+                                <TableCell className="font-bold">{b.wickets}</TableCell>
+                                <TableCell>{b.economy.toFixed(1)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                <Table>
-                  <TableHeader><TableRow><TableHead>Player</TableHead><TableHead>Team</TableHead><TableHead>O</TableHead><TableHead>M</TableHead><TableHead>R</TableHead><TableHead>W</TableHead><TableHead>Eco</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {matchBowling.map(b => (
-                      <TableRow key={b.id}>
-                        <TableCell>{mockPlayers.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
-                        <TableCell>{b.team}</TableCell>
-                        <TableCell>{b.overs}</TableCell>
-                        <TableCell>{b.maidens}</TableCell>
-                        <TableCell>{b.runs_conceded}</TableCell>
-                        <TableCell className="font-bold">{b.wickets}</TableCell>
-                        <TableCell>{b.economy.toFixed(1)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" onClick={() => { setEditBowl(b); setBowlOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                            <Button size="icon" variant="ghost" onClick={() => { setBowling(prev => prev.filter(x => x.id !== b.id)); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TabsContent>
+                    )}
+                  </TabsContent>
+                );
+              })}
             </Tabs>
           </CardContent>
         </Card>
