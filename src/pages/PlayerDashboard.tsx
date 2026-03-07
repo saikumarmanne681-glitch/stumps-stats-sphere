@@ -11,7 +11,6 @@ import { mockPlayers, mockTournaments, mockSeasons, mockMatches, mockBattingScor
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount } from '@/lib/calculations';
 import { BarChart3, MessageSquare, User, Send } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -23,10 +22,10 @@ const PlayerDashboard = () => {
   const [filterSeason, setFilterSeason] = useState<string>('all');
   const [replyBody, setReplyBody] = useState<Record<string, string>>({});
 
-  if (!isPlayer || !user?.player_id) return <Navigate to="/login" />;
-
-  const player = mockPlayers.find(p => p.player_id === user.player_id);
-  if (!player) return <Navigate to="/login" />;
+  const player = useMemo(() => {
+    if (!user?.player_id) return null;
+    return mockPlayers.find(p => p.player_id === user.player_id) || null;
+  }, [user?.player_id]);
 
   const relevantSeasons = filterTournament === 'all'
     ? mockSeasons
@@ -39,13 +38,15 @@ const PlayerDashboard = () => {
     return matches.map(m => m.match_id);
   }, [filterTournament, filterSeason]);
 
-  const playerBatting = mockBattingScorecard.filter(b => b.player_id === user.player_id && relevantMatchIds.includes(b.match_id));
-  const playerBowling = mockBowlingScorecard.filter(b => b.player_id === user.player_id && relevantMatchIds.includes(b.match_id));
-  const battingStats = calcBattingStats(playerBatting);
-  const bowlingStats = calcBowlingStats(playerBowling);
-  const totalMatches = getPlayerMatchCount(user.player_id, mockBattingScorecard, mockBowlingScorecard);
+  const playerBatting = useMemo(() => user?.player_id ? mockBattingScorecard.filter(b => b.player_id === user.player_id && relevantMatchIds.includes(b.match_id)) : [], [user?.player_id, relevantMatchIds]);
+  const playerBowling = useMemo(() => user?.player_id ? mockBowlingScorecard.filter(b => b.player_id === user.player_id && relevantMatchIds.includes(b.match_id)) : [], [user?.player_id, relevantMatchIds]);
+  const battingStats = useMemo(() => calcBattingStats(playerBatting), [playerBatting]);
+  const bowlingStats = useMemo(() => calcBowlingStats(playerBowling), [playerBowling]);
+  const totalMatches = useMemo(() => user?.player_id ? getPlayerMatchCount(user.player_id, mockBattingScorecard, mockBowlingScorecard) : 0, [user?.player_id]);
 
-  const playerMessages = mockMessages.filter(m => m.to_id === user.player_id || m.to_id === 'all' || m.from_id === user.player_id);
+  const playerMessages = useMemo(() => user?.player_id ? mockMessages.filter(m => m.to_id === user.player_id || m.to_id === 'all' || m.from_id === user.player_id) : [], [user?.player_id]);
+
+  if (!isPlayer || !user?.player_id || !player) return <Navigate to="/login" />;
 
   const handleReply = (msgId: string) => {
     if (!replyBody[msgId]?.trim()) return;
@@ -101,7 +102,6 @@ const PlayerDashboard = () => {
           </TabsList>
 
           <TabsContent value="stats" className="space-y-6 mt-4">
-            {/* Filters */}
             <div className="flex flex-wrap gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Tournament</label>
@@ -109,9 +109,7 @@ const PlayerDashboard = () => {
                   <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Tournaments</SelectItem>
-                    {mockTournaments.map(t => (
-                      <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>
-                    ))}
+                    {mockTournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -121,15 +119,12 @@ const PlayerDashboard = () => {
                   <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Seasons</SelectItem>
-                    {relevantSeasons.map(s => (
-                      <SelectItem key={s.season_id} value={s.season_id}>{s.year} ({s.season_id})</SelectItem>
-                    ))}
+                    {relevantSeasons.map(s => <SelectItem key={s.season_id} value={s.season_id}>{s.year} ({s.season_id})</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Batting Stats */}
             <Card>
               <CardHeader><CardTitle className="font-display">🏏 Batting Statistics</CardTitle></CardHeader>
               <CardContent>
@@ -153,13 +148,10 @@ const PlayerDashboard = () => {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">No batting data available.</p>
-                )}
+                ) : <p className="text-muted-foreground">No batting data available.</p>}
               </CardContent>
             </Card>
 
-            {/* Bowling Stats */}
             <Card>
               <CardHeader><CardTitle className="font-display">🎯 Bowling Statistics</CardTitle></CardHeader>
               <CardContent>
@@ -182,25 +174,17 @@ const PlayerDashboard = () => {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">No bowling data available.</p>
-                )}
+                ) : <p className="text-muted-foreground">No bowling data available.</p>}
               </CardContent>
             </Card>
 
-            {/* Match History */}
             <Card>
               <CardHeader><CardTitle className="font-display">📋 Match History</CardTitle></CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Match</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Teams</TableHead>
-                      <TableHead>Runs</TableHead>
-                      <TableHead>Wickets</TableHead>
-                      <TableHead>Result</TableHead>
+                      <TableHead>Match</TableHead><TableHead>Date</TableHead><TableHead>Teams</TableHead><TableHead>Runs</TableHead><TableHead>Wickets</TableHead><TableHead>Result</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
