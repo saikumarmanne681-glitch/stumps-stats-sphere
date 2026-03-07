@@ -5,27 +5,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { mockPlayers } from '@/lib/mockData';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useData } from '@/lib/DataContext';
 import { Player } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export function AdminPlayers() {
-  const [items, setItems] = useState<Player[]>(mockPlayers);
+  const { players, addPlayer, updatePlayer, deletePlayer } = useData();
   const [editItem, setEditItem] = useState<Player | null>(null);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
   const empty: Player = { player_id: '', name: '', username: '', password: '', phone: '', role: 'batsman', status: 'active' };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editItem?.name || !editItem?.username) { toast({ title: 'Error', description: 'Name and username required', variant: 'destructive' }); return; }
     if (editItem.player_id) {
-      setItems(prev => prev.map(i => i.player_id === editItem.player_id ? editItem : i));
+      await updatePlayer(editItem);
     } else {
-      setItems(prev => [...prev, { ...editItem, player_id: `P${String(prev.length + 1).padStart(3, '0')}` }]);
+      await addPlayer({ ...editItem, player_id: `P${String(players.length + 1).padStart(3, '0')}` });
     }
     toast({ title: 'Saved' });
     setOpen(false);
@@ -40,7 +40,10 @@ export function AdminPlayers() {
             <Button size="sm" onClick={() => setEditItem({ ...empty })}><Plus className="h-4 w-4 mr-1" /> Add</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>{editItem?.player_id ? 'Edit' : 'Add'} Player</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{editItem?.player_id ? 'Edit' : 'Add'} Player</DialogTitle>
+              <DialogDescription>Fill in the player details below.</DialogDescription>
+            </DialogHeader>
             <div className="space-y-4">
               <div><Label>Name</Label><Input value={editItem?.name || ''} onChange={e => setEditItem(prev => prev ? { ...prev, name: e.target.value } : null)} /></div>
               <div><Label>Username</Label><Input value={editItem?.username || ''} onChange={e => setEditItem(prev => prev ? { ...prev, username: e.target.value } : null)} /></div>
@@ -77,7 +80,7 @@ export function AdminPlayers() {
         <Table>
           <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Username</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
           <TableBody>
-            {items.map(p => (
+            {players.map(p => (
               <TableRow key={p.player_id}>
                 <TableCell className="font-mono text-xs">{p.player_id}</TableCell>
                 <TableCell className="font-medium">{p.name}</TableCell>
@@ -87,7 +90,7 @@ export function AdminPlayers() {
                 <TableCell>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => { setEditItem(p); setOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => { setItems(prev => prev.filter(x => x.player_id !== p.player_id)); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    <Button size="icon" variant="ghost" onClick={async () => { await deletePlayer(p.player_id); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>

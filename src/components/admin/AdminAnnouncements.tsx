@@ -6,41 +6,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { mockAnnouncements } from '@/lib/mockData';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useData } from '@/lib/DataContext';
 import { Announcement } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function AdminAnnouncements() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>(mockAnnouncements);
+  const { announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement } = useData();
   const [editItem, setEditItem] = useState<Announcement | null>(null);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
   const emptyAnnouncement: Announcement = { id: '', title: '', message: '', date: new Date().toISOString().split('T')[0], active: true, created_by: 'admin' };
 
-  const handleSave = () => {
-    if (!editItem?.title || !editItem?.message) {
-      toast({ title: 'Error', description: 'Fill all fields', variant: 'destructive' });
-      return;
-    }
+  const handleSave = async () => {
+    if (!editItem?.title || !editItem?.message) { toast({ title: 'Error', description: 'Fill all fields', variant: 'destructive' }); return; }
     if (editItem.id) {
-      setAnnouncements(prev => prev.map(a => a.id === editItem.id ? editItem : a));
-      toast({ title: 'Updated', description: 'Announcement updated' });
+      await updateAnnouncement(editItem);
+      toast({ title: 'Updated' });
     } else {
-      const newItem = { ...editItem, id: `A${String(announcements.length + 1).padStart(3, '0')}` };
-      setAnnouncements(prev => [...prev, newItem]);
-      toast({ title: 'Added', description: 'Announcement created' });
+      await addAnnouncement({ ...editItem, id: `A${String(announcements.length + 1).padStart(3, '0')}` });
+      toast({ title: 'Added' });
     }
     setOpen(false);
     setEditItem(null);
-  };
-
-  const handleDelete = (id: string) => {
-    setAnnouncements(prev => prev.filter(a => a.id !== id));
-    toast({ title: 'Deleted', description: 'Announcement removed' });
   };
 
   return (
@@ -49,12 +40,13 @@ export function AdminAnnouncements() {
         <CardTitle className="font-display">📢 Announcements</CardTitle>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" onClick={() => setEditItem({ ...emptyAnnouncement })}>
-              <Plus className="h-4 w-4 mr-1" /> Add
-            </Button>
+            <Button size="sm" onClick={() => setEditItem({ ...emptyAnnouncement })}><Plus className="h-4 w-4 mr-1" /> Add</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>{editItem?.id ? 'Edit' : 'Add'} Announcement</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{editItem?.id ? 'Edit' : 'Add'} Announcement</DialogTitle>
+              <DialogDescription>Fill in the announcement details.</DialogDescription>
+            </DialogHeader>
             <div className="space-y-4">
               <div><Label>Title</Label><Input value={editItem?.title || ''} onChange={e => setEditItem(prev => prev ? { ...prev, title: e.target.value } : null)} /></div>
               <div><Label>Message</Label><Textarea value={editItem?.message || ''} onChange={e => setEditItem(prev => prev ? { ...prev, message: e.target.value } : null)} /></div>
@@ -70,24 +62,20 @@ export function AdminAnnouncements() {
       </CardHeader>
       <CardContent>
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead><TableHead>Title</TableHead><TableHead>Date</TableHead><TableHead>Active</TableHead><TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Title</TableHead><TableHead>Date</TableHead><TableHead>Active</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
           <TableBody>
-            {announcements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(a => (
+            {[...announcements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(a => (
               <TableRow key={a.id}>
                 <TableCell className="font-mono text-xs">{a.id}</TableCell>
                 <TableCell>{a.title}</TableCell>
                 <TableCell>{format(new Date(a.date), 'dd MMM yyyy')}</TableCell>
                 <TableCell>
-                  <Switch checked={a.active} onCheckedChange={c => setAnnouncements(prev => prev.map(x => x.id === a.id ? { ...x, active: c } : x))} />
+                  <Switch checked={a.active} onCheckedChange={async c => { await updateAnnouncement({ ...a, active: c }); }} />
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => { setEditItem(a); setOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => handleDelete(a.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    <Button size="icon" variant="ghost" onClick={async () => { await deleteAnnouncement(a.id); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>

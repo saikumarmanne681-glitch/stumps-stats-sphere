@@ -5,12 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { mockMatches, mockSeasons, mockTournaments, mockPlayers, mockBattingScorecard, mockBowlingScorecard } from '@/lib/mockData';
-import { Match, BattingScorecard, BowlingScorecard, Player } from '@/lib/types';
+import { useData } from '@/lib/DataContext';
+import { Match, BattingScorecard, BowlingScorecard } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -19,41 +18,34 @@ import { format } from 'date-fns';
 interface PlayerPerformance {
   player_id: string;
   team: string;
-  // batting
   bat_runs: number;
   bat_balls: number;
   bat_fours: number;
   bat_sixes: number;
   bat_how_out: string;
   bat_bowler_id: string;
-  // bowling
   bowl_overs: number;
   bowl_maidens: number;
   bowl_runs: number;
   bowl_wickets: number;
   bowl_extras: number;
-  // flags
   did_bat: boolean;
   did_bowl: boolean;
 }
 
 const emptyPerformance = (playerId: string, team: string): PlayerPerformance => ({
-  player_id: playerId,
-  team,
+  player_id: playerId, team,
   bat_runs: 0, bat_balls: 0, bat_fours: 0, bat_sixes: 0, bat_how_out: '', bat_bowler_id: '',
   bowl_overs: 0, bowl_maidens: 0, bowl_runs: 0, bowl_wickets: 0, bowl_extras: 0,
   did_bat: false, did_bowl: false,
 });
 
 export function AdminMatches() {
-  const [matches, setMatches] = useState<Match[]>(mockMatches);
-  const [batting, setBatting] = useState<BattingScorecard[]>(mockBattingScorecard);
-  const [bowling, setBowling] = useState<BowlingScorecard[]>(mockBowlingScorecard);
+  const { matches, batting, bowling, players, tournaments, seasons, addMatch, updateMatch, deleteMatch, saveScorecardBulk } = useData();
   const [editMatch, setEditMatch] = useState<Match | null>(null);
   const [matchOpen, setMatchOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<string>('');
 
-  // Scorecard entry state
   const [scorecardOpen, setScorecardOpen] = useState(false);
   const [scorecardMatchId, setScorecardMatchId] = useState('');
   const [teamAPlayers, setTeamAPlayers] = useState<string[]>([]);
@@ -65,57 +57,44 @@ export function AdminMatches() {
 
   const emptyMatch: Match = { match_id: '', season_id: '', tournament_id: '', date: '', team_a: '', team_b: '', venue: '', status: 'scheduled', toss_winner: '', toss_decision: '', result: '', man_of_match: '' };
 
-  // ─── Match CRUD ───
-  const saveMatch = () => {
+  const saveMatchHandler = async () => {
     if (!editMatch?.team_a || !editMatch?.team_b) { toast({ title: 'Error', description: 'Fill teams', variant: 'destructive' }); return; }
     if (editMatch.match_id) {
-      setMatches(prev => prev.map(m => m.match_id === editMatch.match_id ? editMatch : m));
+      await updateMatch(editMatch);
     } else {
       const newId = `M${String(matches.length + 1).padStart(3, '0')}`;
-      setMatches(prev => [...prev, { ...editMatch, match_id: newId }]);
+      await addMatch({ ...editMatch, match_id: newId });
     }
     toast({ title: 'Match Saved' }); setMatchOpen(false);
   };
 
-  // ─── Open Scorecard Entry ───
   const openScorecardEntry = (matchId: string) => {
     const match = matches.find(m => m.match_id === matchId);
     if (!match) return;
     setScorecardMatchId(matchId);
 
-    // Pre-select players already in the scorecard
-    const existingBatPlayerTeamA = batting.filter(b => b.match_id === matchId && b.team === match.team_a).map(b => b.player_id);
-    const existingBatPlayerTeamB = batting.filter(b => b.match_id === matchId && b.team === match.team_b).map(b => b.player_id);
-    const existingBowlPlayerTeamA = bowling.filter(b => b.match_id === matchId && b.team === match.team_a).map(b => b.player_id);
-    const existingBowlPlayerTeamB = bowling.filter(b => b.match_id === matchId && b.team === match.team_b).map(b => b.player_id);
+    const existingBatA = batting.filter(b => b.match_id === matchId && b.team === match.team_a).map(b => b.player_id);
+    const existingBatB = batting.filter(b => b.match_id === matchId && b.team === match.team_b).map(b => b.player_id);
+    const existingBowlA = bowling.filter(b => b.match_id === matchId && b.team === match.team_a).map(b => b.player_id);
+    const existingBowlB = bowling.filter(b => b.match_id === matchId && b.team === match.team_b).map(b => b.player_id);
 
-    const allTeamAIds = [...new Set([...existingBatPlayerTeamA, ...existingBowlPlayerTeamA])];
-    const allTeamBIds = [...new Set([...existingBatPlayerTeamB, ...existingBowlPlayerTeamB])];
+    const allTeamAIds = [...new Set([...existingBatA, ...existingBowlA])];
+    const allTeamBIds = [...new Set([...existingBatB, ...existingBowlB])];
 
     setTeamAPlayers(allTeamAIds);
     setTeamBPlayers(allTeamBIds);
 
-    // Build performances from existing data
     const perfs: PlayerPerformance[] = [];
     const addPerf = (pid: string, team: string) => {
       const batEntry = batting.find(b => b.match_id === matchId && b.player_id === pid && b.team === team);
       const bowlEntry = bowling.find(b => b.match_id === matchId && b.player_id === pid && b.team === team);
       perfs.push({
-        player_id: pid,
-        team,
-        bat_runs: batEntry?.runs || 0,
-        bat_balls: batEntry?.balls || 0,
-        bat_fours: batEntry?.fours || 0,
-        bat_sixes: batEntry?.sixes || 0,
-        bat_how_out: batEntry?.how_out || '',
-        bat_bowler_id: batEntry?.bowler_id || '',
-        bowl_overs: bowlEntry?.overs || 0,
-        bowl_maidens: bowlEntry?.maidens || 0,
-        bowl_runs: bowlEntry?.runs_conceded || 0,
-        bowl_wickets: bowlEntry?.wickets || 0,
-        bowl_extras: bowlEntry?.extras || 0,
-        did_bat: !!batEntry,
-        did_bowl: !!bowlEntry,
+        player_id: pid, team,
+        bat_runs: batEntry?.runs || 0, bat_balls: batEntry?.balls || 0, bat_fours: batEntry?.fours || 0, bat_sixes: batEntry?.sixes || 0,
+        bat_how_out: batEntry?.how_out || '', bat_bowler_id: batEntry?.bowler_id || '',
+        bowl_overs: bowlEntry?.overs || 0, bowl_maidens: bowlEntry?.maidens || 0, bowl_runs: bowlEntry?.runs_conceded || 0,
+        bowl_wickets: bowlEntry?.wickets || 0, bowl_extras: bowlEntry?.extras || 0,
+        did_bat: !!batEntry, did_bowl: !!bowlEntry,
       });
     };
 
@@ -127,7 +106,6 @@ export function AdminMatches() {
     setScorecardOpen(true);
   };
 
-  // ─── Toggle player in team ───
   const togglePlayer = (playerId: string, team: 'A' | 'B') => {
     const match = matches.find(m => m.match_id === scorecardMatchId);
     if (!match) return;
@@ -144,64 +122,44 @@ export function AdminMatches() {
     }
   };
 
-  // ─── Update performance ───
   const updatePerf = (playerId: string, team: string, field: keyof PlayerPerformance, value: unknown) => {
-    setPerformances(prev => prev.map(p =>
-      p.player_id === playerId && p.team === team ? { ...p, [field]: value } : p
-    ));
+    setPerformances(prev => prev.map(p => p.player_id === playerId && p.team === team ? { ...p, [field]: value } : p));
   };
 
-  // ─── Save all scorecard ───
-  const saveScorecard = () => {
+  const saveScorecard = async () => {
     const match = matches.find(m => m.match_id === scorecardMatchId);
     if (!match) return;
 
-    // Remove old entries for this match
-    let newBatting = batting.filter(b => b.match_id !== scorecardMatchId);
-    let newBowling = bowling.filter(b => b.match_id !== scorecardMatchId);
-
-    let batCounter = newBatting.length;
-    let bowlCounter = newBowling.length;
+    const newBatting: BattingScorecard[] = [];
+    const newBowling: BowlingScorecard[] = [];
+    let batCounter = 0;
+    let bowlCounter = 0;
 
     performances.forEach(p => {
       if (p.did_bat) {
         batCounter++;
         const sr = p.bat_balls > 0 ? (p.bat_runs / p.bat_balls) * 100 : 0;
         newBatting.push({
-          id: `B${String(batCounter).padStart(3, '0')}`,
-          match_id: scorecardMatchId,
-          player_id: p.player_id,
-          team: p.team,
-          runs: p.bat_runs,
-          balls: p.bat_balls,
-          fours: p.bat_fours,
-          sixes: p.bat_sixes,
-          strike_rate: Math.round(sr * 100) / 100,
-          how_out: p.bat_how_out,
-          bowler_id: p.bat_bowler_id,
+          id: `B${String(batCounter).padStart(3, '0')}_${scorecardMatchId}`,
+          match_id: scorecardMatchId, player_id: p.player_id, team: p.team,
+          runs: p.bat_runs, balls: p.bat_balls, fours: p.bat_fours, sixes: p.bat_sixes,
+          strike_rate: Math.round(sr * 100) / 100, how_out: p.bat_how_out, bowler_id: p.bat_bowler_id,
         });
       }
       if (p.did_bowl) {
         bowlCounter++;
         const eco = p.bowl_overs > 0 ? p.bowl_runs / p.bowl_overs : 0;
         newBowling.push({
-          id: `BW${String(bowlCounter).padStart(3, '0')}`,
-          match_id: scorecardMatchId,
-          player_id: p.player_id,
-          team: p.team,
-          overs: p.bowl_overs,
-          maidens: p.bowl_maidens,
-          runs_conceded: p.bowl_runs,
-          wickets: p.bowl_wickets,
-          economy: Math.round(eco * 100) / 100,
-          extras: p.bowl_extras,
+          id: `BW${String(bowlCounter).padStart(3, '0')}_${scorecardMatchId}`,
+          match_id: scorecardMatchId, player_id: p.player_id, team: p.team,
+          overs: p.bowl_overs, maidens: p.bowl_maidens, runs_conceded: p.bowl_runs,
+          wickets: p.bowl_wickets, economy: Math.round(eco * 100) / 100, extras: p.bowl_extras,
         });
       }
     });
 
-    setBatting(newBatting);
-    setBowling(newBowling);
-    toast({ title: 'Scorecard Saved', description: `Saved ${performances.filter(p => p.did_bat).length} batting & ${performances.filter(p => p.did_bowl).length} bowling entries` });
+    await saveScorecardBulk(scorecardMatchId, newBatting, newBowling);
+    toast({ title: 'Scorecard Saved', description: `${newBatting.length} batting & ${newBowling.length} bowling entries saved` });
     setScorecardOpen(false);
   };
 
@@ -210,15 +168,13 @@ export function AdminMatches() {
   const matchBowling = bowling.filter(b => b.match_id === selectedMatch);
 
   const renderPlayerPerformanceRow = (perf: PlayerPerformance) => {
-    const player = mockPlayers.find(p => p.player_id === perf.player_id);
+    const player = players.find(p => p.player_id === perf.player_id);
     return (
       <div key={`${perf.player_id}-${perf.team}`} className="border rounded-lg p-3 space-y-3">
         <div className="flex items-center justify-between">
           <span className="font-medium text-sm">{player?.name || perf.player_id} <span className="text-xs text-muted-foreground">({perf.player_id})</span></span>
           <Badge variant="outline" className="text-xs">{perf.team}</Badge>
         </div>
-
-        {/* Batting toggle + fields */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Checkbox checked={perf.did_bat} onCheckedChange={c => updatePerf(perf.player_id, perf.team, 'did_bat', !!c)} />
@@ -236,15 +192,13 @@ export function AdminMatches() {
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="-" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value=" ">N/A</SelectItem>
-                    {mockPlayers.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
+                    {players.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
           )}
         </div>
-
-        {/* Bowling toggle + fields */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Checkbox checked={perf.did_bowl} onCheckedChange={c => updatePerf(perf.player_id, perf.team, 'did_bowl', !!c)} />
@@ -268,7 +222,6 @@ export function AdminMatches() {
 
   return (
     <div className="space-y-6">
-      {/* ── Matches List ── */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="font-display">🏏 Matches</CardTitle>
@@ -277,17 +230,20 @@ export function AdminMatches() {
               <Button size="sm" onClick={() => setEditMatch({ ...emptyMatch })}><Plus className="h-4 w-4 mr-1" /> Add Match</Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-              <DialogHeader><DialogTitle>{editMatch?.match_id ? 'Edit' : 'Add'} Match</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>{editMatch?.match_id ? 'Edit' : 'Add'} Match</DialogTitle>
+                <DialogDescription>Fill in the match details.</DialogDescription>
+              </DialogHeader>
               <div className="space-y-3">
                 <div><Label>Tournament</Label>
                   <Select value={editMatch?.tournament_id || ''} onValueChange={v => setEditMatch(prev => prev ? { ...prev, tournament_id: v } : null)}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{mockTournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}</SelectContent>
                   </Select></div>
                 <div><Label>Season</Label>
                   <Select value={editMatch?.season_id || ''} onValueChange={v => setEditMatch(prev => prev ? { ...prev, season_id: v } : null)}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{mockSeasons.filter(s => !editMatch?.tournament_id || s.tournament_id === editMatch.tournament_id).map(s => <SelectItem key={s.season_id} value={s.season_id}>{s.year} ({s.season_id})</SelectItem>)}</SelectContent>
+                    <SelectContent>{seasons.filter(s => !editMatch?.tournament_id || s.tournament_id === editMatch.tournament_id).map(s => <SelectItem key={s.season_id} value={s.season_id}>{s.year} ({s.season_id})</SelectItem>)}</SelectContent>
                   </Select></div>
                 <div><Label>Date</Label><Input type="date" value={editMatch?.date || ''} onChange={e => setEditMatch(prev => prev ? { ...prev, date: e.target.value } : null)} /></div>
                 <div className="grid grid-cols-2 gap-2">
@@ -306,9 +262,9 @@ export function AdminMatches() {
                 <div><Label>Man of Match</Label>
                   <Select value={editMatch?.man_of_match || ''} onValueChange={v => setEditMatch(prev => prev ? { ...prev, man_of_match: v } : null)}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{mockPlayers.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{players.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}</SelectContent>
                   </Select></div>
-                <Button onClick={saveMatch} className="w-full">Save Match</Button>
+                <Button onClick={saveMatchHandler} className="w-full">Save Match</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -317,7 +273,7 @@ export function AdminMatches() {
           <Table>
             <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Date</TableHead><TableHead>Teams</TableHead><TableHead>Status</TableHead><TableHead>Result</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
             <TableBody>
-              {matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(m => (
+              {[...matches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(m => (
                 <TableRow key={m.match_id} className={selectedMatch === m.match_id ? 'bg-primary/5' : ''}>
                   <TableCell className="font-mono text-xs">{m.match_id}</TableCell>
                   <TableCell>{m.date ? format(new Date(m.date), 'dd MMM yyyy') : '-'}</TableCell>
@@ -327,11 +283,9 @@ export function AdminMatches() {
                   <TableCell>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" title="Edit match" onClick={() => { setEditMatch(m); setMatchOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                      <Button size="icon" variant="ghost" title="Edit scorecard" onClick={() => openScorecardEntry(m.match_id)}>
-                        <Users className="h-3 w-3 text-primary" />
-                      </Button>
+                      <Button size="icon" variant="ghost" title="Edit scorecard" onClick={() => openScorecardEntry(m.match_id)}><Users className="h-3 w-3 text-primary" /></Button>
                       <Button size="icon" variant="ghost" title="View scorecard" onClick={() => setSelectedMatch(selectedMatch === m.match_id ? '' : m.match_id)}>📊</Button>
-                      <Button size="icon" variant="ghost" onClick={() => { setMatches(prev => prev.filter(x => x.match_id !== m.match_id)); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                      <Button size="icon" variant="ghost" onClick={async () => { await deleteMatch(m.match_id); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -341,29 +295,29 @@ export function AdminMatches() {
         </CardContent>
       </Card>
 
-      {/* ── Scorecard Entry Dialog ── */}
+      {/* Scorecard Entry Dialog — scrollable fix */}
       <Dialog open={scorecardOpen} onOpenChange={setScorecardOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="font-display">
               📊 Scorecard Entry — {scorecardMatch?.team_a} vs {scorecardMatch?.team_b} ({scorecardMatchId})
             </DialogTitle>
+            <DialogDescription>Add players and enter their batting/bowling performance.</DialogDescription>
           </DialogHeader>
 
-          <Tabs value={scorecardTeamTab} onValueChange={v => setScorecardTeamTab(v as 'teamA' | 'teamB')} className="flex-1 flex flex-col overflow-hidden">
+          <Tabs value={scorecardTeamTab} onValueChange={v => setScorecardTeamTab(v as 'teamA' | 'teamB')} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid grid-cols-2">
               <TabsTrigger value="teamA">{scorecardMatch?.team_a || 'Team A'} ({teamAPlayers.length})</TabsTrigger>
               <TabsTrigger value="teamB">{scorecardMatch?.team_b || 'Team B'} ({teamBPlayers.length})</TabsTrigger>
             </TabsList>
 
-            <ScrollArea className="flex-1 mt-4">
+            <div className="flex-1 overflow-y-auto mt-4 pr-2" style={{ maxHeight: 'calc(90vh - 220px)' }}>
               <TabsContent value="teamA" className="space-y-4 mt-0">
-                {/* Player selection for Team A */}
                 <div className="border rounded-lg p-3">
                   <Label className="text-sm font-semibold mb-2 block">Select players for {scorecardMatch?.team_a}:</Label>
                   <p className="text-xs text-muted-foreground mb-2">Same player can appear in both teams</p>
                   <div className="flex flex-wrap gap-2">
-                    {mockPlayers.filter(p => p.status === 'active').map(p => (
+                    {players.filter(p => p.status === 'active').map(p => (
                       <label key={p.player_id} className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm">
                         <Checkbox checked={teamAPlayers.includes(p.player_id)} onCheckedChange={() => togglePlayer(p.player_id, 'A')} />
                         {p.name}
@@ -371,8 +325,6 @@ export function AdminMatches() {
                     ))}
                   </div>
                 </div>
-
-                {/* Performances for Team A */}
                 {performances.filter(p => p.team === scorecardMatch?.team_a).map(renderPlayerPerformanceRow)}
               </TabsContent>
 
@@ -381,7 +333,7 @@ export function AdminMatches() {
                   <Label className="text-sm font-semibold mb-2 block">Select players for {scorecardMatch?.team_b}:</Label>
                   <p className="text-xs text-muted-foreground mb-2">Same player can appear in both teams</p>
                   <div className="flex flex-wrap gap-2">
-                    {mockPlayers.filter(p => p.status === 'active').map(p => (
+                    {players.filter(p => p.status === 'active').map(p => (
                       <label key={p.player_id} className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm">
                         <Checkbox checked={teamBPlayers.includes(p.player_id)} onCheckedChange={() => togglePlayer(p.player_id, 'B')} />
                         {p.name}
@@ -389,10 +341,9 @@ export function AdminMatches() {
                     ))}
                   </div>
                 </div>
-
                 {performances.filter(p => p.team === scorecardMatch?.team_b).map(renderPlayerPerformanceRow)}
               </TabsContent>
-            </ScrollArea>
+            </div>
           </Tabs>
 
           <div className="flex justify-end gap-2 pt-4 border-t mt-2">
@@ -402,32 +353,27 @@ export function AdminMatches() {
         </DialogContent>
       </Dialog>
 
-      {/* ── View Scorecard ── */}
+      {/* View Scorecard */}
       {selectedMatch && sel && (
         <Card>
-          <CardHeader>
-            <CardTitle className="font-display">📊 Scorecard — {sel.team_a} vs {sel.team_b} ({sel.match_id})</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="font-display">📊 Scorecard — {sel.team_a} vs {sel.team_b} ({sel.match_id})</CardTitle></CardHeader>
           <CardContent>
             <Tabs defaultValue="teamA_view">
               <TabsList>
                 <TabsTrigger value="teamA_view">{sel.team_a}</TabsTrigger>
                 <TabsTrigger value="teamB_view">{sel.team_b}</TabsTrigger>
               </TabsList>
-
               {[sel.team_a, sel.team_b].map((team, idx) => {
                 const teamBat = matchBatting.filter(b => b.team === team);
                 const teamBowl = matchBowling.filter(b => b.team === team);
                 const totalRuns = teamBat.reduce((s, b) => s + b.runs, 0);
                 const totalWickets = teamBat.filter(b => b.how_out && b.how_out !== 'not out').length;
-
                 return (
                   <TabsContent key={team} value={idx === 0 ? 'teamA_view' : 'teamB_view'} className="mt-4 space-y-4">
                     <div className="flex items-center gap-2">
                       <span className="font-display text-lg font-bold">{team}</span>
                       <Badge className="bg-primary text-primary-foreground">{totalRuns}/{totalWickets}</Badge>
                     </div>
-
                     <div>
                       <h4 className="text-sm font-semibold mb-2">Batting</h4>
                       <Table>
@@ -435,7 +381,7 @@ export function AdminMatches() {
                         <TableBody>
                           {teamBat.map(b => (
                             <TableRow key={b.id}>
-                              <TableCell className="font-medium">{mockPlayers.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                              <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
                               <TableCell className="font-bold">{b.runs}</TableCell>
                               <TableCell>{b.balls}</TableCell>
                               <TableCell>{b.fours}</TableCell>
@@ -447,7 +393,6 @@ export function AdminMatches() {
                         </TableBody>
                       </Table>
                     </div>
-
                     {teamBowl.length > 0 && (
                       <div>
                         <h4 className="text-sm font-semibold mb-2">Bowling</h4>
@@ -456,7 +401,7 @@ export function AdminMatches() {
                           <TableBody>
                             {teamBowl.map(b => (
                               <TableRow key={b.id}>
-                                <TableCell className="font-medium">{mockPlayers.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                                <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
                                 <TableCell>{b.overs}</TableCell>
                                 <TableCell>{b.maidens}</TableCell>
                                 <TableCell>{b.runs_conceded}</TableCell>
