@@ -1,20 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Announcement } from '@/lib/types';
-import { mockAnnouncements } from '@/lib/mockData';
+import { useData } from '@/lib/DataContext';
 
 export function AnnouncementTicker() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const { announcements } = useData();
 
-  useEffect(() => {
-    const active = mockAnnouncements
-      .filter(a => a.active)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setAnnouncements(active);
-  }, []);
+  const activeAnnouncements = [...announcements]
+    .filter(a => a.active)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  if (!announcements.length) return null;
+  if (activeAnnouncements.length === 0) return null;
 
-  const tickerText = announcements.map(a => `📢 ${a.title}: ${a.message}`).join('   •   ');
+  const tickerText = activeAnnouncements.map(a => `📢 ${a.title}: ${a.message}`).join('   •   ');
 
   return (
     <div className="bg-primary overflow-hidden py-2">
