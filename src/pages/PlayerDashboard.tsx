@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { mockPlayers, mockTournaments, mockSeasons, mockMatches, mockBattingScorecard, mockBowlingScorecard, mockMessages } from '@/lib/mockData';
+import { useData } from '@/lib/DataContext';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount } from '@/lib/calculations';
 import { BarChart3, MessageSquare, User, Send } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -18,39 +18,51 @@ import { format } from 'date-fns';
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
   const { toast } = useToast();
+  const { players, tournaments, seasons, matches, batting, bowling, messages, addMessage } = useData();
   const [filterTournament, setFilterTournament] = useState<string>('all');
   const [filterSeason, setFilterSeason] = useState<string>('all');
   const [replyBody, setReplyBody] = useState<Record<string, string>>({});
 
   const player = useMemo(() => {
     if (!user?.player_id) return null;
-    return mockPlayers.find(p => p.player_id === user.player_id) || null;
-  }, [user?.player_id]);
+    return players.find(p => p.player_id === user.player_id) || null;
+  }, [user?.player_id, players]);
 
   const relevantSeasons = filterTournament === 'all'
-    ? mockSeasons
-    : mockSeasons.filter(s => s.tournament_id === filterTournament);
+    ? seasons
+    : seasons.filter(s => s.tournament_id === filterTournament);
 
   const relevantMatchIds = useMemo(() => {
-    let matches = mockMatches;
-    if (filterTournament !== 'all') matches = matches.filter(m => m.tournament_id === filterTournament);
-    if (filterSeason !== 'all') matches = matches.filter(m => m.season_id === filterSeason);
-    return matches.map(m => m.match_id);
-  }, [filterTournament, filterSeason]);
+    let m = matches;
+    if (filterTournament !== 'all') m = m.filter(x => x.tournament_id === filterTournament);
+    if (filterSeason !== 'all') m = m.filter(x => x.season_id === filterSeason);
+    return m.map(x => x.match_id);
+  }, [filterTournament, filterSeason, matches]);
 
-  const playerBatting = useMemo(() => user?.player_id ? mockBattingScorecard.filter(b => b.player_id === user.player_id && relevantMatchIds.includes(b.match_id)) : [], [user?.player_id, relevantMatchIds]);
-  const playerBowling = useMemo(() => user?.player_id ? mockBowlingScorecard.filter(b => b.player_id === user.player_id && relevantMatchIds.includes(b.match_id)) : [], [user?.player_id, relevantMatchIds]);
+  const playerBatting = useMemo(() => user?.player_id ? batting.filter(b => b.player_id === user.player_id && relevantMatchIds.includes(b.match_id)) : [], [user?.player_id, relevantMatchIds, batting]);
+  const playerBowling = useMemo(() => user?.player_id ? bowling.filter(b => b.player_id === user.player_id && relevantMatchIds.includes(b.match_id)) : [], [user?.player_id, relevantMatchIds, bowling]);
   const battingStats = useMemo(() => calcBattingStats(playerBatting), [playerBatting]);
   const bowlingStats = useMemo(() => calcBowlingStats(playerBowling), [playerBowling]);
-  const totalMatches = useMemo(() => user?.player_id ? getPlayerMatchCount(user.player_id, mockBattingScorecard, mockBowlingScorecard) : 0, [user?.player_id]);
+  const totalMatches = useMemo(() => user?.player_id ? getPlayerMatchCount(user.player_id, batting, bowling) : 0, [user?.player_id, batting, bowling]);
 
-  const playerMessages = useMemo(() => user?.player_id ? mockMessages.filter(m => m.to_id === user.player_id || m.to_id === 'all' || m.from_id === user.player_id) : [], [user?.player_id]);
+  const playerMessages = useMemo(() => user?.player_id ? messages.filter(m => m.to_id === user.player_id || m.to_id === 'all' || m.from_id === user.player_id) : [], [user?.player_id, messages]);
 
   if (!isPlayer || !user?.player_id || !player) return <Navigate to="/login" />;
 
-  const handleReply = (msgId: string) => {
+  const handleReply = async (msgId: string) => {
     if (!replyBody[msgId]?.trim()) return;
-    toast({ title: 'Reply Sent', description: 'Your reply has been sent (mock mode).' });
+    const msg = messages.find(m => m.id === msgId);
+    await addMessage({
+      id: `MSG${String(messages.length + 1).padStart(3, '0')}`,
+      from_id: user.player_id!,
+      to_id: msg?.from_id || 'admin',
+      subject: `Re: ${msg?.subject || ''}`,
+      body: replyBody[msgId],
+      date: new Date().toISOString().split('T')[0],
+      read: false,
+      reply_to: msgId,
+    });
+    toast({ title: 'Reply Sent' });
     setReplyBody(prev => ({ ...prev, [msgId]: '' }));
   };
 
@@ -58,7 +70,6 @@ const PlayerDashboard = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Profile Header */}
         <Card className="border-l-4 border-l-primary">
           <CardContent className="p-6 flex flex-col md:flex-row items-start md:items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -70,27 +81,16 @@ const PlayerDashboard = () => {
               <p className="text-sm text-muted-foreground">{player.phone}</p>
             </div>
             <div className="flex gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold text-primary">{totalMatches}</p>
-                <p className="text-xs text-muted-foreground">Matches</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-accent">{battingStats?.totalRuns || 0}</p>
-                <p className="text-xs text-muted-foreground">Runs</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-destructive">{bowlingStats?.totalWickets || 0}</p>
-                <p className="text-xs text-muted-foreground">Wickets</p>
-              </div>
+              <div><p className="text-2xl font-bold text-primary">{totalMatches}</p><p className="text-xs text-muted-foreground">Matches</p></div>
+              <div><p className="text-2xl font-bold text-accent">{battingStats?.totalRuns || 0}</p><p className="text-xs text-muted-foreground">Runs</p></div>
+              <div><p className="text-2xl font-bold text-destructive">{bowlingStats?.totalWickets || 0}</p><p className="text-xs text-muted-foreground">Wickets</p></div>
             </div>
           </CardContent>
         </Card>
 
         <Tabs defaultValue="stats">
           <TabsList>
-            <TabsTrigger value="stats" className="flex items-center gap-1">
-              <BarChart3 className="h-4 w-4" /> Career Stats
-            </TabsTrigger>
+            <TabsTrigger value="stats" className="flex items-center gap-1"><BarChart3 className="h-4 w-4" /> Career Stats</TabsTrigger>
             <TabsTrigger value="messages" className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" /> Messages
               {playerMessages.filter(m => !m.read && m.to_id === user.player_id).length > 0 && (
@@ -109,7 +109,7 @@ const PlayerDashboard = () => {
                   <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Tournaments</SelectItem>
-                    {mockTournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}
+                    {tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -130,18 +130,7 @@ const PlayerDashboard = () => {
               <CardContent>
                 {battingStats ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {[
-                      ['Innings', battingStats.innings],
-                      ['Runs', battingStats.totalRuns],
-                      ['Average', battingStats.avg.toFixed(2)],
-                      ['Strike Rate', battingStats.sr.toFixed(1)],
-                      ['Highest', battingStats.highest],
-                      ['4s', battingStats.totalFours],
-                      ['6s', battingStats.totalSixes],
-                      ['50s', battingStats.fifties],
-                      ['100s', battingStats.hundreds],
-                      ['30s', battingStats.thirties],
-                    ].map(([label, value]) => (
+                    {[['Innings', battingStats.innings], ['Runs', battingStats.totalRuns], ['Average', battingStats.avg.toFixed(2)], ['Strike Rate', battingStats.sr.toFixed(1)], ['Highest', battingStats.highest], ['4s', battingStats.totalFours], ['6s', battingStats.totalSixes], ['50s', battingStats.fifties], ['100s', battingStats.hundreds], ['30s', battingStats.thirties]].map(([label, value]) => (
                       <div key={String(label)} className="bg-muted rounded-lg p-3 text-center">
                         <p className="text-xl font-bold">{value}</p>
                         <p className="text-xs text-muted-foreground">{label}</p>
@@ -157,17 +146,7 @@ const PlayerDashboard = () => {
               <CardContent>
                 {bowlingStats ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {[
-                      ['Innings', bowlingStats.innings],
-                      ['Overs', bowlingStats.totalOvers],
-                      ['Wickets', bowlingStats.totalWickets],
-                      ['Economy', bowlingStats.economy.toFixed(2)],
-                      ['Average', bowlingStats.avg.toFixed(2)],
-                      ['Maidens', bowlingStats.totalMaidens],
-                      ['Best', bowlingStats.bestFigures],
-                      ['3W', bowlingStats.threeWickets],
-                      ['5W', bowlingStats.fiveWickets],
-                    ].map(([label, value]) => (
+                    {[['Innings', bowlingStats.innings], ['Overs', bowlingStats.totalOvers], ['Wickets', bowlingStats.totalWickets], ['Economy', bowlingStats.economy.toFixed(2)], ['Average', bowlingStats.avg.toFixed(2)], ['Maidens', bowlingStats.totalMaidens], ['Best', bowlingStats.bestFigures], ['3W', bowlingStats.threeWickets], ['5W', bowlingStats.fiveWickets]].map(([label, value]) => (
                       <div key={String(label)} className="bg-muted rounded-lg p-3 text-center">
                         <p className="text-xl font-bold">{value}</p>
                         <p className="text-xs text-muted-foreground">{label}</p>
@@ -182,18 +161,14 @@ const PlayerDashboard = () => {
               <CardHeader><CardTitle className="font-display">📋 Match History</CardTitle></CardHeader>
               <CardContent>
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Match</TableHead><TableHead>Date</TableHead><TableHead>Teams</TableHead><TableHead>Runs</TableHead><TableHead>Wickets</TableHead><TableHead>Result</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader><TableRow><TableHead>Match</TableHead><TableHead>Date</TableHead><TableHead>Teams</TableHead><TableHead>Runs</TableHead><TableHead>Wickets</TableHead><TableHead>Result</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {mockMatches.filter(m => relevantMatchIds.includes(m.match_id) &&
-                      (mockBattingScorecard.some(b => b.player_id === user.player_id && b.match_id === m.match_id) ||
-                       mockBowlingScorecard.some(b => b.player_id === user.player_id && b.match_id === m.match_id))
+                    {matches.filter(m => relevantMatchIds.includes(m.match_id) &&
+                      (batting.some(b => b.player_id === user.player_id && b.match_id === m.match_id) ||
+                       bowling.some(b => b.player_id === user.player_id && b.match_id === m.match_id))
                     ).map(match => {
-                      const bat = mockBattingScorecard.find(b => b.player_id === user.player_id && b.match_id === match.match_id);
-                      const bowl = mockBowlingScorecard.find(b => b.player_id === user.player_id && b.match_id === match.match_id);
+                      const bat = batting.find(b => b.player_id === user.player_id && b.match_id === match.match_id);
+                      const bowl = bowling.find(b => b.player_id === user.player_id && b.match_id === match.match_id);
                       return (
                         <TableRow key={match.match_id}>
                           <TableCell className="font-mono text-xs">{match.match_id}</TableCell>
@@ -214,28 +189,19 @@ const PlayerDashboard = () => {
           <TabsContent value="messages" className="space-y-4 mt-4">
             <h2 className="font-display text-xl font-bold">📬 Messages</h2>
             {playerMessages.length === 0 && <p className="text-muted-foreground">No messages.</p>}
-            {playerMessages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(msg => (
+            {[...playerMessages].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(msg => (
               <Card key={msg.id} className={`${!msg.read && msg.to_id === user.player_id ? 'border-l-4 border-l-accent' : ''}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-sm">
-                      {msg.from_id === user.player_id ? `To: ${msg.to_id}` : `From: ${msg.from_id}`}
-                    </span>
+                    <span className="font-medium text-sm">{msg.from_id === user.player_id ? `To: ${msg.to_id}` : `From: ${msg.from_id}`}</span>
                     <span className="text-xs text-muted-foreground">{format(new Date(msg.date), 'dd MMM yyyy')}</span>
                   </div>
                   <p className="font-semibold text-sm">{msg.subject}</p>
                   <p className="text-sm text-muted-foreground mt-1">{msg.body}</p>
                   {msg.from_id !== user.player_id && (
                     <div className="mt-3 flex gap-2">
-                      <Input
-                        placeholder="Type your reply..."
-                        value={replyBody[msg.id] || ''}
-                        onChange={e => setReplyBody(prev => ({ ...prev, [msg.id]: e.target.value }))}
-                        className="flex-1"
-                      />
-                      <Button size="sm" onClick={() => handleReply(msg.id)}>
-                        <Send className="h-3 w-3 mr-1" /> Reply
-                      </Button>
+                      <Input placeholder="Type your reply..." value={replyBody[msg.id] || ''} onChange={e => setReplyBody(prev => ({ ...prev, [msg.id]: e.target.value }))} className="flex-1" />
+                      <Button size="sm" onClick={() => handleReply(msg.id)}><Send className="h-3 w-3 mr-1" /> Reply</Button>
                     </div>
                   )}
                 </CardContent>

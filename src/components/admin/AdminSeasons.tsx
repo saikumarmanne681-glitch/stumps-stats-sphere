@@ -5,33 +5,33 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { mockSeasons, mockTournaments } from '@/lib/mockData';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useData } from '@/lib/DataContext';
 import { Season } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export function AdminSeasons() {
-  const [items, setItems] = useState<Season[]>(mockSeasons);
+  const { seasons, tournaments, addSeason, updateSeason, deleteSeason } = useData();
   const [editItem, setEditItem] = useState<Season | null>(null);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
   const empty: Season = { season_id: '', tournament_id: '', year: new Date().getFullYear(), start_date: '', end_date: '', status: 'upcoming' };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editItem?.tournament_id || !editItem?.year) { toast({ title: 'Error', description: 'Fill required fields', variant: 'destructive' }); return; }
     if (editItem.season_id) {
-      setItems(prev => prev.map(i => i.season_id === editItem.season_id ? editItem : i));
+      await updateSeason(editItem);
     } else {
-      setItems(prev => [...prev, { ...editItem, season_id: `S${String(prev.length + 1).padStart(3, '0')}` }]);
+      await addSeason({ ...editItem, season_id: `S${String(seasons.length + 1).padStart(3, '0')}` });
     }
     toast({ title: 'Saved' });
     setOpen(false);
   };
 
-  const getTournamentName = (id: string) => mockTournaments.find(t => t.tournament_id === id)?.name || id;
+  const getTournamentName = (id: string) => tournaments.find(t => t.tournament_id === id)?.name || id;
 
   return (
     <Card>
@@ -42,15 +42,16 @@ export function AdminSeasons() {
             <Button size="sm" onClick={() => setEditItem({ ...empty })}><Plus className="h-4 w-4 mr-1" /> Add</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>{editItem?.season_id ? 'Edit' : 'Add'} Season</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{editItem?.season_id ? 'Edit' : 'Add'} Season</DialogTitle>
+              <DialogDescription>Fill in the season details.</DialogDescription>
+            </DialogHeader>
             <div className="space-y-4">
               <div>
                 <Label>Tournament</Label>
                 <Select value={editItem?.tournament_id || ''} onValueChange={v => setEditItem(prev => prev ? { ...prev, tournament_id: v } : null)}>
                   <SelectTrigger><SelectValue placeholder="Select tournament" /></SelectTrigger>
-                  <SelectContent>
-                    {mockTournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div><Label>Year</Label><Input type="number" value={editItem?.year || ''} onChange={e => setEditItem(prev => prev ? { ...prev, year: Number(e.target.value) } : null)} /></div>
@@ -76,7 +77,7 @@ export function AdminSeasons() {
         <Table>
           <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Tournament</TableHead><TableHead>Year</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
           <TableBody>
-            {items.map(s => (
+            {seasons.map(s => (
               <TableRow key={s.season_id}>
                 <TableCell className="font-mono text-xs">{s.season_id}</TableCell>
                 <TableCell>{getTournamentName(s.tournament_id)}</TableCell>
@@ -85,7 +86,7 @@ export function AdminSeasons() {
                 <TableCell>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => { setEditItem(s); setOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => { setItems(prev => prev.filter(x => x.season_id !== s.season_id)); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    <Button size="icon" variant="ghost" onClick={async () => { await deleteSeason(s.season_id); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
