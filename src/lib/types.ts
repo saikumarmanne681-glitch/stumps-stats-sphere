@@ -38,6 +38,8 @@ export interface Match {
   toss_decision: string;
   result: string;
   man_of_match: string;
+  team_a_score: string;
+  team_b_score: string;
 }
 
 export interface BattingScorecard {
@@ -85,6 +87,7 @@ export interface Message {
   date: string;
   read: boolean;
   reply_to: string;
+  timestamp: string;
 }
 
 export interface AuthUser {

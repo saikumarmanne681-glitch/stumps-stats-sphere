@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/lib/DataContext';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount } from '@/lib/calculations';
-import { BarChart3, MessageSquare, User, Send } from 'lucide-react';
+import { generateId } from '@/lib/utils';
+import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -18,10 +19,11 @@ import { format } from 'date-fns';
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
   const { toast } = useToast();
-  const { players, tournaments, seasons, matches, batting, bowling, messages, addMessage } = useData();
+  const { players, tournaments, seasons, matches, batting, bowling, messages, addMessage, updateMessage } = useData();
   const [filterTournament, setFilterTournament] = useState<string>('all');
   const [filterSeason, setFilterSeason] = useState<string>('all');
   const [replyBody, setReplyBody] = useState<Record<string, string>>({});
+  const [expandedThread, setExpandedThread] = useState<string>('');
 
   const player = useMemo(() => {
     if (!user?.player_id) return null;
@@ -47,23 +49,52 @@ const PlayerDashboard = () => {
 
   const playerMessages = useMemo(() => user?.player_id ? messages.filter(m => m.to_id === user.player_id || m.to_id === 'all' || m.from_id === user.player_id) : [], [user?.player_id, messages]);
 
+  // Thread grouping
+  const threads = useMemo(() => {
+    const threadMap = new Map<string, typeof playerMessages>();
+    const roots = playerMessages.filter(m => !m.reply_to);
+    roots.forEach(root => {
+      const thread = [root];
+      const findReplies = (parentId: string) => {
+        const replies = playerMessages.filter(m => m.reply_to === parentId);
+        replies.forEach(r => { thread.push(r); findReplies(r.id); });
+      };
+      findReplies(root.id);
+      thread.sort((a, b) => new Date(a.timestamp || a.date).getTime() - new Date(b.timestamp || b.date).getTime());
+      threadMap.set(root.id, thread);
+    });
+    // Orphan replies
+    playerMessages.filter(m => m.reply_to && !playerMessages.find(p => p.id === m.reply_to)).forEach(m => {
+      threadMap.set(m.id, [m]);
+    });
+    return Array.from(threadMap.entries())
+      .sort(([, a], [, b]) => new Date(b[b.length - 1].timestamp || b[b.length - 1].date).getTime() - new Date(a[a.length - 1].timestamp || a[a.length - 1].date).getTime());
+  }, [playerMessages]);
+
   if (!isPlayer || !user?.player_id || !player) return <Navigate to="/login" />;
 
-  const handleReply = async (msgId: string) => {
-    if (!replyBody[msgId]?.trim()) return;
-    const msg = messages.find(m => m.id === msgId);
+  const handleReply = async (threadId: string, lastMsg: typeof playerMessages[0]) => {
+    const body = replyBody[threadId];
+    if (!body?.trim()) return;
     await addMessage({
-      id: `MSG${String(messages.length + 1).padStart(3, '0')}`,
+      id: generateId('MSG'),
       from_id: user.player_id!,
-      to_id: msg?.from_id || 'admin',
-      subject: `Re: ${msg?.subject || ''}`,
-      body: replyBody[msgId],
+      to_id: lastMsg.from_id === user.player_id ? (lastMsg.to_id === 'all' ? 'admin' : lastMsg.to_id) : lastMsg.from_id,
+      subject: lastMsg.subject.startsWith('Re:') ? lastMsg.subject : `Re: ${lastMsg.subject}`,
+      body,
       date: new Date().toISOString().split('T')[0],
       read: false,
-      reply_to: msgId,
+      reply_to: lastMsg.id,
+      timestamp: new Date().toISOString(),
     });
     toast({ title: 'Reply Sent' });
-    setReplyBody(prev => ({ ...prev, [msgId]: '' }));
+    setReplyBody(prev => ({ ...prev, [threadId]: '' }));
+  };
+
+  const getDisplayName = (id: string) => {
+    if (id === 'admin') return '🛡️ Admin';
+    if (id === 'all') return '📢 All Players';
+    return players.find(p => p.player_id === id)?.name || id;
   };
 
   return (
@@ -93,9 +124,9 @@ const PlayerDashboard = () => {
             <TabsTrigger value="stats" className="flex items-center gap-1"><BarChart3 className="h-4 w-4" /> Career Stats</TabsTrigger>
             <TabsTrigger value="messages" className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" /> Messages
-              {playerMessages.filter(m => !m.read && m.to_id === user.player_id).length > 0 && (
+              {playerMessages.filter(m => !m.read && m.from_id !== user.player_id && m.to_id !== 'all').length > 0 && (
                 <Badge className="ml-1 bg-destructive text-destructive-foreground text-xs h-5 w-5 p-0 flex items-center justify-center rounded-full">
-                  {playerMessages.filter(m => !m.read && m.to_id === user.player_id).length}
+                  {playerMessages.filter(m => !m.read && m.from_id !== user.player_id).length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -188,25 +219,65 @@ const PlayerDashboard = () => {
 
           <TabsContent value="messages" className="space-y-4 mt-4">
             <h2 className="font-display text-xl font-bold">📬 Messages</h2>
-            {playerMessages.length === 0 && <p className="text-muted-foreground">No messages.</p>}
-            {[...playerMessages].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(msg => (
-              <Card key={msg.id} className={`${!msg.read && msg.to_id === user.player_id ? 'border-l-4 border-l-accent' : ''}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-sm">{msg.from_id === user.player_id ? `To: ${msg.to_id}` : `From: ${msg.from_id}`}</span>
-                    <span className="text-xs text-muted-foreground">{format(new Date(msg.date), 'dd MMM yyyy')}</span>
-                  </div>
-                  <p className="font-semibold text-sm">{msg.subject}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{msg.body}</p>
-                  {msg.from_id !== user.player_id && (
-                    <div className="mt-3 flex gap-2">
-                      <Input placeholder="Type your reply..." value={replyBody[msg.id] || ''} onChange={e => setReplyBody(prev => ({ ...prev, [msg.id]: e.target.value }))} className="flex-1" />
-                      <Button size="sm" onClick={() => handleReply(msg.id)}><Send className="h-3 w-3 mr-1" /> Reply</Button>
+            {threads.length === 0 && <p className="text-muted-foreground">No messages.</p>}
+            {threads.map(([rootId, thread]) => {
+              const root = thread[0];
+              const unreadCount = thread.filter(m => !m.read && m.from_id !== user.player_id).length;
+              const isExpanded = expandedThread === rootId;
+              
+              return (
+                <Card key={rootId} className={unreadCount > 0 ? 'border-l-4 border-l-accent' : ''}>
+                  <div
+                    className="p-4 cursor-pointer hover:bg-muted/30"
+                    onClick={() => {
+                      setExpandedThread(isExpanded ? '' : rootId);
+                      thread.filter(m => !m.read && m.from_id !== user.player_id).forEach(m => updateMessage({ ...m, read: true }));
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">{root.subject}</span>
+                        {unreadCount > 0 && <Badge className="bg-accent text-accent-foreground text-xs">{unreadCount} new</Badge>}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{thread.length} msg{thread.length > 1 ? 's' : ''}</span>
                     </div>
+                    <p className="text-xs text-muted-foreground">{getDisplayName(root.from_id)} • {format(new Date(thread[thread.length - 1].timestamp || thread[thread.length - 1].date), 'dd MMM HH:mm')}</p>
+                  </div>
+
+                  {isExpanded && (
+                    <CardContent className="pt-0 border-t">
+                      <div className="max-h-[400px] overflow-y-auto space-y-3 py-3 scrollbar-thin">
+                        {thread.map(msg => (
+                          <div key={msg.id} className={`flex ${msg.from_id === user.player_id ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] rounded-lg p-3 ${msg.from_id === user.player_id ? 'bg-primary/10 border border-primary/20' : 'bg-muted'}`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-semibold">{getDisplayName(msg.from_id)}</span>
+                                <span className="text-xs text-muted-foreground">{format(new Date(msg.timestamp || msg.date), 'dd MMM HH:mm')}</span>
+                                {msg.from_id === user.player_id && (
+                                  msg.read ? <CheckCheck className="h-3 w-3 text-primary" /> : <Clock className="h-3 w-3 text-muted-foreground" />
+                                )}
+                              </div>
+                              <p className="text-sm">{msg.body}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 pt-3 border-t">
+                        <Input
+                          placeholder="Type your reply..."
+                          value={replyBody[rootId] || ''}
+                          onChange={e => setReplyBody(prev => ({ ...prev, [rootId]: e.target.value }))}
+                          className="flex-1"
+                        />
+                        <Button size="sm" onClick={() => handleReply(rootId, thread[thread.length - 1])} disabled={!replyBody[rootId]?.trim()}>
+                          <Send className="h-3 w-3 mr-1" /> Reply
+                        </Button>
+                      </div>
+                    </CardContent>
                   )}
-                </CardContent>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </TabsContent>
         </Tabs>
       </div>

@@ -8,9 +8,10 @@ interface MatchCardProps {
   match: Match;
   tournament?: Tournament;
   players: Player[];
+  onClick?: () => void;
 }
 
-export function MatchCard({ match, tournament, players }: MatchCardProps) {
+export function MatchCard({ match, tournament, players, onClick }: MatchCardProps) {
   const mom = players.find(p => p.player_id === match.man_of_match);
   const statusColors: Record<string, string> = {
     completed: 'bg-primary text-primary-foreground',
@@ -20,7 +21,10 @@ export function MatchCard({ match, tournament, players }: MatchCardProps) {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-primary">
+    <Card
+      className="hover:shadow-lg transition-shadow border-l-4 border-l-primary cursor-pointer hover:border-l-accent"
+      onClick={onClick}
+    >
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-muted-foreground font-mono">{match.match_id}</span>
@@ -36,13 +40,19 @@ export function MatchCard({ match, tournament, players }: MatchCardProps) {
         )}
 
         <div className="flex items-center justify-between my-3">
-          <span className="font-display text-lg font-semibold">{match.team_a}</span>
-          <span className="text-muted-foreground text-sm font-bold">vs</span>
-          <span className="font-display text-lg font-semibold">{match.team_b}</span>
+          <div className="text-center flex-1">
+            <span className="font-display text-lg font-semibold block">{match.team_a}</span>
+            {match.team_a_score && <span className="text-primary font-bold text-sm">{match.team_a_score}</span>}
+          </div>
+          <span className="text-muted-foreground text-sm font-bold px-2">vs</span>
+          <div className="text-center flex-1">
+            <span className="font-display text-lg font-semibold block">{match.team_b}</span>
+            {match.team_b_score && <span className="text-primary font-bold text-sm">{match.team_b_score}</span>}
+          </div>
         </div>
 
         {match.result && (
-          <p className="text-sm text-primary font-medium mb-2">{match.result}</p>
+          <p className="text-sm text-primary font-medium mb-2 text-center">{match.result}</p>
         )}
 
         <div className="flex items-center gap-4 text-xs text-muted-foreground">

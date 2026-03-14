@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useData } from '@/lib/DataContext';
 import { Match, BattingScorecard, BowlingScorecard } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { generateId } from '@/lib/utils';
 import { Plus, Pencil, Trash2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -55,14 +56,14 @@ export function AdminMatches() {
 
   const { toast } = useToast();
 
-  const emptyMatch: Match = { match_id: '', season_id: '', tournament_id: '', date: '', team_a: '', team_b: '', venue: '', status: 'scheduled', toss_winner: '', toss_decision: '', result: '', man_of_match: '' };
+  const emptyMatch: Match = { match_id: '', season_id: '', tournament_id: '', date: '', team_a: '', team_b: '', venue: '', status: 'scheduled', toss_winner: '', toss_decision: '', result: '', man_of_match: '', team_a_score: '', team_b_score: '' };
 
   const saveMatchHandler = async () => {
     if (!editMatch?.team_a || !editMatch?.team_b) { toast({ title: 'Error', description: 'Fill teams', variant: 'destructive' }); return; }
     if (editMatch.match_id) {
       await updateMatch(editMatch);
     } else {
-      const newId = `M${String(matches.length + 1).padStart(3, '0')}`;
+      const newId = generateId('M');
       await addMatch({ ...editMatch, match_id: newId });
     }
     toast({ title: 'Match Saved' }); setMatchOpen(false);
@@ -132,25 +133,21 @@ export function AdminMatches() {
 
     const newBatting: BattingScorecard[] = [];
     const newBowling: BowlingScorecard[] = [];
-    let batCounter = 0;
-    let bowlCounter = 0;
 
     performances.forEach(p => {
       if (p.did_bat) {
-        batCounter++;
         const sr = p.bat_balls > 0 ? (p.bat_runs / p.bat_balls) * 100 : 0;
         newBatting.push({
-          id: `B${String(batCounter).padStart(3, '0')}_${scorecardMatchId}`,
+          id: generateId('B'),
           match_id: scorecardMatchId, player_id: p.player_id, team: p.team,
           runs: p.bat_runs, balls: p.bat_balls, fours: p.bat_fours, sixes: p.bat_sixes,
           strike_rate: Math.round(sr * 100) / 100, how_out: p.bat_how_out, bowler_id: p.bat_bowler_id,
         });
       }
       if (p.did_bowl) {
-        bowlCounter++;
         const eco = p.bowl_overs > 0 ? p.bowl_runs / p.bowl_overs : 0;
         newBowling.push({
-          id: `BW${String(bowlCounter).padStart(3, '0')}_${scorecardMatchId}`,
+          id: generateId('BW'),
           match_id: scorecardMatchId, player_id: p.player_id, team: p.team,
           overs: p.bowl_overs, maidens: p.bowl_maidens, runs_conceded: p.bowl_runs,
           wickets: p.bowl_wickets, economy: Math.round(eco * 100) / 100, extras: p.bowl_extras,
@@ -238,7 +235,7 @@ export function AdminMatches() {
                 <div><Label>Tournament</Label>
                   <Select value={editMatch?.tournament_id || ''} onValueChange={v => setEditMatch(prev => prev ? { ...prev, tournament_id: v } : null)}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name} ({t.tournament_id})</SelectItem>)}</SelectContent>
                   </Select></div>
                 <div><Label>Season</Label>
                   <Select value={editMatch?.season_id || ''} onValueChange={v => setEditMatch(prev => prev ? { ...prev, season_id: v } : null)}>
@@ -249,6 +246,10 @@ export function AdminMatches() {
                 <div className="grid grid-cols-2 gap-2">
                   <div><Label>Team A</Label><Input value={editMatch?.team_a || ''} onChange={e => setEditMatch(prev => prev ? { ...prev, team_a: e.target.value } : null)} /></div>
                   <div><Label>Team B</Label><Input value={editMatch?.team_b || ''} onChange={e => setEditMatch(prev => prev ? { ...prev, team_b: e.target.value } : null)} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>Team A Score</Label><Input value={editMatch?.team_a_score || ''} onChange={e => setEditMatch(prev => prev ? { ...prev, team_a_score: e.target.value } : null)} placeholder="e.g. 165/4 (20)" /></div>
+                  <div><Label>Team B Score</Label><Input value={editMatch?.team_b_score || ''} onChange={e => setEditMatch(prev => prev ? { ...prev, team_b_score: e.target.value } : null)} placeholder="e.g. 148/7 (18.2)" /></div>
                 </div>
                 <div><Label>Venue</Label><Input value={editMatch?.venue || ''} onChange={e => setEditMatch(prev => prev ? { ...prev, venue: e.target.value } : null)} /></div>
                 <div><Label>Status</Label>
@@ -271,13 +272,18 @@ export function AdminMatches() {
         </CardHeader>
         <CardContent>
           <Table>
-            <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Date</TableHead><TableHead>Teams</TableHead><TableHead>Status</TableHead><TableHead>Result</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Date</TableHead><TableHead>Teams</TableHead><TableHead>Score</TableHead><TableHead>Status</TableHead><TableHead>Result</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
             <TableBody>
               {[...matches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(m => (
                 <TableRow key={m.match_id} className={selectedMatch === m.match_id ? 'bg-primary/5' : ''}>
                   <TableCell className="font-mono text-xs">{m.match_id}</TableCell>
                   <TableCell>{m.date ? format(new Date(m.date), 'dd MMM yyyy') : '-'}</TableCell>
                   <TableCell className="font-medium">{m.team_a} vs {m.team_b}</TableCell>
+                  <TableCell className="text-xs">
+                    {m.team_a_score && <span className="block">{m.team_a}: {m.team_a_score}</span>}
+                    {m.team_b_score && <span className="block">{m.team_b}: {m.team_b_score}</span>}
+                    {!m.team_a_score && !m.team_b_score && '-'}
+                  </TableCell>
                   <TableCell><Badge variant={m.status === 'completed' ? 'default' : 'secondary'}>{m.status}</Badge></TableCell>
                   <TableCell className="text-xs max-w-[150px] truncate">{m.result || '-'}</TableCell>
                   <TableCell>
@@ -295,7 +301,7 @@ export function AdminMatches() {
         </CardContent>
       </Card>
 
-      {/* Scorecard Entry Dialog — scrollable fix */}
+      {/* Scorecard Entry Dialog */}
       <Dialog open={scorecardOpen} onOpenChange={setScorecardOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
@@ -311,7 +317,7 @@ export function AdminMatches() {
               <TabsTrigger value="teamB">{scorecardMatch?.team_b || 'Team B'} ({teamBPlayers.length})</TabsTrigger>
             </TabsList>
 
-            <div className="flex-1 overflow-y-auto mt-4 pr-2" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+            <div className="flex-1 overflow-y-auto mt-4 pr-2 scrollbar-thin" style={{ maxHeight: 'calc(90vh - 220px)' }}>
               <TabsContent value="teamA" className="space-y-4 mt-0">
                 <div className="border rounded-lg p-3">
                   <Label className="text-sm font-semibold mb-2 block">Select players for {scorecardMatch?.team_a}:</Label>
@@ -368,11 +374,12 @@ export function AdminMatches() {
                 const teamBowl = matchBowling.filter(b => b.team === team);
                 const totalRuns = teamBat.reduce((s, b) => s + b.runs, 0);
                 const totalWickets = teamBat.filter(b => b.how_out && b.how_out !== 'not out').length;
+                const scoreDisplay = idx === 0 ? sel.team_a_score : sel.team_b_score;
                 return (
                   <TabsContent key={team} value={idx === 0 ? 'teamA_view' : 'teamB_view'} className="mt-4 space-y-4">
                     <div className="flex items-center gap-2">
                       <span className="font-display text-lg font-bold">{team}</span>
-                      <Badge className="bg-primary text-primary-foreground">{totalRuns}/{totalWickets}</Badge>
+                      <Badge className="bg-primary text-primary-foreground">{scoreDisplay || `${totalRuns}/${totalWickets}`}</Badge>
                     </div>
                     <div>
                       <h4 className="text-sm font-semibold mb-2">Batting</h4>
@@ -386,7 +393,7 @@ export function AdminMatches() {
                               <TableCell>{b.balls}</TableCell>
                               <TableCell>{b.fours}</TableCell>
                               <TableCell>{b.sixes}</TableCell>
-                              <TableCell>{b.strike_rate.toFixed(1)}</TableCell>
+                              <TableCell>{b.strike_rate?.toFixed?.(1) || '-'}</TableCell>
                               <TableCell className="text-xs">{b.how_out}</TableCell>
                             </TableRow>
                           ))}
@@ -406,7 +413,7 @@ export function AdminMatches() {
                                 <TableCell>{b.maidens}</TableCell>
                                 <TableCell>{b.runs_conceded}</TableCell>
                                 <TableCell className="font-bold">{b.wickets}</TableCell>
-                                <TableCell>{b.economy.toFixed(1)}</TableCell>
+                                <TableCell>{b.economy?.toFixed?.(1) || '-'}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>

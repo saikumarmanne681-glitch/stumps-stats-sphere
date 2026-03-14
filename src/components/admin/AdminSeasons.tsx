@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useData } from '@/lib/DataContext';
 import { Season } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { generateId } from '@/lib/utils';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -25,7 +26,7 @@ export function AdminSeasons() {
     if (editItem.season_id) {
       await updateSeason(editItem);
     } else {
-      await addSeason({ ...editItem, season_id: `S${String(seasons.length + 1).padStart(3, '0')}` });
+      await addSeason({ ...editItem, season_id: generateId('S') });
     }
     toast({ title: 'Saved' });
     setOpen(false);
@@ -51,7 +52,7 @@ export function AdminSeasons() {
                 <Label>Tournament</Label>
                 <Select value={editItem?.tournament_id || ''} onValueChange={v => setEditItem(prev => prev ? { ...prev, tournament_id: v } : null)}>
                   <SelectTrigger><SelectValue placeholder="Select tournament" /></SelectTrigger>
-                  <SelectContent>{tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name} ({t.tournament_id})</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div><Label>Year</Label><Input type="number" value={editItem?.year || ''} onChange={e => setEditItem(prev => prev ? { ...prev, year: Number(e.target.value) } : null)} /></div>
