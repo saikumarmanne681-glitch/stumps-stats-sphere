@@ -39,6 +39,8 @@ const TABS = {
     "toss_decision",
     "result",
     "man_of_match",
+    "team_a_score",
+    "team_b_score",
   ],
   BattingScorecard: [
     "id",
