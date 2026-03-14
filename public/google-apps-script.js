@@ -20,17 +20,53 @@
  */
 
 // ──────── CONFIG ────────
-const SHEET_NAME = "CricketClubPortal";
+const SHEET_NAME = "CricketClubPortal-lovable";
 
 const TABS = {
-  Players:          ["player_id","name","username","password","phone","role","status"],
-  Tournaments:      ["tournament_id","name","format","overs","description"],
-  Seasons:          ["season_id","tournament_id","year","start_date","end_date","status"],
-  Matches:          ["match_id","season_id","tournament_id","date","team_a","team_b","venue","status","toss_winner","toss_decision","result","man_of_match"],
-  BattingScorecard: ["id","match_id","player_id","team","runs","balls","fours","sixes","strike_rate","how_out","bowler_id"],
-  BowlingScorecard: ["id","match_id","player_id","team","overs","maidens","runs_conceded","wickets","economy","extras"],
-  Announcements:    ["id","title","message","date","active","created_by"],
-  Messages:         ["id","from_id","to_id","subject","body","date","read","reply_to"],
+  Players: ["player_id", "name", "username", "password", "phone", "role", "status"],
+  Tournaments: ["tournament_id", "name", "format", "overs", "description"],
+  Seasons: ["season_id", "tournament_id", "year", "start_date", "end_date", "status"],
+  Matches: [
+    "match_id",
+    "season_id",
+    "tournament_id",
+    "date",
+    "team_a",
+    "team_b",
+    "venue",
+    "status",
+    "toss_winner",
+    "toss_decision",
+    "result",
+    "man_of_match",
+  ],
+  BattingScorecard: [
+    "id",
+    "match_id",
+    "player_id",
+    "team",
+    "runs",
+    "balls",
+    "fours",
+    "sixes",
+    "strike_rate",
+    "how_out",
+    "bowler_id",
+  ],
+  BowlingScorecard: [
+    "id",
+    "match_id",
+    "player_id",
+    "team",
+    "overs",
+    "maidens",
+    "runs_conceded",
+    "wickets",
+    "economy",
+    "extras",
+  ],
+  Announcements: ["id", "title", "message", "date", "active", "created_by"],
+  Messages: ["id", "from_id", "to_id", "subject", "body", "date", "read", "reply_to"],
 };
 
 // ──────── HELPERS ────────
@@ -56,9 +92,11 @@ function sheetToJson(sheet) {
   const data = sheet.getDataRange().getValues();
   if (data.length < 2) return [];
   const headers = data[0];
-  return data.slice(1).map(row => {
+  return data.slice(1).map((row) => {
     const obj = {};
-    headers.forEach((h, i) => { obj[h] = row[i]; });
+    headers.forEach((h, i) => {
+      obj[h] = row[i];
+    });
     return obj;
   });
 }
@@ -76,9 +114,14 @@ function findRowIndex(sheet, keyCol, keyVal) {
 
 function getKeyColumn(tabName) {
   const map = {
-    Players: "player_id", Tournaments: "tournament_id", Seasons: "season_id",
-    Matches: "match_id", BattingScorecard: "id", BowlingScorecard: "id",
-    Announcements: "id", Messages: "id",
+    Players: "player_id",
+    Tournaments: "tournament_id",
+    Seasons: "season_id",
+    Matches: "match_id",
+    BattingScorecard: "id",
+    BowlingScorecard: "id",
+    Announcements: "id",
+    Messages: "id",
   };
   return map[tabName] || "id";
 }
@@ -97,31 +140,34 @@ function doGet(e) {
   if (action === "get") {
     const tabName = e.parameter.sheet;
     if (!tabName || !TABS[tabName]) {
-      return ContentService.createTextOutput(JSON.stringify({ error: "Invalid sheet name" }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ error: "Invalid sheet name" })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
     }
     const sheet = getOrCreateSheet(ss, tabName);
     const data = sheetToJson(sheet);
-    return ContentService.createTextOutput(JSON.stringify(data))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
   }
 
   if (action === "seed") {
     // Create all tabs with headers
-    Object.keys(TABS).forEach(tabName => getOrCreateSheet(ss, tabName));
-    return ContentService.createTextOutput(JSON.stringify({ success: true, message: "All tabs created" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Object.keys(TABS).forEach((tabName) => getOrCreateSheet(ss, tabName));
+    return ContentService.createTextOutput(JSON.stringify({ success: true, message: "All tabs created" })).setMimeType(
+      ContentService.MimeType.JSON,
+    );
   }
 
   if (action === "seedWithData") {
     // Create tabs and insert mock data (sent as POST usually, but support GET too)
-    Object.keys(TABS).forEach(tabName => getOrCreateSheet(ss, tabName));
-    return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Tabs created. Send POST with mock data to populate." }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Object.keys(TABS).forEach((tabName) => getOrCreateSheet(ss, tabName));
+    return ContentService.createTextOutput(
+      JSON.stringify({ success: true, message: "Tabs created. Send POST with mock data to populate." }),
+    ).setMimeType(ContentService.MimeType.JSON);
   }
 
-  return ContentService.createTextOutput(JSON.stringify({ error: "Unknown action" }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ error: "Unknown action" })).setMimeType(
+    ContentService.MimeType.JSON,
+  );
 }
 
 // ──────── POST ────────
@@ -131,8 +177,9 @@ function doPost(e) {
   try {
     body = JSON.parse(e.postData.contents);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Invalid JSON" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Invalid JSON" })).setMimeType(
+      ContentService.MimeType.JSON,
+    );
   }
 
   const { action, sheet: tabName, data } = body;
@@ -141,7 +188,7 @@ function doPost(e) {
   if (action === "seed") {
     try {
       const seedData = data; // { Players: [...], Tournaments: [...], ... }
-      Object.keys(TABS).forEach(tab => {
+      Object.keys(TABS).forEach((tab) => {
         const sheet = getOrCreateSheet(ss, tab);
         if (seedData[tab] && seedData[tab].length > 0) {
           // Clear existing data (keep headers)
@@ -149,26 +196,27 @@ function doPost(e) {
             sheet.deleteRows(2, sheet.getLastRow() - 1);
           }
           const headers = TABS[tab];
-          const rows = seedData[tab].map(item =>
-            headers.map(h => item[h] !== undefined ? item[h] : "")
-          );
+          const rows = seedData[tab].map((item) => headers.map((h) => (item[h] !== undefined ? item[h] : "")));
           if (rows.length > 0) {
             sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
           }
         }
       });
-      return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Seeded all tabs" }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Seeded all tabs" })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
     } catch (err) {
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
     }
   }
 
   // ── Standard CRUD ──
   if (!tabName || !TABS[tabName]) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Invalid sheet" }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Invalid sheet" })).setMimeType(
+      ContentService.MimeType.JSON,
+    );
   }
 
   const sheet = getOrCreateSheet(ss, tabName);
@@ -176,37 +224,37 @@ function doPost(e) {
   const keyCol = getKeyColumn(tabName);
 
   if (action === "add") {
-    const row = headers.map(h => data[h] !== undefined ? data[h] : "");
+    const row = headers.map((h) => (data[h] !== undefined ? data[h] : ""));
     sheet.appendRow(row);
-    return ContentService.createTextOutput(JSON.stringify({ success: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
   }
 
   if (action === "update") {
     const keyVal = data[keyCol];
     const rowIdx = findRowIndex(sheet, keyCol, keyVal);
     if (rowIdx === -1) {
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
     }
-    const row = headers.map(h => data[h] !== undefined ? data[h] : "");
+    const row = headers.map((h) => (data[h] !== undefined ? data[h] : ""));
     sheet.getRange(rowIdx, 1, 1, headers.length).setValues([row]);
-    return ContentService.createTextOutput(JSON.stringify({ success: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
   }
 
   if (action === "delete") {
     const keyVal = data[keyCol];
     const rowIdx = findRowIndex(sheet, keyCol, keyVal);
     if (rowIdx === -1) {
-      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
     }
     sheet.deleteRow(rowIdx);
-    return ContentService.createTextOutput(JSON.stringify({ success: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Unknown action" }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Unknown action" })).setMimeType(
+    ContentService.MimeType.JSON,
+  );
 }
