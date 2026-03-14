@@ -25,11 +25,11 @@ export const mockSeasons: Season[] = [
 ];
 
 export const mockMatches: Match[] = [
-  { match_id: 'M001', season_id: 'S001', tournament_id: 'T001', date: '2024-03-15', team_a: 'Thunder XI', team_b: 'Storm Kings', venue: 'City Ground', status: 'completed', toss_winner: 'Thunder XI', toss_decision: 'bat', result: 'Thunder XI won by 25 runs', man_of_match: 'P001' },
-  { match_id: 'M002', season_id: 'S001', tournament_id: 'T001', date: '2024-03-22', team_a: 'Royal Stars', team_b: 'Thunder XI', venue: 'Sports Complex', status: 'completed', toss_winner: 'Royal Stars', toss_decision: 'bowl', result: 'Thunder XI won by 5 wickets', man_of_match: 'P003' },
-  { match_id: 'M003', season_id: 'S002', tournament_id: 'T001', date: '2025-03-10', team_a: 'Thunder XI', team_b: 'Royal Stars', venue: 'City Ground', status: 'completed', toss_winner: 'Thunder XI', toss_decision: 'bat', result: 'Royal Stars won by 3 wickets', man_of_match: 'P005' },
-  { match_id: 'M004', season_id: 'S003', tournament_id: 'T002', date: '2024-07-05', team_a: 'Storm Kings', team_b: 'Royal Stars', venue: 'National Stadium', status: 'completed', toss_winner: 'Storm Kings', toss_decision: 'bat', result: 'Storm Kings won by 45 runs', man_of_match: 'P002' },
-  { match_id: 'M005', season_id: 'S002', tournament_id: 'T001', date: '2025-03-20', team_a: 'Storm Kings', team_b: 'Thunder XI', venue: 'City Ground', status: 'scheduled', toss_winner: '', toss_decision: '', result: '', man_of_match: '' },
+  { match_id: 'M001', season_id: 'S001', tournament_id: 'T001', date: '2024-03-15', team_a: 'Thunder XI', team_b: 'Storm Kings', venue: 'City Ground', status: 'completed', toss_winner: 'Thunder XI', toss_decision: 'bat', result: 'Thunder XI won by 25 runs', man_of_match: 'P001', team_a_score: '157/4 (20)', team_b_score: '132/7 (20)' },
+  { match_id: 'M002', season_id: 'S001', tournament_id: 'T001', date: '2024-03-22', team_a: 'Royal Stars', team_b: 'Thunder XI', venue: 'Sports Complex', status: 'completed', toss_winner: 'Royal Stars', toss_decision: 'bowl', result: 'Thunder XI won by 5 wickets', man_of_match: 'P003', team_a_score: '145/8 (20)', team_b_score: '148/5 (18.2)' },
+  { match_id: 'M003', season_id: 'S002', tournament_id: 'T001', date: '2025-03-10', team_a: 'Thunder XI', team_b: 'Royal Stars', venue: 'City Ground', status: 'completed', toss_winner: 'Thunder XI', toss_decision: 'bat', result: 'Royal Stars won by 3 wickets', man_of_match: 'P005', team_a_score: '162/6 (20)', team_b_score: '165/7 (19.4)' },
+  { match_id: 'M004', season_id: 'S003', tournament_id: 'T002', date: '2024-07-05', team_a: 'Storm Kings', team_b: 'Royal Stars', venue: 'National Stadium', status: 'completed', toss_winner: 'Storm Kings', toss_decision: 'bat', result: 'Storm Kings won by 45 runs', man_of_match: 'P002', team_a_score: '245/6 (50)', team_b_score: '200/10 (45.3)' },
+  { match_id: 'M005', season_id: 'S002', tournament_id: 'T001', date: '2025-03-20', team_a: 'Storm Kings', team_b: 'Thunder XI', venue: 'City Ground', status: 'scheduled', toss_winner: '', toss_decision: '', result: '', man_of_match: '', team_a_score: '', team_b_score: '' },
 ];
 
 export const mockBattingScorecard: BattingScorecard[] = [
@@ -69,8 +69,8 @@ export const mockAnnouncements: Announcement[] = [
 ];
 
 export const mockMessages: Message[] = [
-  { id: 'MSG001', from_id: 'admin', to_id: 'P001', subject: 'Selection for upcoming match', body: 'You have been selected for the match on March 20.', date: '2025-03-06', read: false, reply_to: '' },
-  { id: 'MSG002', from_id: 'admin', to_id: 'P003', subject: 'Captain duty', body: 'You will captain the team for next match.', date: '2025-03-06', read: true, reply_to: '' },
-  { id: 'MSG003', from_id: 'P001', to_id: 'admin', subject: 'Re: Selection for upcoming match', body: 'Thank you! I will be available.', date: '2025-03-06', read: true, reply_to: 'MSG001' },
-  { id: 'MSG004', from_id: 'admin', to_id: 'all', subject: 'Practice session this weekend', body: 'Mandatory practice on Saturday at 7 AM.', date: '2025-03-05', read: false, reply_to: '' },
+  { id: 'MSG001', from_id: 'admin', to_id: 'P001', subject: 'Selection for upcoming match', body: 'You have been selected for the match on March 20.', date: '2025-03-06', read: false, reply_to: '', timestamp: '2025-03-06T10:00:00Z' },
+  { id: 'MSG002', from_id: 'admin', to_id: 'P003', subject: 'Captain duty', body: 'You will captain the team for next match.', date: '2025-03-06', read: true, reply_to: '', timestamp: '2025-03-06T10:30:00Z' },
+  { id: 'MSG003', from_id: 'P001', to_id: 'admin', subject: 'Re: Selection for upcoming match', body: 'Thank you! I will be available.', date: '2025-03-06', read: true, reply_to: 'MSG001', timestamp: '2025-03-06T11:00:00Z' },
+  { id: 'MSG004', from_id: 'admin', to_id: 'all', subject: 'Practice session this weekend', body: 'Mandatory practice on Saturday at 7 AM.', date: '2025-03-05', read: false, reply_to: '', timestamp: '2025-03-05T09:00:00Z' },
 ];

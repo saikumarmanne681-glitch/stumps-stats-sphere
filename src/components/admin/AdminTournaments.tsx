@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useData } from '@/lib/DataContext';
 import { Tournament } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { generateId } from '@/lib/utils';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 export function AdminTournaments() {
@@ -23,7 +24,7 @@ export function AdminTournaments() {
     if (editItem.tournament_id) {
       await updateTournament(editItem);
     } else {
-      await addTournament({ ...editItem, tournament_id: `T${String(tournaments.length + 1).padStart(3, '0')}` });
+      await addTournament({ ...editItem, tournament_id: generateId('T') });
     }
     toast({ title: 'Saved' });
     setOpen(false);

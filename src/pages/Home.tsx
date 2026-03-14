@@ -2,15 +2,19 @@ import { useState, useMemo } from 'react';
 import { AnnouncementTicker } from '@/components/AnnouncementTicker';
 import { Leaderboard } from '@/components/Leaderboard';
 import { MatchCard } from '@/components/MatchCard';
+import { MatchDetailDialog } from '@/components/MatchDetailDialog';
 import { Navbar } from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
 import { getLatestMatches } from '@/lib/calculations';
+import { Match } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
 const Home = () => {
   const { players, tournaments, seasons, matches, batting, bowling, announcements, loading } = useData();
   const [filterTournament, setFilterTournament] = useState<string>('all');
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const latestMatches = useMemo(() => getLatestMatches(matches, 6), [matches]);
 
@@ -24,16 +28,21 @@ const Home = () => {
     return latestMatches.filter(m => m.tournament_id === filterTournament);
   }, [filterTournament, latestMatches]);
 
+  const handleMatchClick = (match: Match) => {
+    setSelectedMatch(match);
+    setDetailOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <AnnouncementTicker />
 
-      <section className="bg-primary py-16 px-4">
+      <section className="bg-gradient-to-br from-primary to-primary/80 py-16 px-4">
         <div className="container mx-auto text-center">
           <h1 className="font-display text-4xl md:text-6xl font-bold text-primary-foreground mb-4">CRICKET CLUB PORTAL</h1>
           <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto">Track tournaments, matches, player stats, and leaderboards — all in one place.</p>
-          <div className="flex justify-center gap-2 mt-6">
+          <div className="flex justify-center gap-2 mt-6 flex-wrap">
             {tournaments.map(t => (
               <Badge key={t.tournament_id} variant="secondary" className="text-sm">{t.name} • {t.format}</Badge>
             ))}
@@ -62,7 +71,13 @@ const Home = () => {
           <h2 className="font-display text-2xl font-bold mb-4">📅 Latest Matches</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayMatches.map(match => (
-              <MatchCard key={match.match_id} match={match} tournament={tournaments.find(t => t.tournament_id === match.tournament_id)} players={players} />
+              <MatchCard
+                key={match.match_id}
+                match={match}
+                tournament={tournaments.find(t => t.tournament_id === match.tournament_id)}
+                players={players}
+                onClick={() => handleMatchClick(match)}
+              />
             ))}
           </div>
           {displayMatches.length === 0 && <p className="text-muted-foreground text-center py-8">No matches found.</p>}
@@ -85,6 +100,16 @@ const Home = () => {
           </div>
         </section>
       </div>
+
+      <MatchDetailDialog
+        match={selectedMatch}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        batting={batting}
+        bowling={bowling}
+        players={players}
+        tournament={selectedMatch ? tournaments.find(t => t.tournament_id === selectedMatch.tournament_id) : undefined}
+      />
 
       <footer className="bg-card border-t py-6 mt-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">© 2025 Cricket Club Portal. All rights reserved.</div>

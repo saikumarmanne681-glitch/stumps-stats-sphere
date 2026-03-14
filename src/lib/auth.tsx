@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthUser } from './types';
+import { api, isConnected } from './googleSheets';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -36,9 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true;
     }
 
-    // Player login — check mock data (or API)
-    const { mockPlayers } = await import('./mockData');
-    const player = mockPlayers.find(p => p.username === username && p.password === password && p.status === 'active');
+    // Player login — fetch live data from sheets
+    const players = await api.getPlayers();
+    const player = players.find(p => p.username === username && p.password === password && p.status === 'active');
     if (player) {
       const u: AuthUser = { type: 'player', username: player.username, player_id: player.player_id, name: player.name };
       setUser(u);

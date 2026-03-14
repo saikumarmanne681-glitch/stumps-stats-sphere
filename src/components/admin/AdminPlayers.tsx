@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useData } from '@/lib/DataContext';
 import { Player } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { generateId } from '@/lib/utils';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -25,7 +26,7 @@ export function AdminPlayers() {
     if (editItem.player_id) {
       await updatePlayer(editItem);
     } else {
-      await addPlayer({ ...editItem, player_id: `P${String(players.length + 1).padStart(3, '0')}` });
+      await addPlayer({ ...editItem, player_id: generateId('P') });
     }
     toast({ title: 'Saved' });
     setOpen(false);

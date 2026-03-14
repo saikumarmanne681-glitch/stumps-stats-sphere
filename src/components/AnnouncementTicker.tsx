@@ -12,8 +12,8 @@ export function AnnouncementTicker() {
   const tickerText = activeAnnouncements.map(a => `📢 ${a.title}: ${a.message}`).join('   •   ');
 
   return (
-    <div className="bg-primary overflow-hidden py-2">
-      <div className="animate-ticker whitespace-nowrap text-primary-foreground font-body text-sm font-medium">
+    <div className="bg-accent overflow-hidden py-2 relative group">
+      <div className="animate-ticker whitespace-nowrap text-accent-foreground font-body text-sm font-medium group-hover:[animation-play-state:paused]">
         {tickerText}   •   {tickerText}
       </div>
     </div>

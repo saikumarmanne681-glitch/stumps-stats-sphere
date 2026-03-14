@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useData } from '@/lib/DataContext';
 import { Announcement } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { generateId } from '@/lib/utils';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -27,7 +28,7 @@ export function AdminAnnouncements() {
       await updateAnnouncement(editItem);
       toast({ title: 'Updated' });
     } else {
-      await addAnnouncement({ ...editItem, id: `A${String(announcements.length + 1).padStart(3, '0')}` });
+      await addAnnouncement({ ...editItem, id: generateId('A') });
       toast({ title: 'Added' });
     }
     setOpen(false);
@@ -60,7 +61,7 @@ export function AdminAnnouncements() {
           </DialogContent>
         </Dialog>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-h-[500px] overflow-y-auto scrollbar-thin">
         <Table>
           <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Title</TableHead><TableHead>Date</TableHead><TableHead>Active</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
           <TableBody>

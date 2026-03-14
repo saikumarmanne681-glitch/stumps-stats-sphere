@@ -75,3 +75,17 @@ export function getLatestMatches(matches: Match[], limit = 5) {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, limit);
 }
+
+/** Get matches played per player for leaderboard */
+export function getPlayerMatchCounts(batting: BattingScorecard[], bowling: BowlingScorecard[]): Record<string, number> {
+  const counts: Record<string, Set<string>> = {};
+  const add = (pid: string, mid: string) => {
+    if (!counts[pid]) counts[pid] = new Set();
+    counts[pid].add(mid);
+  };
+  batting.forEach(b => add(b.player_id, b.match_id));
+  bowling.forEach(b => add(b.player_id, b.match_id));
+  const result: Record<string, number> = {};
+  Object.entries(counts).forEach(([pid, set]) => { result[pid] = set.size; });
+  return result;
+}
