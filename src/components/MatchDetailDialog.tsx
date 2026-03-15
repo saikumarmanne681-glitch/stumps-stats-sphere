@@ -2,8 +2,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Match, BattingScorecard, BowlingScorecard, Player, Tournament } from '@/lib/types';
-import { Calendar, MapPin, Award, Trophy } from 'lucide-react';
+import { Match, BattingScorecard, BowlingScorecard, Player, Tournament, Season } from '@/lib/types';
+import { Calendar, MapPin, Award } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface MatchDetailDialogProps {
@@ -14,9 +14,20 @@ interface MatchDetailDialogProps {
   bowling: BowlingScorecard[];
   players: Player[];
   tournament?: Tournament;
+  season?: Season;
 }
 
-export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling, players, tournament }: MatchDetailDialogProps) {
+function calcTeamScore(batting: BattingScorecard[], team: string): string {
+  const rows = batting.filter(b => b.team === team);
+  if (rows.length === 0) return '-';
+  const runs = rows.reduce((s, b) => s + b.runs, 0);
+  const wkts = rows.filter(b => b.how_out && b.how_out !== 'not out').length;
+  const balls = rows.reduce((s, b) => s + b.balls, 0);
+  const overs = Math.floor(balls / 6) + (balls % 6) / 10;
+  return `${runs}/${wkts} (${overs.toFixed(1)})`;
+}
+
+export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling, players, tournament, season }: MatchDetailDialogProps) {
   if (!match) return null;
 
   const matchBatting = batting.filter(b => b.match_id === match.match_id);
@@ -24,19 +35,23 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
   const mom = players.find(p => p.player_id === match.man_of_match);
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
+  const teamAScore = match.team_a_score || calcTeamScore(matchBatting, match.team_a);
+  const teamBScore = match.team_b_score || calcTeamScore(matchBatting, match.team_b);
+
   const renderTeamScorecard = (team: string) => {
     const teamBat = matchBatting.filter(b => b.team === team);
     const teamBowl = matchBowling.filter(b => b.team === team);
     const totalRuns = teamBat.reduce((s, b) => s + b.runs, 0);
     const totalWickets = teamBat.filter(b => b.how_out && b.how_out !== 'not out').length;
     const totalBalls = teamBat.reduce((s, b) => s + b.balls, 0);
+    const displayScore = match.team_a === team ? teamAScore : teamBScore;
 
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <span className="font-display text-xl font-bold">{team}</span>
           <Badge className="bg-primary text-primary-foreground text-sm px-3">
-            {match.team_a === team ? match.team_a_score || `${totalRuns}/${totalWickets}` : match.team_b_score || `${totalRuns}/${totalWickets}`}
+            {displayScore}
           </Badge>
         </div>
 
@@ -140,24 +155,24 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
           {tournament && (
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               {tournament.name} • {tournament.format}
+              {season ? ` • Season ${season.year}` : ''}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{format(new Date(match.date), 'dd MMM yyyy')}</span>
-            <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{match.venue}</span>
+            {match.venue && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{match.venue}</span>}
             <Badge variant={match.status === 'completed' ? 'default' : 'secondary'}>{match.status.toUpperCase()}</Badge>
           </div>
 
-          {/* Score summary */}
           <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3 mt-2">
             <div className="text-center flex-1">
               <p className="font-display text-lg font-bold">{match.team_a}</p>
-              <p className="text-primary font-bold text-xl">{match.team_a_score || '-'}</p>
+              <p className="text-primary font-bold text-xl">{teamAScore}</p>
             </div>
             <span className="text-muted-foreground font-bold text-lg px-4">vs</span>
             <div className="text-center flex-1">
               <p className="font-display text-lg font-bold">{match.team_b}</p>
-              <p className="text-primary font-bold text-xl">{match.team_b_score || '-'}</p>
+              <p className="text-primary font-bold text-xl">{teamBScore}</p>
             </div>
           </div>
 
@@ -171,7 +186,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 300px)' }}>
+        <div className="flex-1 overflow-y-auto scrollbar-thin" style={{ maxHeight: 'calc(90vh - 300px)' }}>
           <Tabs defaultValue="teamA">
             <TabsList className="grid grid-cols-2 mb-4">
               <TabsTrigger value="teamA">{match.team_a}</TabsTrigger>

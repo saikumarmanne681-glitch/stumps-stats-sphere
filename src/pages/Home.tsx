@@ -121,7 +121,9 @@ const Home = () => {
                 key={match.match_id}
                 match={match}
                 tournament={tournaments.find((t) => t.tournament_id === match.tournament_id)}
+                season={seasons.find((s) => s.season_id === match.season_id)}
                 players={players}
+                batting={batting}
                 onClick={() => handleMatchClick(match)}
               />
             ))}
@@ -161,6 +163,9 @@ const Home = () => {
         players={players}
         tournament={
           selectedMatch ? tournaments.find((t) => t.tournament_id === selectedMatch.tournament_id) : undefined
+        }
+        season={
+          selectedMatch ? seasons.find((s) => s.season_id === selectedMatch.season_id) : undefined
         }
       />
 
