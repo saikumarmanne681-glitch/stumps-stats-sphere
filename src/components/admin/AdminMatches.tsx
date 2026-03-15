@@ -633,7 +633,20 @@ export function AdminMatches() {
             <TableBody>
               {[...matches]
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map((m) => (
+                .map((m) => {
+                  // Auto-calc scores from batting if not saved on match
+                  const calcScore = (team: string) => {
+                    const rows = batting.filter(b => b.match_id === m.match_id && b.team === team);
+                    if (rows.length === 0) return '';
+                    const runs = rows.reduce((s, b) => s + b.runs, 0);
+                    const wkts = rows.filter(b => b.how_out && b.how_out !== 'not out').length;
+                    const balls = rows.reduce((s, b) => s + b.balls, 0);
+                    const overs = Math.floor(balls / 6) + (balls % 6) / 10;
+                    return `${runs}/${wkts} (${overs.toFixed(1)})`;
+                  };
+                  const scoreA = m.team_a_score || calcScore(m.team_a);
+                  const scoreB = m.team_b_score || calcScore(m.team_b);
+                  return (
                   <TableRow key={m.match_id} className={selectedMatch === m.match_id ? "bg-primary/5" : ""}>
                     <TableCell className="font-mono text-xs">{m.match_id}</TableCell>
                     <TableCell>{m.date ? format(new Date(m.date), "dd MMM yyyy") : "-"}</TableCell>
@@ -641,17 +654,17 @@ export function AdminMatches() {
                       {m.team_a} vs {m.team_b}
                     </TableCell>
                     <TableCell className="text-xs">
-                      {m.team_a_score && (
+                      {scoreA && (
                         <span className="block">
-                          {m.team_a}: {m.team_a_score}
+                          {m.team_a}: {scoreA}
                         </span>
                       )}
-                      {m.team_b_score && (
+                      {scoreB && (
                         <span className="block">
-                          {m.team_b}: {m.team_b_score}
+                          {m.team_b}: {scoreB}
                         </span>
                       )}
-                      {!m.team_a_score && !m.team_b_score && "-"}
+                      {!scoreA && !scoreB && "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={m.status === "completed" ? "default" : "secondary"}>{m.status}</Badge>
