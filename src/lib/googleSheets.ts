@@ -10,9 +10,9 @@ import {
   mockMessages,
 } from "./mockData";
 
-// Hardcoded Apps Script Web App URL
-const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbxYidUE-Au5j2mmxqeDQDaakNCBEOOfoaaZSll0LU5HAiioYcdzAWn4T2RGJ2M27AVV/exec";
+// Apps Script Web App URL
+let APPS_SCRIPT_URL =
+  localStorage.getItem("appsScriptUrl") || "https://script.google.com/macros/s/AKfycbxYidUE-Au5j2mmxqeDQDaakNCBEOOfoaaZSll0LU5HAiioYcdzAWn4T2RGJ2M27AVV/exec";
 
 export function getAppsScriptUrl() {
   return APPS_SCRIPT_URL;

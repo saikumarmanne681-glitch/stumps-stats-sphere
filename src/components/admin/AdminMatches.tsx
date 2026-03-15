@@ -195,6 +195,9 @@ export function AdminMatches() {
     );
   };
 
+  const [savingProgress, setSavingProgress] = useState(0);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   const saveScorecard = async () => {
     const match = matches.find((m) => m.match_id === scorecardMatchId);
     if (!match || isSavingScorecard) return;
@@ -206,7 +209,7 @@ export function AdminMatches() {
       if (p.did_bat) {
         const sr = p.bat_balls > 0 ? (p.bat_runs / p.bat_balls) * 100 : 0;
         newBatting.push({
-          id: generateId("B"),
+          id: `${scorecardMatchId}_BAT_${p.player_id}_${p.team}`,
           match_id: scorecardMatchId,
           player_id: p.player_id,
           team: p.team,
@@ -222,7 +225,7 @@ export function AdminMatches() {
       if (p.did_bowl) {
         const eco = p.bowl_overs > 0 ? p.bowl_runs / p.bowl_overs : 0;
         newBowling.push({
-          id: generateId("BW"),
+          id: `${scorecardMatchId}_BOWL_${p.player_id}_${p.team}`,
           match_id: scorecardMatchId,
           player_id: p.player_id,
           team: p.team,
@@ -236,26 +239,48 @@ export function AdminMatches() {
       }
     });
 
-    const teamARows = newBatting.filter((b) => b.team === match.team_a);
-    const teamBRows = newBatting.filter((b) => b.team === match.team_b);
-    const formatScore = (rows: BattingScorecard[]) => {
+    // Auto-calculate team scores from batting data
+    const calcScore = (team: string) => {
+      const rows = newBatting.filter((b) => b.team === team);
       const totalRuns = rows.reduce((sum, row) => sum + row.runs, 0);
       const wickets = rows.filter((row) => row.how_out && row.how_out !== "not out").length;
-      const overs = (rows.reduce((sum, row) => sum + row.balls, 0) / 6).toFixed(1);
-      return `${totalRuns}/${wickets} (${overs})`;
+      const totalBalls = rows.reduce((sum, row) => sum + row.balls, 0);
+      const overs = Math.floor(totalBalls / 6) + (totalBalls % 6) / 10;
+      return `${totalRuns}/${wickets} (${overs.toFixed(1)})`;
     };
-    const teamAScore = formatScore(teamARows);
-    const teamBScore = formatScore(teamBRows);
+    const teamAScore = calcScore(match.team_a);
+    const teamBScore = calcScore(match.team_b);
 
     setIsSavingScorecard(true);
+    setSavingProgress(0);
+    setSaveSuccess(false);
+
     try {
+      // Animate progress
+      const progressInterval = setInterval(() => {
+        setSavingProgress((prev) => Math.min(prev + 8, 90));
+      }, 200);
+
       await saveScorecardBulk(scorecardMatchId, newBatting, newBowling);
       await updateMatch({ ...match, team_a_score: teamAScore, team_b_score: teamBScore });
+
+      clearInterval(progressInterval);
+      setSavingProgress(100);
+      setSaveSuccess(true);
+
       toast({
-        title: "Scorecard Saved",
-        description: `${newBatting.length} batting & ${newBowling.length} bowling entries saved`,
+        title: "✅ Scorecard Saved Successfully!",
+        description: `${newBatting.length} batting & ${newBowling.length} bowling entries saved. Scores: ${match.team_a} ${teamAScore} | ${match.team_b} ${teamBScore}`,
       });
-      setScorecardOpen(false);
+
+      // Show success state briefly then close
+      setTimeout(() => {
+        setScorecardOpen(false);
+        setSaveSuccess(false);
+        setSavingProgress(0);
+      }, 1500);
+    } catch (err) {
+      toast({ title: "Error saving scorecard", description: String(err), variant: "destructive" });
     } finally {
       setIsSavingScorecard(false);
     }
@@ -762,20 +787,54 @@ export function AdminMatches() {
             </div>
           </Tabs>
 
-          <div className="flex justify-end gap-2 pt-4 border-t mt-2">
-            <Button variant="outline" onClick={() => setScorecardOpen(false)} disabled={isSavingScorecard}>
-              Cancel
-            </Button>
-            <Button onClick={saveScorecard} disabled={isSavingScorecard}>
-              {isSavingScorecard ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "💾 Save All Scorecard"
+          <div className="flex items-center justify-between gap-2 pt-4 border-t mt-2">
+            {/* Auto-calculated score preview */}
+            {scorecardMatch && (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>{scorecardMatch.team_a}: {(() => {
+                  const rows = performances.filter(p => p.team === scorecardMatch.team_a && p.did_bat);
+                  const runs = rows.reduce((s, r) => s + r.bat_runs, 0);
+                  const wkts = rows.filter(r => r.bat_how_out && r.bat_how_out !== "not out").length;
+                  const balls = rows.reduce((s, r) => s + r.bat_balls, 0);
+                  const ov = Math.floor(balls / 6) + (balls % 6) / 10;
+                  return `${runs}/${wkts} (${ov.toFixed(1)})`;
+                })()}</p>
+                <p>{scorecardMatch.team_b}: {(() => {
+                  const rows = performances.filter(p => p.team === scorecardMatch.team_b && p.did_bat);
+                  const runs = rows.reduce((s, r) => s + r.bat_runs, 0);
+                  const wkts = rows.filter(r => r.bat_how_out && r.bat_how_out !== "not out").length;
+                  const balls = rows.reduce((s, r) => s + r.bat_balls, 0);
+                  const ov = Math.floor(balls / 6) + (balls % 6) / 10;
+                  return `${runs}/${wkts} (${ov.toFixed(1)})`;
+                })()}</p>
+              </div>
+            )}
+            <div className="flex gap-2 items-center">
+              {isSavingScorecard && (
+                <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${savingProgress}%` }}
+                  />
+                </div>
               )}
-            </Button>
+              {saveSuccess && (
+                <span className="text-primary font-semibold text-sm animate-pulse">✅ Saved!</span>
+              )}
+              <Button variant="outline" onClick={() => setScorecardOpen(false)} disabled={isSavingScorecard}>
+                Cancel
+              </Button>
+              <Button onClick={saveScorecard} disabled={isSavingScorecard}>
+                {isSavingScorecard ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving {savingProgress}%...
+                  </>
+                ) : (
+                  "💾 Save All Scorecard"
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -43,8 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Player login — fetch live data from sheets
     const players = await api.getPlayers();
-    // const player = players.find(p => p.username === username && p.password === password && p.status === 'active');
-    const players = await api.getPlayers();
 
     const player = players.find(
       (p) =>
