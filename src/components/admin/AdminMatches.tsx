@@ -712,7 +712,8 @@ export function AdminMatches() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
             </TableBody>
           </Table>
         </CardContent>
