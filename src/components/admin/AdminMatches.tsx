@@ -787,20 +787,54 @@ export function AdminMatches() {
             </div>
           </Tabs>
 
-          <div className="flex justify-end gap-2 pt-4 border-t mt-2">
-            <Button variant="outline" onClick={() => setScorecardOpen(false)} disabled={isSavingScorecard}>
-              Cancel
-            </Button>
-            <Button onClick={saveScorecard} disabled={isSavingScorecard}>
-              {isSavingScorecard ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "💾 Save All Scorecard"
+          <div className="flex items-center justify-between gap-2 pt-4 border-t mt-2">
+            {/* Auto-calculated score preview */}
+            {scorecardMatch && (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>{scorecardMatch.team_a}: {(() => {
+                  const rows = performances.filter(p => p.team === scorecardMatch.team_a && p.did_bat);
+                  const runs = rows.reduce((s, r) => s + r.bat_runs, 0);
+                  const wkts = rows.filter(r => r.bat_how_out && r.bat_how_out !== "not out").length;
+                  const balls = rows.reduce((s, r) => s + r.bat_balls, 0);
+                  const ov = Math.floor(balls / 6) + (balls % 6) / 10;
+                  return `${runs}/${wkts} (${ov.toFixed(1)})`;
+                })()}</p>
+                <p>{scorecardMatch.team_b}: {(() => {
+                  const rows = performances.filter(p => p.team === scorecardMatch.team_b && p.did_bat);
+                  const runs = rows.reduce((s, r) => s + r.bat_runs, 0);
+                  const wkts = rows.filter(r => r.bat_how_out && r.bat_how_out !== "not out").length;
+                  const balls = rows.reduce((s, r) => s + r.bat_balls, 0);
+                  const ov = Math.floor(balls / 6) + (balls % 6) / 10;
+                  return `${runs}/${wkts} (${ov.toFixed(1)})`;
+                })()}</p>
+              </div>
+            )}
+            <div className="flex gap-2 items-center">
+              {isSavingScorecard && (
+                <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${savingProgress}%` }}
+                  />
+                </div>
               )}
-            </Button>
+              {saveSuccess && (
+                <span className="text-primary font-semibold text-sm animate-pulse">✅ Saved!</span>
+              )}
+              <Button variant="outline" onClick={() => setScorecardOpen(false)} disabled={isSavingScorecard}>
+                Cancel
+              </Button>
+              <Button onClick={saveScorecard} disabled={isSavingScorecard}>
+                {isSavingScorecard ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving {savingProgress}%...
+                  </>
+                ) : (
+                  "💾 Save All Scorecard"
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
