@@ -133,6 +133,15 @@ function getKeyColumn(tabName) {
     BowlingScorecard: "id",
     Announcements: "id",
     Messages: "id",
+    // v2.0
+    SUPPORT_TICKETS: "ticket_id",
+    SUPPORT_MESSAGES: "message_id",
+    SUPPORT_CSAT: "csat_id",
+    USER_EMAIL_LINKS: "user_id",
+    USER_NOTIFICATION_PREFERENCES: "user_id",
+    USER_PRESENCE: "user_id",
+    DIGITAL_SCORELISTS: "scorelist_id",
+    AUDIT_EVENTS: "event_id",
   };
   return map[tabName] || "id";
 }
