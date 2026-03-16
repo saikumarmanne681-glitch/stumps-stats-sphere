@@ -4,11 +4,11 @@ export interface SupportTicket {
   ticket_id: string;
   created_by_user_id: string;
   category: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority: "low" | "medium" | "high" | "critical";
   subject: string;
   description: string;
   attachment_url: string;
-  status: 'open' | 'in_progress' | 'waiting_for_user' | 'resolved' | 'closed';
+  status: "open" | "in_progress" | "waiting_for_user" | "resolved" | "closed";
   assigned_admin_id: string;
   created_at: string;
   first_response_due: string;
@@ -21,7 +21,7 @@ export interface SupportMessage {
   message_id: string;
   ticket_id: string;
   sender_id: string;
-  sender_role: 'admin' | 'player';
+  sender_role: "admin" | "player";
   message_body: string;
   attachment_url: string;
   is_internal_note: boolean;
@@ -67,7 +67,7 @@ export interface DigitalScorelist {
   season_id: string;
   tournament_id: string;
   match_id: string;
-  scope_type: 'match' | 'tournament' | 'season';
+  scope_type: "match" | "tournament" | "season";
   payload_json: string;
   hash_digest: string;
   signature: string;
@@ -93,9 +93,17 @@ export const SLA_CONFIG = {
   critical: { firstResponse: 1, resolution: 8 },
 } as const;
 
-export function getPresenceStatus(lastHeartbeat: string): 'online' | 'away' | 'offline' {
-  const diff = (Date.now() - new Date(lastHeartbeat).getTime()) / 1000;
-  if (diff <= 90) return 'online';
-  if (diff <= 300) return 'away';
-  return 'offline';
+export function getPresenceStatus(lastHeartbeat?: string) {
+  if (!lastHeartbeat) return "offline";
+
+  const time = new Date(lastHeartbeat).getTime();
+
+  if (isNaN(time)) return "offline";
+
+  const diff = Date.now() - time;
+
+  if (diff < 60000) return "online";
+  if (diff < 300000) return "away";
+
+  return "offline";
 }
