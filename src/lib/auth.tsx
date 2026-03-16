@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { AuthUser } from "./types";
 import { api, isConnected } from "./googleSheets";
+import { startHeartbeat, stopHeartbeat } from "./presence";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -25,7 +26,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem("cricketUser");
     if (stored) {
       try {
-        setUser(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        setUser(parsed);
+        // Start heartbeat for returning users
+        const userId = parsed.type === 'admin' ? 'admin' : parsed.player_id;
+        if (userId) startHeartbeat(userId);
       } catch {
         /* ignore */
       }
@@ -38,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u: AuthUser = { type: "admin", username: "admin", name: "Administrator" };
       setUser(u);
       localStorage.setItem("cricketUser", JSON.stringify(u));
+      startHeartbeat('admin');
       return true;
     }
 
@@ -54,12 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u: AuthUser = { type: "player", username: player.username, player_id: player.player_id, name: player.name };
       setUser(u);
       localStorage.setItem("cricketUser", JSON.stringify(u));
+      startHeartbeat(player.player_id);
       return true;
     }
     return false;
   };
 
   const logout = () => {
+    stopHeartbeat();
     setUser(null);
     localStorage.removeItem("cricketUser");
   };
