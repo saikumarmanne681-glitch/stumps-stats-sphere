@@ -101,7 +101,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refresh();
-    intervalRef.current = setInterval(refresh, 15000);
+    intervalRef.current = setInterval(refresh, 30000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -288,6 +288,47 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
 export function useData() {
   const ctx = useContext(DataContext);
-  if (!ctx) throw new Error("useData must be used within DataProvider");
+
+  if (ctx === null) {
+    console.warn("DataContext not ready yet");
+    return {
+      players: [],
+      tournaments: [],
+      seasons: [],
+      matches: [],
+      batting: [],
+      bowling: [],
+      announcements: [],
+      messages: [],
+      loading: true,
+      lastRefresh: null,
+      refresh: async () => {},
+      addPlayer: async () => {},
+      updatePlayer: async () => {},
+      deletePlayer: async () => {},
+      addTournament: async () => {},
+      updateTournament: async () => {},
+      deleteTournament: async () => {},
+      addSeason: async () => {},
+      updateSeason: async () => {},
+      deleteSeason: async () => {},
+      addMatch: async () => {},
+      updateMatch: async () => {},
+      deleteMatch: async () => {},
+      addBattingEntry: async () => {},
+      updateBattingEntry: async () => {},
+      deleteBattingEntry: async () => {},
+      addBowlingEntry: async () => {},
+      updateBowlingEntry: async () => {},
+      deleteBowlingEntry: async () => {},
+      addAnnouncement: async () => {},
+      updateAnnouncement: async () => {},
+      deleteAnnouncement: async () => {},
+      addMessage: async () => {},
+      updateMessage: async () => {},
+      saveScorecardBulk: async () => {},
+    } as DataContextType;
+  }
+
   return ctx;
 }
