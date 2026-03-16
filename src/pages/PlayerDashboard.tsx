@@ -10,11 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/lib/DataContext';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount } from '@/lib/calculations';
 import { generateId } from '@/lib/utils';
-import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock } from 'lucide-react';
+import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Mail, Settings } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { PlayerSupport } from '@/components/player/PlayerSupport';
+import { PlayerEmailSettings } from '@/components/player/PlayerEmailSettings';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -49,7 +51,6 @@ const PlayerDashboard = () => {
 
   const playerMessages = useMemo(() => user?.player_id ? messages.filter(m => m.to_id === user.player_id || m.to_id === 'all' || m.from_id === user.player_id) : [], [user?.player_id, messages]);
 
-  // Thread grouping
   const threads = useMemo(() => {
     const threadMap = new Map<string, typeof playerMessages>();
     const roots = playerMessages.filter(m => !m.reply_to);
@@ -63,7 +64,6 @@ const PlayerDashboard = () => {
       thread.sort((a, b) => new Date(a.timestamp || a.date).getTime() - new Date(b.timestamp || b.date).getTime());
       threadMap.set(root.id, thread);
     });
-    // Orphan replies
     playerMessages.filter(m => m.reply_to && !playerMessages.find(p => p.id === m.reply_to)).forEach(m => {
       threadMap.set(m.id, [m]);
     });
@@ -120,7 +120,7 @@ const PlayerDashboard = () => {
         </Card>
 
         <Tabs defaultValue="stats">
-          <TabsList>
+          <TabsList className="flex flex-wrap h-auto gap-1">
             <TabsTrigger value="stats" className="flex items-center gap-1"><BarChart3 className="h-4 w-4" /> Career Stats</TabsTrigger>
             <TabsTrigger value="messages" className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" /> Messages
@@ -130,6 +130,8 @@ const PlayerDashboard = () => {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="support" className="flex items-center gap-1"><Headphones className="h-4 w-4" /> Support</TabsTrigger>
+            <TabsTrigger value="account" className="flex items-center gap-1"><Settings className="h-4 w-4" /> Account</TabsTrigger>
           </TabsList>
 
           <TabsContent value="stats" className="space-y-6 mt-4">
@@ -278,6 +280,14 @@ const PlayerDashboard = () => {
                 </Card>
               );
             })}
+          </TabsContent>
+
+          <TabsContent value="support" className="mt-4">
+            <PlayerSupport playerId={user.player_id!} />
+          </TabsContent>
+
+          <TabsContent value="account" className="mt-4">
+            <PlayerEmailSettings playerId={user.player_id!} />
           </TabsContent>
         </Tabs>
       </div>

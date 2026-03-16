@@ -10,7 +10,11 @@ import { AdminPlayers } from '@/components/admin/AdminPlayers';
 import { AdminMatches } from '@/components/admin/AdminMatches';
 import { AdminMessages } from '@/components/admin/AdminMessages';
 import { AdminSettings } from '@/components/admin/AdminSettings';
-import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings } from 'lucide-react';
+import { AdminSupportDashboard } from '@/components/admin/AdminSupport';
+import { AdminPresence } from '@/components/admin/AdminPresence';
+import { AdminScorelists } from '@/components/admin/AdminScorelists';
+import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
+import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -43,6 +47,18 @@ const AdminDashboard = () => {
             <TabsTrigger value="messages" className="flex items-center gap-1 text-xs">
               <MessageSquare className="h-3 w-3" /> Messages
             </TabsTrigger>
+            <TabsTrigger value="support" className="flex items-center gap-1 text-xs">
+              <Headphones className="h-3 w-3" /> Support
+            </TabsTrigger>
+            <TabsTrigger value="presence" className="flex items-center gap-1 text-xs">
+              <Wifi className="h-3 w-3" /> Presence
+            </TabsTrigger>
+            <TabsTrigger value="scorelists" className="flex items-center gap-1 text-xs">
+              <Shield className="h-3 w-3" /> Scorelists
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="flex items-center gap-1 text-xs">
+              <ScrollText className="h-3 w-3" /> Audit Log
+            </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-1 text-xs">
               <Settings className="h-3 w-3" /> Settings
             </TabsTrigger>
@@ -54,6 +70,10 @@ const AdminDashboard = () => {
           <TabsContent value="seasons"><AdminSeasons /></TabsContent>
           <TabsContent value="players"><AdminPlayers /></TabsContent>
           <TabsContent value="messages"><AdminMessages /></TabsContent>
+          <TabsContent value="support"><AdminSupportDashboard /></TabsContent>
+          <TabsContent value="presence"><AdminPresence /></TabsContent>
+          <TabsContent value="scorelists"><AdminScorelists /></TabsContent>
+          <TabsContent value="audit"><AdminAuditLog /></TabsContent>
           <TabsContent value="settings"><AdminSettings /></TabsContent>
         </Tabs>
       </div>
