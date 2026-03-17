@@ -80,7 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const management = managementUsers.find((m) => {
       if (!isActiveStatus(m.status)) return false;
 
-      const usernameMatch = String(m.username || '').toLowerCase().trim() === normalizedInput;
+      // Support both current schema (username/password) and legacy sheet columns
+      // where credentials were stored in generated_by / generated_at.
+      const primaryUsername = String(m.username || '').toLowerCase().trim();
+      const legacyUsername = String((m as unknown as Record<string, unknown>).generated_by || '').toLowerCase().trim();
+      const usernameMatch = primaryUsername === normalizedInput || legacyUsername === normalizedInput;
       const emailMatch = String(m.email || '').toLowerCase().trim() === normalizedInput;
       const nameMatch = String(m.name || '').toLowerCase().trim() === normalizedInput;
       const idMatch = String(m.management_id || '').toLowerCase().trim() === normalizedInput;
@@ -88,9 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!identityMatch) return false;
 
       const storedPassword = String(m.password || '').trim();
+      const legacyPassword = String((m as unknown as Record<string, unknown>).generated_at || '').trim();
       if (storedPassword) return storedPassword === normalizedSecret;
+      if (legacyPassword) return legacyPassword === normalizedSecret;
 
-      // Backward-compatible fallback for legacy sheets without password column data.
+      // Final fallback for older rows that used phone as credential.
       return String(m.phone || '').trim() === normalizedSecret;
     });
 
