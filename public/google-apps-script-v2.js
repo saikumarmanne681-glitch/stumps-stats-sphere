@@ -22,6 +22,8 @@
 // USER_PRESENCE: ["user_id","last_heartbeat","last_seen","active_sessions","device_type"],
 // DIGITAL_SCORELISTS: ["scorelist_id","season_id","tournament_id","match_id","scope_type","payload_json","hash_digest","signature","generated_by","generated_at"],
 // AUDIT_EVENTS: ["event_id","actor_user","event_type","entity_type","entity_id","metadata","timestamp"],
+// MANAGEMENT_USERS: ["management_id","name","email","phone","designation","role","authority_level","signature_image","status","created_at","username","password"],
+// MATCH_TIMELINE: ["event_id","match_id","over","event_type","description","player_id","team","timestamp"],
 //
 // Also add to getKeyColumn function:
 // SUPPORT_TICKETS: "ticket_id",
@@ -32,3 +34,11 @@
 // USER_PRESENCE: "user_id",
 // DIGITAL_SCORELISTS: "scorelist_id",
 // AUDIT_EVENTS: "event_id",
+// MANAGEMENT_USERS: "management_id",
+// MATCH_TIMELINE: "event_id",
+
+
+// OPTIONAL: Add action support to sync/update missing headers without seeding data:
+// - GET  : ?action=syncHeaders
+// - POST : {"action":"syncHeaders"}
+// This safely appends missing columns (like username/password in MANAGEMENT_USERS) and never inserts mock data.

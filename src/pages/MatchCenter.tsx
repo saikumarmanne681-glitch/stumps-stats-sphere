@@ -320,14 +320,6 @@ const MatchCenter = () => {
             </Card>
 
             <>
-                {!isLiveMatch && (
-                  <Card className="border-dashed">
-                    <CardContent className="p-3 text-sm text-muted-foreground">
-                      Live scoring panel is visible now. Start the match to enable scoring actions.
-                    </CardContent>
-                  </Card>
-                )}
-
                 {/* Scoring Controls */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   {/* Run Buttons */}

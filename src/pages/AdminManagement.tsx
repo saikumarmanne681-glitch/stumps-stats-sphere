@@ -45,6 +45,10 @@ const AdminManagement = () => {
       toast({ title: 'Error', description: 'Name and designation required', variant: 'destructive' });
       return;
     }
+    if (!String(editUser.username || '').trim() || !String(editUser.password || '').trim()) {
+      toast({ title: 'Error', description: 'Username and password are required for management login', variant: 'destructive' });
+      return;
+    }
     if (editUser.management_id) {
       await v2api.updateManagementUser(editUser);
     } else {
