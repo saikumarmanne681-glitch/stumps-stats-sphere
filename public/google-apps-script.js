@@ -78,6 +78,8 @@ const TABS = {
   USER_PRESENCE: ["user_id","last_heartbeat","last_seen","active_sessions","device_type"],
   DIGITAL_SCORELISTS: ["scorelist_id","season_id","tournament_id","match_id","scope_type","payload_json","hash_digest","signature","generated_by","generated_at"],
   AUDIT_EVENTS: ["event_id","actor_user","event_type","entity_type","entity_id","metadata","timestamp"],
+  MANAGEMENT_USERS: ["management_id","name","email","phone","designation","role","authority_level","signature_image","status","created_at","username","password"],
+  MATCH_TIMELINE: ["event_id","match_id","over","event_type","description","player_id","team","timestamp"],
 };
 
 // ──────── HELPERS ────────
@@ -142,8 +144,32 @@ function getKeyColumn(tabName) {
     USER_PRESENCE: "user_id",
     DIGITAL_SCORELISTS: "scorelist_id",
     AUDIT_EVENTS: "event_id",
+    MANAGEMENT_USERS: "management_id",
+    MATCH_TIMELINE: "event_id",
   };
   return map[tabName] || "id";
+}
+
+
+function ensureSheetSchema(sheet, headers) {
+  const existingHeaders = (sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || []).map((h) => String(h || '').trim());
+  const missing = headers.filter((h) => !existingHeaders.includes(h));
+  if (missing.length === 0) return { added: [] };
+
+  const startCol = Math.max(existingHeaders.filter(Boolean).length, 0) + 1;
+  sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
+  sheet.getRange(1, 1, 1, startCol + missing.length - 1).setFontWeight("bold");
+  sheet.setFrozenRows(1);
+  return { added: missing };
+}
+
+function ensureAllTabsAndHeaders(ss) {
+  const report = {};
+  Object.keys(TABS).forEach((tabName) => {
+    const sheet = getOrCreateSheet(ss, tabName);
+    report[tabName] = ensureSheetSchema(sheet, TABS[tabName]);
+  });
+  return report;
 }
 
 // ──────── CORS ────────
@@ -173,6 +199,13 @@ function doGet(e) {
     // Create all tabs with headers
     Object.keys(TABS).forEach((tabName) => getOrCreateSheet(ss, tabName));
     return ContentService.createTextOutput(JSON.stringify({ success: true, message: "All tabs created" })).setMimeType(
+      ContentService.MimeType.JSON,
+    );
+  }
+
+  if (action === "syncHeaders") {
+    const report = ensureAllTabsAndHeaders(ss);
+    return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Headers synced", report })).setMimeType(
       ContentService.MimeType.JSON,
     );
   }
@@ -223,6 +256,19 @@ function doPost(e) {
         }
       });
       return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Seeded all tabs" })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    }
+  }
+
+  if (action === "syncHeaders") {
+    try {
+      const report = ensureAllTabsAndHeaders(ss);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Headers synced", report })).setMimeType(
         ContentService.MimeType.JSON,
       );
     } catch (err) {

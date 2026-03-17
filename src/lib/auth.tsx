@@ -25,6 +25,11 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
+  const isActiveStatus = (status?: string) => {
+    const normalized = String(status || '').trim().toLowerCase();
+    return normalized === '' || normalized === 'active';
+  };
+
   useEffect(() => {
     const stored = localStorage.getItem("cricketUser");
     if (stored) {
@@ -70,17 +75,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const managementUsers = await v2api.getManagementUsers();
-    const management = managementUsers.find(
-      (m) =>
-        String(m.username).toLowerCase().trim() === username.toLowerCase().trim() &&
-        String(m.password).trim() === password.trim() &&
-        String(m.status).toLowerCase() === "active",
-    );
+    const normalizedInput = username.toLowerCase().trim();
+    const normalizedSecret = password.trim();
+    const management = managementUsers.find((m) => {
+      if (!isActiveStatus(m.status)) return false;
+
+      // Support both current schema (username/password) and legacy sheet columns
+      // where credentials were stored in generated_by / generated_at.
+      const primaryUsername = String(m.username || '').toLowerCase().trim();
+      const legacyUsername = String((m as unknown as Record<string, unknown>).generated_by || '').toLowerCase().trim();
+      const usernameMatch = primaryUsername === normalizedInput || legacyUsername === normalizedInput;
+      const emailMatch = String(m.email || '').toLowerCase().trim() === normalizedInput;
+      const nameMatch = String(m.name || '').toLowerCase().trim() === normalizedInput;
+      const idMatch = String(m.management_id || '').toLowerCase().trim() === normalizedInput;
+      const identityMatch = usernameMatch || emailMatch || nameMatch || idMatch;
+      if (!identityMatch) return false;
+
+      const storedPassword = String(m.password || '').trim();
+      const legacyPassword = String((m as unknown as Record<string, unknown>).generated_at || '').trim();
+      if (storedPassword) return storedPassword === normalizedSecret;
+      if (legacyPassword) return legacyPassword === normalizedSecret;
+
+      // Final fallback for older rows that used phone as credential.
+      return String(m.phone || '').trim() === normalizedSecret;
+    });
 
     if (management) {
       const u: AuthUser = {
         type: "management",
-        username: management.username,
+        username: management.username || management.email || management.management_id,
         management_id: management.management_id,
         name: management.name,
         designation: management.designation,
