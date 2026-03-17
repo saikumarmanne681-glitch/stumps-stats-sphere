@@ -71,6 +71,7 @@ const MatchCenter = () => {
   const teamBScore = match ? calcTeamScore(match.team_b) : { runs: 0, wkts: 0, overs: '0.0', balls: 0 };
 
   const runRate = (runs: number, balls: number) => balls > 0 ? ((runs / balls) * 6).toFixed(2) : '0.00';
+  const isLiveMatch = match?.status === 'live';
 
   const addTimelineEvent = async (eventType: string, description: string, playerId: string = '') => {
     if (!match) return;
@@ -328,11 +329,11 @@ const MatchCenter = () => {
                       <div className="flex gap-2 items-end">
                         <div className="flex-1">
                           <Label className="text-xs">Current Over</Label>
-                          <Input value={currentOver} onChange={e => setCurrentOver(e.target.value)} placeholder="0.0" className="h-8" />
+                          <Input value={currentOver} onChange={e => setCurrentOver(e.target.value)} placeholder="0.0" className="h-8" disabled={!isLiveMatch} />
                         </div>
                         <div className="flex-1">
                           <Label className="text-xs">Batting Team</Label>
-                          <Select value={battingTeam} onValueChange={v => setBattingTeam(v as 'A' | 'B')}>
+                          <Select value={battingTeam} onValueChange={v => setBattingTeam(v as 'A' | 'B')} disabled={!isLiveMatch}>
                             <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="A">{match.team_a}</SelectItem>
@@ -344,7 +345,7 @@ const MatchCenter = () => {
                       <div className="flex gap-2 items-end">
                         <div className="flex-1">
                           <Label className="text-xs">Batsman</Label>
-                          <Select value={currentBatsman} onValueChange={setCurrentBatsman}>
+                          <Select value={currentBatsman} onValueChange={setCurrentBatsman} disabled={!isLiveMatch}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="Select" /></SelectTrigger>
                             <SelectContent>
                               {players.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
@@ -353,7 +354,7 @@ const MatchCenter = () => {
                         </div>
                         <div className="flex-1">
                           <Label className="text-xs">Bowler</Label>
-                          <Select value={currentBowler} onValueChange={setCurrentBowler}>
+                          <Select value={currentBowler} onValueChange={setCurrentBowler} disabled={!isLiveMatch}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="Select" /></SelectTrigger>
                             <SelectContent>
                               {players.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
@@ -363,7 +364,7 @@ const MatchCenter = () => {
                       </div>
                       <div className="grid grid-cols-4 gap-2">
                         {[0, 1, 2, 3, 4, 6].map(r => (
-                          <Button key={r} variant={r === 4 ? 'default' : r === 6 ? 'destructive' : 'outline'} size="sm" onClick={() => handleScoreRuns(r)} className="font-bold text-lg h-12">
+                          <Button key={r} variant={r === 4 ? 'default' : r === 6 ? 'destructive' : 'outline'} size="sm" onClick={() => handleScoreRuns(r)} className="font-bold text-lg h-12" disabled={!isLiveMatch}>
                             {r}
                           </Button>
                         ))}
@@ -378,7 +379,7 @@ const MatchCenter = () => {
                       <Label className="text-xs font-semibold">Wicket Type</Label>
                       <div className="grid grid-cols-2 gap-1">
                         {['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket'].map(w => (
-                          <Button key={w} variant="outline" size="sm" onClick={() => handleWicket(w)} className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10">
+                          <Button key={w} variant="outline" size="sm" onClick={() => handleWicket(w)} className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10" disabled={!isLiveMatch}>
                             {w}
                           </Button>
                         ))}
@@ -386,7 +387,7 @@ const MatchCenter = () => {
                       <Label className="text-xs font-semibold">Extras</Label>
                       <div className="grid grid-cols-3 gap-1">
                         {[['Wide', 1], ['No Ball', 1], ['Bye', 1], ['Leg Bye', 1], ['Penalty', 5]].map(([type, runs]) => (
-                          <Button key={type as string} variant="secondary" size="sm" onClick={() => handleExtra(type as string, runs as number)} className="text-xs">
+                          <Button key={type as string} variant="secondary" size="sm" onClick={() => handleExtra(type as string, runs as number)} className="text-xs" disabled={!isLiveMatch}>
                             {type as string} +{runs as number}
                           </Button>
                         ))}
@@ -399,10 +400,10 @@ const MatchCenter = () => {
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-display">🔄 Controls</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={undoLastAction} disabled={scoringHistory.length === 0} className="flex-1 gap-1">
+                        <Button variant="outline" size="sm" onClick={undoLastAction} disabled={!isLiveMatch || scoringHistory.length === 0} className="flex-1 gap-1">
                           <Undo2 className="h-4 w-4" /> Undo
                         </Button>
-                        <Button variant="outline" size="sm" onClick={redoLastAction} disabled={undoneActions.length === 0} className="flex-1 gap-1">
+                        <Button variant="outline" size="sm" onClick={redoLastAction} disabled={!isLiveMatch || undoneActions.length === 0} className="flex-1 gap-1">
                           <Redo2 className="h-4 w-4" /> Redo
                         </Button>
                       </div>
@@ -410,8 +411,8 @@ const MatchCenter = () => {
                       <div className="border-t pt-2 space-y-2">
                         <Label className="text-xs font-semibold">Live Note</Label>
                         <div className="flex gap-2">
-                          <Input value={quickNote} onChange={e => setQuickNote(e.target.value)} placeholder="Add umpire note, injury, weather..." className="h-8 text-xs" />
-                          <Button size="sm" variant="secondary" onClick={handleAddNote}>Add</Button>
+                          <Input value={quickNote} onChange={e => setQuickNote(e.target.value)} placeholder="Add umpire note, injury, weather..." className="h-8 text-xs" disabled={!isLiveMatch} />
+                          <Button size="sm" variant="secondary" onClick={handleAddNote} disabled={!isLiveMatch}>Add</Button>
                         </div>
                       </div>
 
