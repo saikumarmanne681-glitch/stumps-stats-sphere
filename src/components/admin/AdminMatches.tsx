@@ -101,6 +101,7 @@ export function AdminMatches() {
     man_of_match: "",
     team_a_score: "",
     team_b_score: "",
+    match_stage: "",
   };
 
   const saveMatchHandler = async () => {
