@@ -101,6 +101,7 @@ export function AdminMatches() {
     man_of_match: "",
     team_a_score: "",
     team_b_score: "",
+    match_stage: "",
   };
 
   const saveMatchHandler = async () => {
@@ -551,6 +552,23 @@ export function AdminMatches() {
                     value={editMatch?.venue || ""}
                     onChange={(e) => setEditMatch((prev) => (prev ? { ...prev, venue: e.target.value } : null))}
                   />
+                </div>
+                <div>
+                  <Label>Match Stage</Label>
+                  <Select
+                    value={editMatch?.match_stage || ""}
+                    onValueChange={(v) => setEditMatch((prev) => (prev ? { ...prev, match_stage: v } : null))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select stage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value=" ">None</SelectItem>
+                      {['League', 'Group Stage', 'Quarter Final', 'Semi Final', 'Final', 'Qualifier', 'Eliminator', 'Friendly', 'Super Over', 'Play-off'].map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Status</Label>

@@ -1,4 +1,4 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, ManagementUser, MatchTimeline } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 
 async function fetchV2Sheet<T>(sheet: string): Promise<T[]> {
@@ -54,10 +54,22 @@ export const v2api = {
   // Scorelists
   getScorelists: () => fetchV2Sheet<DigitalScorelist>('DIGITAL_SCORELISTS'),
   addScorelist: (s: DigitalScorelist) => writeV2Sheet('DIGITAL_SCORELISTS', 'add', s),
+  updateScorelist: (s: DigitalScorelist) => writeV2Sheet('DIGITAL_SCORELISTS', 'update', s),
 
   // Audit
   getAuditEvents: () => fetchV2Sheet<AuditEvent>('AUDIT_EVENTS'),
   addAuditEvent: (e: AuditEvent) => writeV2Sheet('AUDIT_EVENTS', 'add', e),
+
+  // Management Users
+  getManagementUsers: () => fetchV2Sheet<ManagementUser>('MANAGEMENT_USERS'),
+  addManagementUser: (m: ManagementUser) => writeV2Sheet('MANAGEMENT_USERS', 'add', m),
+  updateManagementUser: (m: ManagementUser) => writeV2Sheet('MANAGEMENT_USERS', 'update', m),
+  deleteManagementUser: (id: string) => writeV2Sheet('MANAGEMENT_USERS', 'delete', { management_id: id }),
+
+  // Match Timeline
+  getMatchTimeline: () => fetchV2Sheet<MatchTimeline>('MATCH_TIMELINE'),
+  addTimelineEvent: (e: MatchTimeline) => writeV2Sheet('MATCH_TIMELINE', 'add', e),
+  deleteTimelineEvent: (id: string) => writeV2Sheet('MATCH_TIMELINE', 'delete', { event_id: id }),
 };
 
 // Helper to create IST timestamp

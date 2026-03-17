@@ -40,6 +40,7 @@ export interface Match {
   man_of_match: string;
   team_a_score: string;
   team_b_score: string;
+  match_stage?: string;
 }
 
 export interface BattingScorecard {
@@ -91,8 +92,10 @@ export interface Message {
 }
 
 export interface AuthUser {
-  type: 'admin' | 'player';
+  type: 'admin' | 'player' | 'management';
   player_id?: string;
+  management_id?: string;
   username: string;
   name?: string;
+  designation?: string;
 }

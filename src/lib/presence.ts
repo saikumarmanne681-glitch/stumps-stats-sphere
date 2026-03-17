@@ -8,10 +8,12 @@ export function startHeartbeat(userId: string) {
 
   const send = async () => {
     const deviceType = /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+    // Use ISO timestamp for reliable parsing across timezones
+    const now = new Date().toISOString();
     const presence: UserPresence = {
       user_id: userId,
-      last_heartbeat: istNow(),
-      last_seen: istNow(),
+      last_heartbeat: now,
+      last_seen: now,
       active_sessions: 1,
       device_type: deviceType,
     };
@@ -21,7 +23,7 @@ export function startHeartbeat(userId: string) {
   };
 
   send(); // immediate
-  heartbeatInterval = setInterval(send, 60000); // every 60s
+  heartbeatInterval = setInterval(send, 30000); // every 30s for better responsiveness
 }
 
 export function stopHeartbeat() {

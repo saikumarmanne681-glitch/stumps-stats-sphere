@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogIn, LogOut, LayoutDashboard, Home } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database } from 'lucide-react';
 
 export function Navbar() {
   const { user, logout, isAdmin, isPlayer } = useAuth();
@@ -15,10 +15,19 @@ export function Navbar() {
           <span className="font-display text-xl font-bold text-primary">CRICKET CLUB</span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" asChild>
             <Link to="/"><Home className="h-4 w-4 mr-1" /> Home</Link>
           </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/leaderboards"><Trophy className="h-4 w-4 mr-1" /> Leaderboards</Link>
+          </Button>
+
+          {user && (
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/management"><Users className="h-4 w-4 mr-1" /> Board</Link>
+            </Button>
+          )}
 
           {!user && (
             <Button size="sm" asChild>
@@ -27,9 +36,23 @@ export function Navbar() {
           )}
 
           {isAdmin && (
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/admin"><LayoutDashboard className="h-4 w-4 mr-1" /> Admin</Link>
-            </Button>
+            <>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/admin"><LayoutDashboard className="h-4 w-4 mr-1" /> Admin</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/admin/match-center"><Zap className="h-4 w-4 mr-1" /> Live</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/admin/scorelists"><Shield className="h-4 w-4 mr-1" /> Scorelists</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/admin/management"><Users className="h-4 w-4 mr-1" /> Mgmt</Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/admin/backups"><Database className="h-4 w-4 mr-1" /> Backup</Link>
+              </Button>
+            </>
           )}
 
           {isPlayer && (
