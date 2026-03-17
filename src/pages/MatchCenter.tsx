@@ -47,6 +47,7 @@ const MatchCenter = () => {
   const [battingTeam, setBattingTeam] = useState<'A' | 'B'>('A');
   const [innings, setInnings] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [quickNote, setQuickNote] = useState('');
 
   if (!isAdmin) return <Navigate to="/login" />;
 
@@ -130,6 +131,14 @@ const MatchCenter = () => {
     toast({ title: 'Wicket!', description: `${wicketType} - Over ${currentOver}`, variant: 'destructive' });
   };
 
+
+  const handleAddNote = async () => {
+    if (!quickNote.trim()) return;
+    await addTimelineEvent('NOTE', `📝 ${quickNote.trim()}`);
+    logAudit(user?.username || 'admin', 'add_live_note', 'match', selectedMatchId, quickNote.trim());
+    toast({ title: 'Note added to timeline' });
+    setQuickNote('');
+  };
   const handleExtra = async (type: string, runs: number) => {
     if (!match) return;
     const desc = `${type} +${runs}`;
@@ -399,6 +408,14 @@ const MatchCenter = () => {
                         </Button>
                       </div>
                       
+                      <div className="border-t pt-2 space-y-2">
+                        <Label className="text-xs font-semibold">Live Note</Label>
+                        <div className="flex gap-2">
+                          <Input value={quickNote} onChange={e => setQuickNote(e.target.value)} placeholder="Add umpire note, injury, weather..." className="h-8 text-xs" />
+                          <Button size="sm" variant="secondary" onClick={handleAddNote}>Add</Button>
+                        </div>
+                      </div>
+
                       <div className="border-t pt-2">
                         <Label className="text-xs font-semibold mb-2 block">Recent Actions</Label>
                         <div className="max-h-[200px] overflow-y-auto space-y-1 scrollbar-thin">

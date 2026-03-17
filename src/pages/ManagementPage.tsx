@@ -1,28 +1,78 @@
 import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Shield } from 'lucide-react';
-import { v2api } from '@/lib/v2api';
-import { ManagementUser } from '@/lib/v2types';
+import { Button } from '@/components/ui/button';
+import { User, Shield, ShieldCheck } from 'lucide-react';
+import { v2api, logAudit } from '@/lib/v2api';
+import { ManagementUser, DigitalScorelist, CertificationApproval } from '@/lib/v2types';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+const designationToStage: Record<string, string> = {
+  'Scoring Official': 'scoring_completed',
+  'Match Referee': 'referee_verified',
+  'Tournament Director': 'director_approved',
+  President: 'official_certified',
+  'Vice President': 'official_certified',
+};
 
 const ManagementPage = () => {
-  const { user } = useAuth();
+  const { user, isManagement } = useAuth();
+  const { toast } = useToast();
   const [mgmtUsers, setMgmtUsers] = useState<ManagementUser[]>([]);
+  const [scorelists, setScorelists] = useState<DigitalScorelist[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    v2api.getManagementUsers().then(data => { setMgmtUsers(data.filter(m => m.status === 'active')); setLoading(false); });
-  }, []);
+  const refresh = async () => {
+    const [users, scorelistData] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists()]);
+    setMgmtUsers(users.filter(m => m.status === 'active'));
+    setScorelists(scorelistData);
+    setLoading(false);
+  };
 
-  // Only accessible to logged-in users
-  if (!user) return <Navigate to="/login" />;
+  useEffect(() => {
+    refresh();
+  }, []);
 
   const leadership = mgmtUsers.filter(m => ['President', 'Vice President', 'Secretary', 'Treasurer'].includes(m.designation));
   const committee = mgmtUsers.filter(m => !['President', 'Vice President', 'Secretary', 'Treasurer'].includes(m.designation));
+
+  const pendingScorelists = scorelists.filter(s => !s.locked);
+
+  const signScorelist = async (scorelist: DigitalScorelist) => {
+    if (!isManagement || !user?.management_id) return;
+    const certs: CertificationApproval[] = scorelist.certifications_json ? JSON.parse(scorelist.certifications_json) : [];
+
+    if (certs.some(c => c.approver_id === user.management_id)) {
+      toast({ title: 'Already signed', description: 'You already signed this scorelist.' });
+      return;
+    }
+
+    const stage = designationToStage[user.designation || ''] || 'referee_verified';
+    const nextStatus = stage === 'official_certified' ? 'official_certified' : stage;
+
+    certs.push({
+      approver_id: user.management_id,
+      approver_name: user.name || 'Management User',
+      designation: user.designation || 'Management',
+      timestamp: new Date().toISOString(),
+      token: `MGT_CERT_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      stage,
+    });
+
+    await v2api.updateScorelist({
+      ...scorelist,
+      certification_status: nextStatus,
+      certifications_json: JSON.stringify(certs),
+      locked: stage === 'official_certified' ? true : scorelist.locked,
+    });
+
+    logAudit(user.management_id, 'management_sign_scorelist', 'scorelist', scorelist.scorelist_id, stage);
+    toast({ title: 'Scorelist signed', description: `Signed as ${user.designation || 'Management'}` });
+    refresh();
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-background">
@@ -40,6 +90,29 @@ const ManagementPage = () => {
           <h1 className="font-display text-4xl font-bold">Management Board</h1>
           <p className="text-muted-foreground">Club Leadership & Tournament Committee</p>
         </div>
+
+        {isManagement && (
+          <Card className="border-primary/40">
+            <CardHeader>
+              <CardTitle className="font-display">Pending Scorelists for Signature</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {pendingScorelists.map(s => (
+                <div key={s.scorelist_id} className="flex items-center justify-between border rounded-lg p-3">
+                  <div>
+                    <p className="font-mono text-xs">{s.scorelist_id}</p>
+                    <p className="text-sm text-muted-foreground">{s.scope_type} • {s.certification_status || 'draft'}</p>
+                  </div>
+                  <Button size="sm" onClick={() => signScorelist(s)} className="gap-1">
+                    <ShieldCheck className="h-4 w-4" /> Sign
+                  </Button>
+                </div>
+              ))}
+              {pendingScorelists.length === 0 && <p className="text-sm text-muted-foreground">No pending scorelists.</p>}
+            </CardContent>
+          </Card>
+        )}
+
 
         {leadership.length > 0 && (
           <section>
