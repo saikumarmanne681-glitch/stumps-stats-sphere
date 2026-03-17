@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { v2api, logAudit } from '@/lib/v2api';
-import { DigitalScorelist, CertificationApproval, CERTIFICATION_STAGES, ManagementUser } from '@/lib/v2types';
+import { DigitalScorelist, CertificationApproval, CERTIFICATION_STAGES } from '@/lib/v2types';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, Shield, ShieldCheck, ShieldX, Lock, Unlock, QrCode, Download, Eye } from 'lucide-react';
@@ -22,7 +22,6 @@ const AdminScorelistsPage = () => {
   const { toast } = useToast();
 
   const [scorelists, setScorelists] = useState<DigitalScorelist[]>([]);
-  const [mgmtUsers, setMgmtUsers] = useState<ManagementUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState('');
@@ -32,9 +31,8 @@ const AdminScorelistsPage = () => {
   const [verifyResult, setVerifyResult] = useState<{ valid: boolean; reason?: string } | null>(null);
 
   useEffect(() => {
-    Promise.all([v2api.getScorelists(), v2api.getManagementUsers()]).then(([s, m]) => {
+    v2api.getScorelists().then((s) => {
       setScorelists(s);
-      setMgmtUsers(m);
       setLoading(false);
     });
   }, []);
@@ -310,6 +308,127 @@ const AdminScorelistsPage = () => {
                           {match.man_of_match && <p className="text-sm text-muted-foreground">🏅 Man of the Match: {players.find(p => p.player_id === match.man_of_match)?.name}</p>}
                         </CardContent>
                       </Card>
+                    )}
+
+
+
+                    {viewScorelist.scope_type === 'tournament' && payload?.matches?.length > 0 && (
+                      <div className="space-y-4">
+                        <h3 className="font-display text-xl font-bold">📘 Full Tournament Scorebook</h3>
+                        {payload.matches.map((tm: any) => {
+                          const matchBat = (payload.battingData || []).filter((b: any) => b.match_id === tm.match_id);
+                          const matchBowl = (payload.bowlingData || []).filter((b: any) => b.match_id === tm.match_id);
+                          const teamABat = matchBat.filter((b: any) => b.team === tm.team_a);
+                          const teamBBat = matchBat.filter((b: any) => b.team === tm.team_b);
+                          const teamABowl = matchBowl.filter((b: any) => b.team === tm.team_a);
+                          const teamBBowl = matchBowl.filter((b: any) => b.team === tm.team_b);
+
+                          return (
+                            <Card key={tm.match_id} className="border-2 border-primary/20">
+                              <CardHeader>
+                                <CardTitle className="text-base">{tm.team_a} vs {tm.team_b}</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                                  <p><span className="text-muted-foreground">Date:</span> {tm.date || 'N/A'}</p>
+                                  <p><span className="text-muted-foreground">Venue:</span> {tm.venue || 'N/A'}</p>
+                                  <p><span className="text-muted-foreground">Stage:</span> {tm.match_stage || 'League'}</p>
+                                  <p><span className="text-muted-foreground">Status:</span> {tm.status || '-'}</p>
+                                  <p><span className="text-muted-foreground">Result:</span> {tm.result || '-'}</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                  <div className="space-y-3">
+                                    <h4 className="font-semibold">🏏 {tm.team_a} Batting</h4>
+                                    {teamABat.length > 0 ? (
+                                      <Table>
+                                        <TableHeader><TableRow>
+                                          <TableHead>Batter</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">B</TableHead><TableHead className="text-right">4s</TableHead><TableHead className="text-right">6s</TableHead><TableHead>Dismissal</TableHead>
+                                        </TableRow></TableHeader>
+                                        <TableBody>
+                                          {teamABat.map((b: any) => (
+                                            <TableRow key={b.id}>
+                                              <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                                              <TableCell className="text-right">{b.runs}</TableCell>
+                                              <TableCell className="text-right">{b.balls}</TableCell>
+                                              <TableCell className="text-right">{b.fours}</TableCell>
+                                              <TableCell className="text-right">{b.sixes}</TableCell>
+                                              <TableCell className="text-xs">{b.how_out || 'not out'}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    ) : <p className="text-xs text-muted-foreground">No batting data</p>}
+
+                                    <h4 className="font-semibold">🎯 {tm.team_a} Bowling</h4>
+                                    {teamABowl.length > 0 ? (
+                                      <Table>
+                                        <TableHeader><TableRow>
+                                          <TableHead>Bowler</TableHead><TableHead className="text-right">O</TableHead><TableHead className="text-right">M</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">W</TableHead>
+                                        </TableRow></TableHeader>
+                                        <TableBody>
+                                          {teamABowl.map((b: any) => (
+                                            <TableRow key={b.id}>
+                                              <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                                              <TableCell className="text-right">{b.overs}</TableCell>
+                                              <TableCell className="text-right">{b.maidens}</TableCell>
+                                              <TableCell className="text-right">{b.runs_conceded}</TableCell>
+                                              <TableCell className="text-right">{b.wickets}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    ) : <p className="text-xs text-muted-foreground">No bowling data</p>}
+                                  </div>
+
+                                  <div className="space-y-3">
+                                    <h4 className="font-semibold">🏏 {tm.team_b} Batting</h4>
+                                    {teamBBat.length > 0 ? (
+                                      <Table>
+                                        <TableHeader><TableRow>
+                                          <TableHead>Batter</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">B</TableHead><TableHead className="text-right">4s</TableHead><TableHead className="text-right">6s</TableHead><TableHead>Dismissal</TableHead>
+                                        </TableRow></TableHeader>
+                                        <TableBody>
+                                          {teamBBat.map((b: any) => (
+                                            <TableRow key={b.id}>
+                                              <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                                              <TableCell className="text-right">{b.runs}</TableCell>
+                                              <TableCell className="text-right">{b.balls}</TableCell>
+                                              <TableCell className="text-right">{b.fours}</TableCell>
+                                              <TableCell className="text-right">{b.sixes}</TableCell>
+                                              <TableCell className="text-xs">{b.how_out || 'not out'}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    ) : <p className="text-xs text-muted-foreground">No batting data</p>}
+
+                                    <h4 className="font-semibold">🎯 {tm.team_b} Bowling</h4>
+                                    {teamBBowl.length > 0 ? (
+                                      <Table>
+                                        <TableHeader><TableRow>
+                                          <TableHead>Bowler</TableHead><TableHead className="text-right">O</TableHead><TableHead className="text-right">M</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">W</TableHead>
+                                        </TableRow></TableHeader>
+                                        <TableBody>
+                                          {teamBBowl.map((b: any) => (
+                                            <TableRow key={b.id}>
+                                              <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                                              <TableCell className="text-right">{b.overs}</TableCell>
+                                              <TableCell className="text-right">{b.maidens}</TableCell>
+                                              <TableCell className="text-right">{b.runs_conceded}</TableCell>
+                                              <TableCell className="text-right">{b.wickets}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    ) : <p className="text-xs text-muted-foreground">No bowling data</p>}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
                     )}
 
                     {/* Certification Panel */}

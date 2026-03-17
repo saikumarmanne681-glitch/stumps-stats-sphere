@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, User } from 'lucide-react';
+import { Shield, User, Users } from 'lucide-react';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -18,17 +18,17 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogin = async (type: 'admin' | 'player') => {
+  const handleLogin = async (type: 'admin' | 'player' | 'management') => {
     if (!username.trim() || !password.trim()) {
       toast({ title: 'Error', description: 'Please fill in all fields', variant: 'destructive' });
       return;
     }
     setLoading(true);
-    const success = await login(username, password);
+    const success = await login(username, password, type);
     setLoading(false);
     if (success) {
       toast({ title: 'Welcome!', description: `Logged in as ${username}` });
-      navigate(type === 'admin' ? '/admin' : '/player');
+      navigate(type === 'admin' ? '/admin' : type === 'management' ? '/management' : '/player');
     } else {
       toast({ title: 'Login Failed', description: 'Invalid credentials', variant: 'destructive' });
     }
@@ -46,12 +46,15 @@ const Login = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="admin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="admin" className="flex items-center gap-1">
                   <Shield className="h-4 w-4" /> Admin
                 </TabsTrigger>
                 <TabsTrigger value="player" className="flex items-center gap-1">
                   <User className="h-4 w-4" /> Player
+                </TabsTrigger>
+                <TabsTrigger value="management" className="flex items-center gap-1">
+                  <Users className="h-4 w-4" /> Management
                 </TabsTrigger>
               </TabsList>
 
@@ -81,9 +84,20 @@ const Login = () => {
                 <Button className="w-full" onClick={() => handleLogin('player')} disabled={loading}>
                   {loading ? 'Logging in...' : 'Login as Player'}
                 </Button>
-                <p className="text-xs text-muted-foreground text-center">
-                  Contact admin for login credentials
-                </p>
+              </TabsContent>
+
+              <TabsContent value="management" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input placeholder="management username" value={username} onChange={e => setUsername(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <Input type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                </div>
+                <Button className="w-full" onClick={() => handleLogin('management')} disabled={loading}>
+                  {loading ? 'Logging in...' : 'Login as Management'}
+                </Button>
               </TabsContent>
             </Tabs>
           </CardContent>

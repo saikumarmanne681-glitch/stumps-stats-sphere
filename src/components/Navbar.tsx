@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database } from 'lucide-react';
 
 export function Navbar() {
-  const { user, logout, isAdmin, isPlayer } = useAuth();
+  const { user, logout, isAdmin, isPlayer, isManagement } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -58,6 +58,12 @@ export function Navbar() {
           {isPlayer && (
             <Button variant="outline" size="sm" asChild>
               <Link to="/player"><LayoutDashboard className="h-4 w-4 mr-1" /> Dashboard</Link>
+            </Button>
+          )}
+
+          {isManagement && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/management"><LayoutDashboard className="h-4 w-4 mr-1" /> Management</Link>
             </Button>
           )}
 

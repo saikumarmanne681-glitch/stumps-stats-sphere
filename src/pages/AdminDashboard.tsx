@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { AdminAnnouncements } from '@/components/admin/AdminAnnouncements';
 import { AdminTournaments } from '@/components/admin/AdminTournaments';
 import { AdminSeasons } from '@/components/admin/AdminSeasons';
@@ -14,7 +14,7 @@ import { AdminSupportDashboard } from '@/components/admin/AdminSupport';
 import { AdminPresence } from '@/components/admin/AdminPresence';
 import { AdminScorelists } from '@/components/admin/AdminScorelists';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
-import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText } from 'lucide-react';
+import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -25,7 +25,12 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6">
-        <h1 className="font-display text-3xl font-bold mb-6">⚙️ Admin Dashboard</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="font-display text-3xl font-bold">⚙️ Admin Dashboard</h1>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/admin/match-center"><Zap className="h-4 w-4 mr-1" /> Open Live Scoring Panel</Link>
+          </Button>
+        </div>
 
         <Tabs defaultValue="matches" className="w-full">
           <TabsList className="flex flex-wrap h-auto gap-1 mb-6">
