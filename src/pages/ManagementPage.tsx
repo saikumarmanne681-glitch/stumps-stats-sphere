@@ -9,6 +9,7 @@ import { v2api, logAudit } from '@/lib/v2api';
 import { ManagementUser, DigitalScorelist, CertificationApproval } from '@/lib/v2types';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Navigate } from 'react-router-dom';
 
 const designationToStage: Record<string, string> = {
   'Scoring Official': 'scoring_completed',
@@ -27,7 +28,7 @@ const ManagementPage = () => {
 
   const refresh = async () => {
     const [users, scorelistData] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists()]);
-    setMgmtUsers(users.filter(m => m.status === 'active'));
+    setMgmtUsers(users.filter(m => String(m.status || '').trim().toLowerCase() !== 'inactive'));
     setScorelists(scorelistData);
     setLoading(false);
   };
@@ -73,6 +74,8 @@ const ManagementPage = () => {
     toast({ title: 'Scorelist signed', description: `Signed as ${user.designation || 'Management'}` });
     refresh();
   };
+
+  if (!user) return <Navigate to="/login" />;
 
   if (loading) return (
     <div className="min-h-screen bg-background">
