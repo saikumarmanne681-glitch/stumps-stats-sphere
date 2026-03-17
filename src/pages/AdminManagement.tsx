@@ -24,8 +24,6 @@ const AdminManagement = () => {
   const [editUser, setEditUser] = useState<ManagementUser | null>(null);
   const [open, setOpen] = useState(false);
 
-  if (!isAdmin) return <Navigate to="/login" />;
-
   const refresh = async () => {
     const data = await v2api.getManagementUsers();
     setUsers(data);
@@ -33,6 +31,8 @@ const AdminManagement = () => {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  if (!isAdmin) return <Navigate to="/login" />;
 
   const empty: ManagementUser = {
     management_id: '', name: '', email: '', phone: '', designation: '', role: '',
