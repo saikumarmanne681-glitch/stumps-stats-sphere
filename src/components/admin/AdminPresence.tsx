@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { useData } from '@/lib/DataContext';
 import { v2api } from '@/lib/v2api';
 import { UserPresence, getPresenceStatus } from '@/lib/v2types';
 import { Loader2, Search, RefreshCw, Wifi, WifiOff, Clock } from 'lucide-react';
+import { ManagementUser } from '@/lib/v2types';
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
   online: <Wifi className="h-4 w-4 text-green-500" />,
@@ -26,6 +27,7 @@ const STATUS_BADGE: Record<string, string> = {
 export function AdminPresence() {
   const { players } = useData();
   const [presence, setPresence] = useState<UserPresence[]>([]);
+  const [mgmtUsers, setMgmtUsers] = useState<ManagementUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -33,40 +35,51 @@ export function AdminPresence() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const refresh = async () => {
-    const data = await v2api.getPresence();
+    const [data, mgmt] = await Promise.all([v2api.getPresence(), v2api.getManagementUsers()]);
     setPresence(data);
+    setMgmtUsers(mgmt);
     setLoading(false);
   };
 
   useEffect(() => {
     refresh();
-    const iv = setInterval(refresh, 12000);
+    const iv = setInterval(refresh, 10000);
     return () => clearInterval(iv);
   }, []);
 
   const enriched = useMemo(() => {
     return presence.map(p => {
       const player = players.find(pl => pl.player_id === p.user_id);
+      const mgmt = mgmtUsers.find(m => m.management_id === p.user_id);
+      const isAdminUser = p.user_id === 'admin';
+      const name = player?.name || mgmt?.name || (isAdminUser ? 'Administrator' : p.user_id);
+      const role = player ? 'Player' : mgmt ? mgmt.designation : isAdminUser ? 'Admin' : 'User';
       const status = getPresenceStatus(p.last_heartbeat);
-      return { ...p, name: player?.name || p.user_id, status };
+      // Format last seen for display
+      let lastSeenDisplay = p.last_seen || p.last_heartbeat || 'Never';
+      try {
+        const d = new Date(lastSeenDisplay);
+        if (!isNaN(d.getTime())) lastSeenDisplay = d.toLocaleString();
+      } catch { /* keep raw */ }
+      return { ...p, name, role, status, lastSeenDisplay };
     });
-  }, [presence, players]);
+  }, [presence, players, mgmtUsers]);
 
   const filtered = useMemo(() => {
     let result = [...enriched];
     if (filterStatus !== 'all') result = result.filter(r => r.status === filterStatus);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(r => r.name.toLowerCase().includes(q) || r.user_id.toLowerCase().includes(q));
+      result = result.filter(r => r.name.toLowerCase().includes(q) || r.user_id.toLowerCase().includes(q) || r.role.toLowerCase().includes(q));
     }
     result.sort((a, b) => {
       let cmp = 0;
       if (sortCol === 'name') cmp = a.name.localeCompare(b.name);
       else if (sortCol === 'status') {
-        const order = { online: 0, away: 1, offline: 2 };
-        cmp = order[a.status] - order[b.status];
+        const order: Record<string, number> = { online: 0, away: 1, offline: 2 };
+        cmp = (order[a.status] ?? 2) - (order[b.status] ?? 2);
       } else {
-        cmp = new Date(b.last_seen).getTime() - new Date(a.last_seen).getTime();
+        cmp = new Date(b.last_heartbeat || 0).getTime() - new Date(a.last_heartbeat || 0).getTime();
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -114,6 +127,7 @@ export function AdminPresence() {
             <TableHeader>
               <TableRow>
                 <TableHead className="cursor-pointer" onClick={() => toggleSort('name')}>User {sortCol === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead className="cursor-pointer" onClick={() => toggleSort('status')}>Status {sortCol === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</TableHead>
                 <TableHead className="cursor-pointer" onClick={() => toggleSort('lastSeen')}>Last Seen {sortCol === 'lastSeen' ? (sortDir === 'asc' ? '↑' : '↓') : ''}</TableHead>
                 <TableHead>Sessions</TableHead>
@@ -124,13 +138,14 @@ export function AdminPresence() {
               {filtered.map(row => (
                 <TableRow key={row.user_id}>
                   <TableCell className="font-medium">{row.name}</TableCell>
+                  <TableCell><Badge variant="outline" className="text-xs">{row.role}</Badge></TableCell>
                   <TableCell><div className="flex items-center gap-2">{STATUS_ICON[row.status]}<Badge className={`text-xs ${STATUS_BADGE[row.status]}`}>{row.status}</Badge></div></TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{row.last_seen}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{row.lastSeenDisplay}</TableCell>
                   <TableCell>{row.active_sessions}</TableCell>
                   <TableCell><Badge variant="outline" className="text-xs">{row.device_type || 'unknown'}</Badge></TableCell>
                 </TableRow>
               ))}
-              {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No presence data</TableCell></TableRow>}
+              {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No presence data. Users will appear here once they log in.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </CardContent>

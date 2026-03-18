@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useData } from '@/lib/DataContext';
 import { useAuth } from '@/lib/auth';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
@@ -11,12 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate } from 'react-router-dom';
-import { Loader2, Undo2, Redo2, Play, StopCircle, RotateCcw, Trophy, Zap } from 'lucide-react';
+import { Loader2, Undo2, Redo2, Play, StopCircle, RotateCcw, Trophy, Zap, Save } from 'lucide-react';
 import { generateId } from '@/lib/utils';
 import { MATCH_STAGES } from '@/lib/v2types';
+import { BattingScorecard, BowlingScorecard } from '@/lib/types';
 
 interface ScoringAction {
   id: string;
@@ -34,7 +34,7 @@ interface ScoringAction {
 const MatchCenter = () => {
   const { isAdmin } = useAuth();
   const { user } = useAuth();
-  const { matches, batting, bowling, players, tournaments, seasons, updateMatch } = useData();
+  const { matches, batting, bowling, players, tournaments, seasons, updateMatch, saveScorecardBulk, refresh } = useData();
   const { toast } = useToast();
 
   const [selectedMatchId, setSelectedMatchId] = useState('');
@@ -48,6 +48,10 @@ const MatchCenter = () => {
   const [innings, setInnings] = useState(1);
   const [loading, setLoading] = useState(false);
   const [quickNote, setQuickNote] = useState('');
+  
+  // Local live batting/bowling state that updates in real-time
+  const [liveBatting, setLiveBatting] = useState<BattingScorecard[]>([]);
+  const [liveBowling, setLiveBowling] = useState<BowlingScorecard[]>([]);
 
   if (!isAdmin) return <Navigate to="/login" />;
 
@@ -55,11 +59,16 @@ const MatchCenter = () => {
   const tournament = match ? tournaments.find(t => t.tournament_id === match.tournament_id) : null;
   const season = match ? seasons.find(s => s.season_id === match.season_id) : null;
 
-  const matchBatting = batting.filter(b => b.match_id === selectedMatchId);
-  const matchBowling = bowling.filter(b => b.match_id === selectedMatchId);
+  // Initialize live data when match is selected
+  useEffect(() => {
+    if (selectedMatchId) {
+      setLiveBatting(batting.filter(b => b.match_id === selectedMatchId));
+      setLiveBowling(bowling.filter(b => b.match_id === selectedMatchId));
+    }
+  }, [selectedMatchId, batting, bowling]);
 
   const calcTeamScore = (team: string) => {
-    const rows = matchBatting.filter(b => b.team === team);
+    const rows = liveBatting.filter(b => b.team === team);
     const runs = rows.reduce((s, b) => s + b.runs, 0);
     const wkts = rows.filter(b => b.how_out && b.how_out !== 'not out' && b.how_out !== '').length;
     const balls = rows.reduce((s, b) => s + b.balls, 0);
@@ -94,19 +103,72 @@ const MatchCenter = () => {
     setUndoneActions([]);
   };
 
+  // Helper to ensure a batting entry exists for a player
+  const ensureBattingEntry = (playerId: string, team: string): BattingScorecard => {
+    const existing = liveBatting.find(b => b.player_id === playerId && b.team === team);
+    if (existing) return existing;
+    const entry: BattingScorecard = {
+      id: `${selectedMatchId}_BAT_${playerId}_${team}`,
+      match_id: selectedMatchId,
+      player_id: playerId,
+      team,
+      runs: 0, balls: 0, fours: 0, sixes: 0, strike_rate: 0, how_out: '', bowler_id: '',
+    };
+    setLiveBatting(prev => [...prev, entry]);
+    return entry;
+  };
+
+  const ensureBowlingEntry = (playerId: string, team: string): BowlingScorecard => {
+    const existing = liveBowling.find(b => b.player_id === playerId && b.team === team);
+    if (existing) return existing;
+    const entry: BowlingScorecard = {
+      id: `${selectedMatchId}_BOWL_${playerId}_${team}`,
+      match_id: selectedMatchId,
+      player_id: playerId,
+      team,
+      overs: 0, maidens: 0, runs_conceded: 0, wickets: 0, economy: 0, extras: 0,
+    };
+    setLiveBowling(prev => [...prev, entry]);
+    return entry;
+  };
+
   const handleScoreRuns = async (runs: number) => {
-    if (!match) return;
+    if (!match || !currentBatsman) {
+      toast({ title: 'Select a batsman first', variant: 'destructive' });
+      return;
+    }
+    const team = battingTeam === 'A' ? match.team_a : match.team_b;
+    const bowlerTeam = battingTeam === 'A' ? match.team_b : match.team_a;
+    
+    // Update live batting data
+    ensureBattingEntry(currentBatsman, team);
+    setLiveBatting(prev => prev.map(b => {
+      if (b.player_id === currentBatsman && b.team === team) {
+        const newRuns = b.runs + runs;
+        const newBalls = b.balls + 1;
+        const newFours = b.fours + (runs === 4 ? 1 : 0);
+        const newSixes = b.sixes + (runs === 6 ? 1 : 0);
+        return { ...b, runs: newRuns, balls: newBalls, fours: newFours, sixes: newSixes, strike_rate: newBalls > 0 ? (newRuns / newBalls) * 100 : 0 };
+      }
+      return b;
+    }));
+
+    // Update live bowling data
+    if (currentBowler) {
+      ensureBowlingEntry(currentBowler, bowlerTeam);
+      setLiveBowling(prev => prev.map(b => {
+        if (b.player_id === currentBowler && b.team === bowlerTeam) {
+          const newRuns = b.runs_conceded + runs;
+          return { ...b, runs_conceded: newRuns };
+        }
+        return b;
+      }));
+    }
+
     const desc = runs === 4 ? '🟢 FOUR!' : runs === 6 ? '🔴 SIX!' : `${runs} run${runs !== 1 ? 's' : ''}`;
     const action: ScoringAction = {
-      id: generateId('SC'),
-      type: 'runs',
-      runs,
-      team: battingTeam === 'A' ? match.team_a : match.team_b,
-      over: currentOver,
-      description: desc,
-      batsmanId: currentBatsman,
-      bowlerId: currentBowler,
-      timestamp: istNow(),
+      id: generateId('SC'), type: 'runs', runs, team, over: currentOver,
+      description: desc, batsmanId: currentBatsman, bowlerId: currentBowler, timestamp: istNow(),
     };
     addScoringAction(action);
     await addTimelineEvent(runs === 4 ? 'FOUR' : runs === 6 ? 'SIX' : 'RUNS', `Over ${currentOver} – ${desc}`, currentBatsman);
@@ -114,24 +176,42 @@ const MatchCenter = () => {
   };
 
   const handleWicket = async (wicketType: string) => {
-    if (!match) return;
+    if (!match || !currentBatsman) {
+      toast({ title: 'Select a batsman first', variant: 'destructive' });
+      return;
+    }
+    const team = battingTeam === 'A' ? match.team_a : match.team_b;
+    const bowlerTeam = battingTeam === 'A' ? match.team_b : match.team_a;
+
+    // Update batsman dismissal
+    ensureBattingEntry(currentBatsman, team);
+    setLiveBatting(prev => prev.map(b => {
+      if (b.player_id === currentBatsman && b.team === team) {
+        return { ...b, how_out: wicketType, bowler_id: currentBowler, balls: b.balls + 1 };
+      }
+      return b;
+    }));
+
+    // Update bowler wickets
+    if (currentBowler) {
+      ensureBowlingEntry(currentBowler, bowlerTeam);
+      setLiveBowling(prev => prev.map(b => {
+        if (b.player_id === currentBowler && b.team === bowlerTeam) {
+          return { ...b, wickets: b.wickets + 1 };
+        }
+        return b;
+      }));
+    }
+
     const desc = `💀 WICKET! ${wicketType}`;
     const action: ScoringAction = {
-      id: generateId('SC'),
-      type: 'wicket',
-      wicketType,
-      team: battingTeam === 'A' ? match.team_a : match.team_b,
-      over: currentOver,
-      description: desc,
-      batsmanId: currentBatsman,
-      bowlerId: currentBowler,
-      timestamp: istNow(),
+      id: generateId('SC'), type: 'wicket', wicketType, team, over: currentOver,
+      description: desc, batsmanId: currentBatsman, bowlerId: currentBowler, timestamp: istNow(),
     };
     addScoringAction(action);
     await addTimelineEvent('WICKET', `Over ${currentOver} – ${desc}`, currentBatsman);
     toast({ title: 'Wicket!', description: `${wicketType} - Over ${currentOver}`, variant: 'destructive' });
   };
-
 
   const handleAddNote = async () => {
     if (!quickNote.trim()) return;
@@ -140,17 +220,27 @@ const MatchCenter = () => {
     toast({ title: 'Note added to timeline' });
     setQuickNote('');
   };
+
   const handleExtra = async (type: string, runs: number) => {
     if (!match) return;
+    const bowlerTeam = battingTeam === 'A' ? match.team_b : match.team_a;
+    
+    // Add extras to bowler
+    if (currentBowler) {
+      ensureBowlingEntry(currentBowler, bowlerTeam);
+      setLiveBowling(prev => prev.map(b => {
+        if (b.player_id === currentBowler && b.team === bowlerTeam) {
+          return { ...b, extras: b.extras + runs, runs_conceded: b.runs_conceded + runs };
+        }
+        return b;
+      }));
+    }
+
     const desc = `${type} +${runs}`;
     const action: ScoringAction = {
-      id: generateId('SC'),
-      type: 'extra',
-      runs,
+      id: generateId('SC'), type: 'extra', runs,
       team: battingTeam === 'A' ? match.team_a : match.team_b,
-      over: currentOver,
-      description: desc,
-      timestamp: istNow(),
+      over: currentOver, description: desc, timestamp: istNow(),
     };
     addScoringAction(action);
     await addTimelineEvent('EXTRA', `Over ${currentOver} – ${desc}`);
@@ -161,6 +251,20 @@ const MatchCenter = () => {
     const last = scoringHistory[scoringHistory.length - 1];
     setScoringHistory(prev => prev.slice(0, -1));
     setUndoneActions(prev => [...prev, last]);
+    // Reverse the scoring action in live data
+    if (last.batsmanId && match) {
+      setLiveBatting(prev => prev.map(b => {
+        if (b.player_id === last.batsmanId && b.team === last.team) {
+          if (last.type === 'runs') {
+            return { ...b, runs: b.runs - (last.runs || 0), balls: b.balls - 1, fours: b.fours - (last.runs === 4 ? 1 : 0), sixes: b.sixes - (last.runs === 6 ? 1 : 0) };
+          }
+          if (last.type === 'wicket') {
+            return { ...b, how_out: '', bowler_id: '', balls: b.balls - 1 };
+          }
+        }
+        return b;
+      }));
+    }
     toast({ title: 'Undone', description: last.description });
   };
 
@@ -170,6 +274,26 @@ const MatchCenter = () => {
     setUndoneActions(prev => prev.slice(0, -1));
     setScoringHistory(prev => [...prev, last]);
     toast({ title: 'Redone', description: last.description });
+  };
+
+  // Save live scoring data to backend
+  const handleSaveScoring = async () => {
+    if (!match) return;
+    setLoading(true);
+    try {
+      const aScore = calcTeamScore(match.team_a);
+      const bScore = calcTeamScore(match.team_b);
+      await saveScorecardBulk(selectedMatchId, liveBatting, liveBowling);
+      await updateMatch({
+        ...match,
+        team_a_score: `${aScore.runs}/${aScore.wkts} (${aScore.overs})`,
+        team_b_score: `${bScore.runs}/${bScore.wkts} (${bScore.overs})`,
+      });
+      toast({ title: '✅ Scoring data saved to database!' });
+    } catch (e) {
+      toast({ title: 'Error saving', variant: 'destructive' });
+    }
+    setLoading(false);
   };
 
   const handleStartMatch = async () => {
@@ -182,6 +306,8 @@ const MatchCenter = () => {
 
   const handleEndInnings = async () => {
     if (!match) return;
+    // Save current innings data
+    await handleSaveScoring();
     await addTimelineEvent('INNINGS_END', `Innings ${innings} ended`);
     setInnings(2);
     setBattingTeam(battingTeam === 'A' ? 'B' : 'A');
@@ -202,6 +328,9 @@ const MatchCenter = () => {
     } else {
       result = 'Match Tied';
     }
+
+    // Save scoring data first
+    await saveScorecardBulk(selectedMatchId, liveBatting, liveBowling);
 
     await updateMatch({
       ...match,
@@ -236,7 +365,7 @@ const MatchCenter = () => {
             <div className="flex flex-wrap gap-3 items-end">
               <div className="flex-1 min-w-[200px]">
                 <Label>Select Match</Label>
-                <Select value={selectedMatchId} onValueChange={(v) => { setSelectedMatchId(v); loadTimeline(v); }}>
+                <Select value={selectedMatchId} onValueChange={(v) => { setSelectedMatchId(v); loadTimeline(v); setScoringHistory([]); setUndoneActions([]); }}>
                   <SelectTrigger><SelectValue placeholder="Choose a match..." /></SelectTrigger>
                   <SelectContent>
                     {matches.map(m => {
@@ -307,6 +436,9 @@ const MatchCenter = () => {
                   )}
                   {match.status === 'live' && (
                     <>
+                      <Button variant="secondary" onClick={handleSaveScoring} disabled={loading} className="gap-1">
+                        <Save className="h-4 w-4" /> Save Scores
+                      </Button>
                       <Button variant="outline" onClick={handleEndInnings} className="gap-1">
                         <RotateCcw className="h-4 w-4" /> End Innings
                       </Button>
@@ -411,7 +543,7 @@ const MatchCenter = () => {
                       <div className="border-t pt-2 space-y-2">
                         <Label className="text-xs font-semibold">Live Note</Label>
                         <div className="flex gap-2">
-                          <Input value={quickNote} onChange={e => setQuickNote(e.target.value)} placeholder="Add umpire note, injury, weather..." className="h-8 text-xs" disabled={!isLiveMatch} />
+                          <Input value={quickNote} onChange={e => setQuickNote(e.target.value)} placeholder="Add umpire note..." className="h-8 text-xs" disabled={!isLiveMatch} />
                           <Button size="sm" variant="secondary" onClick={handleAddNote} disabled={!isLiveMatch}>Add</Button>
                         </div>
                       </div>

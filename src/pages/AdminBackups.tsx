@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
@@ -55,19 +55,40 @@ const AdminBackups = () => {
 
   const exportFullBackup = async (format: 'json' | 'csv') => {
     setExporting('full');
-    const [scorelists, auditEvents] = await Promise.all([v2api.getScorelists(), v2api.getAuditEvents()]);
+    const [scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs, presence, managementUsers, matchTimeline] = await Promise.all([
+      v2api.getScorelists(),
+      v2api.getAuditEvents(),
+      v2api.getTickets(),
+      v2api.getTicketMessages(),
+      v2api.getCSAT(),
+      v2api.getEmailLinks(),
+      v2api.getNotificationPrefs(),
+      v2api.getPresence(),
+      v2api.getManagementUsers(),
+      v2api.getMatchTimeline(),
+    ]);
     
     if (format === 'json') {
-      const backup = { players, tournaments, seasons, matches, batting, bowling, announcements, messages, scorelists, auditEvents, exportDate: new Date().toISOString() };
+      const backup = {
+        players, tournaments, seasons, matches, batting, bowling, announcements, messages,
+        scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs,
+        presence, managementUsers, matchTimeline,
+        exportDate: new Date().toISOString(),
+      };
       downloadFile(backup, `cricket_full_backup_${new Date().toISOString().split('T')[0]}`, 'json');
     } else {
-      // Download each as separate CSV
-      const datasets = { players, tournaments, seasons, matches, batting, bowling, announcements, messages, scorelists, auditEvents };
+      const datasets: Record<string, any[]> = {
+        players, tournaments, seasons, matches, batting, bowling, announcements, messages,
+        scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs,
+        presence, managementUsers, matchTimeline,
+      };
       Object.entries(datasets).forEach(([name, data]) => {
-        downloadFile(data, `cricket_${name}_${new Date().toISOString().split('T')[0]}`, 'csv');
+        if (Array.isArray(data) && data.length > 0) {
+          downloadFile(data, `cricket_${name}_${new Date().toISOString().split('T')[0]}`, 'csv');
+        }
       });
     }
-    toast({ title: 'Full backup exported' });
+    toast({ title: 'Full backup exported (all modules included)' });
     setExporting('');
   };
 
@@ -78,6 +99,8 @@ const AdminBackups = () => {
     { name: 'Bowling', data: bowling, icon: '🎯' },
     { name: 'Tournaments', data: tournaments, icon: '🏆' },
     { name: 'Seasons', data: seasons, icon: '📅' },
+    { name: 'Announcements', data: announcements, icon: '📢' },
+    { name: 'Messages', data: messages, icon: '💬' },
   ];
 
   return (
@@ -85,10 +108,11 @@ const AdminBackups = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <h1 className="font-display text-3xl font-bold">💾 Backup & Export</h1>
+        <p className="text-sm text-muted-foreground">Full backup includes all v2 modules: Support tickets, CSAT, Email links, Presence, Management users, Scorelists, Audit events, Timeline.</p>
 
         <Card className="border-2 border-primary/20">
           <CardHeader>
-            <CardTitle className="font-display flex items-center gap-2"><Database className="h-5 w-5" /> Full Backup</CardTitle>
+            <CardTitle className="font-display flex items-center gap-2"><Database className="h-5 w-5" /> Full Backup (All Modules)</CardTitle>
           </CardHeader>
           <CardContent className="flex gap-3">
             <Button onClick={() => exportFullBackup('json')} disabled={!!exporting} className="gap-1">
