@@ -15,6 +15,12 @@ interface SendMailPayload {
   replyTo?: string;
 }
 
+interface MailResult {
+  success: boolean;
+  reason?: string;
+  raw?: unknown;
+}
+
 function canUseStorage() {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 }
@@ -57,6 +63,15 @@ export function getAdminNotificationRecipient() {
   return adminEmail;
 }
 
+export function explainMailFailure(reason?: string, raw?: unknown) {
+  const rawError = (raw && typeof raw === 'object' && 'error' in raw) ? String((raw as Record<string, unknown>).error || '') : '';
+  if (reason === 'missing_config_or_recipient') return 'Mail service is not configured. Connect Google Apps Script URL and ensure recipient email is present.';
+  if (reason === 'network_failure') return 'Network error while calling mail service.';
+  if (reason === 'invalid_json_response') return 'Mail service returned an invalid response. Please redeploy Apps Script and try again.';
+  if (rawError) return `Mail service error: ${rawError}`;
+  return 'Unable to send email. Check Apps Script deployment and Gmail permissions.';
+}
+
 function cardLayout(content: string) {
   const effectiveSender = getEffectiveSenderEmail();
   return `<!doctype html>
@@ -78,7 +93,7 @@ function cardLayout(content: string) {
   </html>`;
 }
 
-export async function sendSystemEmail(payload: SendMailPayload) {
+export async function sendSystemEmail(payload: SendMailPayload): Promise<MailResult> {
   const url = getAppsScriptUrl();
   if (!url || !payload.to.trim()) return { success: false, reason: 'missing_config_or_recipient' };
   const configuredSender = getEffectiveSenderEmail();
@@ -99,8 +114,15 @@ export async function sendSystemEmail(payload: SendMailPayload) {
         },
       }),
     });
-    const result = await res.json();
-    return { success: !!result.success, raw: result };
+    const text = await res.text();
+    let result: Record<string, unknown> = {};
+    try {
+      result = text ? JSON.parse(text) : {};
+    } catch {
+      return { success: false, reason: 'invalid_json_response', raw: text };
+    }
+    if (!result.success) return { success: false, reason: 'mail_service_error', raw: result };
+    return { success: true, raw: result };
   } catch {
     return { success: false, reason: 'network_failure' };
   }

@@ -17,6 +17,7 @@ import {
   setAdminMailboxStatus,
   sendOtpEmail,
   sendWelcomeSubscriptionEmail,
+  explainMailFailure,
 } from '@/lib/mailer';
 import { Database, Link, Unlink, Sprout, ExternalLink, Mail, ShieldCheck, Send } from 'lucide-react';
 import { UserEmailLink } from '@/lib/v2types';
@@ -126,7 +127,12 @@ export function AdminSettings() {
     setAdminEmailRecord(payload);
     setShowAdminVerify(true);
     logAudit(ADMIN_USER_ID, 'link_admin_email', 'user_email', ADMIN_USER_ID, cleanEmail);
-    await sendOtpEmail({ to: cleanEmail, otp: token, expiresAt: expiry, userName: getAdminAlias() });
+    const mailResult = await sendOtpEmail({ to: cleanEmail, otp: token, expiresAt: expiry, userName: getAdminAlias() });
+    if (!mailResult.success) {
+      toast({ title: 'Could not send verification email', description: explainMailFailure(mailResult.reason, mailResult.raw), variant: 'destructive' });
+      setSendingAdminOtp(false);
+      return;
+    }
     toast({ title: 'Verification code sent', description: 'Check inbox/spam and verify to activate admin mails.' });
     setSendingAdminOtp(false);
   };
@@ -148,7 +154,7 @@ export function AdminSettings() {
     await v2api.updateEmailLink(verifiedLink);
     setAdminMailboxStatus(verifiedLink.email, true);
     logAudit(ADMIN_USER_ID, 'verify_admin_email', 'user_email', ADMIN_USER_ID, verifiedLink.email);
-    await sendWelcomeSubscriptionEmail({
+    const welcomeResult = await sendWelcomeSubscriptionEmail({
       to: verifiedLink.email,
       userName: getAdminAlias(),
       actions: [
@@ -157,6 +163,9 @@ export function AdminSettings() {
         'Portal operational email updates',
       ],
     });
+    if (!welcomeResult.success) {
+      toast({ title: 'Email verified, but welcome mail failed', description: explainMailFailure(welcomeResult.reason, welcomeResult.raw), variant: 'destructive' });
+    }
     setAdminEmailRecord(verifiedLink);
     setShowAdminVerify(false);
     setAdminEmailOtp('');

@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
 import { UserEmailLink, UserNotificationPreferences } from '@/lib/v2types';
-import { sendOtpEmail, sendWelcomeSubscriptionEmail } from '@/lib/mailer';
+import { sendOtpEmail, sendWelcomeSubscriptionEmail, explainMailFailure } from '@/lib/mailer';
 import { Loader2, Mail, CheckCircle, AlertCircle, Bell, Send, ShieldCheck } from 'lucide-react';
 
 interface PlayerEmailSettingsProps {
@@ -80,7 +80,12 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
 
     setEmailLink(link);
     logAudit(playerId, 'link_email', 'user_email', playerId, cleanEmail);
-    await sendOtpEmail({ to: cleanEmail, otp: token, expiresAt: expiry, userName: user?.name });
+    const mailResult = await sendOtpEmail({ to: cleanEmail, otp: token, expiresAt: expiry, userName: user?.name });
+    if (!mailResult.success) {
+      toast({ title: 'Could not send OTP email', description: explainMailFailure(mailResult.reason, mailResult.raw), variant: 'destructive' });
+      setSending(false);
+      return;
+    }
     toast({ title: 'Verification OTP sent to your email', description: 'Please check inbox/spam and enter OTP to verify.' });
     setShowVerify(true);
     setSending(false);
