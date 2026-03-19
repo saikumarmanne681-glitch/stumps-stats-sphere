@@ -59,6 +59,13 @@ const ManagementPage = () => {
 
   const leadership = mgmtUsers.filter(m => ['President', 'Vice President', 'Secretary', 'Treasurer'].includes(m.designation));
   const committee = mgmtUsers.filter(m => !['President', 'Vice President', 'Secretary', 'Treasurer'].includes(m.designation));
+  const resolveMessageIdentity = (id: string) => {
+    if (id === 'admin') return '🛡️ Admin';
+    if (id === 'all') return '📢 All';
+    const mgmt = mgmtUsers.find((m) => m.management_id === id || m.username === id);
+    if (mgmt) return `${mgmt.name} (${mgmt.designation})`;
+    return players.find((p) => p.player_id === id)?.name || id;
+  };
 
   // Pending: show only scorelists where this user's stage is next
   const pendingScorelists = scorelists.filter(s => {
@@ -252,9 +259,7 @@ const ManagementPage = () => {
               {myMessages.length === 0 && <p className="text-muted-foreground text-center py-6">No messages yet.</p>}
               {myMessages.slice(0, 20).map(msg => {
                 const isFromMe = msg.from_id === (user.management_id || user.username);
-                const senderName = isFromMe ? `You (${user.designation || 'Management'})` : 
-                  msg.from_id === 'admin' ? '🛡️ Admin' : 
-                  players.find(p => p.player_id === msg.from_id)?.name || msg.from_id;
+                const senderName = isFromMe ? `You (${user.designation || 'Management'})` : resolveMessageIdentity(msg.from_id);
                 return (
                   <Card key={msg.id} className={isFromMe ? 'border-l-4 border-l-primary' : ''}>
                     <CardContent className="p-3">
@@ -262,7 +267,7 @@ const ManagementPage = () => {
                         <span className="font-semibold text-sm">{msg.subject}</span>
                         <span className="text-xs text-muted-foreground">{msg.timestamp || msg.date}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mb-1">{senderName} → {msg.to_id === 'all' ? '📢 All' : players.find(p => p.player_id === msg.to_id)?.name || msg.to_id}</p>
+                      <p className="text-xs text-muted-foreground mb-1">{senderName} → {resolveMessageIdentity(msg.to_id)}</p>
                       <p className="text-sm">{msg.body}</p>
                     </CardContent>
                   </Card>

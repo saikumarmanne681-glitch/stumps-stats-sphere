@@ -12,6 +12,9 @@ import { useToast } from '@/hooks/use-toast';
 import { generateId } from '@/lib/utils';
 import { Send, MessageSquare, CheckCheck, Clock } from 'lucide-react';
 import { format } from 'date-fns';
+import { v2api } from '@/lib/v2api';
+import { useEffect } from 'react';
+import { ManagementUser } from '@/lib/v2types';
 
 export function AdminMessages() {
   const { messages, players, addMessage, updateMessage } = useData();
@@ -21,7 +24,12 @@ export function AdminMessages() {
   const [replyTo, setReplyTo] = useState<string>('');
   const [replyBody, setReplyBody] = useState('');
   const [expandedThread, setExpandedThread] = useState<string>('');
+  const [managementUsers, setManagementUsers] = useState<ManagementUser[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    v2api.getManagementUsers().then((users) => setManagementUsers(users)).catch(() => setManagementUsers([]));
+  }, []);
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim()) { toast({ title: 'Error', description: 'Fill subject and body', variant: 'destructive' }); return; }
@@ -98,6 +106,8 @@ export function AdminMessages() {
   const getDisplayName = (id: string) => {
     if (id === 'admin') return '🛡️ Admin';
     if (id === 'all') return '📢 All Players';
+    const mgmt = managementUsers.find((m) => m.management_id === id || m.username === id);
+    if (mgmt) return `${mgmt.name} (${mgmt.designation})`;
     return players.find(p => p.player_id === id)?.name || id;
   };
 
