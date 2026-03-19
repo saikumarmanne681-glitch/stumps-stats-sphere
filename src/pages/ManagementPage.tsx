@@ -47,6 +47,11 @@ const ManagementPage = () => {
   const [msgSubject, setMsgSubject] = useState('');
   const [msgBody, setMsgBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewingScorelist, setReviewingScorelist] = useState<DigitalScorelist | null>(null);
+  const [scorelistActionLoading, setScorelistActionLoading] = useState(false);
 
   const refresh = async () => {
     const [users, scorelistData] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists()]);
@@ -83,10 +88,12 @@ const ManagementPage = () => {
     return nextStage === userStage;
   });
 
-  const signScorelist = async (scorelist: DigitalScorelist) => {
+  const signScorelist = async (scorelist: DigitalScorelist, comment?: string) => {
     if (!isManagement || !user?.management_id) return;
+    setScorelistActionLoading(true);
     const certs: CertificationApproval[] = scorelist.certifications_json ? JSON.parse(scorelist.certifications_json) : [];
     if (certs.some(c => c.approver_id === user.management_id)) {
+      setScorelistActionLoading(false);
       toast({ title: 'Already signed' }); return;
     }
     const stage = designationToStage[user.designation || ''] || 'referee_verified';
@@ -104,9 +111,73 @@ const ManagementPage = () => {
       certifications_json: JSON.stringify(certs),
       locked: stage === 'official_certified',
     });
-    logAudit(user.management_id, 'management_sign_scorelist', 'scorelist', scorelist.scorelist_id, stage);
+    logAudit(
+      user.management_id,
+      'management_sign_scorelist',
+      'scorelist',
+      scorelist.scorelist_id,
+      JSON.stringify({ stage, comment: comment || '', by: user.name || user.username, designation: user.designation || '' }),
+    );
+    if (comment?.trim()) {
+      await addMessage({
+        id: generateId('MSG'),
+        from_id: user.management_id,
+        to_id: 'admin',
+        subject: `Scorelist approved: ${scorelist.scorelist_id}`,
+        body: `[Approval Comment] ${comment.trim()}`,
+        date: new Date().toISOString().split('T')[0],
+        read: false,
+        reply_to: '',
+        timestamp: new Date().toISOString(),
+      });
+    }
     toast({ title: '✅ Scorelist signed', description: `Signed as ${user.designation}` });
     refresh();
+    setScorelistActionLoading(false);
+  };
+
+  const rejectScorelist = async (scorelist: DigitalScorelist, comment: string) => {
+    if (!user?.management_id) return;
+    setScorelistActionLoading(true);
+    logAudit(
+      user.management_id,
+      'management_reject_scorelist',
+      'scorelist',
+      scorelist.scorelist_id,
+      JSON.stringify({ comment, by: user.name || user.username, designation: user.designation || '' }),
+    );
+    await addMessage({
+      id: generateId('MSG'),
+      from_id: user.management_id,
+      to_id: 'admin',
+      subject: `Scorelist rejected: ${scorelist.scorelist_id}`,
+      body: `[Rejection Reason] ${comment}`,
+      date: new Date().toISOString().split('T')[0],
+      read: false,
+      reply_to: '',
+      timestamp: new Date().toISOString(),
+    });
+    toast({ title: 'Rejection recorded', description: 'Admin has been notified with your comment.' });
+    setScorelistActionLoading(false);
+  };
+
+  const openReviewDialog = (scorelist: DigitalScorelist, action: 'approve' | 'reject') => {
+    setReviewingScorelist(scorelist);
+    setReviewAction(action);
+    setReviewComment('');
+    setReviewDialogOpen(true);
+  };
+
+  const submitReview = async () => {
+    if (!reviewingScorelist) return;
+    if (reviewAction === 'reject' && !reviewComment.trim()) {
+      toast({ title: 'Comment required', description: 'Please add a reason before rejecting.', variant: 'destructive' });
+      return;
+    }
+    if (reviewAction === 'approve') await signScorelist(reviewingScorelist, reviewComment);
+    else await rejectScorelist(reviewingScorelist, reviewComment.trim());
+    setReviewDialogOpen(false);
+    setReviewingScorelist(null);
   };
 
   const getCerts = (sl: DigitalScorelist): CertificationApproval[] => {
@@ -193,8 +264,11 @@ const ManagementPage = () => {
                           <Badge className="bg-accent/20 text-accent-foreground text-xs mt-1">{stageLabels[s.certification_status || 'draft']}</Badge>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button size="sm" onClick={() => signScorelist(s)} className="gap-1">
+                          <Button size="sm" onClick={() => openReviewDialog(s, 'approve')} className="gap-1">
                             <ShieldCheck className="h-4 w-4" /> Sign
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => openReviewDialog(s, 'reject')}>
+                            Reject
                           </Button>
                           <Button size="sm" variant="outline" asChild>
                             <Link to="/admin/scorelists">View Details</Link>
@@ -294,8 +368,8 @@ const ManagementPage = () => {
                   </div>
                   <div><Label>Subject</Label><Input value={msgSubject} onChange={e => setMsgSubject(e.target.value)} placeholder="Notice subject..." /></div>
                   <div><Label>Message</Label><Textarea value={msgBody} onChange={e => setMsgBody(e.target.value)} placeholder="Write your message..." className="min-h-[80px]" /></div>
-                  <Button onClick={handleSendMessage} disabled={sending || !msgSubject.trim() || !msgBody.trim()} className="gap-1">
-                    {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />} Send Notice
+                  <Button onClick={handleSendMessage} loading={sending} loadingText="Sending notice..." disabled={!msgSubject.trim() || !msgBody.trim()} className="gap-1">
+                    <Send className="h-3 w-3" /> Send Notice
                   </Button>
                 </CardContent>
               </Card>
@@ -361,6 +435,34 @@ const ManagementPage = () => {
 
         {mgmtUsers.length === 0 && <p className="text-center text-muted-foreground py-8">No management users configured yet.</p>}
       </div>
+
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{reviewAction === 'approve' ? 'Approve Scorelist' : 'Reject Scorelist'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground font-mono">{reviewingScorelist?.scorelist_id}</p>
+            <div>
+              <Label>{reviewAction === 'approve' ? 'Approval comment (optional)' : 'Rejection reason (required)'}</Label>
+              <Textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder={reviewAction === 'approve' ? 'Add any note for audit trail...' : 'Explain why this scorelist is rejected...'}
+                className="min-h-[110px]"
+              />
+            </div>
+            <Button
+              onClick={submitReview}
+              loading={scorelistActionLoading}
+              loadingText={reviewAction === 'approve' ? 'Approving...' : 'Rejecting...'}
+              variant={reviewAction === 'approve' ? 'default' : 'destructive'}
+            >
+              {reviewAction === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

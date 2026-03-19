@@ -44,9 +44,16 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-muted-foreground font-mono">{match.match_id}</span>
-          <Badge className={statusColors[match.status] || 'bg-muted'}>
-            {match.status.toUpperCase()}
-          </Badge>
+          <div className="flex items-center gap-1">
+            {match.match_stage && (
+              <Badge variant="outline" className="text-[10px]">
+                {match.match_stage}
+              </Badge>
+            )}
+            <Badge className={statusColors[match.status] || 'bg-muted'}>
+              {match.status.toUpperCase()}
+            </Badge>
+          </div>
         </div>
 
         {tournament && (

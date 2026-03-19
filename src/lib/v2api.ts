@@ -101,13 +101,27 @@ export function istNow(): string {
 
 // Audit helper
 export function logAudit(actor: string, eventType: string, entityType: string, entityId: string, metadata: string = '') {
+  const metadataPayload = (() => {
+    const base = {
+      clientTimeIso: new Date().toISOString(),
+      page: typeof window !== 'undefined' ? window.location.pathname : '',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      details: metadata,
+    };
+    try {
+      const parsed = metadata ? JSON.parse(metadata) : null;
+      return JSON.stringify(parsed ? { ...base, details: parsed } : base);
+    } catch {
+      return JSON.stringify(base);
+    }
+  })();
   const evt: AuditEvent = {
     event_id: `AUD_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
     actor_user: actor,
     event_type: eventType,
     entity_type: entityType,
     entity_id: entityId,
-    metadata,
+    metadata: metadataPayload,
     timestamp: istNow(),
   };
   v2api.addAuditEvent(evt).catch(console.error);

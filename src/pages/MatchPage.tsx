@@ -23,7 +23,7 @@ function calcTeamScore(batting: any[], team: string) {
 
 const MatchPage = () => {
   const { match_id } = useParams();
-  const { matches, batting, bowling, players, tournaments, seasons } = useData();
+  const { matches, batting, bowling, players, tournaments, seasons, loading } = useData();
   const { toast } = useToast();
   
   const match = matches.find(m => m.match_id === match_id);
@@ -47,6 +47,15 @@ const MatchPage = () => {
     if (matchBowling.length === 0) return null;
     return [...matchBowling].sort((a, b) => b.wickets - a.wickets)[0];
   }, [matchBowling]);
+
+  if (loading) return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="container mx-auto px-4 py-20 text-center text-muted-foreground">
+        Loading match details, please wait...
+      </div>
+    </div>
+  );
 
   if (!match) return (
     <div className="min-h-screen bg-background">
