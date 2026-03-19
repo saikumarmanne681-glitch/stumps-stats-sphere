@@ -13,7 +13,7 @@ import {
 // Apps Script Web App URL
 let APPS_SCRIPT_URL =
   localStorage.getItem("appsScriptUrl") ||
-  "https://script.google.com/macros/s/AKfycbxwFwpK48NV_hEmfTjogvpgtLwIJKGRHET5t9T1G3VkDPONZCHue-39gtvI4m5I2HKb/exec";
+  "https://script.google.com/macros/s/AKfycbxYU9PPIIJqqgrsjzNX5gZBg3pVAD5iJVW7e2pdpHz2IRJCH3voz4jZNZqwIsYMhl_W/exec";
 
 export function getAppsScriptUrl() {
   return APPS_SCRIPT_URL;
