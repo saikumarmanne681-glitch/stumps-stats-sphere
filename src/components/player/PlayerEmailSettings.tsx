@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
 import { UserEmailLink, UserNotificationPreferences } from '@/lib/v2types';
-import { generateId } from '@/lib/utils';
+import { sendOtpEmail, sendWelcomeSubscriptionEmail } from '@/lib/mailer';
 import { Loader2, Mail, CheckCircle, AlertCircle, Bell, Send, ShieldCheck } from 'lucide-react';
 
 interface PlayerEmailSettingsProps {
@@ -17,6 +17,7 @@ interface PlayerEmailSettingsProps {
 }
 
 export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [emailLink, setEmailLink] = useState<UserEmailLink | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<UserNotificationPreferences | null>(null);
@@ -49,8 +50,9 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
     }
 
     // Check for duplicate verified emails
+    const cleanEmail = email.trim().toLowerCase();
     const allLinks = await v2api.getEmailLinks();
-    const duplicate = allLinks.find(l => l.email === email && l.is_verified && l.user_id !== playerId);
+    const duplicate = allLinks.find(l => String(l.email || '').trim().toLowerCase() === cleanEmail && l.is_verified && l.user_id !== playerId);
     if (duplicate) {
       toast({ title: 'This email is already linked to another account', variant: 'destructive' });
       return;
@@ -58,11 +60,11 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
 
     setSending(true);
     const token = generateOTP();
-    const expiry = new Date(Date.now() + 10 * 60000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const expiry = new Date(Date.now() + 10 * 60000).toISOString();
 
     const link: UserEmailLink = {
       user_id: playerId,
-      email,
+      email: cleanEmail,
       is_verified: false,
       verification_token: token,
       token_expiry: expiry,
@@ -76,8 +78,10 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
       await v2api.addEmailLink(link);
     }
 
-    logAudit(playerId, 'link_email', 'user_email', playerId, email);
-    toast({ title: `📧 Verification code: ${token}`, description: 'In production, this would be emailed. Enter the code to verify.' });
+    setEmailLink(link);
+    logAudit(playerId, 'link_email', 'user_email', playerId, cleanEmail);
+    await sendOtpEmail({ to: cleanEmail, otp: token, expiresAt: expiry, userName: user?.name });
+    toast({ title: 'Verification OTP sent to your email', description: 'Please check inbox/spam and enter OTP to verify.' });
     setShowVerify(true);
     setSending(false);
     setLastResend(Date.now());
@@ -85,24 +89,36 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
   };
 
   const handleVerify = async () => {
-    if (!emailLink) return;
-    if (verificationInput !== emailLink.verification_token) {
+    const latestLinks = await v2api.getEmailLinks();
+    const latestLink = latestLinks.find((l) => l.user_id === playerId);
+    if (!latestLink) return;
+    if (verificationInput.trim() !== String(latestLink.verification_token || '').trim()) {
       toast({ title: 'Invalid code', variant: 'destructive' });
       return;
     }
     // Check expiry
-    const expiry = new Date(emailLink.token_expiry);
+    const expiry = new Date(String(latestLink.token_expiry || ''));
     if (Date.now() > expiry.getTime()) {
       toast({ title: 'Code expired, please resend', variant: 'destructive' });
       return;
     }
 
     await v2api.updateEmailLink({
-      ...emailLink,
+      ...latestLink,
       is_verified: true,
       verified_at: istNow(),
     });
-    logAudit(playerId, 'verify_email', 'user_email', playerId, emailLink.email);
+    logAudit(playerId, 'verify_email', 'user_email', playerId, latestLink.email);
+    await sendWelcomeSubscriptionEmail({
+      to: latestLink.email,
+      userName: user?.name,
+      actions: [
+        'Support ticket updates & reply alerts',
+        'Announcements and platform notices',
+        'Security alerts for account activity',
+        'Scorelist and management workflow notifications',
+      ],
+    });
     toast({ title: '✅ Email verified!' });
     setShowVerify(false);
     setVerificationInput('');
@@ -131,6 +147,18 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
       await v2api.updateNotificationPrefs(prefs);
     } else {
       await v2api.addNotificationPrefs(prefs);
+    }
+    if (emailLink?.is_verified && emailLink.email) {
+      const enabled = [
+        prefs.support_updates ? 'Support updates' : null,
+        prefs.announcements ? 'Announcements' : null,
+        prefs.security_alerts ? 'Security alerts' : null,
+      ].filter(Boolean) as string[];
+      await sendWelcomeSubscriptionEmail({
+        to: emailLink.email,
+        userName: user?.name,
+        actions: enabled.length > 0 ? enabled : ['No active channels selected'],
+      });
     }
     toast({ title: 'Preferences updated' });
     refresh();

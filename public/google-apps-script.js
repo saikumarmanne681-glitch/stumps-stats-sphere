@@ -237,6 +237,45 @@ function doPost(e) {
 
   const { action, sheet: tabName, data } = body;
 
+  if (action === "sendMail") {
+    try {
+      const to = String((data && data.to) || "").trim();
+      const subject = String((data && data.subject) || "Cricket Club Portal Notification").trim();
+      const htmlBody = String((data && data.htmlBody) || "").trim();
+      const textBody = String((data && data.textBody) || "").trim();
+      const fromName = String((data && data.fromName) || "Cricket Club Portal").trim();
+      const fromEmail = String((data && data.fromEmail) || "").trim();
+      const replyTo = String((data && data.replyTo) || fromEmail || "").trim();
+
+      if (!to || !subject || (!htmlBody && !textBody)) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing sendMail fields" })).setMimeType(
+          ContentService.MimeType.JSON,
+        );
+      }
+
+      const options = {
+        name: fromName,
+        htmlBody: htmlBody || undefined,
+        replyTo: replyTo || undefined,
+      };
+
+      // If the account has configured aliases, use requested alias as sender.
+      if (fromEmail) {
+        const aliases = GmailApp.getAliases();
+        if (aliases.indexOf(fromEmail) !== -1) {
+          options.from = fromEmail;
+        }
+      }
+
+      MailApp.sendEmail(to, subject, textBody || "Please view this message in an HTML-enabled email client.", options);
+      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    }
+  }
+
   // ── SEED action: create tabs + insert bulk data ──
   if (action === "seed") {
     try {

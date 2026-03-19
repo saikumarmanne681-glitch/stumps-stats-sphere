@@ -8,6 +8,8 @@ interface AuthContextType {
   user: AuthUser | null;
   login: (username: string, password: string, role: "admin" | "player" | "management") => Promise<boolean>;
   logout: () => void;
+  updateAdminProfile: (updates: { aliasName?: string; password?: string }) => void;
+  getAdminAlias: () => string;
   isAdmin: boolean;
   isPlayer: boolean;
   isManagement: boolean;
@@ -17,6 +19,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   login: async () => false,
   logout: () => {},
+  updateAdminProfile: () => {},
+  getAdminAlias: () => "Administrator",
   isAdmin: false,
   isPlayer: false,
   isManagement: false,
@@ -24,6 +28,9 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const ADMIN_USERNAME = 'admin';
+  const getAdminPassword = () => localStorage.getItem('adminPassword') || '9908';
+  const getAdminAlias = () => localStorage.getItem('adminAlias') || 'Administrator';
 
   const isActiveStatus = (status?: string) => {
     const normalized = String(status || '').trim().toLowerCase();
@@ -46,8 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string, role: "admin" | "player" | "management"): Promise<boolean> => {
     if (role === "admin") {
-      if (username === "admin" && password === "9908") {
-        const u: AuthUser = { type: "admin", username: "admin", name: "Administrator" };
+      if (username === ADMIN_USERNAME && password === getAdminPassword()) {
+        const u: AuthUser = { type: "admin", username: ADMIN_USERNAME, name: getAdminAlias() };
         setUser(u);
         localStorage.setItem("cricketUser", JSON.stringify(u));
         startHeartbeat("admin");
@@ -123,12 +130,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("cricketUser");
   };
 
+  const updateAdminProfile = (updates: { aliasName?: string; password?: string }) => {
+    if (updates.aliasName !== undefined) {
+      localStorage.setItem('adminAlias', updates.aliasName.trim() || 'Administrator');
+    }
+    if (updates.password !== undefined && updates.password.trim()) {
+      localStorage.setItem('adminPassword', updates.password.trim());
+    }
+    setUser((prev) => {
+      if (!prev || prev.type !== 'admin') return prev;
+      const updated: AuthUser = { ...prev, name: getAdminAlias() };
+      localStorage.setItem('cricketUser', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
         login,
         logout,
+        updateAdminProfile,
+        getAdminAlias,
         isAdmin: user?.type === "admin",
         isPlayer: user?.type === "player",
         isManagement: user?.type === "management",

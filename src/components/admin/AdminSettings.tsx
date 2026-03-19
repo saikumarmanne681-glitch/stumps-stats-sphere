@@ -5,11 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/auth';
 import { setAppsScriptUrl, getAppsScriptUrl, isConnected, seedGoogleSheet } from '@/lib/googleSheets';
+import { DEFAULT_FROM_EMAIL } from '@/lib/mailer';
 import { Database, Link, Unlink, Sprout, ExternalLink, Copy } from 'lucide-react';
 
 export function AdminSettings() {
+  const { updateAdminProfile, getAdminAlias } = useAuth();
   const [url, setUrl] = useState(getAppsScriptUrl());
+  const [aliasName, setAliasName] = useState(getAdminAlias());
+  const [adminPassword, setAdminPassword] = useState('');
   const [seeding, setSeeding] = useState(false);
   const { toast } = useToast();
 
@@ -43,8 +48,41 @@ export function AdminSettings() {
     window.open('/google-apps-script.js', '_blank');
   };
 
+  const handleAdminProfileSave = () => {
+    if (!aliasName.trim()) {
+      toast({ title: 'Error', description: 'Alias name cannot be empty', variant: 'destructive' });
+      return;
+    }
+    updateAdminProfile({ aliasName, password: adminPassword });
+    setAdminPassword('');
+    toast({ title: 'Admin profile updated', description: 'Alias and password were saved successfully.' });
+  };
+
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display">👤 Admin Profile & Security</CardTitle>
+          <CardDescription>Update admin alias (UI display name) and reset admin password.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Label>Admin Alias Name</Label>
+            <Input value={aliasName} onChange={e => setAliasName(e.target.value)} placeholder="Administrator" />
+          </div>
+          <div>
+            <Label>Reset Admin Password</Label>
+            <Input
+              type="password"
+              value={adminPassword}
+              onChange={e => setAdminPassword(e.target.value)}
+              placeholder="Enter new password"
+            />
+          </div>
+          <Button onClick={handleAdminProfileSave}>Save Admin Profile</Button>
+        </CardContent>
+      </Card>
+
       {/* Connection Status */}
       <Card>
         <CardHeader>
@@ -73,6 +111,7 @@ export function AdminSettings() {
               placeholder="https://script.google.com/macros/s/XXXXX/exec"
               className="mt-1"
             />
+            <p className="mt-1 text-xs text-muted-foreground">Default sender/reply address configured in app: {DEFAULT_FROM_EMAIL}</p>
           </div>
 
           <div className="flex gap-2">
