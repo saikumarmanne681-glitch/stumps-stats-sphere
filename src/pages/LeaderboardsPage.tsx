@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
@@ -15,6 +15,13 @@ const LeaderboardsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterTournament, setFilterTournament] = useState(searchParams.get('tournament') || 'all');
   const [filterSeason, setFilterSeason] = useState(searchParams.get('season') || 'all');
+
+  useEffect(() => {
+    const nextTournament = searchParams.get('tournament') || 'all';
+    const nextSeason = searchParams.get('season') || 'all';
+    setFilterTournament(nextTournament);
+    setFilterSeason(nextSeason);
+  }, [searchParams]);
 
   const relevantSeasons = filterTournament === 'all' ? seasons : seasons.filter(s => s.tournament_id === filterTournament);
   
@@ -135,6 +142,20 @@ const LeaderboardsPage = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-8">
         <h1 className="font-display text-4xl font-bold">🏆 Leaderboards</h1>
+        <p className="text-sm text-muted-foreground">
+          Showing standings for{' '}
+          <span className="font-medium text-foreground">
+            {filterTournament === 'all'
+              ? 'all tournaments'
+              : tournaments.find((t) => t.tournament_id === filterTournament)?.name || 'selected tournament'}
+          </span>
+          {' '}•{' '}
+          <span className="font-medium text-foreground">
+            {filterSeason === 'all'
+              ? 'all seasons'
+              : `season ${seasons.find((s) => s.season_id === filterSeason)?.year || 'selected'}`}
+          </span>
+        </p>
 
         <div className="flex flex-wrap gap-4">
           <div>

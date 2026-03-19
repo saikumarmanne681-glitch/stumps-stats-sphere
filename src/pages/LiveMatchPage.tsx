@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { api } from '@/lib/googleSheets';
 
 function calcTeamScore(batting: any[], team: string) {
   const rows = batting.filter((b: any) => b.team === team);
@@ -25,6 +26,9 @@ function calcTeamScore(batting: any[], team: string) {
 const LiveMatchPage = () => {
   const { matches, batting, bowling, players, tournaments, seasons } = useData();
   const [timeline, setTimeline] = useState<MatchTimeline[]>([]);
+  const [liveBatting, setLiveBatting] = useState(batting);
+  const [liveBowling, setLiveBowling] = useState(bowling);
+  const [shareLoadingMatchId, setShareLoadingMatchId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const liveMatches = matches.filter(m => m.status === 'live');
@@ -39,9 +43,30 @@ const LiveMatchPage = () => {
     return () => clearInterval(iv);
   }, []);
 
+  useEffect(() => {
+    setLiveBatting(batting);
+    setLiveBowling(bowling);
+  }, [batting, bowling]);
+
+  useEffect(() => {
+    const pullLiveScorecards = async () => {
+      try {
+        const [latestBatting, latestBowling] = await Promise.all([api.getBattingScorecard(), api.getBowlingScorecard()]);
+        setLiveBatting(latestBatting);
+        setLiveBowling(latestBowling);
+      } catch (error) {
+        console.warn('Unable to refresh live scorecards', error);
+      }
+    };
+    pullLiveScorecards();
+    const interval = setInterval(pullLiveScorecards, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
   const handleShare = async (match: typeof matches[0]) => {
+    setShareLoadingMatchId(match.match_id);
     const shareUrl = `${window.location.origin}/match/${match.match_id}`;
     const shareText = `${match.team_a} vs ${match.team_b}${match.result ? ` — ${match.result}` : ''}`;
 
@@ -75,14 +100,16 @@ const LiveMatchPage = () => {
         variant: 'destructive',
       });
       console.error('Share action failed', error);
+    } finally {
+      setShareLoadingMatchId((prev) => (prev === match.match_id ? null : prev));
     }
   };
 
   const renderMatch = (match: typeof matches[0], isLive: boolean) => {
     const tournament = tournaments.find(t => t.tournament_id === match.tournament_id);
     const season = seasons.find(s => s.season_id === match.season_id);
-    const matchBatting = batting.filter(b => b.match_id === match.match_id);
-    const matchBowling = bowling.filter(b => b.match_id === match.match_id);
+    const matchBatting = liveBatting.filter(b => b.match_id === match.match_id);
+    const matchBowling = liveBowling.filter(b => b.match_id === match.match_id);
     const matchTimeline = timeline.filter(t => t.match_id === match.match_id)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
@@ -125,6 +152,8 @@ const LiveMatchPage = () => {
               size="sm"
               className="h-7 px-2 text-xs gap-1"
               onClick={() => handleShare(match)}
+              loading={shareLoadingMatchId === match.match_id}
+              loadingText="Preparing link..."
             >
               <Share2 className="h-3 w-3" /> Share
             </Button>

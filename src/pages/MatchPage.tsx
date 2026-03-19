@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
@@ -25,6 +25,7 @@ const MatchPage = () => {
   const { match_id } = useParams();
   const { matches, batting, bowling, players, tournaments, seasons, loading } = useData();
   const { toast } = useToast();
+  const [sharing, setSharing] = useState(false);
   
   const match = matches.find(m => m.match_id === match_id);
   const tournament = match ? tournaments.find(t => t.tournament_id === match.tournament_id) : null;
@@ -71,6 +72,7 @@ const MatchPage = () => {
   const shareText = `${match.team_a} vs ${match.team_b}${match.result ? ` — ${match.result}` : ''}`;
 
   const handleShare = async () => {
+    setSharing(true);
     try {
       if (navigator.share) {
         await navigator.share({
@@ -101,6 +103,8 @@ const MatchPage = () => {
         variant: 'destructive',
       });
       console.error('Share action failed', error);
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -202,7 +206,7 @@ const MatchPage = () => {
             <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{format(new Date(match.date), 'dd MMM yyyy')}</span>
               {match.venue && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{match.venue}</span>}
-              <Button variant="outline" size="sm" onClick={handleShare} className="gap-1">
+              <Button variant="outline" size="sm" onClick={handleShare} className="gap-1" loading={sharing} loadingText="Preparing link...">
                 <Share2 className="h-3 w-3" /> Share
               </Button>
             </div>
