@@ -34,6 +34,10 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
     const myPrefs = prefs.find(p => p.user_id === playerId) || null;
     setEmailLink(myLink);
     setNotifPrefs(myPrefs);
+    if (myLink && !myLink.is_verified) {
+      setEmail(myLink.email);
+      setShowVerify(true);
+    }
     setLoading(false);
   };
 
@@ -44,7 +48,8 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
   };
 
   const handleLinkEmail = async () => {
-    if (!email.trim() || !email.includes('@')) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
       toast({ title: 'Enter a valid email', variant: 'destructive' });
       return;
     }
@@ -52,7 +57,7 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
     // Check for duplicate verified emails
     const cleanEmail = email.trim().toLowerCase();
     const allLinks = await v2api.getEmailLinks();
-    const duplicate = allLinks.find(l => String(l.email || '').trim().toLowerCase() === cleanEmail && l.is_verified && l.user_id !== playerId);
+    const duplicate = allLinks.find(l => l.email?.toLowerCase() === normalizedEmail && l.is_verified && l.user_id !== playerId);
     if (duplicate) {
       toast({ title: 'This email is already linked to another account', variant: 'destructive' });
       return;
@@ -64,7 +69,7 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
 
     const link: UserEmailLink = {
       user_id: playerId,
-      email: cleanEmail,
+      email: normalizedEmail,
       is_verified: false,
       verification_token: token,
       token_expiry: expiry,
@@ -78,15 +83,18 @@ export function PlayerEmailSettings({ playerId }: PlayerEmailSettingsProps) {
       await v2api.addEmailLink(link);
     }
 
-    setEmailLink(link);
-    logAudit(playerId, 'link_email', 'user_email', playerId, cleanEmail);
-    const mailResult = await sendOtpEmail({ to: cleanEmail, otp: token, expiresAt: expiry, userName: user?.name });
-    if (!mailResult.success) {
-      toast({ title: 'Could not send OTP email', description: explainMailFailure(mailResult.reason, mailResult.raw), variant: 'destructive' });
-      setSending(false);
-      return;
+    const mailResult = await v2api.sendOtpEmail(normalizedEmail, token);
+    logAudit(playerId, 'link_email', 'user_email', playerId, normalizedEmail);
+    if (mailResult?.success) {
+      toast({ title: 'OTP sent to your email', description: `We sent a verification code to ${normalizedEmail}` });
+    } else {
+      const msg = mailResult?.error || 'Unknown mail service error';
+      toast({
+        title: 'Could not send OTP email',
+        description: `${msg}. You can still use this code now: ${token}`,
+        variant: 'destructive',
+      });
     }
-    toast({ title: 'Verification OTP sent to your email', description: 'Please check inbox/spam and enter OTP to verify.' });
     setShowVerify(true);
     setSending(false);
     setLastResend(Date.now());

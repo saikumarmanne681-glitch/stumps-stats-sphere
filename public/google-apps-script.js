@@ -174,6 +174,12 @@ function ensureAllTabsAndHeaders(ss) {
   return report;
 }
 
+function sendOtpEmail(email, otp) {
+  const subject = "Your Cricket Club OTP";
+  const body = "Your verification code is: " + otp + "\n\nThis code expires in 10 minutes.";
+  MailApp.sendEmail(email, subject, body);
+}
+
 // ──────── CORS ────────
 function setCorsHeaders(output) {
   // ContentService handles CORS for web apps automatically
@@ -349,6 +355,22 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Headers synced", report })).setMimeType(
         ContentService.MimeType.JSON,
       );
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    }
+  }
+
+  if (action === "sendOtpEmail") {
+    try {
+      if (!data || !data.email || !data.otp) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing email/otp" })).setMimeType(
+          ContentService.MimeType.JSON,
+        );
+      }
+      sendOtpEmail(String(data.email), String(data.otp));
+      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
         ContentService.MimeType.JSON,
