@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { v2api } from '@/lib/v2api';
 import { MatchTimeline } from '@/lib/v2types';
-import { Radio, Calendar, MapPin } from 'lucide-react';
+import { Radio, Calendar, MapPin, Share2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 function calcTeamScore(batting: any[], team: string) {
   const rows = batting.filter((b: any) => b.team === team);
@@ -24,6 +25,7 @@ function calcTeamScore(batting: any[], team: string) {
 const LiveMatchPage = () => {
   const { matches, batting, bowling, players, tournaments, seasons } = useData();
   const [timeline, setTimeline] = useState<MatchTimeline[]>([]);
+  const { toast } = useToast();
 
   const liveMatches = matches.filter(m => m.status === 'live');
   const recentCompleted = matches
@@ -38,6 +40,40 @@ const LiveMatchPage = () => {
   }, []);
 
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
+
+  const handleShare = async (match: typeof matches[0]) => {
+    const shareUrl = `${window.location.origin}/match/${match.match_id}`;
+    const shareText = `${match.team_a} vs ${match.team_b}${match.result ? ` — ${match.result}` : ''}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${match.team_a} vs ${match.team_b}`,
+          text: shareText,
+          url: shareUrl,
+        });
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        toast({
+          title: 'Link copied',
+          description: 'Match link copied to clipboard.',
+        });
+        return;
+      }
+
+      throw new Error('No supported share mechanism available');
+    } catch (error) {
+      toast({
+        title: 'Share failed',
+        description: 'Could not share this match right now.',
+        variant: 'destructive',
+      });
+      console.error('Share action failed', error);
+    }
+  };
 
   const renderMatch = (match: typeof matches[0], isLive: boolean) => {
     const tournament = tournaments.find(t => t.tournament_id === match.tournament_id);
@@ -79,6 +115,14 @@ const LiveMatchPage = () => {
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{format(new Date(match.date), 'dd MMM yyyy')}</span>
             {match.venue && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{match.venue}</span>}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs gap-1"
+              onClick={() => handleShare(match)}
+            >
+              <Share2 className="h-3 w-3" /> Share
+            </Button>
             <Button variant="link" size="sm" className="text-xs h-auto p-0" asChild>
               <Link to={`/match/${match.match_id}`}>View Full Scorecard →</Link>
             </Button>
