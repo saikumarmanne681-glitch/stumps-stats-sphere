@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,17 +6,54 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
+import { v2api, istNow, logAudit } from '@/lib/v2api';
 import { setAppsScriptUrl, getAppsScriptUrl, isConnected, seedGoogleSheet } from '@/lib/googleSheets';
-import { DEFAULT_FROM_EMAIL } from '@/lib/mailer';
-import { Database, Link, Unlink, Sprout, ExternalLink, Copy } from 'lucide-react';
+import {
+  DEFAULT_FROM_EMAIL,
+  getAdminMailboxEmail,
+  isAdminMailboxEnabled,
+  isAdminMailboxVerified,
+  setAdminMailboxEnabled,
+  setAdminMailboxStatus,
+  sendOtpEmail,
+  sendWelcomeSubscriptionEmail,
+  explainMailFailure,
+} from '@/lib/mailer';
+import { Database, Link, Unlink, Sprout, ExternalLink, Mail, ShieldCheck, Send } from 'lucide-react';
+import { UserEmailLink } from '@/lib/v2types';
+import { Switch } from '@/components/ui/switch';
 
 export function AdminSettings() {
   const { updateAdminProfile, getAdminAlias } = useAuth();
   const [url, setUrl] = useState(getAppsScriptUrl());
   const [aliasName, setAliasName] = useState(getAdminAlias());
   const [adminPassword, setAdminPassword] = useState('');
+  const [adminEmail, setAdminEmail] = useState(getAdminMailboxEmail());
+  const [adminEmailOtp, setAdminEmailOtp] = useState('');
+  const [adminEmailRecord, setAdminEmailRecord] = useState<UserEmailLink | null>(null);
+  const [adminMailEnabled, setAdminMailEnabled] = useState(isAdminMailboxEnabled());
+  const [showAdminVerify, setShowAdminVerify] = useState(false);
+  const [sendingAdminOtp, setSendingAdminOtp] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const { toast } = useToast();
+  const ADMIN_USER_ID = 'admin';
+
+  const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+  const refreshAdminEmail = async () => {
+    const links = await v2api.getEmailLinks();
+    const link = links.find(l => l.user_id === ADMIN_USER_ID) || null;
+    setAdminEmailRecord(link);
+    if (link?.email) {
+      setAdminEmail(link.email);
+      setAdminMailboxStatus(link.email, !!link.is_verified);
+    }
+    if (link && !link.is_verified) setShowAdminVerify(true);
+  };
+
+  useEffect(() => {
+    refreshAdminEmail().catch(() => undefined);
+  }, []);
 
   const handleConnect = () => {
     if (!url.trim()) {
@@ -58,6 +95,94 @@ export function AdminSettings() {
     toast({ title: 'Admin profile updated', description: 'Alias and password were saved successfully.' });
   };
 
+  const handleAdminEmailLink = async () => {
+    if (!adminEmail.trim() || !adminEmail.includes('@')) {
+      toast({ title: 'Enter a valid admin email', variant: 'destructive' });
+      return;
+    }
+    const cleanEmail = adminEmail.trim().toLowerCase();
+    const allLinks = await v2api.getEmailLinks();
+    const duplicate = allLinks.find(l => String(l.email || '').trim().toLowerCase() === cleanEmail && l.is_verified && l.user_id !== ADMIN_USER_ID);
+    if (duplicate) {
+      toast({ title: 'This email is already linked to another account', variant: 'destructive' });
+      return;
+    }
+
+    setSendingAdminOtp(true);
+    const token = generateOTP();
+    const expiry = new Date(Date.now() + 10 * 60000).toISOString();
+    const payload: UserEmailLink = {
+      user_id: ADMIN_USER_ID,
+      email: cleanEmail,
+      is_verified: false,
+      verification_token: token,
+      token_expiry: expiry,
+      verified_at: '',
+      created_at: istNow(),
+    };
+    if (adminEmailRecord) await v2api.updateEmailLink(payload);
+    else await v2api.addEmailLink(payload);
+
+    setAdminMailboxStatus(cleanEmail, false);
+    setAdminEmailRecord(payload);
+    setShowAdminVerify(true);
+    logAudit(ADMIN_USER_ID, 'link_admin_email', 'user_email', ADMIN_USER_ID, cleanEmail);
+    const mailResult = await sendOtpEmail({ to: cleanEmail, otp: token, expiresAt: expiry, userName: getAdminAlias() });
+    if (!mailResult.success) {
+      toast({ title: 'Could not send verification email', description: explainMailFailure(mailResult.reason, mailResult.raw), variant: 'destructive' });
+      setSendingAdminOtp(false);
+      return;
+    }
+    toast({ title: 'Verification code sent', description: 'Check inbox/spam and verify to activate admin mails.' });
+    setSendingAdminOtp(false);
+  };
+
+  const handleVerifyAdminEmail = async () => {
+    const links = await v2api.getEmailLinks();
+    const latest = links.find(l => l.user_id === ADMIN_USER_ID);
+    if (!latest) return;
+    if (adminEmailOtp.trim() !== String(latest.verification_token || '').trim()) {
+      toast({ title: 'Invalid verification code', variant: 'destructive' });
+      return;
+    }
+    const expiry = new Date(String(latest.token_expiry || ''));
+    if (Date.now() > expiry.getTime()) {
+      toast({ title: 'Code expired, request a new one', variant: 'destructive' });
+      return;
+    }
+    const verifiedLink: UserEmailLink = { ...latest, is_verified: true, verified_at: istNow() };
+    await v2api.updateEmailLink(verifiedLink);
+    setAdminMailboxStatus(verifiedLink.email, true);
+    logAudit(ADMIN_USER_ID, 'verify_admin_email', 'user_email', ADMIN_USER_ID, verifiedLink.email);
+    const welcomeResult = await sendWelcomeSubscriptionEmail({
+      to: verifiedLink.email,
+      userName: getAdminAlias(),
+      actions: [
+        'Scorelist approval workflow alerts',
+        'Administration security and system notices',
+        'Portal operational email updates',
+      ],
+    });
+    if (!welcomeResult.success) {
+      toast({ title: 'Email verified, but welcome mail failed', description: explainMailFailure(welcomeResult.reason, welcomeResult.raw), variant: 'destructive' });
+    }
+    setAdminEmailRecord(verifiedLink);
+    setShowAdminVerify(false);
+    setAdminEmailOtp('');
+    toast({ title: 'Admin email verified and active' });
+  };
+
+  const handleAdminMailboxToggle = (enabled: boolean) => {
+    setAdminMailboxEnabled(enabled);
+    setAdminMailEnabled(enabled);
+    toast({
+      title: enabled ? 'Admin mail delivery enabled' : 'Admin mail delivery paused',
+      description: enabled
+        ? 'Verified admin email will now receive administration alerts.'
+        : 'Administration alerts to admin mailbox have been turned off.',
+    });
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -80,6 +205,47 @@ export function AdminSettings() {
             />
           </div>
           <Button onClick={handleAdminProfileSave}>Save Admin Profile</Button>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display flex items-center gap-2"><Mail className="h-5 w-5" /> Admin Mailbox</CardTitle>
+          <CardDescription>Link or change admin email and verify it to receive all administration mails.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Label>Admin Email</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                type="email"
+                value={adminEmail}
+                onChange={e => setAdminEmail(e.target.value)}
+                placeholder="admin@yourdomain.com"
+              />
+              <Button onClick={handleAdminEmailLink} disabled={sendingAdminOtp}>
+                <Send className="h-4 w-4 mr-1" /> {sendingAdminOtp ? 'Sending...' : (isAdminMailboxVerified() ? 'Change Email' : 'Link Email')}
+              </Button>
+            </div>
+          </div>
+          {showAdminVerify && (
+            <div className="flex gap-2">
+              <Input value={adminEmailOtp} onChange={e => setAdminEmailOtp(e.target.value)} maxLength={6} placeholder="Enter OTP" className="max-w-[180px]" />
+              <Button variant="outline" onClick={handleVerifyAdminEmail}><ShieldCheck className="h-4 w-4 mr-1" /> Verify</Button>
+            </div>
+          )}
+          <div className="flex items-center justify-between border rounded-md px-3 py-2">
+            <div>
+              <p className="text-sm font-medium">Receive all administration emails</p>
+              <p className="text-xs text-muted-foreground">Includes scorelist workflow notifications and future admin alerts.</p>
+            </div>
+            <Switch checked={adminMailEnabled} onCheckedChange={handleAdminMailboxToggle} disabled={!isAdminMailboxVerified()} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Active sender/reply address: {isAdminMailboxVerified() ? adminEmailRecord?.email || adminEmail : DEFAULT_FROM_EMAIL}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Note: Gmail can only send "From" aliases already configured in the Google account used by Apps Script.
+          </p>
         </CardContent>
       </Card>
 

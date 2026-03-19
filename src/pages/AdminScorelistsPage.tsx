@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { v2api, logAudit } from '@/lib/v2api';
 import { DigitalScorelist, CertificationApproval, ManagementUser } from '@/lib/v2types';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
-import { sendScorelistApprovalRequestEmail } from '@/lib/mailer';
+import { sendScorelistApprovalRequestEmail, getAdminNotificationRecipient } from '@/lib/mailer';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -160,7 +160,25 @@ const AdminScorelistsPage = () => {
   }, {} as Record<string, ManagementUser[]>);
 
   const notifyStageApprovers = async (scorelistId: string, stage: string) => {
-    const recipients = (requiredApproversByStage[stage] || []).filter((m) => !!String(m.email || '').trim());
+    const stageRecipients = (requiredApproversByStage[stage] || []).filter((m) => !!String(m.email || '').trim());
+    const adminRecipient = getAdminNotificationRecipient();
+    const recipients = [...stageRecipients];
+    if (adminRecipient && !recipients.some((m) => String(m.email || '').trim().toLowerCase() === adminRecipient)) {
+      recipients.push({
+        management_id: 'admin',
+        name: user?.name || 'Administrator',
+        email: adminRecipient,
+        phone: '',
+        designation: 'Portal Admin',
+        role: 'admin',
+        authority_level: 10,
+        signature_image: '',
+        status: 'active',
+        created_at: '',
+        username: 'admin',
+        password: '',
+      });
+    }
     await Promise.all(
       recipients.map((m) =>
         sendScorelistApprovalRequestEmail({
