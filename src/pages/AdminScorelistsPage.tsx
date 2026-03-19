@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { v2api, logAudit } from '@/lib/v2api';
 import { DigitalScorelist, CertificationApproval, ManagementUser } from '@/lib/v2types';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
+import { sendScorelistApprovalRequestEmail } from '@/lib/mailer';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -76,7 +77,8 @@ const AdminScorelistsPage = () => {
       if (!match) return;
       const tournament = tournaments.find(t => t.tournament_id === match.tournament_id);
       const season = seasons.find(s => s.season_id === match.season_id);
-      await generateMatchScorelist(match, batting, bowling, players, tournament, season, user?.username || 'admin');
+      const scorelist = await generateMatchScorelist(match, batting, bowling, players, tournament, season, user?.username || 'admin');
+      await notifyStageApprovers(scorelist.scorelist_id, 'scoring_completed');
       toast({ title: '✅ Match scorelist generated' });
       refresh();
     } catch { toast({ title: 'Error', variant: 'destructive' }); }
@@ -90,7 +92,8 @@ const AdminScorelistsPage = () => {
       const tournament = tournaments.find(t => t.tournament_id === selectedTournament)!;
       const season = seasons.find(s => s.season_id === selectedSeason)!;
       const seasonMatches = matches.filter(m => m.season_id === selectedSeason && m.tournament_id === selectedTournament);
-      await generateTournamentScorelist(tournament, season, seasonMatches, batting, bowling, players, user?.username || 'admin');
+      const scorelist = await generateTournamentScorelist(tournament, season, seasonMatches, batting, bowling, players, user?.username || 'admin');
+      await notifyStageApprovers(scorelist.scorelist_id, 'scoring_completed');
       toast({ title: '✅ Tournament scorebook generated' });
       refresh();
     } catch { toast({ title: 'Error', variant: 'destructive' }); }
@@ -155,6 +158,21 @@ const AdminScorelistsPage = () => {
     acc[stage] = managementUsers.filter((m) => resolveStageFromDesignation(m.designation) === stage);
     return acc;
   }, {} as Record<string, ManagementUser[]>);
+
+  const notifyStageApprovers = async (scorelistId: string, stage: string) => {
+    const recipients = (requiredApproversByStage[stage] || []).filter((m) => !!String(m.email || '').trim());
+    await Promise.all(
+      recipients.map((m) =>
+        sendScorelistApprovalRequestEmail({
+          to: m.email,
+          approverName: m.name || m.designation || 'Approver',
+          scorelistId,
+          stageLabel: stageLabels[stage] || stage,
+          actorName: user?.name || user?.username || 'Admin',
+        }),
+      ),
+    );
+  };
 
   const handleExportPDF = (sl: DigitalScorelist) => {
     const payload = getPayload(sl);
@@ -305,6 +323,10 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
       locked,
     });
     logAudit(userId, 'certify_scorelist', 'scorelist', sl.scorelist_id, stage);
+    const nextStage = stageOrder[stageOrder.indexOf(stage) + 1];
+    if (nextStage && !locked) {
+      await notifyStageApprovers(sl.scorelist_id, nextStage);
+    }
     toast({ title: `✅ Certified: ${stageLabels[stage] || stage}` });
     refresh();
   };
