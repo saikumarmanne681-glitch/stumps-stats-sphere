@@ -222,3 +222,36 @@ export async function sendScorelistApprovalRequestEmail(params: {
     fromName: 'Cricket Club Approvals',
   });
 }
+
+export async function sendSupportUpdateEmail(params: {
+  to: string;
+  userName?: string;
+  ticketId: string;
+  subjectLine: string;
+  status: string;
+  updateType: 'reply' | 'status' | 'assignment';
+  actorName: string;
+  actorDesignation?: string;
+  detail?: string;
+}) {
+  const chipColor = params.updateType === 'status' ? '#1d4ed8' : params.updateType === 'assignment' ? '#7c3aed' : '#0f766e';
+  const htmlBody = cardLayout(`
+    <p style="margin:0 0 8px;font-size:16px;">Hello ${params.userName || 'Player'},</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">Your support request has a new update from our concierge support desk.</p>
+    <div style="background:linear-gradient(135deg,#f8fafc,#eef2ff);border:1px solid #dbeafe;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 8px;"><strong>Ticket ID:</strong> <span style="font-family:monospace">${params.ticketId}</span></p>
+      <p style="margin:0 0 8px;"><strong>Subject:</strong> ${params.subjectLine}</p>
+      <p style="margin:0 0 8px;"><strong>Status:</strong> <span style="padding:2px 10px;border-radius:999px;background:${chipColor};color:#fff;font-size:12px;text-transform:capitalize;">${params.status.replace('_', ' ')}</span></p>
+      <p style="margin:0;"><strong>Updated by:</strong> ${params.actorName}${params.actorDesignation ? ` · ${params.actorDesignation}` : ''}</p>
+    </div>
+    ${params.detail ? `<p style="margin:16px 0 0;line-height:1.6;color:#374151;"><strong>Latest note:</strong> ${params.detail}</p>` : ''}
+    <p style="margin:16px 0 0;line-height:1.6;color:#374151;">Please log in to the player dashboard to continue the conversation.</p>
+  `);
+
+  return sendSystemEmail({
+    to: params.to,
+    subject: `Support Update • ${params.ticketId}`,
+    htmlBody,
+    fromName: 'Cricket Club Concierge Support',
+  });
+}

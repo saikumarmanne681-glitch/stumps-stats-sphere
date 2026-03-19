@@ -58,6 +58,11 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
   };
 
   useEffect(() => { refresh(); const iv = setInterval(refresh, 15000); return () => clearInterval(iv); }, [playerId]);
+  useEffect(() => {
+    if (!selectedTicket) return;
+    const latest = tickets.find((t) => t.ticket_id === selectedTicket.ticket_id);
+    if (latest) setSelectedTicket(latest);
+  }, [tickets, selectedTicket]);
 
   const handleCreate = async () => {
     if (!newSubject.trim() || !newDescription.trim()) return;
@@ -105,6 +110,9 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
       created_at: istNow(),
     };
     await v2api.addTicketMessage(msg);
+    if (selectedTicket.status === 'waiting_for_user') {
+      await v2api.updateTicket({ ...selectedTicket, status: 'in_progress' });
+    }
     toast({ title: 'Reply sent' });
     setReplyText('');
     setSending(false);
@@ -141,7 +149,7 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl font-bold">🎫 My Support Tickets</h2>
+        <h2 className="font-display text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">🎫 My Support Tickets</h2>
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Ticket</Button>
@@ -183,7 +191,7 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
       {tickets.length === 0 && <p className="text-muted-foreground text-center py-8">No support tickets yet. Create one if you need help!</p>}
 
       {tickets.map(ticket => (
-        <Card key={ticket.ticket_id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => setSelectedTicket(ticket)}>
+        <Card key={ticket.ticket_id} className="cursor-pointer hover:border-primary/40 hover:shadow-md transition-all bg-gradient-to-br from-background to-primary/5" onClick={() => setSelectedTicket(ticket)}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="font-semibold text-sm">{ticket.subject}</span>

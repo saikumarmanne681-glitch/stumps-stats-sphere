@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
-import { SupportTicket, SupportMessage, SupportCSAT, SLA_CONFIG } from '@/lib/v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, ManagementUser } from '@/lib/v2types';
+import { notifyTicketOwner, resolveSupportActor } from '@/lib/supportNotifications';
 import { generateId } from '@/lib/utils';
 import { Loader2, Plus, Search, MessageSquare, Clock, AlertTriangle, CheckCircle, Send, Star, Filter, ChevronDown, ChevronUp, StickyNote } from 'lucide-react';
 
@@ -41,6 +42,7 @@ export function AdminSupportDashboard() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [csatData, setCSATData] = useState<SupportCSAT[]>([]);
+  const [managementUsers, setManagementUsers] = useState<ManagementUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -55,10 +57,11 @@ export function AdminSupportDashboard() {
   const PAGE_SIZE = 20;
 
   const refresh = async () => {
-    const [t, m, c] = await Promise.all([v2api.getTickets(), v2api.getTicketMessages(), v2api.getCSAT()]);
+    const [t, m, c, mgmt] = await Promise.all([v2api.getTickets(), v2api.getTicketMessages(), v2api.getCSAT(), v2api.getManagementUsers()]);
     setTickets(t);
     setMessages(m);
     setCSATData(c);
+    setManagementUsers(mgmt.filter((u) => String(u.status || '').toLowerCase() !== 'inactive'));
     setLoading(false);
   };
 
@@ -124,9 +127,20 @@ export function AdminSupportDashboard() {
       created_at: istNow(),
     };
     await v2api.addTicketMessage(msg);
+    let effectiveTicket = selectedTicket;
     if (selectedTicket.status === 'open') {
-      await v2api.updateTicket({ ...selectedTicket, status: 'in_progress' });
+      effectiveTicket = { ...selectedTicket, status: 'in_progress' };
+      await v2api.updateTicket(effectiveTicket);
     }
+    const actor = resolveSupportActor(user?.management_id || user?.username || 'admin', managementUsers);
+    await notifyTicketOwner({
+      ticket: effectiveTicket,
+      actorName: actor.name,
+      actorDesignation: actor.designation,
+      updateType: 'reply',
+      detail: replyText.trim().slice(0, 220),
+      players,
+    });
     logAudit('admin', 'reply_ticket', 'support_ticket', selectedTicket.ticket_id);
     toast({ title: 'Reply sent' });
     setReplyText('');
@@ -161,6 +175,15 @@ export function AdminSupportDashboard() {
     if (status === 'resolved') updated.resolved_at = istNow();
     if (status === 'closed') updated.closed_at = istNow();
     await v2api.updateTicket(updated);
+    const actor = resolveSupportActor(user?.management_id || user?.username || 'admin', managementUsers);
+    await notifyTicketOwner({
+      ticket: updated,
+      actorName: actor.name,
+      actorDesignation: actor.designation,
+      updateType: 'status',
+      detail: `Ticket status changed to ${status.replace('_', ' ')}`,
+      players,
+    });
     logAudit('admin', 'change_status', 'support_ticket', selectedTicket.ticket_id, status);
     toast({ title: `Ticket ${status.replace('_', ' ')}` });
     setSelectedTicket(updated);
@@ -169,9 +192,20 @@ export function AdminSupportDashboard() {
 
   const handleAssign = async (adminId: string) => {
     if (!selectedTicket) return;
-    await v2api.updateTicket({ ...selectedTicket, assigned_admin_id: adminId });
+    const updated = { ...selectedTicket, assigned_admin_id: adminId };
+    await v2api.updateTicket(updated);
+    const assignee = resolveSupportActor(adminId, managementUsers);
+    await notifyTicketOwner({
+      ticket: updated,
+      actorName: assignee.name,
+      actorDesignation: assignee.designation || 'Support Team',
+      updateType: 'assignment',
+      detail: `Assigned to ${assignee.name}${assignee.designation ? ` (${assignee.designation})` : ''}`,
+      players,
+    });
     logAudit('admin', 'assign_ticket', 'support_ticket', selectedTicket.ticket_id, adminId);
-    toast({ title: 'Ticket assigned' });
+    toast({ title: 'Ticket assigned', description: `Owner notified: ${assignee.name}` });
+    setSelectedTicket(updated);
     refresh();
   };
 
@@ -185,10 +219,10 @@ export function AdminSupportDashboard() {
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-primary">{tickets.length}</p><p className="text-xs text-muted-foreground">Total Tickets</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-accent">{openCount}</p><p className="text-xs text-muted-foreground">Open</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold">{inProgressCount}</p><p className="text-xs text-muted-foreground">In Progress</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-destructive">{breachedCount}</p><p className="text-xs text-muted-foreground">SLA Breached</p></CardContent></Card>
+        <Card className="bg-gradient-to-br from-primary/10 via-background to-background border-primary/30"><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-primary">{tickets.length}</p><p className="text-xs text-muted-foreground">Total Tickets</p></CardContent></Card>
+        <Card className="bg-gradient-to-br from-accent/15 via-background to-background border-accent/30"><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-accent">{openCount}</p><p className="text-xs text-muted-foreground">Open</p></CardContent></Card>
+        <Card className="bg-gradient-to-br from-blue-500/10 via-background to-background border-blue-300/40"><CardContent className="p-4 text-center"><p className="text-2xl font-bold">{inProgressCount}</p><p className="text-xs text-muted-foreground">In Progress</p></CardContent></Card>
+        <Card className="bg-gradient-to-br from-destructive/10 via-background to-background border-destructive/30"><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-destructive">{breachedCount}</p><p className="text-xs text-muted-foreground">SLA Breached</p></CardContent></Card>
       </div>
 
       {/* Filters */}
@@ -318,10 +352,15 @@ export function AdminSupportDashboard() {
                     <SelectItem value="closed">Closed</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select onValueChange={handleAssign}>
+                  <Select onValueChange={handleAssign}>
                   <SelectTrigger className="w-40"><SelectValue placeholder="Assign to..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Admin</SelectItem>
+                    {managementUsers.map((m) => (
+                      <SelectItem key={m.management_id} value={m.management_id}>
+                        {m.name} • {m.designation}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
