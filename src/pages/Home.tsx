@@ -102,6 +102,11 @@ const Home = () => {
       </section>
 
       <div className="container mx-auto px-4 py-8 space-y-10">
+        {loading && (
+          <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            Loading latest data, please wait...
+          </div>
+        )}
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-4">
           <span className="font-display text-lg font-semibold">Filters:</span>
@@ -190,9 +195,14 @@ const Home = () => {
                         {format(new Date(season.start_date), "dd MMM")} – {format(new Date(season.end_date), "dd MMM yyyy")}
                       </p>
                     )}
-                    <Button variant="outline" size="sm" className="w-full" asChild>
-                      <Link to={`/leaderboards`}>View Standings →</Link>
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/leaderboards?tournament=${season.tournament_id}&season=${season.season_id}`}>View Standings →</Link>
+                      </Button>
+                      <Button variant="secondary" size="sm" asChild>
+                        <Link to={`/tournament/${season.tournament_id}`}>Tournament Page</Link>
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}

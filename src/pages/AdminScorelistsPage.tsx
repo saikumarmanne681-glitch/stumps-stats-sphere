@@ -400,8 +400,14 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                     {matches.map(m => <SelectItem key={m.match_id} value={m.match_id}>{m.team_a} vs {m.team_b}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button onClick={handleGenerateMatch} disabled={generating || !selectedMatch} className="w-full sm:w-auto">
-                  {generating && <Loader2 className="h-3 w-3 animate-spin mr-1" />} Generate Match
+                <Button
+                  onClick={handleGenerateMatch}
+                  loading={generating}
+                  loadingText="Generating match scorelist..."
+                  disabled={!selectedMatch}
+                  className="w-full sm:w-auto"
+                >
+                  Generate Match
                 </Button>
               </div>
               <div className="flex flex-col sm:flex-row flex-wrap gap-3">
@@ -417,7 +423,13 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                     {seasons.filter(s => s.tournament_id === selectedTournament).map(s => <SelectItem key={s.season_id} value={s.season_id}>{s.year}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button onClick={handleGenerateTournament} disabled={generating || !selectedTournament || !selectedSeason} className="w-full sm:w-auto">
+                <Button
+                  onClick={handleGenerateTournament}
+                  loading={generating}
+                  loadingText="Generating tournament scorebook..."
+                  disabled={!selectedTournament || !selectedSeason}
+                  className="w-full sm:w-auto"
+                >
                   Generate Tournament
                 </Button>
               </div>

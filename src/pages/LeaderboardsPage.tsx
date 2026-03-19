@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,8 +12,9 @@ import { calcBattingStats, calcBowlingStats, getPlayerMatchCounts } from '@/lib/
 
 const LeaderboardsPage = () => {
   const { matches, batting, bowling, players, tournaments, seasons } = useData();
-  const [filterTournament, setFilterTournament] = useState('all');
-  const [filterSeason, setFilterSeason] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filterTournament, setFilterTournament] = useState(searchParams.get('tournament') || 'all');
+  const [filterSeason, setFilterSeason] = useState(searchParams.get('season') || 'all');
 
   const relevantSeasons = filterTournament === 'all' ? seasons : seasons.filter(s => s.tournament_id === filterTournament);
   
@@ -110,6 +112,24 @@ const LeaderboardsPage = () => {
 
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
+  const updateTournament = (value: string) => {
+    setFilterTournament(value);
+    setFilterSeason('all');
+    const next = new URLSearchParams(searchParams);
+    next.set('tournament', value);
+    next.delete('season');
+    setSearchParams(next);
+  };
+
+  const updateSeason = (value: string) => {
+    setFilterSeason(value);
+    const next = new URLSearchParams(searchParams);
+    if (filterTournament !== 'all') next.set('tournament', filterTournament);
+    if (value === 'all') next.delete('season');
+    else next.set('season', value);
+    setSearchParams(next);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -119,7 +139,7 @@ const LeaderboardsPage = () => {
         <div className="flex flex-wrap gap-4">
           <div>
             <label className="text-sm font-medium mb-1 block">Tournament</label>
-            <Select value={filterTournament} onValueChange={v => { setFilterTournament(v); setFilterSeason('all'); }}>
+            <Select value={filterTournament} onValueChange={updateTournament}>
               <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Tournaments</SelectItem>
@@ -129,7 +149,7 @@ const LeaderboardsPage = () => {
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Season</label>
-            <Select value={filterSeason} onValueChange={setFilterSeason}>
+            <Select value={filterSeason} onValueChange={updateSeason}>
               <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Seasons</SelectItem>
