@@ -66,6 +66,9 @@ const LiveMatchPage = () => {
 
       throw new Error('No supported share mechanism available');
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
       toast({
         title: 'Share failed',
         description: 'Could not share this match right now.',
