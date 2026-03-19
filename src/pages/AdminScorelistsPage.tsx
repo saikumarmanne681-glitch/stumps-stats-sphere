@@ -56,7 +56,15 @@ const AdminScorelistsPage = () => {
     setLoading(false);
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    const boot = async () => {
+      await v2api.syncHeaders().catch(() => false);
+      await refresh();
+    };
+    boot();
+    const id = window.setInterval(refresh, 10000);
+    return () => window.clearInterval(id);
+  }, []);
 
   if (!isAdmin && !isManagement) return <Navigate to="/login" />;
 
@@ -81,7 +89,7 @@ const AdminScorelistsPage = () => {
     try {
       const tournament = tournaments.find(t => t.tournament_id === selectedTournament)!;
       const season = seasons.find(s => s.season_id === selectedSeason)!;
-      const seasonMatches = matches.filter(m => m.season_id === selectedSeason);
+      const seasonMatches = matches.filter(m => m.season_id === selectedSeason && m.tournament_id === selectedTournament);
       await generateTournamentScorelist(tournament, season, seasonMatches, batting, bowling, players, user?.username || 'admin');
       toast({ title: '✅ Tournament scorebook generated' });
       refresh();
@@ -105,6 +113,32 @@ const AdminScorelistsPage = () => {
   };
 
   const normalizeDesignation = (designation?: string) => String(designation || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const safeParsePayload = (sl: DigitalScorelist) => { try { return JSON.parse(sl.payload_json || '{}'); } catch { return null; } };
+  const readCertifications = (sl: DigitalScorelist): CertificationApproval[] => {
+    if (sl.certifications_json) {
+      try {
+        const parsed = JSON.parse(sl.certifications_json);
+        if (Array.isArray(parsed)) return parsed as CertificationApproval[];
+      } catch {
+        /* ignore */
+      }
+    }
+    const payload = safeParsePayload(sl);
+    const fromPayload = payload?.__certification?.approvals;
+    return Array.isArray(fromPayload) ? fromPayload : [];
+  };
+  const readStatus = (sl: DigitalScorelist, certs: CertificationApproval[]): string => {
+    if (sl.certification_status) return sl.certification_status;
+    const latest = certs.reduce((best, c) => {
+      return stageOrder.indexOf(c.stage) > stageOrder.indexOf(best) ? c.stage : best;
+    }, 'draft');
+    return latest || 'draft';
+  };
+  const readLocked = (sl: DigitalScorelist): boolean => {
+    if (typeof sl.locked === 'boolean') return sl.locked;
+    const payload = safeParsePayload(sl);
+    return !!payload?.__certification?.locked;
+  };
 
   const resolveStageFromDesignation = (designation?: string): string | null => {
     const d = normalizeDesignation(designation);
@@ -125,7 +159,7 @@ const AdminScorelistsPage = () => {
   const handleExportPDF = (sl: DigitalScorelist) => {
     const payload = getPayload(sl);
     const match = payload?.match;
-    const certs: CertificationApproval[] = sl.certifications_json ? JSON.parse(sl.certifications_json) : [];
+    const certs = readCertifications(sl);
     const season = payload?.season;
     const tournament = payload?.tournament;
     const payloadMatches = (payload?.matches || []) as any[];
@@ -171,7 +205,7 @@ const AdminScorelistsPage = () => {
       const matchBatRows = matchBat.map((b: any) => `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right;font-weight:bold">${b.runs}</td><td style="text-align:right">${b.balls}</td><td style="text-align:right">${b.fours}</td><td style="text-align:right">${b.sixes}</td><td>${b.how_out || 'not out'}</td></tr>`).join('');
       const matchBowlRows = matchBowl.map((b: any) => `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right">${b.overs}</td><td style="text-align:right">${b.maidens}</td><td style="text-align:right">${b.runs_conceded}</td><td style="text-align:right;font-weight:bold">${b.wickets}</td></tr>`).join('');
       return `
-      <div style="margin-top:22px;padding-top:12px;border-top:1px solid #ddd;page-break-inside:avoid">
+      <div class="match-book-page" style="margin-top:22px;padding-top:12px;border-top:1px solid #ddd;page-break-inside:avoid">
         <h2>Match ${idx + 1}: ${m.team_a} vs ${m.team_b}</h2>
         <p><strong>Date:</strong> ${m.date || '-'} | <strong>Venue:</strong> ${m.venue || '-'} | <strong>Stage:</strong> ${m.match_stage || '-'} | <strong>Status:</strong> ${m.status || '-'}</p>
         <p><strong>Score:</strong> ${m.team_a} ${scoreA} vs ${m.team_b} ${scoreB}</p>
@@ -190,6 +224,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #
 .team-score{font-size:28px;font-weight:bold;color:#1e6b3a}.watermark{position:fixed;top:40%;left:10%;transform:rotate(-30deg);font-size:80px;color:rgba(30,107,58,0.04);white-space:nowrap;pointer-events:none;z-index:-1}
 .footer{text-align:center;font-size:9px;color:#999;margin-top:30px;border-top:1px solid #ddd;padding-top:10px}
 .certified{background:#e8f5e9;border:2px solid #1e6b3a;text-align:center;padding:12px;border-radius:8px;font-weight:bold;color:#1e6b3a;margin:20px 0}
+.match-book-page{page-break-before:always}
 @media print{.watermark{display:block}}</style></head><body>
 <div class="watermark">VERIFIED MATCH RECORD</div>
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
@@ -219,7 +254,7 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
   };
 
   const handleCertify = async (sl: DigitalScorelist, stage: string) => {
-    const certs: CertificationApproval[] = sl.certifications_json ? JSON.parse(sl.certifications_json) : [];
+    const certs = readCertifications(sl);
     
     // Check if user already signed this stage
     const userId = user?.management_id || user?.username || 'admin';
@@ -237,7 +272,20 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
       stage,
     });
     const locked = stage === 'official_certified';
-    await v2api.updateScorelist({ ...sl, certification_status: stage, certifications_json: JSON.stringify(certs), locked });
+    const payload = safeParsePayload(sl) || {};
+    payload.__certification = {
+      status: stage,
+      locked,
+      approvals: certs,
+      lastUpdatedAt: new Date().toISOString(),
+    };
+    await v2api.updateScorelist({
+      ...sl,
+      payload_json: JSON.stringify(payload),
+      certification_status: stage,
+      certifications_json: JSON.stringify(certs),
+      locked,
+    });
     logAudit(userId, 'certify_scorelist', 'scorelist', sl.scorelist_id, stage);
     toast({ title: `✅ Certified: ${stageLabels[stage] || stage}` });
     refresh();
@@ -309,18 +357,20 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
         {/* Scorelist Cards */}
         <div className="space-y-3">
           {scorelists.map(sl => {
-            const certs: CertificationApproval[] = sl.certifications_json ? JSON.parse(sl.certifications_json) : [];
+            const certs = readCertifications(sl);
             const payload = getPayload(sl);
             const match = payload?.match;
             const aScore = match?.team_a_score || '-';
             const bScore = match?.team_b_score || '-';
-            const nextStage = getNextStage(sl);
-            const canSign = !sl.locked && isManagement && userStage && nextStage === userStage;
+            const effectiveStatus = readStatus(sl, certs);
+            const effectiveLocked = readLocked(sl);
+            const nextStage = getNextStage({ ...sl, certification_status: effectiveStatus });
+            const canSign = !effectiveLocked && isManagement && userStage && nextStage === userStage;
             const userId = user?.management_id || user?.username || 'admin';
             const alreadySignedThisStage = certs.some(c => c.approver_id === userId && c.stage === userStage);
 
             return (
-              <Card key={sl.scorelist_id} className={`${sl.locked ? 'border-primary/40 bg-primary/5' : ''}`}>
+              <Card key={sl.scorelist_id} className={`${effectiveLocked ? 'border-primary/40 bg-primary/5' : ''}`}>
                 <CardContent className="p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
@@ -333,8 +383,8 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{sl.scope_type}</Badge>
-                      <Badge className={sl.locked ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}>
-                        {sl.locked ? '🔒 ' : ''}{stageLabels[sl.certification_status || 'draft'] || sl.certification_status || 'draft'}
+                      <Badge className={effectiveLocked ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}>
+                        {effectiveLocked ? '🔒 ' : ''}{stageLabels[effectiveStatus] || effectiveStatus}
                       </Badge>
                     </div>
                   </div>
@@ -366,7 +416,7 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
                         <ShieldCheck className="h-3 w-3" /> Sign as {user?.designation}
                       </Button>
                     )}
-                    {isAdmin && !sl.locked && nextStage && (
+                    {isAdmin && !effectiveLocked && nextStage && (
                       <Button size="sm" variant="secondary" onClick={() => handleCertify(sl, nextStage)} className="gap-1 text-xs">
                         Advance to {stageLabels[nextStage]}
                       </Button>
@@ -386,7 +436,8 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-thin p-4 md:p-6">
             {viewScorelist && (() => {
               const payload = getPayload(viewScorelist);
-              const certs: CertificationApproval[] = viewScorelist.certifications_json ? JSON.parse(viewScorelist.certifications_json) : [];
+              const certs = readCertifications(viewScorelist);
+              const effectiveLocked = readLocked(viewScorelist);
               const match = payload?.match;
               const calcScore = (team: string) => {
                 const rows = (payload?.battingData || []).filter((b: any) => b.team === team);
@@ -526,7 +577,7 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
                           );
                         })}
 
-                        {viewScorelist.locked && (
+                        {effectiveLocked && (
                           <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary font-semibold text-sm">
                             <Lock className="h-4 w-4" /> ✔ OFFICIALLY CERTIFIED MATCH RESULT
                           </div>

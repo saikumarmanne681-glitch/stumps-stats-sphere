@@ -22,6 +22,17 @@ async function writeV2Sheet<T>(sheet: string, action: 'add' | 'update' | 'delete
 }
 
 export const v2api = {
+  syncHeaders: async () => {
+    const url = getAppsScriptUrl();
+    if (!url) return false;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'syncHeaders' }),
+    });
+    const result = await res.json();
+    return !!result.success;
+  },
   // Support Tickets
   getTickets: () => fetchV2Sheet<SupportTicket>('SUPPORT_TICKETS'),
   addTicket: (t: SupportTicket) => writeV2Sheet('SUPPORT_TICKETS', 'add', t),
