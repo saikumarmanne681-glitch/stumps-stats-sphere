@@ -20,6 +20,7 @@ import ManagementPage from "./pages/ManagementPage";
 import AdminBackups from "./pages/AdminBackups";
 import AdminManagement from "./pages/AdminManagement";
 import AdminScorelistsPage from "./pages/AdminScorelistsPage";
+import LiveMatchPage from "./pages/LiveMatchPage";
 
 const queryClient = new QueryClient();
 
