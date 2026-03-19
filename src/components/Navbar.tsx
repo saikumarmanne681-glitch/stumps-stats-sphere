@@ -1,82 +1,115 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio } from 'lucide-react';
 
 export function Navbar() {
   const { user, logout, isAdmin, isPlayer, isManagement } = useAuth();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+
+  const NavItems = ({ mobile = false }: { mobile?: boolean }) => {
+    const close = () => mobile && setOpen(false);
+    return (
+      <div className={mobile ? 'flex flex-col gap-2' : 'flex items-center gap-1'}>
+        <Button variant="ghost" size="sm" asChild onClick={close}>
+          <Link to="/"><Home className="h-4 w-4 mr-1" /> Home</Link>
+        </Button>
+        <Button variant="ghost" size="sm" asChild onClick={close}>
+          <Link to="/leaderboards"><Trophy className="h-4 w-4 mr-1" /> Leaderboards</Link>
+        </Button>
+        <Button variant="ghost" size="sm" asChild onClick={close}>
+          <Link to="/live"><Radio className="h-4 w-4 mr-1" /> Live</Link>
+        </Button>
+
+        {user && (
+          <Button variant="ghost" size="sm" asChild onClick={close}>
+            <Link to="/management"><Users className="h-4 w-4 mr-1" /> Board</Link>
+          </Button>
+        )}
+
+        {!user && (
+          <Button size="sm" asChild onClick={close}>
+            <Link to="/login"><LogIn className="h-4 w-4 mr-1" /> Login</Link>
+          </Button>
+        )}
+
+        {isAdmin && (
+          <>
+            <Button variant="outline" size="sm" asChild onClick={close}>
+              <Link to="/admin"><LayoutDashboard className="h-4 w-4 mr-1" /> Admin</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild onClick={close}>
+              <Link to="/admin/match-center"><Zap className="h-4 w-4 mr-1" /> Scoring</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild onClick={close}>
+              <Link to="/admin/scorelists"><Shield className="h-4 w-4 mr-1" /> Scorelists</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild onClick={close}>
+              <Link to="/admin/management"><Users className="h-4 w-4 mr-1" /> Mgmt</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild onClick={close}>
+              <Link to="/admin/backups"><Database className="h-4 w-4 mr-1" /> Backup</Link>
+            </Button>
+          </>
+        )}
+
+        {isPlayer && (
+          <Button variant="outline" size="sm" asChild onClick={close}>
+            <Link to="/player"><LayoutDashboard className="h-4 w-4 mr-1" /> Dashboard</Link>
+          </Button>
+        )}
+
+        {isManagement && (
+          <>
+            <Button variant="outline" size="sm" asChild onClick={close}>
+              <Link to="/management"><LayoutDashboard className="h-4 w-4 mr-1" /> Management</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild onClick={close}>
+              <Link to="/admin/scorelists"><Shield className="h-4 w-4 mr-1" /> Scorelists</Link>
+            </Button>
+          </>
+        )}
+
+        {user && (
+          <div className={`flex items-center gap-2 ${mobile ? 'pt-2 border-t' : ''}`}>
+            <span className="text-sm text-muted-foreground">
+              Hi, <strong>{user.name}</strong>
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => { logout(); navigate('/'); close(); }}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <nav className="bg-card border-b shadow-sm sticky top-0 z-40">
       <div className="container mx-auto px-4 flex items-center justify-between h-14">
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2 shrink-0">
           <span className="text-2xl">🏏</span>
           <span className="font-display text-xl font-bold text-primary">CRICKET CLUB</span>
         </Link>
 
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/"><Home className="h-4 w-4 mr-1" /> Home</Link>
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/leaderboards"><Trophy className="h-4 w-4 mr-1" /> Leaderboards</Link>
-          </Button>
+        {/* Desktop Nav */}
+        <div className="hidden md:flex items-center gap-1">
+          <NavItems />
+        </div>
 
-          {user && (
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/management"><Users className="h-4 w-4 mr-1" /> Board</Link>
-            </Button>
-          )}
-
-          {!user && (
-            <Button size="sm" asChild>
-              <Link to="/login"><LogIn className="h-4 w-4 mr-1" /> Login</Link>
-            </Button>
-          )}
-
-          {isAdmin && (
-            <>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/admin"><LayoutDashboard className="h-4 w-4 mr-1" /> Admin</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/admin/match-center"><Zap className="h-4 w-4 mr-1" /> Live</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/admin/scorelists"><Shield className="h-4 w-4 mr-1" /> Scorelists</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/admin/management"><Users className="h-4 w-4 mr-1" /> Mgmt</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/admin/backups"><Database className="h-4 w-4 mr-1" /> Backup</Link>
-              </Button>
-            </>
-          )}
-
-          {isPlayer && (
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/player"><LayoutDashboard className="h-4 w-4 mr-1" /> Dashboard</Link>
-            </Button>
-          )}
-
-          {isManagement && (
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/management"><LayoutDashboard className="h-4 w-4 mr-1" /> Management</Link>
-            </Button>
-          )}
-
-          {user && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                Hi, <strong>{user.name}</strong>
-              </span>
-              <Button variant="ghost" size="sm" onClick={() => { logout(); navigate('/'); }}>
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+        {/* Mobile Hamburger */}
+        <div className="md:hidden">
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72 pt-10">
+              <NavItems mobile />
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </nav>

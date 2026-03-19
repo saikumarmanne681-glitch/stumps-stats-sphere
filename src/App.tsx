@@ -20,6 +20,7 @@ import ManagementPage from "./pages/ManagementPage";
 import AdminBackups from "./pages/AdminBackups";
 import AdminManagement from "./pages/AdminManagement";
 import AdminScorelistsPage from "./pages/AdminScorelistsPage";
+import LiveMatchPage from "./pages/LiveMatchPage";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/tournament/:id" element={<TournamentPage />} />
             <Route path="/verify-scorelist/:id" element={<VerifyScorelist />} />
             <Route path="/management" element={<ManagementPage />} />
+            <Route path="/live" element={<LiveMatchPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
