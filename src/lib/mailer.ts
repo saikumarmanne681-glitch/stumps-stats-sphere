@@ -1,6 +1,9 @@
 import { getAppsScriptUrl } from './googleSheets';
 
 export const DEFAULT_FROM_EMAIL = 'mudirajskmr@gmail.com';
+const ADMIN_MAILBOX_KEY = 'adminMailboxEmail';
+const ADMIN_MAILBOX_VERIFIED_KEY = 'adminMailboxVerified';
+const ADMIN_MAILBOX_ENABLED_KEY = 'adminMailboxEnabled';
 
 interface SendMailPayload {
   to: string;
@@ -12,7 +15,50 @@ interface SendMailPayload {
   replyTo?: string;
 }
 
+function canUseStorage() {
+  return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+}
+
+export function getAdminMailboxEmail() {
+  if (!canUseStorage()) return '';
+  return String(localStorage.getItem(ADMIN_MAILBOX_KEY) || '').trim().toLowerCase();
+}
+
+export function isAdminMailboxVerified() {
+  if (!canUseStorage()) return false;
+  return localStorage.getItem(ADMIN_MAILBOX_VERIFIED_KEY) === 'true';
+}
+
+export function isAdminMailboxEnabled() {
+  if (!canUseStorage()) return false;
+  return localStorage.getItem(ADMIN_MAILBOX_ENABLED_KEY) !== 'false';
+}
+
+export function setAdminMailboxStatus(email: string, verified: boolean) {
+  if (!canUseStorage()) return;
+  localStorage.setItem(ADMIN_MAILBOX_KEY, String(email || '').trim().toLowerCase());
+  localStorage.setItem(ADMIN_MAILBOX_VERIFIED_KEY, verified ? 'true' : 'false');
+}
+
+export function setAdminMailboxEnabled(enabled: boolean) {
+  if (!canUseStorage()) return;
+  localStorage.setItem(ADMIN_MAILBOX_ENABLED_KEY, enabled ? 'true' : 'false');
+}
+
+export function getEffectiveSenderEmail() {
+  const adminEmail = getAdminMailboxEmail();
+  if (adminEmail && isAdminMailboxVerified()) return adminEmail;
+  return DEFAULT_FROM_EMAIL;
+}
+
+export function getAdminNotificationRecipient() {
+  const adminEmail = getAdminMailboxEmail();
+  if (!adminEmail || !isAdminMailboxVerified() || !isAdminMailboxEnabled()) return null;
+  return adminEmail;
+}
+
 function cardLayout(content: string) {
+  const effectiveSender = getEffectiveSenderEmail();
   return `<!doctype html>
   <html>
     <body style="margin:0;padding:0;background:#f3f5f8;font-family:Inter,Segoe UI,Arial,sans-serif;color:#1f2937;">
@@ -25,7 +71,7 @@ function cardLayout(content: string) {
           ${content}
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
           <p style="margin:0;font-size:12px;color:#6b7280;">Sent by Cricket Club Portal · Admin Desk</p>
-          <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">From/Reply: ${DEFAULT_FROM_EMAIL}</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">From/Reply: ${effectiveSender}</p>
         </div>
       </div>
     </body>
@@ -35,6 +81,7 @@ function cardLayout(content: string) {
 export async function sendSystemEmail(payload: SendMailPayload) {
   const url = getAppsScriptUrl();
   if (!url || !payload.to.trim()) return { success: false, reason: 'missing_config_or_recipient' };
+  const configuredSender = getEffectiveSenderEmail();
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -46,9 +93,9 @@ export async function sendSystemEmail(payload: SendMailPayload) {
           subject: payload.subject,
           htmlBody: payload.htmlBody,
           textBody: payload.textBody || '',
-          fromEmail: payload.fromEmail || DEFAULT_FROM_EMAIL,
+          fromEmail: payload.fromEmail || configuredSender,
           fromName: payload.fromName || 'Cricket Club Portal',
-          replyTo: payload.replyTo || DEFAULT_FROM_EMAIL,
+          replyTo: payload.replyTo || configuredSender,
         },
       }),
     });
@@ -73,7 +120,6 @@ export async function sendOtpEmail(params: { to: string; userName?: string; otp:
     to: params.to,
     subject: 'Your Cricket Club verification OTP',
     htmlBody,
-    fromEmail: DEFAULT_FROM_EMAIL,
     fromName: 'Cricket Club Security',
   });
 }
@@ -93,7 +139,6 @@ export async function sendWelcomeSubscriptionEmail(params: { to: string; userNam
     to: params.to,
     subject: 'Welcome! Your communication preferences are now active',
     htmlBody,
-    fromEmail: DEFAULT_FROM_EMAIL,
   });
 }
 
@@ -118,7 +163,6 @@ export async function sendScorelistApprovalRequestEmail(params: {
     to: params.to,
     subject: `Approval Required: ${params.scorelistId}`,
     htmlBody,
-    fromEmail: DEFAULT_FROM_EMAIL,
     fromName: 'Cricket Club Approvals',
   });
 }
