@@ -71,6 +71,17 @@ export const v2api = {
   getAuditEvents: () => fetchV2Sheet<AuditEvent>('AUDIT_EVENTS'),
   addAuditEvent: (e: AuditEvent) => writeV2Sheet('AUDIT_EVENTS', 'add', e),
 
+  sendOtpEmail: async (email: string, otp: string) => {
+    const url = getAppsScriptUrl();
+    if (!url) return { success: false, error: 'Apps Script URL is not configured' };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'sendOtpEmail', data: { email, otp } }),
+    });
+    return res.json() as Promise<{ success: boolean; error?: string }>;
+  },
+
   // Management Users
   getManagementUsers: () => fetchV2Sheet<ManagementUser>('MANAGEMENT_USERS'),
   addManagementUser: (m: ManagementUser) => writeV2Sheet('MANAGEMENT_USERS', 'add', m),

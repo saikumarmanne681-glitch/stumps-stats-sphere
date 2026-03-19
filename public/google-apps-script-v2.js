@@ -42,3 +42,11 @@
 // - GET  : ?action=syncHeaders
 // - POST : {"action":"syncHeaders"}
 // This safely appends missing columns (like username/password in MANAGEMENT_USERS) and never inserts mock data.
+
+// OPTIONAL: Add OTP email action in doPost:
+// if (action === "sendOtpEmail") {
+//   const { email, otp } = data || {};
+//   if (!email || !otp) return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing email/otp" })).setMimeType(ContentService.MimeType.JSON);
+//   MailApp.sendEmail(String(email), "Your Cricket Club OTP", "Your verification code is: " + String(otp) + "\n\nThis code expires in 10 minutes.");
+//   return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+// }
