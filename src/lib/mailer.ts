@@ -237,7 +237,7 @@ export async function sendSupportUpdateEmail(params: {
   const chipColor = params.updateType === 'status' ? '#1d4ed8' : params.updateType === 'assignment' ? '#7c3aed' : '#0f766e';
   const htmlBody = cardLayout(`
     <p style="margin:0 0 8px;font-size:16px;">Hello ${params.userName || 'Player'},</p>
-    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">Your support request has a new update from our concierge support desk.</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">Your support request has been updated by our premium support desk. We are actively tracking this case for a timely resolution.</p>
     <div style="background:linear-gradient(135deg,#f8fafc,#eef2ff);border:1px solid #dbeafe;border-radius:14px;padding:16px;">
       <p style="margin:0 0 8px;"><strong>Ticket ID:</strong> <span style="font-family:monospace">${params.ticketId}</span></p>
       <p style="margin:0 0 8px;"><strong>Subject:</strong> ${params.subjectLine}</p>
@@ -245,12 +245,12 @@ export async function sendSupportUpdateEmail(params: {
       <p style="margin:0;"><strong>Updated by:</strong> ${params.actorName}${params.actorDesignation ? ` · ${params.actorDesignation}` : ''}</p>
     </div>
     ${params.detail ? `<p style="margin:16px 0 0;line-height:1.6;color:#374151;"><strong>Latest note:</strong> ${params.detail}</p>` : ''}
-    <p style="margin:16px 0 0;line-height:1.6;color:#374151;">Please log in to the player dashboard to continue the conversation.</p>
+    <p style="margin:16px 0 0;line-height:1.6;color:#374151;">Please log in to your player dashboard to review the update and continue the conversation if needed.</p>
   `);
 
   return sendSystemEmail({
     to: params.to,
-    subject: `Support Update • ${params.ticketId}`,
+    subject: `Support Case Update • ${params.ticketId}`,
     htmlBody,
     fromName: 'Cricket Club Concierge Support',
   });
