@@ -13,6 +13,8 @@
  *  7. Set "Who has access" → Anyone
  *  8. Click Deploy and copy the Web App URL
  *  9. Paste the URL into the Cricket Club Portal admin settings
+ * 10. IMPORTANT: run `authorizeMailAccess` once from Apps Script editor
+ *     and complete OAuth consent so mail scopes are granted.
  *
  *  The script will auto-create a Google Sheet named
  *  "CricketClubPortal" in your Google Drive with all required tabs.
@@ -184,6 +186,12 @@ function setCorsHeaders(output) {
   return output;
 }
 
+function authorizeMailAccess() {
+  // Run manually once after deployment or scope changes.
+  GmailApp.getAliases();
+  return "Mail authorization completed";
+}
+
 // ──────── GET ────────
 function doGet(e) {
   const action = e.parameter.action || "get";
@@ -242,6 +250,76 @@ function doPost(e) {
   }
 
   const { action, sheet: tabName, data } = body;
+
+  if (action === "sendMail") {
+    try {
+      const to = String((data && data.to) || "").trim();
+      const subject = String((data && data.subject) || "Cricket Club Portal Notification").trim();
+      const htmlBody = String((data && data.htmlBody) || "").trim();
+      const textBody = String((data && data.textBody) || "").trim();
+      const fromName = String((data && data.fromName) || "Cricket Club Portal").trim();
+      const fromEmail = String((data && data.fromEmail) || "").trim();
+      const replyTo = String((data && data.replyTo) || fromEmail || "").trim();
+
+      if (!to || !subject || (!htmlBody && !textBody)) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing sendMail fields" })).setMimeType(
+          ContentService.MimeType.JSON,
+        );
+      }
+
+      const options = {
+        name: fromName,
+        htmlBody: htmlBody || undefined,
+        replyTo: replyTo || undefined,
+      };
+      let useGmailApi = false;
+
+      // If the account has configured aliases, use requested alias as sender.
+      if (fromEmail) {
+        const aliases = GmailApp.getAliases();
+        if (aliases.indexOf(fromEmail) !== -1) {
+          options.from = fromEmail;
+          useGmailApi = true;
+        }
+      }
+
+      const fallbackText = textBody || "Please view this message in an HTML-enabled email client.";
+      let provider = "GmailApp";
+      try {
+        if (useGmailApi) {
+          // NOTE: MailApp.sendEmail does not support the `from` option.
+          GmailApp.sendEmail(to, subject, fallbackText, options);
+        } else {
+          // Prefer GmailApp to avoid MailApp scope issues in some deployments.
+          GmailApp.sendEmail(to, subject, fallbackText, options);
+        }
+      } catch (gmailErr) {
+        provider = "MailApp";
+        try {
+          const mailOptions = {
+            name: fromName,
+            htmlBody: htmlBody || undefined,
+            replyTo: replyTo || undefined,
+          };
+          MailApp.sendEmail(to, subject, fallbackText, mailOptions);
+        } catch (mailErr) {
+          const message = String(mailErr && mailErr.message ? mailErr.message : gmailErr && gmailErr.message ? gmailErr.message : "Mail send failed");
+          return ContentService.createTextOutput(
+            JSON.stringify({
+              success: false,
+              error: message,
+              hint: "Run authorizeMailAccess() in the Apps Script editor and redeploy the web app as Execute as: Me.",
+            }),
+          ).setMimeType(ContentService.MimeType.JSON);
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ success: true, provider })).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    }
+  }
 
   // ── SEED action: create tabs + insert bulk data ──
   if (action === "seed") {
