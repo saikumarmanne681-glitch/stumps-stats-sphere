@@ -70,6 +70,7 @@ const ManagementPage = () => {
     // Check if this user's designation stage is the next required
     const userStage = designationToStage[user.designation || ''];
     if (!userStage) return false;
+    if (userStage === 'official_certified' && certs.some(c => c.stage === 'official_certified')) return false;
     const currentIdx = stageOrder.indexOf(s.certification_status || 'draft');
     const nextStage = currentIdx < stageOrder.length - 1 ? stageOrder[currentIdx + 1] : null;
     return nextStage === userStage;
@@ -201,7 +202,9 @@ const ManagementPage = () => {
                         <div className="border-t pt-3 space-y-2">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Certification Timeline</p>
                           {stageOrder.map(stage => {
-                            const cert = certs.find(c => c.stage === stage);
+                            const cert = stage === 'draft'
+                              ? { approver_name: s.generated_by || 'System', designation: 'Scorelist Engine', timestamp: s.generated_at || '', token: 'DRAFT', stage: 'draft' }
+                              : certs.find(c => c.stage === stage);
                             return (
                               <div key={stage} className={`flex items-center gap-3 p-2 rounded text-sm ${cert ? 'bg-primary/5' : 'opacity-50'}`}>
                                 {cert ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />}

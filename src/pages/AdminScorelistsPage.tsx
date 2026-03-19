@@ -160,6 +160,8 @@ const AdminScorelistsPage = () => {
     const payload = getPayload(sl);
     const match = payload?.match;
     const certs = readCertifications(sl);
+    const effectiveStatus = readStatus(sl, certs);
+    const effectiveLocked = readLocked(sl);
     const season = payload?.season;
     const tournament = payload?.tournament;
     const payloadMatches = (payload?.matches || []) as any[];
@@ -167,6 +169,7 @@ const AdminScorelistsPage = () => {
     const pendingApprovals = stageOrder.flatMap((stage) => {
       const requiredForStage = requiredApproversByStage[stage] || [];
       const signedIds = new Set(certs.filter((c) => c.stage === stage).map((c) => c.approver_id));
+      if (stage === 'official_certified' && signedIds.size > 0) return [];
       return requiredForStage
         .filter((r) => !signedIds.has(r.management_id))
         .map((r) => ({ stage, name: r.name, designation: r.designation }));
@@ -180,6 +183,10 @@ const AdminScorelistsPage = () => {
       `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right">${b.overs}</td><td style="text-align:right">${b.maidens}</td><td style="text-align:right">${b.runs_conceded}</td><td style="text-align:right;font-weight:bold">${b.wickets}</td></tr>`
     ).join('');
     const certRows = certs.map(c => `<tr><td>${c.approver_name}</td><td>${c.designation}</td><td>${stageLabels[c.stage] || c.stage.replace(/_/g, ' ')}</td><td>${new Date(c.timestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">${c.token.substring(0,12)}</td></tr>`).join('');
+    const draftTimestamp = sl.generated_at || new Date().toISOString();
+    const draftBy = sl.generated_by || 'System';
+    const draftRow = `<tr><td>${draftBy}</td><td>Scorelist Engine</td><td>${stageLabels.draft}</td><td>${new Date(draftTimestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">DRAFT</td></tr>`;
+    const certTimelineRows = `${draftRow}${certRows}`;
     const pendingRows = pendingApprovals.map((p) => `<tr><td>${p.name}</td><td>${p.designation}</td><td>${stageLabels[p.stage] || p.stage}</td><td>Pending</td></tr>`).join('');
     
     const aScore = match?.team_a_score || '-';
@@ -218,18 +225,29 @@ const AdminScorelistsPage = () => {
     }).join('');
 
     const html = `<!DOCTYPE html><html><head><title>Scorelist ${sl.scorelist_id}</title>
-<style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
+<style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a;position:relative;background:#fff}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
 table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f0f7f0;text-align:left}
 .scoreboard{display:flex;justify-content:space-around;text-align:center;background:#f0f7f0;padding:20px;border-radius:8px;margin:20px 0}
 .team-score{font-size:28px;font-weight:bold;color:#1e6b3a}.watermark{position:fixed;top:40%;left:10%;transform:rotate(-30deg);font-size:80px;color:rgba(30,107,58,0.04);white-space:nowrap;pointer-events:none;z-index:-1}
 .footer{text-align:center;font-size:9px;color:#999;margin-top:30px;border-top:1px solid #ddd;padding-top:10px}
 .certified{background:#e8f5e9;border:2px solid #1e6b3a;text-align:center;padding:12px;border-radius:8px;font-weight:bold;color:#1e6b3a;margin:20px 0}
 .match-book-page{page-break-before:always}
-@media print{.watermark{display:block}}</style></head><body>
+ .security-grid{position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:linear-gradient(rgba(26,122,73,0.045) 1px, transparent 1px),linear-gradient(90deg, rgba(26,122,73,0.045) 1px, transparent 1px);background-size:28px 28px}
+ .security-thread{position:fixed;top:0;bottom:0;width:16px;pointer-events:none;z-index:-1;background:repeating-linear-gradient(180deg, rgba(11,89,53,0.16) 0 7px, rgba(255,255,255,0.06) 7px 14px)}
+ .security-thread.left{left:18px}.security-thread.right{right:18px}
+ .microtext{position:fixed;left:0;right:0;bottom:12px;text-align:center;font-size:8px;letter-spacing:1.5px;color:rgba(10,89,52,0.33);pointer-events:none;z-index:-1}
+ .cert-grid{border:1px solid #b7d5c0;background-image:linear-gradient(rgba(30,107,58,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(30,107,58,0.08) 1px, transparent 1px);background-size:18px 18px;padding:8px;border-radius:8px}
+ .status-chip{display:inline-block;margin:8px auto 0;padding:4px 10px;border-radius:999px;background:#e8f5e9;border:1px solid #8ac8a1;color:#145c36;font-weight:bold;font-size:11px}
+ @media print{.watermark{display:block}}</style></head><body>
+<div class="security-grid"></div>
+<div class="security-thread left"></div>
+<div class="security-thread right"></div>
+<div class="microtext">DIGITAL CERTIFIED RECORD · SECURITY LAYER · TAMPER EVIDENT</div>
 <div class="watermark">VERIFIED MATCH RECORD</div>
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
 <h1>Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
 <p style="text-align:center;font-family:monospace;font-size:11px;color:#999">${sl.scorelist_id}</p>
+<p style="text-align:center"><span class="status-chip">${stageLabels[effectiveStatus] || effectiveStatus}${effectiveLocked ? ' • LOCKED' : ''}</span></p>
 <p style="text-align:center;margin:6px 0"><strong>Tournament:</strong> ${tournament?.name || '-'} | <strong>Format:</strong> ${tournament?.format || '-'} | <strong>Overs:</strong> ${tournament?.overs || '-'}</p>
 <p style="text-align:center;margin:6px 0"><strong>Season:</strong> ${season?.year || '-'} | <strong>Dates:</strong> ${season?.start_date || '-'} to ${season?.end_date || '-'}</p>
 ${match ? `<div class="scoreboard"><div><h3>${match.team_a}</h3><div class="team-score">${aScore}</div></div><div style="display:flex;align-items:center"><span style="font-size:24px;color:#999">VS</span></div><div><h3>${match.team_b}</h3><div class="team-score">${bScore}</div></div></div>` : ''}
@@ -239,9 +257,9 @@ ${payloadMatches.length > 0 ? `<p style="text-align:center;font-weight:bold;back
 <h2>🏏 Batting Scorecard</h2><table><tr><th>Batter</th><th>Team</th><th style="text-align:right">R</th><th style="text-align:right">B</th><th style="text-align:right">4s</th><th style="text-align:right">6s</th><th>Dismissal</th></tr>${batRows}</table>
 <h2>🎯 Bowling Figures</h2><table><tr><th>Bowler</th><th>Team</th><th style="text-align:right">O</th><th style="text-align:right">M</th><th style="text-align:right">R</th><th style="text-align:right">W</th></tr>${bowlRows}</table>
 ${tournamentMatchBlocks}
-${certs.length > 0 ? `<h2>🏛️ Certification Timeline</h2><table><tr><th>Name</th><th>Designation</th><th>Stage</th><th>Timestamp</th><th>Token</th></tr>${certRows}</table>` : ''}
+<h2>🏛️ Certification Timeline</h2><div class="cert-grid"><table><tr><th>Name</th><th>Designation</th><th>Stage</th><th>Timestamp</th><th>Token</th></tr>${certTimelineRows}</table></div>
 <h2>🧾 Pending Approvals</h2><table><tr><th>Name</th><th>Designation</th><th>Required Stage</th><th>Status</th></tr>${pendingRows || '<tr><td colspan="4" style="text-align:center;color:#1e6b3a;font-weight:bold">All required approvals completed</td></tr>'}</table>
-${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div>' : ''}
+${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div>' : ''}
 <div class="footer"><p>Document ID: ${sl.scorelist_id} | Hash: ${sl.hash_digest.substring(0,32)}...</p><p>Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.</p></div>
 </body></html>`;
 
@@ -392,7 +410,9 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
                   {/* Mini certification timeline */}
                   <div className="flex flex-wrap gap-1">
                     {stageOrder.map(stage => {
-                      const cert = certs.find(c => c.stage === stage);
+                      const cert = stage === 'draft'
+                        ? { approver_name: sl.generated_by || 'System', timestamp: sl.generated_at || '', token: 'DRAFT', stage: 'draft' }
+                        : certs.find(c => c.stage === stage);
                       return (
                         <Badge key={stage} variant={cert ? 'default' : 'outline'} className={`text-[10px] ${cert ? 'bg-primary/80 text-primary-foreground' : 'opacity-40'}`}>
                           {cert ? '✓' : '○'} {stageLabels[stage]?.split(' ')[0]}
@@ -564,7 +584,15 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
                       <CardHeader><CardTitle className="font-display text-sm">🏛️ Certification Timeline</CardTitle></CardHeader>
                       <CardContent className="space-y-2">
                         {stageOrder.map(stage => {
-                          const cert = certs.find(c => c.stage === stage);
+                          const cert = stage === 'draft'
+                            ? {
+                                approver_name: viewScorelist.generated_by || 'System',
+                                designation: 'Scorelist Engine',
+                                timestamp: viewScorelist.generated_at || '',
+                                token: 'DRAFT',
+                                stage: 'draft',
+                              }
+                            : certs.find(c => c.stage === stage);
                           return (
                             <div key={stage} className={`flex items-center gap-3 p-2 rounded text-sm ${cert ? 'bg-primary/5 border border-primary/20' : 'opacity-40'}`}>
                               {cert ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />}
@@ -587,10 +615,10 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
 
                     {/* QR + Security */}
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6 py-4">
-                      <QRCodeSVG value={`${verifyUrl}${viewScorelist.scorelist_id}`} size={100} />
+                      <QRCodeSVG value={`${verifyUrl}${encodeURIComponent(viewScorelist.scorelist_id)}`} size={100} />
                       <div className="text-sm text-center sm:text-left">
                         <p className="font-semibold">Scan to Verify</p>
-                        <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{verifyUrl}{viewScorelist.scorelist_id}</p>
+                        <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{verifyUrl}{encodeURIComponent(viewScorelist.scorelist_id)}</p>
                       </div>
                     </div>
 

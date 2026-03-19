@@ -11,6 +11,14 @@ import { ArrowLeft, ShieldCheck, ShieldX, Loader2 } from 'lucide-react';
 
 const VerifyScorelist = () => {
   const { id } = useParams();
+  const decodedId = useMemo(() => {
+    if (!id) return '';
+    try {
+      return decodeURIComponent(id);
+    } catch {
+      return id;
+    }
+  }, [id]);
   const [scorelist, setScorelist] = useState<DigitalScorelist | null>(null);
   const [loading, setLoading] = useState(true);
   const [verifyResult, setVerifyResult] = useState<{ valid: boolean; reason?: string } | null>(null);
@@ -20,7 +28,7 @@ const VerifyScorelist = () => {
   useEffect(() => {
     (async () => {
       const all = await v2api.getScorelists();
-      const found = all.find(s => s.scorelist_id === id);
+      const found = all.find(s => s.scorelist_id === decodedId);
       setScorelist(found || null);
       setLoading(false);
       
@@ -41,7 +49,7 @@ const VerifyScorelist = () => {
         setVerifying(false);
       }
     })();
-  }, [id]);
+  }, [decodedId]);
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -55,7 +63,7 @@ const VerifyScorelist = () => {
       <div className="container mx-auto px-4 py-20 text-center">
         <ShieldX className="h-16 w-16 text-destructive mx-auto mb-4" />
         <h1 className="font-display text-3xl mb-2">Scorelist Not Found</h1>
-        <p className="text-muted-foreground mb-4">The document ID "{id}" does not exist.</p>
+        <p className="text-muted-foreground mb-4">The document ID "{decodedId || id}" does not exist.</p>
         <Button asChild><Link to="/"><ArrowLeft className="h-4 w-4 mr-1" /> Home</Link></Button>
       </div>
     </div>
