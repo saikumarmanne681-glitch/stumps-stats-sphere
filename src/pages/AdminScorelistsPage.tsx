@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { v2api, logAudit } from '@/lib/v2api';
 import { DigitalScorelist, CertificationApproval, ManagementUser } from '@/lib/v2types';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
-import { sendScorelistApprovalRequestEmail, getAdminNotificationRecipient } from '@/lib/mailer';
+import { sendScorelistApprovalRequestBulk, getAdminNotificationRecipient, explainMailFailure } from '@/lib/mailer';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -179,17 +179,30 @@ const AdminScorelistsPage = () => {
         password: '',
       });
     }
-    await Promise.all(
-      recipients.map((m) =>
-        sendScorelistApprovalRequestEmail({
-          to: m.email,
-          approverName: m.name || m.designation || 'Approver',
-          scorelistId,
-          stageLabel: stageLabels[stage] || stage,
-          actorName: user?.name || user?.username || 'Admin',
-        }),
-      ),
-    );
+    const attempts = await sendScorelistApprovalRequestBulk({
+      recipients: recipients.map((m) => ({ to: m.email, approverName: m.name || m.designation || 'Approver' })),
+      scorelistId,
+      stageLabel: stageLabels[stage] || stage,
+      actorName: user?.name || user?.username || 'Admin',
+    });
+    const failed = attempts.filter((a) => !a.success);
+    if (failed.length > 0) {
+      const firstFailure = failed[0];
+      logAudit(
+        user?.management_id || user?.username || 'admin',
+        'mail_delivery_failed',
+        'scorelist',
+        scorelistId,
+        JSON.stringify({ stage, failedRecipients: failed.map((f) => f.to), reason: firstFailure.reason }),
+      );
+      toast({
+        title: `Email delivery issue (${failed.length}/${attempts.length} failed)`,
+        description: explainMailFailure(firstFailure.reason, firstFailure.raw),
+        variant: 'destructive',
+      });
+      return;
+    }
+    toast({ title: `Approval emails delivered to ${attempts.length} recipient(s)` });
   };
 
   const handleExportPDF = (sl: DigitalScorelist) => {

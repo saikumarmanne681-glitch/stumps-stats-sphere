@@ -21,6 +21,13 @@ interface MailResult {
   raw?: unknown;
 }
 
+export interface MailDeliveryAttempt {
+  to: string;
+  success: boolean;
+  reason?: string;
+  raw?: unknown;
+}
+
 function canUseStorage() {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
 }
@@ -95,7 +102,8 @@ function cardLayout(content: string) {
 
 export async function sendSystemEmail(payload: SendMailPayload): Promise<MailResult> {
   const url = getAppsScriptUrl();
-  if (!url || !payload.to.trim()) return { success: false, reason: 'missing_config_or_recipient' };
+  const recipient = String(payload.to || '').trim();
+  if (!url || !recipient) return { success: false, reason: 'missing_config_or_recipient' };
   const configuredSender = getEffectiveSenderEmail();
   try {
     const res = await fetch(url, {
@@ -104,7 +112,7 @@ export async function sendSystemEmail(payload: SendMailPayload): Promise<MailRes
       body: JSON.stringify({
         action: 'sendMail',
         data: {
-          to: payload.to,
+          to: recipient,
           subject: payload.subject,
           htmlBody: payload.htmlBody,
           textBody: payload.textBody || '',
@@ -126,6 +134,32 @@ export async function sendSystemEmail(payload: SendMailPayload): Promise<MailRes
   } catch {
     return { success: false, reason: 'network_failure' };
   }
+}
+
+export async function sendScorelistApprovalRequestBulk(params: {
+  recipients: Array<{ to: string; approverName: string }>;
+  scorelistId: string;
+  stageLabel: string;
+  actorName?: string;
+}): Promise<MailDeliveryAttempt[]> {
+  const attempts = await Promise.all(
+    params.recipients.map(async (recipient): Promise<MailDeliveryAttempt> => {
+      const result = await sendScorelistApprovalRequestEmail({
+        to: recipient.to,
+        approverName: recipient.approverName,
+        scorelistId: params.scorelistId,
+        stageLabel: params.stageLabel,
+        actorName: params.actorName,
+      });
+      return {
+        to: recipient.to,
+        success: result.success,
+        reason: result.reason,
+        raw: result.raw,
+      };
+    }),
+  );
+  return attempts;
 }
 
 export async function sendOtpEmail(params: { to: string; userName?: string; otp: string; expiresAt: string }) {
