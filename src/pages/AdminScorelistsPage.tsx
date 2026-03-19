@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { v2api, logAudit } from '@/lib/v2api';
-import { DigitalScorelist, CertificationApproval, CERTIFICATION_STAGES } from '@/lib/v2types';
+import { DigitalScorelist, CertificationApproval, ManagementUser } from '@/lib/v2types';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
@@ -42,6 +42,7 @@ const AdminScorelistsPage = () => {
   const [scorelists, setScorelists] = useState<DigitalScorelist[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [managementUsers, setManagementUsers] = useState<ManagementUser[]>([]);
   const [selectedMatch, setSelectedMatch] = useState('');
   const [selectedTournament, setSelectedTournament] = useState('');
   const [selectedSeason, setSelectedSeason] = useState('');
@@ -49,8 +50,9 @@ const AdminScorelistsPage = () => {
   const [verifyResult, setVerifyResult] = useState<{ valid: boolean; reason?: string } | null>(null);
 
   const refresh = async () => {
-    const data = await v2api.getScorelists();
+    const [data, mgmt] = await Promise.all([v2api.getScorelists(), v2api.getManagementUsers()]);
     setScorelists(data);
+    setManagementUsers(mgmt.filter((m) => String(m.status || '').toLowerCase() === 'active' || !m.status));
     setLoading(false);
   };
 
@@ -102,11 +104,40 @@ const AdminScorelistsPage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const normalizeDesignation = (designation?: string) => String(designation || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+  const resolveStageFromDesignation = (designation?: string): string | null => {
+    const d = normalizeDesignation(designation);
+    if (!d) return null;
+    if (d.includes('scoring')) return 'scoring_completed';
+    if (d.includes('referee')) return 'referee_verified';
+    if (d.includes('director')) return 'director_approved';
+    if (d.includes('president')) return 'official_certified';
+    const mapped = Object.entries(designationToStage).find(([k]) => normalizeDesignation(k) === d)?.[1];
+    return mapped || null;
+  };
+
+  const requiredApproversByStage = stageOrder.reduce<Record<string, ManagementUser[]>>((acc, stage) => {
+    acc[stage] = managementUsers.filter((m) => resolveStageFromDesignation(m.designation) === stage);
+    return acc;
+  }, {} as Record<string, ManagementUser[]>);
+
   const handleExportPDF = (sl: DigitalScorelist) => {
     const payload = getPayload(sl);
     const match = payload?.match;
     const certs: CertificationApproval[] = sl.certifications_json ? JSON.parse(sl.certifications_json) : [];
-    
+    const season = payload?.season;
+    const tournament = payload?.tournament;
+    const payloadMatches = (payload?.matches || []) as any[];
+
+    const pendingApprovals = stageOrder.flatMap((stage) => {
+      const requiredForStage = requiredApproversByStage[stage] || [];
+      const signedIds = new Set(certs.filter((c) => c.stage === stage).map((c) => c.approver_id));
+      return requiredForStage
+        .filter((r) => !signedIds.has(r.management_id))
+        .map((r) => ({ stage, name: r.name, designation: r.designation }));
+    });
+
     // Build HTML content for print-to-PDF
     const batRows = (payload?.battingData || []).map((b: any) => 
       `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right;font-weight:bold">${b.runs}</td><td style="text-align:right">${b.balls}</td><td style="text-align:right">${b.fours}</td><td style="text-align:right">${b.sixes}</td><td>${b.how_out || 'not out'}</td></tr>`
@@ -114,10 +145,43 @@ const AdminScorelistsPage = () => {
     const bowlRows = (payload?.bowlingData || []).map((b: any) =>
       `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right">${b.overs}</td><td style="text-align:right">${b.maidens}</td><td style="text-align:right">${b.runs_conceded}</td><td style="text-align:right;font-weight:bold">${b.wickets}</td></tr>`
     ).join('');
-    const certRows = certs.map(c => `<tr><td>${c.approver_name}</td><td>${c.designation}</td><td>${c.stage.replace(/_/g,' ')}</td><td>${new Date(c.timestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">${c.token.substring(0,12)}</td></tr>`).join('');
+    const certRows = certs.map(c => `<tr><td>${c.approver_name}</td><td>${c.designation}</td><td>${stageLabels[c.stage] || c.stage.replace(/_/g, ' ')}</td><td>${new Date(c.timestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">${c.token.substring(0,12)}</td></tr>`).join('');
+    const pendingRows = pendingApprovals.map((p) => `<tr><td>${p.name}</td><td>${p.designation}</td><td>${stageLabels[p.stage] || p.stage}</td><td>Pending</td></tr>`).join('');
     
     const aScore = match?.team_a_score || '-';
     const bScore = match?.team_b_score || '-';
+
+    const calcScore = (team: string, matchId: string) => {
+      const rows = (payload?.battingData || []).filter((b: any) => b.match_id === matchId && b.team === team);
+      const runs = rows.reduce((s: number, b: any) => s + (Number(b.runs) || 0), 0);
+      const wkts = rows.filter((b: any) => {
+        const out = String(b.how_out || '').trim().toLowerCase();
+        return out && out !== 'not out';
+      }).length;
+      const balls = rows.reduce((s: number, b: any) => s + (Number(b.balls) || 0), 0);
+      const overs = `${Math.floor(balls / 6)}.${balls % 6}`;
+      return { runs, wkts, overs };
+    };
+
+    const tournamentMatchBlocks = payloadMatches.map((m: any, idx: number) => {
+      const matchBat = (payload?.battingData || []).filter((b: any) => b.match_id === m.match_id);
+      const matchBowl = (payload?.bowlingData || []).filter((b: any) => b.match_id === m.match_id);
+      const scoreA = m.team_a_score || `${calcScore(m.team_a, m.match_id).runs}/${calcScore(m.team_a, m.match_id).wkts} (${calcScore(m.team_a, m.match_id).overs} ov)`;
+      const scoreB = m.team_b_score || `${calcScore(m.team_b, m.match_id).runs}/${calcScore(m.team_b, m.match_id).wkts} (${calcScore(m.team_b, m.match_id).overs} ov)`;
+      const matchBatRows = matchBat.map((b: any) => `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right;font-weight:bold">${b.runs}</td><td style="text-align:right">${b.balls}</td><td style="text-align:right">${b.fours}</td><td style="text-align:right">${b.sixes}</td><td>${b.how_out || 'not out'}</td></tr>`).join('');
+      const matchBowlRows = matchBowl.map((b: any) => `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right">${b.overs}</td><td style="text-align:right">${b.maidens}</td><td style="text-align:right">${b.runs_conceded}</td><td style="text-align:right;font-weight:bold">${b.wickets}</td></tr>`).join('');
+      return `
+      <div style="margin-top:22px;padding-top:12px;border-top:1px solid #ddd;page-break-inside:avoid">
+        <h2>Match ${idx + 1}: ${m.team_a} vs ${m.team_b}</h2>
+        <p><strong>Date:</strong> ${m.date || '-'} | <strong>Venue:</strong> ${m.venue || '-'} | <strong>Stage:</strong> ${m.match_stage || '-'} | <strong>Status:</strong> ${m.status || '-'}</p>
+        <p><strong>Score:</strong> ${m.team_a} ${scoreA} vs ${m.team_b} ${scoreB}</p>
+        <p><strong>Result:</strong> ${m.result || '-'} ${m.man_of_match ? `| <strong>Man of the Match:</strong> ${players.find(p => p.player_id === m.man_of_match)?.name || m.man_of_match}` : ''}</p>
+        <h3>Batting</h3>
+        <table><tr><th>Batter</th><th>Team</th><th style="text-align:right">R</th><th style="text-align:right">B</th><th style="text-align:right">4s</th><th style="text-align:right">6s</th><th>Dismissal</th></tr>${matchBatRows || '<tr><td colspan="7" style="text-align:center;color:#777">No batting entries</td></tr>'}</table>
+        <h3>Bowling</h3>
+        <table><tr><th>Bowler</th><th>Team</th><th style="text-align:right">O</th><th style="text-align:right">M</th><th style="text-align:right">R</th><th style="text-align:right">W</th></tr>${matchBowlRows || '<tr><td colspan="6" style="text-align:center;color:#777">No bowling entries</td></tr>'}</table>
+      </div>`;
+    }).join('');
 
     const html = `<!DOCTYPE html><html><head><title>Scorelist ${sl.scorelist_id}</title>
 <style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
@@ -131,12 +195,17 @@ table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
 <h1>Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
 <p style="text-align:center;font-family:monospace;font-size:11px;color:#999">${sl.scorelist_id}</p>
+<p style="text-align:center;margin:6px 0"><strong>Tournament:</strong> ${tournament?.name || '-'} | <strong>Format:</strong> ${tournament?.format || '-'} | <strong>Overs:</strong> ${tournament?.overs || '-'}</p>
+<p style="text-align:center;margin:6px 0"><strong>Season:</strong> ${season?.year || '-'} | <strong>Dates:</strong> ${season?.start_date || '-'} to ${season?.end_date || '-'}</p>
 ${match ? `<div class="scoreboard"><div><h3>${match.team_a}</h3><div class="team-score">${aScore}</div></div><div style="display:flex;align-items:center"><span style="font-size:24px;color:#999">VS</span></div><div><h3>${match.team_b}</h3><div class="team-score">${bScore}</div></div></div>` : ''}
 ${match?.result ? `<p style="text-align:center;font-size:16px;font-weight:bold;color:#1e6b3a">${match.result}</p>` : ''}
 ${match?.man_of_match ? `<p style="text-align:center">🏅 Man of the Match: ${players.find(p => p.player_id === match.man_of_match)?.name || ''}</p>` : ''}
+${payloadMatches.length > 0 ? `<p style="text-align:center;font-weight:bold;background:#f9fcf9;padding:10px;border:1px solid #dbe7db;border-radius:6px">Tournament Scorebook: ${payloadMatches.length} matches included with complete match-wise scorecards.</p>` : ''}
 <h2>🏏 Batting Scorecard</h2><table><tr><th>Batter</th><th>Team</th><th style="text-align:right">R</th><th style="text-align:right">B</th><th style="text-align:right">4s</th><th style="text-align:right">6s</th><th>Dismissal</th></tr>${batRows}</table>
 <h2>🎯 Bowling Figures</h2><table><tr><th>Bowler</th><th>Team</th><th style="text-align:right">O</th><th style="text-align:right">M</th><th style="text-align:right">R</th><th style="text-align:right">W</th></tr>${bowlRows}</table>
+${tournamentMatchBlocks}
 ${certs.length > 0 ? `<h2>🏛️ Certification Timeline</h2><table><tr><th>Name</th><th>Designation</th><th>Stage</th><th>Timestamp</th><th>Token</th></tr>${certRows}</table>` : ''}
+<h2>🧾 Pending Approvals</h2><table><tr><th>Name</th><th>Designation</th><th>Required Stage</th><th>Status</th></tr>${pendingRows || '<tr><td colspan="4" style="text-align:center;color:#1e6b3a;font-weight:bold">All required approvals completed</td></tr>'}</table>
 ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div>' : ''}
 <div class="footer"><p>Document ID: ${sl.scorelist_id} | Hash: ${sl.hash_digest.substring(0,32)}...</p><p>Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.</p></div>
 </body></html>`;
@@ -178,7 +247,7 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
   const verifyUrl = `${window.location.origin}/verify-scorelist/`;
 
   // Determine which certification stage this management user can approve
-  const userStage = isManagement && user?.designation ? designationToStage[user.designation] : null;
+  const userStage = isManagement && user?.designation ? resolveStageFromDesignation(user.designation) : null;
 
   const getNextStage = (sl: DigitalScorelist): string | null => {
     const current = sl.certification_status || 'draft';
@@ -248,7 +317,7 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
             const nextStage = getNextStage(sl);
             const canSign = !sl.locked && isManagement && userStage && nextStage === userStage;
             const userId = user?.management_id || user?.username || 'admin';
-            const alreadySigned = certs.some(c => c.approver_id === userId);
+            const alreadySignedThisStage = certs.some(c => c.approver_id === userId && c.stage === userStage);
 
             return (
               <Card key={sl.scorelist_id} className={`${sl.locked ? 'border-primary/40 bg-primary/5' : ''}`}>
@@ -292,7 +361,7 @@ ${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div
                     <Button size="sm" variant="outline" onClick={() => handleExportPDF(sl)} className="gap-1 text-xs">
                       <FileText className="h-3 w-3" /> PDF
                     </Button>
-                    {canSign && !alreadySigned && (
+                    {canSign && !alreadySignedThisStage && (
                       <Button size="sm" onClick={() => handleCertify(sl, userStage!)} className="gap-1 text-xs">
                         <ShieldCheck className="h-3 w-3" /> Sign as {user?.designation}
                       </Button>
