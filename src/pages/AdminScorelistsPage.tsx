@@ -13,11 +13,29 @@ import { v2api, logAudit } from '@/lib/v2api';
 import { DigitalScorelist, CertificationApproval, CERTIFICATION_STAGES } from '@/lib/v2types';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, FileJson, Shield, ShieldCheck, ShieldX, Lock, Unlock, QrCode, Download, Eye } from 'lucide-react';
+import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
+const stageLabels: Record<string, string> = {
+  draft: 'Draft',
+  scoring_completed: 'Scoring Completed',
+  referee_verified: 'Referee Verified',
+  director_approved: 'Director Approved',
+  official_certified: 'Official Certified',
+};
+
+const stageOrder = ['draft', 'scoring_completed', 'referee_verified', 'director_approved', 'official_certified'];
+
+const designationToStage: Record<string, string> = {
+  'Scoring Official': 'scoring_completed',
+  'Match Referee': 'referee_verified',
+  'Tournament Director': 'director_approved',
+  President: 'official_certified',
+  'Vice President': 'official_certified',
+};
+
 const AdminScorelistsPage = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isManagement, user } = useAuth();
   const { matches, batting, bowling, players, tournaments, seasons } = useData();
   const { toast } = useToast();
 
@@ -30,19 +48,15 @@ const AdminScorelistsPage = () => {
   const [viewScorelist, setViewScorelist] = useState<DigitalScorelist | null>(null);
   const [verifyResult, setVerifyResult] = useState<{ valid: boolean; reason?: string } | null>(null);
 
-  useEffect(() => {
-    v2api.getScorelists().then((s) => {
-      setScorelists(s);
-      setLoading(false);
-    });
-  }, []);
-
-  if (!isAdmin) return <Navigate to="/login" />;
-
   const refresh = async () => {
     const data = await v2api.getScorelists();
     setScorelists(data);
+    setLoading(false);
   };
+
+  useEffect(() => { refresh(); }, []);
+
+  if (!isAdmin && !isManagement) return <Navigate to="/login" />;
 
   const handleGenerateMatch = async () => {
     if (!selectedMatch) return;
@@ -84,42 +98,94 @@ const AdminScorelistsPage = () => {
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `${sl.scorelist_id}.json`;
-    a.click();
+    a.href = url; a.download = `${sl.scorelist_id}.json`; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportPDF = (sl: DigitalScorelist) => {
+    const payload = getPayload(sl);
+    const match = payload?.match;
+    const certs: CertificationApproval[] = sl.certifications_json ? JSON.parse(sl.certifications_json) : [];
+    
+    // Build HTML content for print-to-PDF
+    const batRows = (payload?.battingData || []).map((b: any) => 
+      `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right;font-weight:bold">${b.runs}</td><td style="text-align:right">${b.balls}</td><td style="text-align:right">${b.fours}</td><td style="text-align:right">${b.sixes}</td><td>${b.how_out || 'not out'}</td></tr>`
+    ).join('');
+    const bowlRows = (payload?.bowlingData || []).map((b: any) =>
+      `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right">${b.overs}</td><td style="text-align:right">${b.maidens}</td><td style="text-align:right">${b.runs_conceded}</td><td style="text-align:right;font-weight:bold">${b.wickets}</td></tr>`
+    ).join('');
+    const certRows = certs.map(c => `<tr><td>${c.approver_name}</td><td>${c.designation}</td><td>${c.stage.replace(/_/g,' ')}</td><td>${new Date(c.timestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">${c.token.substring(0,12)}</td></tr>`).join('');
+    
+    const aScore = match?.team_a_score || '-';
+    const bScore = match?.team_b_score || '-';
+
+    const html = `<!DOCTYPE html><html><head><title>Scorelist ${sl.scorelist_id}</title>
+<style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
+table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f0f7f0;text-align:left}
+.scoreboard{display:flex;justify-content:space-around;text-align:center;background:#f0f7f0;padding:20px;border-radius:8px;margin:20px 0}
+.team-score{font-size:28px;font-weight:bold;color:#1e6b3a}.watermark{position:fixed;top:40%;left:10%;transform:rotate(-30deg);font-size:80px;color:rgba(30,107,58,0.04);white-space:nowrap;pointer-events:none;z-index:-1}
+.footer{text-align:center;font-size:9px;color:#999;margin-top:30px;border-top:1px solid #ddd;padding-top:10px}
+.certified{background:#e8f5e9;border:2px solid #1e6b3a;text-align:center;padding:12px;border-radius:8px;font-weight:bold;color:#1e6b3a;margin:20px 0}
+@media print{.watermark{display:block}}</style></head><body>
+<div class="watermark">VERIFIED MATCH RECORD</div>
+<p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
+<h1>Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
+<p style="text-align:center;font-family:monospace;font-size:11px;color:#999">${sl.scorelist_id}</p>
+${match ? `<div class="scoreboard"><div><h3>${match.team_a}</h3><div class="team-score">${aScore}</div></div><div style="display:flex;align-items:center"><span style="font-size:24px;color:#999">VS</span></div><div><h3>${match.team_b}</h3><div class="team-score">${bScore}</div></div></div>` : ''}
+${match?.result ? `<p style="text-align:center;font-size:16px;font-weight:bold;color:#1e6b3a">${match.result}</p>` : ''}
+${match?.man_of_match ? `<p style="text-align:center">🏅 Man of the Match: ${players.find(p => p.player_id === match.man_of_match)?.name || ''}</p>` : ''}
+<h2>🏏 Batting Scorecard</h2><table><tr><th>Batter</th><th>Team</th><th style="text-align:right">R</th><th style="text-align:right">B</th><th style="text-align:right">4s</th><th style="text-align:right">6s</th><th>Dismissal</th></tr>${batRows}</table>
+<h2>🎯 Bowling Figures</h2><table><tr><th>Bowler</th><th>Team</th><th style="text-align:right">O</th><th style="text-align:right">M</th><th style="text-align:right">R</th><th style="text-align:right">W</th></tr>${bowlRows}</table>
+${certs.length > 0 ? `<h2>🏛️ Certification Timeline</h2><table><tr><th>Name</th><th>Designation</th><th>Stage</th><th>Timestamp</th><th>Token</th></tr>${certRows}</table>` : ''}
+${sl.locked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div>' : ''}
+<div class="footer"><p>Document ID: ${sl.scorelist_id} | Hash: ${sl.hash_digest.substring(0,32)}...</p><p>Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.</p></div>
+</body></html>`;
+
+    const printWin = window.open('', '_blank');
+    if (printWin) {
+      printWin.document.write(html);
+      printWin.document.close();
+      setTimeout(() => printWin.print(), 500);
+    }
   };
 
   const handleCertify = async (sl: DigitalScorelist, stage: string) => {
     const certs: CertificationApproval[] = sl.certifications_json ? JSON.parse(sl.certifications_json) : [];
+    
+    // Check if user already signed this stage
+    const userId = user?.management_id || user?.username || 'admin';
+    if (certs.some(c => c.approver_id === userId && c.stage === stage)) {
+      toast({ title: 'Already signed this stage' });
+      return;
+    }
+
     certs.push({
-      approver_id: user?.username || 'admin',
+      approver_id: userId,
       approver_name: user?.name || 'Admin',
       designation: user?.designation || 'Administrator',
       timestamp: new Date().toISOString(),
       token: `CERT_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       stage,
     });
-    
-    const newStatus = stage === 'official_certified' ? 'official_certified' : stage;
     const locked = stage === 'official_certified';
-    
-    await v2api.updateScorelist({
-      ...sl,
-      certification_status: newStatus,
-      certifications_json: JSON.stringify(certs),
-      locked,
-    });
-    logAudit(user?.username || 'admin', 'certify_scorelist', 'scorelist', sl.scorelist_id, stage);
-    toast({ title: `Certified: ${stage}` });
+    await v2api.updateScorelist({ ...sl, certification_status: stage, certifications_json: JSON.stringify(certs), locked });
+    logAudit(userId, 'certify_scorelist', 'scorelist', sl.scorelist_id, stage);
+    toast({ title: `✅ Certified: ${stageLabels[stage] || stage}` });
     refresh();
   };
 
-  const getPayload = (sl: DigitalScorelist) => {
-    try { return JSON.parse(sl.payload_json); } catch { return null; }
-  };
-
+  const getPayload = (sl: DigitalScorelist) => { try { return JSON.parse(sl.payload_json); } catch { return null; } };
   const verifyUrl = `${window.location.origin}/verify-scorelist/`;
+
+  // Determine which certification stage this management user can approve
+  const userStage = isManagement && user?.designation ? designationToStage[user.designation] : null;
+
+  const getNextStage = (sl: DigitalScorelist): string | null => {
+    const current = sl.certification_status || 'draft';
+    const idx = stageOrder.indexOf(current);
+    if (idx < stageOrder.length - 1) return stageOrder[idx + 1];
+    return null;
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-background">
@@ -131,94 +197,151 @@ const AdminScorelistsPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <h1 className="font-display text-3xl font-bold">🛡️ Digital Scorelists</h1>
+      <div className="container mx-auto px-4 py-6 md:py-8 space-y-6">
+        <h1 className="font-display text-2xl md:text-3xl font-bold">🛡️ Digital Scorelists</h1>
 
-        {/* Generate */}
-        <Card>
-          <CardHeader><CardTitle className="font-display">Generate Scorelist</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-3">
-              <Select value={selectedMatch} onValueChange={setSelectedMatch}>
-                <SelectTrigger className="w-64"><SelectValue placeholder="Select Match" /></SelectTrigger>
-                <SelectContent>
-                  {matches.map(m => <SelectItem key={m.match_id} value={m.match_id}>{m.team_a} vs {m.team_b}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Button onClick={handleGenerateMatch} disabled={generating || !selectedMatch}>Generate Match</Button>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Select value={selectedTournament} onValueChange={setSelectedTournament}>
-                <SelectTrigger className="w-48"><SelectValue placeholder="Tournament" /></SelectTrigger>
-                <SelectContent>
-                  {tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={selectedSeason} onValueChange={setSelectedSeason}>
-                <SelectTrigger className="w-32"><SelectValue placeholder="Season" /></SelectTrigger>
-                <SelectContent>
-                  {seasons.filter(s => s.tournament_id === selectedTournament).map(s => <SelectItem key={s.season_id} value={s.season_id}>{s.year}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Button onClick={handleGenerateTournament} disabled={generating || !selectedTournament || !selectedSeason}>Generate Tournament</Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Generate - Admin Only */}
+        {isAdmin && (
+          <Card>
+            <CardHeader><CardTitle className="font-display text-sm md:text-base">Generate Scorelist</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                <Select value={selectedMatch} onValueChange={setSelectedMatch}>
+                  <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Select Match" /></SelectTrigger>
+                  <SelectContent>
+                    {matches.map(m => <SelectItem key={m.match_id} value={m.match_id}>{m.team_a} vs {m.team_b}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleGenerateMatch} disabled={generating || !selectedMatch} className="w-full sm:w-auto">
+                  {generating && <Loader2 className="h-3 w-3 animate-spin mr-1" />} Generate Match
+                </Button>
+              </div>
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+                <Select value={selectedTournament} onValueChange={setSelectedTournament}>
+                  <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="Tournament" /></SelectTrigger>
+                  <SelectContent>
+                    {tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedSeason} onValueChange={setSelectedSeason}>
+                  <SelectTrigger className="w-full sm:w-32"><SelectValue placeholder="Season" /></SelectTrigger>
+                  <SelectContent>
+                    {seasons.filter(s => s.tournament_id === selectedTournament).map(s => <SelectItem key={s.season_id} value={s.season_id}>{s.year}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleGenerateTournament} disabled={generating || !selectedTournament || !selectedSeason} className="w-full sm:w-auto">
+                  Generate Tournament
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Scorelist Table */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead>ID</TableHead><TableHead>Scope</TableHead><TableHead>Certification</TableHead><TableHead>Generated</TableHead><TableHead>By</TableHead><TableHead>Actions</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {scorelists.map(sl => (
-                  <TableRow key={sl.scorelist_id}>
-                    <TableCell className="font-mono text-xs">{sl.scorelist_id}</TableCell>
-                    <TableCell><Badge variant="outline">{sl.scope_type}</Badge></TableCell>
-                    <TableCell>
-                      <Badge className={sl.certification_status === 'official_certified' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}>
-                        {sl.locked ? '🔒' : ''} {sl.certification_status || 'draft'}
+        {/* Scorelist Cards */}
+        <div className="space-y-3">
+          {scorelists.map(sl => {
+            const certs: CertificationApproval[] = sl.certifications_json ? JSON.parse(sl.certifications_json) : [];
+            const payload = getPayload(sl);
+            const match = payload?.match;
+            const aScore = match?.team_a_score || '-';
+            const bScore = match?.team_b_score || '-';
+            const nextStage = getNextStage(sl);
+            const canSign = !sl.locked && isManagement && userStage && nextStage === userStage;
+            const userId = user?.management_id || user?.username || 'admin';
+            const alreadySigned = certs.some(c => c.approver_id === userId);
+
+            return (
+              <Card key={sl.scorelist_id} className={`${sl.locked ? 'border-primary/40 bg-primary/5' : ''}`}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <p className="font-mono text-xs text-muted-foreground">{sl.scorelist_id}</p>
+                      {match && (
+                        <p className="font-display font-bold text-sm md:text-base mt-1">
+                          {match.team_a} {aScore} vs {match.team_b} {bScore}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">{sl.scope_type}</Badge>
+                      <Badge className={sl.locked ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}>
+                        {sl.locked ? '🔒 ' : ''}{stageLabels[sl.certification_status || 'draft'] || sl.certification_status || 'draft'}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">{sl.generated_at}</TableCell>
-                    <TableCell className="text-sm">{sl.generated_by}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => handleVerify(sl)} title="View & Verify"><Eye className="h-3 w-3" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleExportJSON(sl)} title="Export JSON"><FileJson className="h-3 w-3" /></Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    </div>
+                  </div>
 
-        {/* Scorelist Viewer Dialog */}
+                  {/* Mini certification timeline */}
+                  <div className="flex flex-wrap gap-1">
+                    {stageOrder.map(stage => {
+                      const cert = certs.find(c => c.stage === stage);
+                      return (
+                        <Badge key={stage} variant={cert ? 'default' : 'outline'} className={`text-[10px] ${cert ? 'bg-primary/80 text-primary-foreground' : 'opacity-40'}`}>
+                          {cert ? '✓' : '○'} {stageLabels[stage]?.split(' ')[0]}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleVerify(sl)} className="gap-1 text-xs">
+                      <Eye className="h-3 w-3" /> View & Verify
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleExportJSON(sl)} className="gap-1 text-xs">
+                      <FileJson className="h-3 w-3" /> JSON
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleExportPDF(sl)} className="gap-1 text-xs">
+                      <FileText className="h-3 w-3" /> PDF
+                    </Button>
+                    {canSign && !alreadySigned && (
+                      <Button size="sm" onClick={() => handleCertify(sl, userStage!)} className="gap-1 text-xs">
+                        <ShieldCheck className="h-3 w-3" /> Sign as {user?.designation}
+                      </Button>
+                    )}
+                    {isAdmin && !sl.locked && nextStage && (
+                      <Button size="sm" variant="secondary" onClick={() => handleCertify(sl, nextStage)} className="gap-1 text-xs">
+                        Advance to {stageLabels[nextStage]}
+                      </Button>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">Generated {sl.generated_at} by {sl.generated_by}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
+          {scorelists.length === 0 && <p className="text-muted-foreground text-center py-8">No scorelists generated yet.</p>}
+        </div>
+
+        {/* Viewer Dialog */}
         <Dialog open={!!viewScorelist} onOpenChange={o => { if (!o) { setViewScorelist(null); setVerifyResult(null); } }}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-thin">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto scrollbar-thin p-4 md:p-6">
             {viewScorelist && (() => {
               const payload = getPayload(viewScorelist);
               const certs: CertificationApproval[] = viewScorelist.certifications_json ? JSON.parse(viewScorelist.certifications_json) : [];
               const match = payload?.match;
-              
+              const calcScore = (team: string) => {
+                const rows = (payload?.battingData || []).filter((b: any) => b.team === team);
+                const runs = rows.reduce((s: number, b: any) => s + (b.runs || 0), 0);
+                const wkts = rows.filter((b: any) => b.how_out && b.how_out !== 'not out' && b.how_out !== '').length;
+                const balls = rows.reduce((s: number, b: any) => s + (b.balls || 0), 0);
+                const overs = Math.floor(balls / 6) + (balls % 6) / 10;
+                return { runs, wkts, overs: overs.toFixed(1) };
+              };
+
               return (
                 <div className="relative">
                   {/* Watermark */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                    <p className="text-6xl font-display font-bold text-muted/10 rotate-[-30deg] whitespace-nowrap select-none">
+                    <p className="text-4xl md:text-6xl font-display font-bold text-muted/10 rotate-[-30deg] whitespace-nowrap select-none">
                       VERIFIED MATCH RECORD
                     </p>
                   </div>
 
-                  <div className="relative z-10 space-y-6">
+                  <div className="relative z-10 space-y-4 md:space-y-6">
                     {/* Header */}
                     <div className="text-center border-b pb-4">
                       <p className="text-xs text-muted-foreground uppercase tracking-widest">Cricket Club Portal</p>
-                      <h2 className="font-display text-2xl font-bold">Digital {viewScorelist.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h2>
+                      <h2 className="font-display text-xl md:text-2xl font-bold">Digital {viewScorelist.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h2>
                       <p className="font-mono text-xs text-muted-foreground mt-1">{viewScorelist.scorelist_id}</p>
                     </div>
 
@@ -226,256 +349,139 @@ const AdminScorelistsPage = () => {
                     {verifyResult && (
                       <div className={`flex items-center justify-center gap-2 p-3 rounded-lg ${verifyResult.valid ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>
                         {verifyResult.valid ? <ShieldCheck className="h-5 w-5" /> : <ShieldX className="h-5 w-5" />}
-                        <span className="font-semibold">{verifyResult.valid ? '✔ Authentic Scorelist' : `❌ ${verifyResult.reason}`}</span>
+                        <span className="font-semibold text-sm">{verifyResult.valid ? '✔ Authentic Scorelist' : `❌ ${verifyResult.reason}`}</span>
                       </div>
                     )}
 
-                    {/* Match Info */}
+                    {/* Match Scoreboard */}
                     {match && (
-                      <Card>
-                        <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                          <div><span className="text-muted-foreground">Tournament:</span><p className="font-semibold">{payload.tournament?.name}</p></div>
-                          <div><span className="text-muted-foreground">Season:</span><p className="font-semibold">{payload.season?.year}</p></div>
-                          <div><span className="text-muted-foreground">Date:</span><p className="font-semibold">{match.date}</p></div>
-                          <div><span className="text-muted-foreground">Venue:</span><p className="font-semibold">{match.venue || 'N/A'}</p></div>
-                          {match.match_stage && <div><span className="text-muted-foreground">Stage:</span><p><Badge className="bg-accent text-accent-foreground">{match.match_stage}</Badge></p></div>}
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Scoreboard */}
-                    {match && (
-                      <div className="grid grid-cols-3 gap-4 text-center bg-muted/30 rounded-lg p-4">
-                        <div><p className="font-display font-bold">{match.team_a}</p><p className="text-2xl font-bold text-primary">{match.team_a_score || '-'}</p></div>
-                        <div className="flex items-center justify-center"><span className="font-display font-bold text-muted-foreground text-xl">VS</span></div>
-                        <div><p className="font-display font-bold">{match.team_b}</p><p className="text-2xl font-bold text-primary">{match.team_b_score || '-'}</p></div>
+                      <div className="grid grid-cols-3 gap-2 md:gap-4 text-center bg-gradient-to-r from-primary/5 via-transparent to-primary/5 rounded-xl p-4 md:p-6 border">
+                        <div>
+                          <p className="font-display font-bold text-sm md:text-lg">{match.team_a}</p>
+                          <p className="text-xl md:text-3xl font-bold text-primary">
+                            {match.team_a_score || `${calcScore(match.team_a).runs}/${calcScore(match.team_a).wkts}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">({match.team_a_score ? '' : `${calcScore(match.team_a).overs} ov`})</p>
+                        </div>
+                        <div className="flex items-center justify-center"><span className="font-display font-bold text-muted-foreground text-lg md:text-xl">VS</span></div>
+                        <div>
+                          <p className="font-display font-bold text-sm md:text-lg">{match.team_b}</p>
+                          <p className="text-xl md:text-3xl font-bold text-primary">
+                            {match.team_b_score || `${calcScore(match.team_b).runs}/${calcScore(match.team_b).wkts}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">({match.team_b_score ? '' : `${calcScore(match.team_b).overs} ov`})</p>
+                        </div>
                       </div>
                     )}
 
-                    {/* Batting & Bowling Tables */}
+                    {/* Batting */}
                     {payload?.battingData?.length > 0 && (
                       <div>
                         <h3 className="font-display font-semibold mb-2">🏏 Batting Scorecard</h3>
-                        <Table>
-                          <TableHeader><TableRow>
-                            <TableHead>Batter</TableHead><TableHead>Team</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">B</TableHead><TableHead className="text-right">4s</TableHead><TableHead className="text-right">6s</TableHead><TableHead>Dismissal</TableHead>
-                          </TableRow></TableHeader>
-                          <TableBody>
-                            {payload.battingData.map((b: any, i: number) => (
-                              <TableRow key={i}>
-                                <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
-                                <TableCell className="text-xs">{b.team}</TableCell>
-                                <TableCell className="text-right font-bold">{b.runs}</TableCell>
-                                <TableCell className="text-right">{b.balls}</TableCell>
-                                <TableCell className="text-right">{b.fours}</TableCell>
-                                <TableCell className="text-right">{b.sixes}</TableCell>
-                                <TableCell className="text-xs">{b.how_out || 'not out'}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader><TableRow>
+                              <TableHead>Batter</TableHead><TableHead>Team</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">B</TableHead>
+                              <TableHead className="text-right hidden sm:table-cell">4s</TableHead><TableHead className="text-right hidden sm:table-cell">6s</TableHead><TableHead className="hidden sm:table-cell">Dismissal</TableHead>
+                            </TableRow></TableHeader>
+                            <TableBody>
+                              {payload.battingData.map((b: any, i: number) => (
+                                <TableRow key={i}>
+                                  <TableCell className="font-medium text-xs md:text-sm">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                                  <TableCell className="text-xs">{b.team}</TableCell>
+                                  <TableCell className="text-right font-bold">{b.runs}</TableCell>
+                                  <TableCell className="text-right">{b.balls}</TableCell>
+                                  <TableCell className="text-right hidden sm:table-cell">{b.fours}</TableCell>
+                                  <TableCell className="text-right hidden sm:table-cell">{b.sixes}</TableCell>
+                                  <TableCell className="text-xs hidden sm:table-cell">{b.how_out || 'not out'}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
                       </div>
                     )}
 
+                    {/* Bowling */}
                     {payload?.bowlingData?.length > 0 && (
                       <div>
                         <h3 className="font-display font-semibold mb-2">🎯 Bowling Figures</h3>
-                        <Table>
-                          <TableHeader><TableRow>
-                            <TableHead>Bowler</TableHead><TableHead>Team</TableHead><TableHead className="text-right">O</TableHead><TableHead className="text-right">M</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">W</TableHead>
-                          </TableRow></TableHeader>
-                          <TableBody>
-                            {payload.bowlingData.map((b: any, i: number) => (
-                              <TableRow key={i}>
-                                <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
-                                <TableCell className="text-xs">{b.team}</TableCell>
-                                <TableCell className="text-right">{b.overs}</TableCell>
-                                <TableCell className="text-right">{b.maidens}</TableCell>
-                                <TableCell className="text-right">{b.runs_conceded}</TableCell>
-                                <TableCell className="text-right font-bold">{b.wickets}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader><TableRow>
+                              <TableHead>Bowler</TableHead><TableHead>Team</TableHead><TableHead className="text-right">O</TableHead><TableHead className="text-right">M</TableHead>
+                              <TableHead className="text-right">R</TableHead><TableHead className="text-right">W</TableHead>
+                            </TableRow></TableHeader>
+                            <TableBody>
+                              {payload.bowlingData.map((b: any, i: number) => (
+                                <TableRow key={i}>
+                                  <TableCell className="font-medium text-xs md:text-sm">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
+                                  <TableCell className="text-xs">{b.team}</TableCell>
+                                  <TableCell className="text-right">{b.overs}</TableCell>
+                                  <TableCell className="text-right">{b.maidens}</TableCell>
+                                  <TableCell className="text-right">{b.runs_conceded}</TableCell>
+                                  <TableCell className="text-right font-bold">{b.wickets}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
                       </div>
                     )}
 
-                    {/* Match Result */}
+                    {/* Result */}
                     {match?.result && (
                       <Card className="border-primary/30 bg-primary/5">
                         <CardContent className="p-4 text-center">
-                          <p className="font-display text-lg font-bold text-primary">{match.result}</p>
-                          {match.man_of_match && <p className="text-sm text-muted-foreground">🏅 Man of the Match: {players.find(p => p.player_id === match.man_of_match)?.name}</p>}
+                          <p className="font-display text-base md:text-lg font-bold text-primary">{match.result}</p>
+                          {match.man_of_match && <p className="text-sm text-muted-foreground">🏅 MOM: {players.find(p => p.player_id === match.man_of_match)?.name}</p>}
                         </CardContent>
                       </Card>
                     )}
 
-
-
-                    {viewScorelist.scope_type === 'tournament' && payload?.matches?.length > 0 && (
-                      <div className="space-y-4">
-                        <h3 className="font-display text-xl font-bold">📘 Full Tournament Scorebook</h3>
-                        {payload.matches.map((tm: any) => {
-                          const matchBat = (payload.battingData || []).filter((b: any) => b.match_id === tm.match_id);
-                          const matchBowl = (payload.bowlingData || []).filter((b: any) => b.match_id === tm.match_id);
-                          const teamABat = matchBat.filter((b: any) => b.team === tm.team_a);
-                          const teamBBat = matchBat.filter((b: any) => b.team === tm.team_b);
-                          const teamABowl = matchBowl.filter((b: any) => b.team === tm.team_a);
-                          const teamBBowl = matchBowl.filter((b: any) => b.team === tm.team_b);
-
+                    {/* Certification Timeline */}
+                    <Card className="border-2 border-accent/30">
+                      <CardHeader><CardTitle className="font-display text-sm">🏛️ Certification Timeline</CardTitle></CardHeader>
+                      <CardContent className="space-y-2">
+                        {stageOrder.map(stage => {
+                          const cert = certs.find(c => c.stage === stage);
                           return (
-                            <Card key={tm.match_id} className="border-2 border-primary/20">
-                              <CardHeader>
-                                <CardTitle className="text-base">{tm.team_a} vs {tm.team_b}</CardTitle>
-                              </CardHeader>
-                              <CardContent className="space-y-4">
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
-                                  <p><span className="text-muted-foreground">Date:</span> {tm.date || 'N/A'}</p>
-                                  <p><span className="text-muted-foreground">Venue:</span> {tm.venue || 'N/A'}</p>
-                                  <p><span className="text-muted-foreground">Stage:</span> {tm.match_stage || 'League'}</p>
-                                  <p><span className="text-muted-foreground">Status:</span> {tm.status || '-'}</p>
-                                  <p><span className="text-muted-foreground">Result:</span> {tm.result || '-'}</p>
-                                </div>
-
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                  <div className="space-y-3">
-                                    <h4 className="font-semibold">🏏 {tm.team_a} Batting</h4>
-                                    {teamABat.length > 0 ? (
-                                      <Table>
-                                        <TableHeader><TableRow>
-                                          <TableHead>Batter</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">B</TableHead><TableHead className="text-right">4s</TableHead><TableHead className="text-right">6s</TableHead><TableHead>Dismissal</TableHead>
-                                        </TableRow></TableHeader>
-                                        <TableBody>
-                                          {teamABat.map((b: any) => (
-                                            <TableRow key={b.id}>
-                                              <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
-                                              <TableCell className="text-right">{b.runs}</TableCell>
-                                              <TableCell className="text-right">{b.balls}</TableCell>
-                                              <TableCell className="text-right">{b.fours}</TableCell>
-                                              <TableCell className="text-right">{b.sixes}</TableCell>
-                                              <TableCell className="text-xs">{b.how_out || 'not out'}</TableCell>
-                                            </TableRow>
-                                          ))}
-                                        </TableBody>
-                                      </Table>
-                                    ) : <p className="text-xs text-muted-foreground">No batting data</p>}
-
-                                    <h4 className="font-semibold">🎯 {tm.team_a} Bowling</h4>
-                                    {teamABowl.length > 0 ? (
-                                      <Table>
-                                        <TableHeader><TableRow>
-                                          <TableHead>Bowler</TableHead><TableHead className="text-right">O</TableHead><TableHead className="text-right">M</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">W</TableHead>
-                                        </TableRow></TableHeader>
-                                        <TableBody>
-                                          {teamABowl.map((b: any) => (
-                                            <TableRow key={b.id}>
-                                              <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
-                                              <TableCell className="text-right">{b.overs}</TableCell>
-                                              <TableCell className="text-right">{b.maidens}</TableCell>
-                                              <TableCell className="text-right">{b.runs_conceded}</TableCell>
-                                              <TableCell className="text-right">{b.wickets}</TableCell>
-                                            </TableRow>
-                                          ))}
-                                        </TableBody>
-                                      </Table>
-                                    ) : <p className="text-xs text-muted-foreground">No bowling data</p>}
-                                  </div>
-
-                                  <div className="space-y-3">
-                                    <h4 className="font-semibold">🏏 {tm.team_b} Batting</h4>
-                                    {teamBBat.length > 0 ? (
-                                      <Table>
-                                        <TableHeader><TableRow>
-                                          <TableHead>Batter</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">B</TableHead><TableHead className="text-right">4s</TableHead><TableHead className="text-right">6s</TableHead><TableHead>Dismissal</TableHead>
-                                        </TableRow></TableHeader>
-                                        <TableBody>
-                                          {teamBBat.map((b: any) => (
-                                            <TableRow key={b.id}>
-                                              <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
-                                              <TableCell className="text-right">{b.runs}</TableCell>
-                                              <TableCell className="text-right">{b.balls}</TableCell>
-                                              <TableCell className="text-right">{b.fours}</TableCell>
-                                              <TableCell className="text-right">{b.sixes}</TableCell>
-                                              <TableCell className="text-xs">{b.how_out || 'not out'}</TableCell>
-                                            </TableRow>
-                                          ))}
-                                        </TableBody>
-                                      </Table>
-                                    ) : <p className="text-xs text-muted-foreground">No batting data</p>}
-
-                                    <h4 className="font-semibold">🎯 {tm.team_b} Bowling</h4>
-                                    {teamBBowl.length > 0 ? (
-                                      <Table>
-                                        <TableHeader><TableRow>
-                                          <TableHead>Bowler</TableHead><TableHead className="text-right">O</TableHead><TableHead className="text-right">M</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">W</TableHead>
-                                        </TableRow></TableHeader>
-                                        <TableBody>
-                                          {teamBBowl.map((b: any) => (
-                                            <TableRow key={b.id}>
-                                              <TableCell className="font-medium">{players.find(p => p.player_id === b.player_id)?.name || b.player_id}</TableCell>
-                                              <TableCell className="text-right">{b.overs}</TableCell>
-                                              <TableCell className="text-right">{b.maidens}</TableCell>
-                                              <TableCell className="text-right">{b.runs_conceded}</TableCell>
-                                              <TableCell className="text-right">{b.wickets}</TableCell>
-                                            </TableRow>
-                                          ))}
-                                        </TableBody>
-                                      </Table>
-                                    ) : <p className="text-xs text-muted-foreground">No bowling data</p>}
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
+                            <div key={stage} className={`flex items-center gap-3 p-2 rounded text-sm ${cert ? 'bg-primary/5 border border-primary/20' : 'opacity-40'}`}>
+                              {cert ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium capitalize text-xs md:text-sm">{stageLabels[stage]}</p>
+                                {cert && <p className="text-xs text-muted-foreground truncate">{cert.approver_name} – {cert.designation} • {new Date(cert.timestamp).toLocaleString()}</p>}
+                              </div>
+                              {cert && <Badge variant="outline" className="text-[10px] font-mono shrink-0">{cert.token.substring(0, 10)}</Badge>}
+                            </div>
                           );
                         })}
-                      </div>
-                    )}
-
-                    {/* Certification Panel */}
-                    <Card className="border-2 border-accent/30">
-                      <CardHeader><CardTitle className="font-display text-sm">🏛️ Certification Panel</CardTitle></CardHeader>
-                      <CardContent className="space-y-3">
-                        {certs.length > 0 ? (
-                          <div className="space-y-2">
-                            {certs.map((c, i) => (
-                              <div key={i} className="flex items-center gap-3 p-2 rounded bg-primary/5 border border-primary/20">
-                                <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-                                <div className="flex-1">
-                                  <p className="text-sm font-semibold">{c.approver_name} – {c.designation}</p>
-                                  <p className="text-xs text-muted-foreground">{c.stage} • {c.timestamp}</p>
-                                </div>
-                                <Badge variant="outline" className="text-xs font-mono">{c.token.substring(0, 12)}</Badge>
-                              </div>
-                            ))}
-                          </div>
-                        ) : <p className="text-sm text-muted-foreground">No certifications yet</p>}
-
-                        {!viewScorelist.locked && (
-                          <div className="flex flex-wrap gap-2 pt-2 border-t">
-                            {CERTIFICATION_STAGES.filter(s => s !== 'draft').map(stage => (
-                              <Button key={stage} size="sm" variant="outline" onClick={() => handleCertify(viewScorelist, stage)} className="text-xs capitalize">
-                                {stage.replace(/_/g, ' ')}
-                              </Button>
-                            ))}
-                          </div>
-                        )}
 
                         {viewScorelist.locked && (
                           <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary font-semibold text-sm">
-                            <Lock className="h-4 w-4" />
-                            ✔ OFFICIALLY CERTIFIED MATCH RESULT
+                            <Lock className="h-4 w-4" /> ✔ OFFICIALLY CERTIFIED MATCH RESULT
                           </div>
                         )}
                       </CardContent>
                     </Card>
 
-                    {/* QR Code */}
-                    <div className="flex items-center justify-center gap-6 py-4">
-                      <QRCodeSVG value={`${verifyUrl}${viewScorelist.scorelist_id}`} size={120} />
-                      <div className="text-sm">
+                    {/* QR + Security */}
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6 py-4">
+                      <QRCodeSVG value={`${verifyUrl}${viewScorelist.scorelist_id}`} size={100} />
+                      <div className="text-sm text-center sm:text-left">
                         <p className="font-semibold">Scan to Verify</p>
-                        <p className="text-xs text-muted-foreground font-mono break-all">{verifyUrl}{viewScorelist.scorelist_id}</p>
+                        <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{verifyUrl}{viewScorelist.scorelist_id}</p>
                       </div>
+                    </div>
+
+                    {/* Export from dialog */}
+                    <div className="flex flex-wrap gap-2 justify-center border-t pt-4">
+                      <Button size="sm" variant="outline" onClick={() => handleExportPDF(viewScorelist)} className="gap-1">
+                        <Download className="h-3 w-3" /> Download PDF
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleExportJSON(viewScorelist)} className="gap-1">
+                        <FileJson className="h-3 w-3" /> Download JSON
+                      </Button>
                     </div>
 
                     {/* Security Footer */}
