@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
 import { useData } from '@/lib/DataContext';
 import { generateId } from '@/lib/utils';
+import { getAdminNotificationRecipient, sendScorelistApprovalRequestBulk, sendSystemEmail } from '@/lib/mailer';
 
 const designationToStage: Record<string, string> = {
   'Scoring Official': 'scoring_completed',
@@ -105,18 +106,27 @@ const ManagementPage = () => {
       token: `MGT_CERT_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       stage,
     });
+    const locked = stage === 'official_certified';
     await v2api.updateScorelist({
       ...scorelist,
       certification_status: stage,
       certifications_json: JSON.stringify(certs),
-      locked: stage === 'official_certified',
+      locked,
     });
     logAudit(
       user.management_id,
       'management_sign_scorelist',
       'scorelist',
       scorelist.scorelist_id,
-      JSON.stringify({ stage, comment: comment || '', by: user.name || user.username, designation: user.designation || '' }),
+      JSON.stringify({
+        stage,
+        locked,
+        certificationCount: certs.length,
+        comment: comment || '',
+        by: user.name || user.username,
+        designation: user.designation || '',
+        scorelistStatusBefore: scorelist.certification_status || 'draft',
+      }),
     );
     if (comment?.trim()) {
       await addMessage({
@@ -131,6 +141,28 @@ const ManagementPage = () => {
         timestamp: new Date().toISOString(),
       });
     }
+    const adminRecipient = getAdminNotificationRecipient();
+    if (adminRecipient) {
+      await sendSystemEmail({
+        to: adminRecipient,
+        subject: `Scorelist signed: ${scorelist.scorelist_id}`,
+        htmlBody: `<p>Scorelist <strong>${scorelist.scorelist_id}</strong> was signed by <strong>${user.name || user.username}</strong> (${user.designation || 'Management'}) at stage <strong>${stageLabels[stage] || stage}</strong>.</p><p>Comment: ${comment?.trim() || 'No comment provided'}</p>`,
+      });
+    }
+
+    const nextStage = locked ? null : stageOrder[stageOrder.indexOf(stage) + 1];
+    if (nextStage) {
+      const eligibleApprovers = mgmtUsers.filter((m) => designationToStage[m.designation] === nextStage && m.email);
+      if (eligibleApprovers.length > 0) {
+        await sendScorelistApprovalRequestBulk({
+          recipients: eligibleApprovers.map((m) => ({ to: m.email, approverName: m.name })),
+          scorelistId: scorelist.scorelist_id,
+          stageLabel: stageLabels[nextStage] || nextStage,
+          actorName: user.name || user.username,
+        });
+      }
+    }
+
     toast({ title: '✅ Scorelist signed', description: `Signed as ${user.designation}` });
     refresh();
     setScorelistActionLoading(false);
@@ -157,6 +189,14 @@ const ManagementPage = () => {
       reply_to: '',
       timestamp: new Date().toISOString(),
     });
+    const adminRecipient = getAdminNotificationRecipient();
+    if (adminRecipient) {
+      await sendSystemEmail({
+        to: adminRecipient,
+        subject: `Scorelist rejected: ${scorelist.scorelist_id}`,
+        htmlBody: `<p>Scorelist <strong>${scorelist.scorelist_id}</strong> was rejected by <strong>${user.name || user.username}</strong> (${user.designation || 'Management'}).</p><p><strong>Reason:</strong> ${comment}</p>`,
+      });
+    }
     toast({ title: 'Rejection recorded', description: 'Admin has been notified with your comment.' });
     setScorelistActionLoading(false);
   };
@@ -199,7 +239,18 @@ const ManagementPage = () => {
       timestamp: new Date().toISOString(),
     };
     await addMessage(msg);
-    logAudit(user.management_id || user.username, 'send_management_notice', 'message', msg.id, msgTo);
+    logAudit(
+      user.management_id || user.username,
+      'send_management_notice',
+      'message',
+      msg.id,
+      JSON.stringify({
+        to: msgTo,
+        subject: msgSubject,
+        bodyLength: msgBody.length,
+        actorDesignation: user.designation || '',
+      }),
+    );
     toast({ title: '✅ Notice sent', description: `To: ${msgTo === 'all' ? 'All Members' : players.find(p => p.player_id === msgTo)?.name || msgTo}` });
     setShowCompose(false);
     setMsgSubject('');

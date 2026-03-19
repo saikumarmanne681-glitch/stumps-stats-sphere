@@ -52,6 +52,14 @@ const TournamentPage = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Button variant="ghost" size="sm" asChild><Link to="/"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Link></Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/leaderboards?tournament=${tournament.tournament_id}`}>View Tournament Standings</Link>
+          </Button>
+          <Button variant="secondary" size="sm" asChild>
+            <Link to="/leaderboards">View Global Leaderboards</Link>
+          </Button>
+        </div>
 
         <Card className="border-l-4 border-l-accent bg-gradient-to-r from-accent/5 to-transparent">
           <CardContent className="p-6">
@@ -82,6 +90,9 @@ const TournamentPage = () => {
                     <p className="text-xs text-muted-foreground">{format(new Date(s.start_date), 'dd MMM')} - {format(new Date(s.end_date), 'dd MMM yyyy')}</p>
                     <Badge variant={s.status === 'ongoing' ? 'default' : 'secondary'} className="mt-2">{s.status}</Badge>
                     <p className="text-sm mt-2">{matches.filter(m => m.season_id === s.season_id).length} matches</p>
+                    <Button asChild variant="ghost" size="sm" className="mt-2 px-0">
+                      <Link to={`/leaderboards?tournament=${tournament.tournament_id}&season=${s.season_id}`}>View standings →</Link>
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
