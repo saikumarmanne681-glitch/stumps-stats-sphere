@@ -1,6 +1,6 @@
 import { getAppsScriptUrl } from './googleSheets';
 
-export const DEFAULT_FROM_EMAIL = 'mudirajskmr@gmail.com';
+export const DEFAULT_FROM_EMAIL = 'impdocs1308@gmail.com';
 const ADMIN_MAILBOX_KEY = 'adminMailboxEmail';
 const ADMIN_MAILBOX_VERIFIED_KEY = 'adminMailboxVerified';
 const ADMIN_MAILBOX_ENABLED_KEY = 'adminMailboxEnabled';
