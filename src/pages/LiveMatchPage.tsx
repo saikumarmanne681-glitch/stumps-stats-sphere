@@ -113,10 +113,16 @@ const LiveMatchPage = () => {
     const matchTimeline = timeline.filter(t => t.match_id === match.match_id)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
+    const teamABatting = matchBatting.filter((b) => b.team === match.team_a);
+    const teamBBatting = matchBatting.filter((b) => b.team === match.team_b);
     const liveAScore = (() => { const s = calcTeamScore(matchBatting, match.team_a); return `${s.runs}/${s.wkts} (${s.overs})`; })();
     const liveBScore = (() => { const s = calcTeamScore(matchBatting, match.team_b); return `${s.runs}/${s.wkts} (${s.overs})`; })();
-    const aScore = isLive ? liveAScore : (match.team_a_score || liveAScore);
-    const bScore = isLive ? liveBScore : (match.team_b_score || liveBScore);
+    const aScore = isLive
+      ? (teamABatting.length > 0 ? liveAScore : (match.team_a_score || liveAScore))
+      : (match.team_a_score || liveAScore);
+    const bScore = isLive
+      ? (teamBBatting.length > 0 ? liveBScore : (match.team_b_score || liveBScore))
+      : (match.team_b_score || liveBScore);
 
     return (
       <Card key={match.match_id} className={`border-2 ${isLive ? 'border-destructive/40 bg-gradient-to-br from-destructive/5 to-accent/5' : 'border-primary/20'}`}>

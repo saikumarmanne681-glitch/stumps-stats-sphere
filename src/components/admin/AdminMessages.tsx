@@ -25,6 +25,8 @@ export function AdminMessages() {
   const [replyBody, setReplyBody] = useState('');
   const [expandedThread, setExpandedThread] = useState<string>('');
   const [managementUsers, setManagementUsers] = useState<ManagementUser[]>([]);
+  const [sending, setSending] = useState(false);
+  const [threadSearch, setThreadSearch] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export function AdminMessages() {
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim()) { toast({ title: 'Error', description: 'Fill subject and body', variant: 'destructive' }); return; }
+    setSending(true);
     const msg: Message = {
       id: generateId('MSG'),
       from_id: 'admin',
@@ -47,6 +50,7 @@ export function AdminMessages() {
     await addMessage(msg);
     setSubject('');
     setBody('');
+    setSending(false);
     toast({ title: 'Sent', description: `Message sent to ${toId === 'all' ? 'all players' : players.find(p => p.player_id === toId)?.name || toId}` });
   };
 
@@ -111,6 +115,20 @@ export function AdminMessages() {
     return players.find(p => p.player_id === id)?.name || id;
   };
 
+  const visibleThreads = useMemo(() => {
+    const query = threadSearch.trim().toLowerCase();
+    if (!query) return threads;
+    return threads.filter(([, thread]) =>
+      thread.some((m) =>
+        [m.subject, m.body, getDisplayName(m.from_id), getDisplayName(m.to_id)]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(query),
+      ),
+    );
+  }, [threadSearch, threads, managementUsers, players]);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -128,14 +146,21 @@ export function AdminMessages() {
           </div>
           <div><Label>Subject</Label><Input value={subject} onChange={e => setSubject(e.target.value)} /></div>
           <div><Label>Body</Label><Textarea value={body} onChange={e => setBody(e.target.value)} /></div>
-          <Button onClick={handleSend}><Send className="h-4 w-4 mr-1" /> Send</Button>
+          <Button onClick={handleSend} loading={sending} loadingText="Sending message..."><Send className="h-4 w-4 mr-1" /> Send</Button>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="font-display">📬 Conversations ({threads.length})</CardTitle></CardHeader>
+        <CardHeader className="space-y-3">
+          <CardTitle className="font-display">📬 Conversations ({visibleThreads.length})</CardTitle>
+          <Input
+            value={threadSearch}
+            onChange={(e) => setThreadSearch(e.target.value)}
+            placeholder="Search by subject, sender, recipient, or message text..."
+          />
+        </CardHeader>
         <CardContent className="space-y-3 max-h-[600px] overflow-y-auto scrollbar-thin">
-          {threads.map(([rootId, thread]) => {
+          {visibleThreads.map(([rootId, thread]) => {
             const root = thread[0];
             const unreadCount = thread.filter(m => !m.read && m.from_id !== 'admin').length;
             const isExpanded = expandedThread === rootId;
@@ -207,7 +232,7 @@ export function AdminMessages() {
               </div>
             );
           })}
-          {threads.length === 0 && <p className="text-muted-foreground text-center py-4">No messages yet.</p>}
+          {visibleThreads.length === 0 && <p className="text-muted-foreground text-center py-4">No messages found for this filter.</p>}
         </CardContent>
       </Card>
     </div>
