@@ -258,17 +258,25 @@ function doPost(e) {
         htmlBody: htmlBody || undefined,
         replyTo: replyTo || undefined,
       };
+      let useGmailApi = false;
 
       // If the account has configured aliases, use requested alias as sender.
       if (fromEmail) {
         const aliases = GmailApp.getAliases();
         if (aliases.indexOf(fromEmail) !== -1) {
           options.from = fromEmail;
+          useGmailApi = true;
         }
       }
 
-      MailApp.sendEmail(to, subject, textBody || "Please view this message in an HTML-enabled email client.", options);
-      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+      const fallbackText = textBody || "Please view this message in an HTML-enabled email client.";
+      if (useGmailApi) {
+        // NOTE: MailApp.sendEmail does not support the `from` option.
+        GmailApp.sendEmail(to, subject, fallbackText, options);
+      } else {
+        MailApp.sendEmail(to, subject, fallbackText, options);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ success: true, provider: useGmailApi ? "GmailApp" : "MailApp" })).setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
         ContentService.MimeType.JSON,
