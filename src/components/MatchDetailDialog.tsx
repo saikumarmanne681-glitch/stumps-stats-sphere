@@ -61,7 +61,7 @@ function buildMatchIssueTemplate(match: Match, tournament?: Tournament, season?:
   };
 }
 
-export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling, players, tournament, season }: MatchDetailDialogProps) {
+export function MatchDetailDialog({ match, open, onOpenChange, batting = [], bowling = [], players = [], tournament, season }: MatchDetailDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [showReport, setShowReport] = useState(false);
@@ -97,31 +97,37 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
   const handleReportIssue = async () => {
     if (!reportSubject.trim() || !reportDesc.trim() || !user) return;
     setSubmitting(true);
-    const sla = SLA_CONFIG[reportPriority];
-    const now = new Date();
-    const ticket: SupportTicket = {
-      ticket_id: generateId('TKT'),
-      created_by_user_id: user.player_id || user.management_id || 'admin',
-      category: reportCategory,
-      priority: reportPriority,
-      subject: `[Match: ${match.team_a} vs ${match.team_b}] ${reportSubject}`,
-      description: `${reportDesc}\n${reportDesc.includes('Issue details:') ? '' : '\nIssue details:'}\nRaised by: ${user.player_id || user.management_id || user.username}`,
-      attachment_url: '',
-      status: 'open',
-      assigned_admin_id: '',
-      created_at: istNow(),
-      first_response_due: new Date(now.getTime() + sla.firstResponse * 3600000).toISOString(),
-      resolution_due: new Date(now.getTime() + sla.resolution * 3600000).toISOString(),
-      resolved_at: '',
-      closed_at: '',
-    };
-    await v2api.addTicket(ticket);
-    logAudit(user.player_id || user.username, 'create_ticket_from_match', 'support_ticket', ticket.ticket_id, match.match_id);
-    toast({ title: '✅ Issue reported', description: 'Support ticket created for this match' });
-    setShowReport(false);
-    setReportSubject('');
-    setReportDesc('');
-    setSubmitting(false);
+    try {
+      const sla = SLA_CONFIG[reportPriority];
+      const now = new Date();
+      const ticket: SupportTicket = {
+        ticket_id: generateId('TKT'),
+        created_by_user_id: user.player_id || user.management_id || 'admin',
+        category: reportCategory,
+        priority: reportPriority,
+        subject: `[Match: ${match.team_a} vs ${match.team_b}] ${reportSubject}`,
+        description: `${reportDesc}\n${reportDesc.includes('Issue details:') ? '' : '\nIssue details:'}\nRaised by: ${user.player_id || user.management_id || user.username}`,
+        attachment_url: '',
+        status: 'open',
+        assigned_admin_id: '',
+        created_at: istNow(),
+        first_response_due: new Date(now.getTime() + sla.firstResponse * 3600000).toISOString(),
+        resolution_due: new Date(now.getTime() + sla.resolution * 3600000).toISOString(),
+        resolved_at: '',
+        closed_at: '',
+      };
+      await v2api.addTicket(ticket);
+      logAudit(user.player_id || user.username, 'create_ticket_from_match', 'support_ticket', ticket.ticket_id, match.match_id);
+      toast({ title: '✅ Issue reported', description: 'Support ticket created for this match' });
+      setShowReport(false);
+      setReportSubject('');
+      setReportDesc('');
+    } catch (error) {
+      console.error('Unable to submit match issue', error);
+      toast({ title: 'Issue not submitted', description: 'Please try again in a moment.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const renderTeamScorecard = (team: string) => {
@@ -209,7 +215,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col rounded-[2rem] border-primary/10 p-4 md:p-6">
+      <DialogContent className="flex max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-4xl flex-col overflow-hidden rounded-[1.5rem] border-primary/10 p-3 sm:w-full sm:rounded-[2rem] md:p-6">
         <DialogHeader>
           <DialogTitle className="font-display text-lg md:text-xl">{match.team_a} vs {match.team_b}</DialogTitle>
         </DialogHeader>
@@ -275,7 +281,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
                   <Badge variant="outline" className="rounded-full">Auto-filled</Badge>
                 </div>
                 <Input value={reportSubject} onChange={e => setReportSubject(e.target.value)} placeholder="Brief summary..." />
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Select value={reportCategory} onValueChange={setReportCategory}>
                     <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                     <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
@@ -290,7 +296,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
                   </Select>
                 </div>
                 <Textarea value={reportDesc} onChange={e => setReportDesc(e.target.value)} placeholder="Describe the issue..." className="min-h-[180px] rounded-2xl text-sm leading-6" />
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button size="sm" onClick={handleReportIssue} disabled={submitting || !reportSubject.trim() || !reportDesc.trim()}>
                     {submitting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} Submit
                   </Button>
