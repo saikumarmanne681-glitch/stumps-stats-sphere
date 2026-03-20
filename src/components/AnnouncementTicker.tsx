@@ -1,13 +1,23 @@
+import { useMemo } from 'react';
 import { useData } from '@/lib/DataContext';
-import { Sparkles, Volume2, ChevronRight } from 'lucide-react';
+import { Sparkles, Volume2, ChevronRight, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { DataIntegrityBadge } from '@/components/SecurityBadge';
 
 export function AnnouncementTicker() {
-  const { announcements } = useData();
+  const { announcements, loading } = useData();
 
-  const activeAnnouncements = [...announcements]
+  const activeAnnouncements = useMemo(() => [...announcements]
     .filter(a => a.active)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [announcements]);
+
+  if (loading && activeAnnouncements.length === 0) {
+    return (
+      <div className="border-b bg-muted/50 px-4 py-2 text-sm text-muted-foreground">
+        Loading announcements, please wait...
+      </div>
+    );
+  }
 
   if (activeAnnouncements.length === 0) return null;
 
@@ -46,6 +56,19 @@ export function AnnouncementTicker() {
             <ChevronRight className="h-3 w-3 inline opacity-50" />
             {tickerText}
           </span>
+        </div>
+
+        <div className="ml-auto mr-3 hidden items-center gap-2 md:flex">
+          <Badge className="border-none bg-primary-foreground/15 text-primary-foreground text-[10px]">
+            <Sparkles className="mr-1 h-3 w-3" /> Priority Feed
+          </Badge>
+          <Badge className="border-none bg-primary-foreground/15 text-primary-foreground text-[10px]">
+            <Shield className="mr-1 h-3 w-3" /> Verified
+          </Badge>
+          <DataIntegrityBadge
+            data={activeAnnouncements.map((announcement) => `${announcement.id}:${announcement.date}`).join('|')}
+            label="Announcement stream hash"
+          />
         </div>
       </div>
 

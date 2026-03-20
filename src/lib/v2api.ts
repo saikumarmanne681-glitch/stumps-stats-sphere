@@ -104,8 +104,14 @@ export function logAudit(actor: string, eventType: string, entityType: string, e
   const metadataPayload = (() => {
     const base = {
       clientTimeIso: new Date().toISOString(),
+      clientTimeLocale: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().locale : '',
+      timezone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
       page: typeof window !== 'undefined' ? window.location.pathname : '',
+      query: typeof window !== 'undefined' ? window.location.search : '',
+      referrer: typeof document !== 'undefined' ? document.referrer : '',
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      language: typeof navigator !== 'undefined' ? navigator.language : '',
+      platform: typeof navigator !== 'undefined' ? navigator.platform : '',
       details: metadata,
     };
     try {

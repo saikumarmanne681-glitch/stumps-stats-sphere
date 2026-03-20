@@ -17,7 +17,7 @@ import { useEffect } from 'react';
 import { ManagementUser } from '@/lib/v2types';
 import { logAudit } from '@/lib/v2api';
 import { sendMessageNotificationEmail } from '@/lib/mailer';
-import { getAdminNotificationRecipient, sendSystemEmail } from '@/lib/mailer';
+import { getAdminNotificationRecipient, sendAdminCommunicationEmail, sendSystemEmail } from '@/lib/mailer';
 
 export function AdminMessages() {
   const { messages, players, addMessage, updateMessage } = useData();
@@ -74,7 +74,12 @@ export function AdminMessages() {
       timestamp: new Date().toISOString(),
     };
     await addMessage(msg);
-    logAudit('admin', 'admin_send_message', 'message', msg.id, JSON.stringify({ to: toId, subject, bodyLength: body.length }));
+    logAudit('admin', 'admin_send_message', 'message', msg.id, JSON.stringify({
+      to: toId,
+      subject,
+      bodyLength: body.length,
+      recipientType: toId === 'all' ? 'broadcast' : 'direct',
+    }));
 
     // Send email notification
     if (toId === 'all') {
@@ -88,6 +93,20 @@ export function AdminMessages() {
       }
     } else {
       notifyPlayerByEmail(toId, subject, body);
+    }
+
+    const adminRecipient = getAdminNotificationRecipient();
+    if (adminRecipient) {
+      sendAdminCommunicationEmail({
+        to: adminRecipient,
+        title: `Admin message sent • ${subject}`,
+        summary: 'A player communication was sent from the admin message center.',
+        detailLines: [
+          `Recipient: ${toId === 'all' ? 'All players' : players.find((player) => player.player_id === toId)?.name || toId}`,
+          `Subject: ${subject}`,
+          `Body preview: ${body.slice(0, 180)}`,
+        ],
+      }).catch(console.warn);
     }
 
     setSubject('');
@@ -111,7 +130,12 @@ export function AdminMessages() {
       timestamp: new Date().toISOString(),
     };
     await addMessage(msg);
-    logAudit('admin', 'admin_reply_message', 'message', msg.id, JSON.stringify({ to: msg.to_id, replyTo: parentMsg.id }));
+    logAudit('admin', 'admin_reply_message', 'message', msg.id, JSON.stringify({
+      to: msg.to_id,
+      replyTo: parentMsg.id,
+      subject: msg.subject,
+      bodyLength: replyBody.length,
+    }));
 
     // Notify player
     const recipientId = msg.to_id;

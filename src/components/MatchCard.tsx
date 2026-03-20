@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Match, Tournament, Player, BattingScorecard, Season } from '@/lib/types';
 import { Calendar, MapPin, Award } from 'lucide-react';
 import { format } from 'date-fns';
+import { getTeamScoreSummary } from '@/lib/liveScoring';
 
 interface MatchCardProps {
   match: Match;
@@ -11,16 +12,6 @@ interface MatchCardProps {
   players: Player[];
   batting?: BattingScorecard[];
   onClick?: () => void;
-}
-
-function calcTeamScore(batting: BattingScorecard[], team: string): string {
-  const rows = batting.filter(b => b.team === team);
-  if (rows.length === 0) return '';
-  const runs = rows.reduce((s, b) => s + b.runs, 0);
-  const wkts = rows.filter(b => b.how_out && b.how_out !== 'not out').length;
-  const balls = rows.reduce((s, b) => s + b.balls, 0);
-  const overs = Math.floor(balls / 6) + (balls % 6) / 10;
-  return `${runs}/${wkts} (${overs.toFixed(1)})`;
 }
 
 export function MatchCard({ match, tournament, season, players, batting = [], onClick }: MatchCardProps) {
@@ -33,8 +24,8 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
   };
 
   const matchBatting = batting.filter(b => b.match_id === match.match_id);
-  const teamAScore = match.team_a_score || calcTeamScore(matchBatting, match.team_a);
-  const teamBScore = match.team_b_score || calcTeamScore(matchBatting, match.team_b);
+  const teamAScore = getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score);
+  const teamBScore = getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score);
 
   return (
     <Card
@@ -66,12 +57,16 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
         <div className="flex items-center justify-between my-3">
           <div className="text-center flex-1">
             <span className="font-display text-lg font-semibold block">{match.team_a}</span>
-            {teamAScore && <span className="text-primary font-bold text-sm">{teamAScore}</span>}
+            {(teamAScore.display || match.status === 'live') && (
+              <span className="text-primary font-bold text-sm">{teamAScore.display || '0/0 (0.0)'}</span>
+            )}
           </div>
           <span className="text-muted-foreground text-sm font-bold px-2">vs</span>
           <div className="text-center flex-1">
             <span className="font-display text-lg font-semibold block">{match.team_b}</span>
-            {teamBScore && <span className="text-primary font-bold text-sm">{teamBScore}</span>}
+            {(teamBScore.display || match.status === 'live') && (
+              <span className="text-primary font-bold text-sm">{teamBScore.display || '0/0 (0.0)'}</span>
+            )}
           </div>
         </div>
 

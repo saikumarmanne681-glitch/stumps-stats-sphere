@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
@@ -13,15 +13,8 @@ import { calcBattingStats, calcBowlingStats, getPlayerMatchCounts } from '@/lib/
 const LeaderboardsPage = () => {
   const { matches, batting, bowling, players, tournaments, seasons } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [filterTournament, setFilterTournament] = useState(searchParams.get('tournament') || 'all');
-  const [filterSeason, setFilterSeason] = useState(searchParams.get('season') || 'all');
-
-  useEffect(() => {
-    const nextTournament = searchParams.get('tournament') || 'all';
-    const nextSeason = searchParams.get('season') || 'all';
-    setFilterTournament(nextTournament);
-    setFilterSeason(nextSeason);
-  }, [searchParams]);
+  const filterTournament = searchParams.get('tournament') || 'all';
+  const filterSeason = searchParams.get('season') || 'all';
 
   const relevantSeasons = filterTournament === 'all' ? seasons : seasons.filter(s => s.tournament_id === filterTournament);
   
@@ -120,16 +113,14 @@ const LeaderboardsPage = () => {
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
   const updateTournament = (value: string) => {
-    setFilterTournament(value);
-    setFilterSeason('all');
     const next = new URLSearchParams(searchParams);
-    next.set('tournament', value);
+    if (value === 'all') next.delete('tournament');
+    else next.set('tournament', value);
     next.delete('season');
     setSearchParams(next);
   };
 
   const updateSeason = (value: string) => {
-    setFilterSeason(value);
     const next = new URLSearchParams(searchParams);
     if (filterTournament !== 'all') next.set('tournament', filterTournament);
     if (value === 'all') next.delete('season');

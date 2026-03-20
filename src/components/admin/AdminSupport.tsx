@@ -16,6 +16,7 @@ import { SupportTicket, SupportMessage, SupportCSAT, ManagementUser } from '@/li
 import { notifyTicketOwner, resolveSupportActor } from '@/lib/supportNotifications';
 import { generateId } from '@/lib/utils';
 import { Loader2, Search, MessageSquare, Clock, AlertTriangle, CheckCircle2, Send, StickyNote, UserRoundCheck, CalendarClock } from 'lucide-react';
+import { getAdminNotificationRecipient, sendAdminCommunicationEmail } from '@/lib/mailer';
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-primary/10 text-primary border-primary/30',
@@ -127,7 +128,27 @@ export function AdminSupportDashboard() {
     if (effectiveTicket !== selectedTicket) await v2api.updateTicket(effectiveTicket);
     const actor = resolveSupportActor(user?.management_id || user?.username || 'admin', managementUsers);
     await notifyTicketOwner({ ticket: effectiveTicket, actorName: actor.name, actorDesignation: actor.designation, updateType: 'reply', detail: replyText.trim().slice(0, 220), players });
-    logAudit('admin', 'reply_ticket', 'support_ticket', selectedTicket.ticket_id);
+    logAudit('admin', 'reply_ticket', 'support_ticket', selectedTicket.ticket_id, JSON.stringify({
+      actor: actor.name,
+      actorDesignation: actor.designation,
+      replyLength: replyText.trim().length,
+      previousStatus: selectedTicket.status,
+      nextStatus: effectiveTicket.status,
+    }));
+    const adminRecipient = getAdminNotificationRecipient();
+    if (adminRecipient) {
+      sendAdminCommunicationEmail({
+        to: adminRecipient,
+        title: `Support reply sent • ${selectedTicket.ticket_id}`,
+        summary: 'A support reply was sent to a player and recorded in the support timeline.',
+        detailLines: [
+          `Ticket ID: ${selectedTicket.ticket_id}`,
+          `Actor: ${actor.name}${actor.designation ? ` (${actor.designation})` : ''}`,
+          `Subject: ${selectedTicket.subject}`,
+          `Reply preview: ${replyText.trim().slice(0, 180)}`,
+        ],
+      }).catch(console.warn);
+    }
     setReplyText('');
     setSending(false);
     toast({ title: 'Reply sent to player' });
@@ -147,7 +168,10 @@ export function AdminSupportDashboard() {
       is_internal_note: true,
       created_at: istNow(),
     });
-    logAudit('admin', 'internal_note', 'support_ticket', selectedTicket.ticket_id);
+    logAudit('admin', 'internal_note', 'support_ticket', selectedTicket.ticket_id, JSON.stringify({
+      noteLength: internalNote.trim().length,
+      actor: user?.management_id || user?.username || 'admin',
+    }));
     setInternalNote('');
     setSending(false);
     toast({ title: 'Internal note added' });
@@ -162,7 +186,11 @@ export function AdminSupportDashboard() {
     await v2api.updateTicket(updated);
     const actor = resolveSupportActor(user?.management_id || user?.username || 'admin', managementUsers);
     await notifyTicketOwner({ ticket: updated, actorName: actor.name, actorDesignation: actor.designation, updateType: 'status', detail: `Ticket status changed to ${status.replace('_', ' ')}`, players });
-    logAudit('admin', 'change_status', 'support_ticket', selectedTicket.ticket_id, status);
+    logAudit('admin', 'change_status', 'support_ticket', selectedTicket.ticket_id, JSON.stringify({
+      previousStatus: selectedTicket.status,
+      nextStatus: status,
+      subject: selectedTicket.subject,
+    }));
     toast({ title: `Status updated to ${status.replace('_', ' ')}` });
     await refresh(selectedTicket.ticket_id);
   };
@@ -180,7 +208,11 @@ export function AdminSupportDashboard() {
       detail: `Assigned to ${assignee.name}${assignee.designation ? ` (${assignee.designation})` : ''}`,
       players,
     });
-    logAudit('admin', 'assign_ticket', 'support_ticket', selectedTicket.ticket_id, adminId);
+    logAudit('admin', 'assign_ticket', 'support_ticket', selectedTicket.ticket_id, JSON.stringify({
+      previousAssignee: selectedTicket.assigned_admin_id,
+      nextAssignee: adminId,
+      subject: selectedTicket.subject,
+    }));
     toast({ title: 'Assignee updated' });
     await refresh(selectedTicket.ticket_id);
   };
@@ -336,11 +368,11 @@ export function AdminSupportDashboard() {
                     </TabsList>
                     <TabsContent value="reply" className="space-y-2">
                       <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Professional update to ticket raiser..." className="min-h-[90px]" />
-                      <Button className="w-full" onClick={handleReply} disabled={sending || !replyText.trim()}>{sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}Send Reply</Button>
+                      <Button className="w-full" onClick={handleReply} disabled={sending || !replyText.trim()} loading={sending} loadingText="Sending reply and notifying player..."><Send className="h-4 w-4 mr-2" />Send Reply</Button>
                     </TabsContent>
                     <TabsContent value="note" className="space-y-2">
                       <Textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} placeholder="Private note for admin team..." className="min-h-[90px]" />
-                      <Button variant="outline" className="w-full" onClick={handleInternalNote} disabled={sending || !internalNote.trim()}>{sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <StickyNote className="h-4 w-4 mr-2" />}Save Internal Note</Button>
+                      <Button variant="outline" className="w-full" onClick={handleInternalNote} disabled={sending || !internalNote.trim()} loading={sending} loadingText="Saving internal note..."><StickyNote className="h-4 w-4 mr-2" />Save Internal Note</Button>
                     </TabsContent>
                   </Tabs>
                 </div>

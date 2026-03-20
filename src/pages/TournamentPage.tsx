@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trophy, Calendar, MapPin, Users, Shield, Lock, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, MapPin, Users, Shield, Lock, ExternalLink, Medal, BarChart3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { v2api } from '@/lib/v2api';
 import { DigitalScorelist } from '@/lib/v2types';
@@ -149,6 +149,42 @@ const TournamentPage = () => {
           <Button variant="outline" size="sm" asChild>
             <Link to="/live">Live Matches</Link>
           </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/">Back to Seasons Overview</Link>
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="border-primary/20">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Certified scorelists</p>
+              <p className="mt-1 font-display text-3xl font-bold text-primary">{officialScorelists.length}</p>
+              <p className="text-xs text-muted-foreground">Only locked official records are shown publicly.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Completed matches</p>
+              <p className="mt-1 font-display text-3xl font-bold">{completedMatches.length}</p>
+              <p className="text-xs text-muted-foreground">Historical results available in the tournament archive.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Live matches</p>
+              <p className="mt-1 font-display text-3xl font-bold text-destructive">{liveMatches.length}</p>
+              <p className="text-xs text-muted-foreground">Live scores sync with the active scoring feed.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Top performers</p>
+              <div className="mt-2 space-y-1 text-sm">
+                <p className="flex items-center gap-1"><Medal className="h-3.5 w-3.5 text-primary" /> {topRunScorer ? `${getPlayerName(topRunScorer.id)} • ${topRunScorer.runs} runs` : 'Runs leaderboard pending'}</p>
+                <p className="flex items-center gap-1"><BarChart3 className="h-3.5 w-3.5 text-destructive" /> {topWicketTaker ? `${getPlayerName(topWicketTaker.id)} • ${topWicketTaker.wickets} wickets` : 'Wickets leaderboard pending'}</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Seasons */}
@@ -163,7 +199,7 @@ const TournamentPage = () => {
                   const sMatches = matches.filter(m => m.season_id === s.season_id);
                   const sLive = sMatches.filter(m => m.status === 'live').length;
                   return (
-                    <Card key={s.season_id} className="border hover:shadow-lg transition-all group">
+                    <Card key={s.season_id} id={`season-${s.season_id}`} className="border hover:shadow-lg transition-all group scroll-mt-24">
                       <CardContent className="p-4 space-y-2">
                         <div className="flex items-center justify-between">
                           <p className="font-display text-2xl font-bold text-primary">{s.year}</p>
