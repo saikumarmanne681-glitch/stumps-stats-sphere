@@ -109,6 +109,7 @@ const PlayerDashboard = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6 space-y-6">
+        {loading && <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">Refreshing player dashboard data, please wait...</p>}
         {/* Enhanced Player Hero Card */}
         <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent overflow-hidden">
           <CardContent className="p-6">
@@ -146,6 +147,40 @@ const PlayerDashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Unread messages</p>
+              <p className="mt-1 font-display text-3xl font-bold text-accent">{unreadCount}</p>
+              <p className="text-xs text-muted-foreground">Direct responses from admin and management.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Current filters</p>
+              <p className="mt-1 text-sm font-medium">{filterTournament === 'all' ? 'All tournaments' : tournaments.find((t) => t.tournament_id === filterTournament)?.name || filterTournament}</p>
+              <p className="text-xs text-muted-foreground">{filterSeason === 'all' ? 'All seasons' : `Season ${seasons.find((s) => s.season_id === filterSeason)?.year || filterSeason}`}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Verified session</p>
+              <div className="mt-1 flex items-center gap-2">
+                <SecurityShieldBadge label="Protected" variant="certified" />
+                <SessionFingerprint />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Profile integrity</p>
+              <div className="mt-2">
+                <DataIntegrityBadge data={`${player.player_id}:${player.username}:${totalMatches}:${battingStats?.totalRuns || 0}:${bowlingStats?.totalWickets || 0}`} label="Player dashboard hash" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <Tabs defaultValue="stats">
           <TabsList className="flex flex-wrap h-auto gap-1">

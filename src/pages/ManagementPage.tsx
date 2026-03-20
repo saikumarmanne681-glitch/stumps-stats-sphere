@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,8 +18,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
 import { useData } from '@/lib/DataContext';
 import { generateId } from '@/lib/utils';
-import { getAdminNotificationRecipient, sendScorelistApprovalRequestBulk, sendSystemEmail, sendApprovalThankYouEmail, sendScorelistStatusEmailToAdmin, sendMessageNotificationEmail } from '@/lib/mailer';
-import { SecurityShieldBadge, SessionFingerprint } from '@/components/SecurityBadge';
+import { getAdminNotificationRecipient, sendScorelistApprovalRequestBulk, sendSystemEmail, sendApprovalThankYouEmail, sendScorelistStatusEmailToAdmin, sendMessageNotificationEmail, sendScorelistReminderEmail } from '@/lib/mailer';
+import { DataIntegrityBadge, SecurityShieldBadge, SessionFingerprint } from '@/components/SecurityBadge';
 import { PageLoader } from '@/components/LoadingOverlay';
 
 const designationToStage: Record<string, string> = {
@@ -74,7 +74,7 @@ const ManagementPage = () => {
     return players.find((p) => p.player_id === id)?.name || id;
   };
 
-  const pendingScorelists = scorelists.filter(s => {
+  const pendingScorelists = useMemo(() => scorelists.filter(s => {
     if (s.locked) return false;
     if (!isManagement || !user?.management_id) return false;
     const certs: CertificationApproval[] = s.certifications_json ? JSON.parse(s.certifications_json) : [];
@@ -85,7 +85,31 @@ const ManagementPage = () => {
     const currentIdx = stageOrder.indexOf(s.certification_status || 'draft');
     const nextStage = currentIdx < stageOrder.length - 1 ? stageOrder[currentIdx + 1] : null;
     return nextStage === userStage;
-  });
+  }), [isManagement, scorelists, user?.designation, user?.management_id]);
+
+  useEffect(() => {
+    if (!isManagement || !user?.management_id) return;
+    const currentMgmt = mgmtUsers.find((member) => member.management_id === user.management_id);
+    if (!currentMgmt?.email || pendingScorelists.length === 0) return;
+
+    const reminderKey = `mgmt-scorelist-reminders:${user.management_id}`;
+    const stored = JSON.parse(localStorage.getItem(reminderKey) || '{}') as Record<string, number>;
+
+    pendingScorelists.forEach((scorelist) => {
+      const lastSent = stored[scorelist.scorelist_id] || 0;
+      if (Date.now() - lastSent < 1000 * 60 * 60 * 6) return;
+      sendScorelistReminderEmail({
+        to: currentMgmt.email,
+        approverName: currentMgmt.name,
+        scorelistId: scorelist.scorelist_id,
+        stageLabel: stageLabels[designationToStage[user.designation || ''] || 'draft'] || 'Pending approval',
+        pendingSince: scorelist.generated_at,
+      }).catch(console.warn);
+      stored[scorelist.scorelist_id] = Date.now();
+    });
+
+    localStorage.setItem(reminderKey, JSON.stringify(stored));
+  }, [isManagement, mgmtUsers, pendingScorelists, user?.designation, user?.management_id]);
 
   const signScorelist = async (scorelist: DigitalScorelist, comment?: string) => {
     if (!isManagement || !user?.management_id) return;
@@ -192,19 +216,35 @@ const ManagementPage = () => {
     logAudit(user.management_id || user.username, 'send_management_notice', 'message', msg.id, JSON.stringify({ to: msgTo, subject: msgSubject, bodyLength: msgBody.length, actorDesignation: user.designation || '' }));
 
     // Email notification to players
-    if (msgTo !== 'all') {
-      try {
-        const [links, prefs] = await Promise.all([v2api.getEmailLinks(), v2api.getNotificationPrefs()]);
-        const link = links.find(l => l.user_id === msgTo && l.is_verified && l.email);
+    try {
+      const [links, prefs] = await Promise.all([v2api.getEmailLinks(), v2api.getNotificationPrefs()]);
+      if (msgTo === 'all') {
+        links
+          .filter((link) => link.is_verified && link.email)
+          .forEach((link) => {
+            const pref = prefs.find((entry) => entry.user_id === link.user_id);
+            if (pref && !pref.announcements) return;
+            const playerName = players.find((player) => player.player_id === link.user_id)?.name || 'Player';
+            sendMessageNotificationEmail({
+              to: link.email,
+              playerName,
+              senderName: user.name || user.username,
+              senderDesignation: user.designation,
+              subject: msgSubject,
+              bodyPreview: msgBody,
+            }).catch(console.warn);
+          });
+      } else {
+        const link = links.find((entry) => entry.user_id === msgTo && entry.is_verified && entry.email);
         if (link) {
-          const pref = prefs.find(p => p.user_id === msgTo);
+          const pref = prefs.find((entry) => entry.user_id === msgTo);
           if (!pref || pref.announcements) {
-            const playerName = players.find(p => p.player_id === msgTo)?.name || 'Player';
+            const playerName = players.find((player) => player.player_id === msgTo)?.name || 'Player';
             sendMessageNotificationEmail({ to: link.email, playerName, senderName: user.name || user.username, senderDesignation: user.designation, subject: msgSubject, bodyPreview: msgBody }).catch(console.warn);
           }
         }
-      } catch {}
-    }
+      }
+    } catch {}
 
     // Notify admin
     const adminRecipient = getAdminNotificationRecipient();
@@ -243,6 +283,40 @@ const ManagementPage = () => {
             <SecurityShieldBadge label="Governance Portal" variant="certified" />
             <SessionFingerprint />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-primary/20">
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Pending approvals</p>
+              <p className="mt-1 font-display text-3xl font-bold text-primary">{pendingScorelists.length}</p>
+              <p className="text-xs text-muted-foreground">Items currently waiting for your signature or review.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Certified scorelists</p>
+              <p className="mt-1 font-display text-3xl font-bold">{scorelists.filter((item) => item.locked).length}</p>
+              <p className="text-xs text-muted-foreground">Official documents already locked in the certification chain.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Leadership</p>
+              <p className="mt-1 font-display text-3xl font-bold">{leadership.length}</p>
+              <p className="text-xs text-muted-foreground">Executive governance members available for escalations.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Governance traffic</p>
+              <p className="mt-1 font-display text-3xl font-bold">{myMessages.length}</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">Integrity hash</span>
+                <DataIntegrityBadge data={`${user.management_id}:${pendingScorelists.length}:${myMessages.length}:${scorelists.length}`} label="Governance board hash" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {isManagement && (

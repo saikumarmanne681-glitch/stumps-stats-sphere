@@ -12,9 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trophy, Calendar, MapPin, Users, TrendingUp } from "lucide-react";
+import { Trophy, Calendar, MapPin, Users, TrendingUp, Shield, ExternalLink, Lock } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
+import { SessionFingerprint, DataIntegrityBadge, SecurityShieldBadge } from "@/components/SecurityBadge";
 
 const Home = () => {
   const { players, tournaments, seasons, matches, batting, bowling, announcements, loading } = useData();
@@ -97,6 +98,13 @@ const Home = () => {
                 {t.name} • {t.format}
               </Badge>
             ))}
+          </div>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <SecurityShieldBadge label="Public Secure Portal" variant="certified" />
+            <span className="inline-flex items-center gap-1 text-primary-foreground/70 text-xs">
+              <Lock className="h-3 w-3" /> Live updates, certified scorelists, and filtered standings.
+            </span>
+            <SessionFingerprint />
           </div>
         </div>
       </section>
@@ -195,12 +203,30 @@ const Home = () => {
                         {format(new Date(season.start_date), "dd MMM")} – {format(new Date(season.end_date), "dd MMM yyyy")}
                       </p>
                     )}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border bg-muted/20 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quick access</p>
+                          <p className="text-sm font-medium">Filtered leaderboard and official tournament hub</p>
+                        </div>
+                        <Shield className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <DataIntegrityBadge data={`${season.season_id}:${season.tournament_id}:${season.year}:${totalMatches}`} label="Season view hash" />
+                        <Badge variant="outline" className="text-[10px]">{tournament?.format || "League"}</Badge>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <Button variant="outline" size="sm" asChild>
                         <Link to={`/leaderboards?tournament=${season.tournament_id}&season=${season.season_id}`}>View Standings →</Link>
                       </Button>
                       <Button variant="secondary" size="sm" asChild>
                         <Link to={`/tournament/${season.tournament_id}`}>Tournament Page</Link>
+                      </Button>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to={`/tournament/${season.tournament_id}#season-${season.season_id}`}>
+                          Open Season Hub <ExternalLink className="h-3 w-3" />
+                        </Link>
                       </Button>
                     </div>
                   </CardContent>

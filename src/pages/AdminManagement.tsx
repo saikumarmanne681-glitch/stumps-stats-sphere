@@ -119,6 +119,13 @@ const AdminManagement = () => {
           </Dialog>
         </div>
 
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card><CardContent className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Total users</p><p className="mt-1 text-3xl font-bold">{users.length}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Active</p><p className="mt-1 text-3xl font-bold text-primary">{users.filter((entry) => entry.status === 'active').length}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Signing roles</p><p className="mt-1 text-3xl font-bold">{users.filter((entry) => ['President', 'Vice President', 'Tournament Director', 'Match Referee', 'Scoring Official'].includes(entry.designation)).length}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Avg authority</p><p className="mt-1 text-3xl font-bold">{users.length ? (users.reduce((sum, entry) => sum + Number(entry.authority_level || 0), 0) / users.length).toFixed(1) : '0.0'}</p></CardContent></Card>
+        </div>
+
         <Card>
           <CardContent className="p-0">
             <Table>

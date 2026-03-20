@@ -13,6 +13,7 @@ import { SupportTicket, SupportMessage, SupportCSAT, SLA_CONFIG, ManagementUser 
 import { generateId } from '@/lib/utils';
 import { Loader2, Plus, Send, Star, CalendarClock } from 'lucide-react';
 import { resolveSupportActor } from '@/lib/supportNotifications';
+import { getAdminNotificationRecipient, sendAdminCommunicationEmail, sendSupportTicketCreatedEmail } from '@/lib/mailer';
 
 const CATEGORIES = ['Account', 'Technical', 'Scorecard', 'Tournament', 'General', 'Bug Report'];
 
@@ -88,7 +89,15 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
       closed_at: '',
     };
     await v2api.addTicket(ticket);
-    logAudit(playerId, 'create_ticket', 'support_ticket', ticket.ticket_id);
+    logAudit(playerId, 'create_ticket', 'support_ticket', ticket.ticket_id, JSON.stringify({
+      subject: ticket.subject,
+      priority: ticket.priority,
+      category: ticket.category,
+      attachmentProvided: Boolean(ticket.attachment_url),
+      firstResponseDue: ticket.first_response_due,
+      resolutionDue: ticket.resolution_due,
+    }));
+    await notifyTicketCreation(ticket);
     setShowCreate(false);
     setNewSubject('');
     setNewDescription('');
@@ -113,6 +122,25 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
     });
     if (selectedTicket.status === 'waiting_for_user') {
       await v2api.updateTicket({ ...selectedTicket, status: 'in_progress' });
+    }
+    logAudit(playerId, 'reply_ticket_message', 'support_ticket', selectedTicket.ticket_id, JSON.stringify({
+      replyLength: replyText.trim().length,
+      previousStatus: selectedTicket.status,
+      nextStatus: selectedTicket.status === 'waiting_for_user' ? 'in_progress' : selectedTicket.status,
+    }));
+    const adminRecipient = getAdminNotificationRecipient();
+    if (adminRecipient) {
+      sendAdminCommunicationEmail({
+        to: adminRecipient,
+        title: `Player replied on support ticket • ${selectedTicket.ticket_id}`,
+        summary: 'A player added a new support reply.',
+        detailLines: [
+          `Ticket ID: ${selectedTicket.ticket_id}`,
+          `Player ID: ${playerId}`,
+          `Subject: ${selectedTicket.subject}`,
+          `Reply preview: ${replyText.trim().slice(0, 180)}`,
+        ],
+      }).catch(console.warn);
     }
     setReplyText('');
     setSending(false);
@@ -142,6 +170,42 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
   const getAssigneeLabel = (id: string) => {
     if (!id) return 'Unassigned';
     return resolveSupportActor(id, managementUsers).name;
+  };
+
+  const notifyTicketCreation = async (ticket: SupportTicket) => {
+    try {
+      const [links, prefs] = await Promise.all([v2api.getEmailLinks(), v2api.getNotificationPrefs()]);
+      const linkedEmail = links.find((entry) => entry.user_id === playerId && entry.is_verified && entry.email);
+      const pref = prefs.find((entry) => entry.user_id === playerId);
+      if (linkedEmail?.email && (!pref || pref.support_updates)) {
+        await sendSupportTicketCreatedEmail({
+          to: linkedEmail.email,
+          userName: 'Player',
+          ticketId: ticket.ticket_id,
+          subjectLine: ticket.subject,
+          priority: ticket.priority,
+          category: ticket.category,
+        });
+      }
+    } catch (error) {
+      console.warn('Unable to send player support creation email', error);
+    }
+
+    const adminRecipient = getAdminNotificationRecipient();
+    if (adminRecipient) {
+      sendAdminCommunicationEmail({
+        to: adminRecipient,
+        title: `New support ticket created • ${ticket.ticket_id}`,
+        summary: 'A player created a new support request that may need admin visibility.',
+        detailLines: [
+          `Ticket ID: ${ticket.ticket_id}`,
+          `Player ID: ${ticket.created_by_user_id}`,
+          `Subject: ${ticket.subject}`,
+          `Priority: ${ticket.priority}`,
+          `Category: ${ticket.category}`,
+        ],
+      }).catch(console.warn);
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -179,7 +243,7 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
                 <Label>Attachment URL (optional)</Label>
                 <Input value={newAttachment} onChange={(e) => setNewAttachment(e.target.value)} placeholder="https://..." />
               </div>
-              <Button className="w-full" onClick={handleCreate} disabled={sending || !newSubject.trim() || !newDescription.trim()}>{sending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}Create Ticket</Button>
+              <Button className="w-full" onClick={handleCreate} disabled={sending || !newSubject.trim() || !newDescription.trim()} loading={sending} loadingText="Creating ticket and notifying support..."><Plus className="h-4 w-4 mr-1" />Create Ticket</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -241,7 +305,7 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
               {selectedTicket.status !== 'closed' && (
                 <div className="flex gap-2">
                   <Textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Reply to support team..." className="flex-1 min-h-[70px]" />
-                  <Button onClick={handleReply} disabled={sending || !replyText.trim()}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
+                  <Button onClick={handleReply} disabled={sending || !replyText.trim()} loading={sending} loadingText="Sending update..."><Send className="h-4 w-4" /></Button>
                 </div>
               )}
 

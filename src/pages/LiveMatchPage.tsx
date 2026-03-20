@@ -12,16 +12,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/googleSheets';
-
-function calcTeamScore(batting: any[], team: string) {
-  const rows = batting.filter((b: any) => b.team === team);
-  if (rows.length === 0) return { runs: 0, wkts: 0, overs: '0.0' };
-  const runs = rows.reduce((s: number, b: any) => s + (b.runs || 0), 0);
-  const wkts = rows.filter((b: any) => b.how_out && b.how_out !== 'not out' && b.how_out !== '').length;
-  const balls = rows.reduce((s: number, b: any) => s + (b.balls || 0), 0);
-  const overs = Math.floor(balls / 6) + (balls % 6) / 10;
-  return { runs, wkts, overs: overs.toFixed(1) };
-}
+import { getTeamScoreSummary } from '@/lib/liveScoring';
 
 const LiveMatchPage = () => {
   const { matches, batting, bowling, players, tournaments, seasons } = useData();
@@ -115,8 +106,8 @@ const LiveMatchPage = () => {
 
     const teamABatting = matchBatting.filter((b) => b.team === match.team_a);
     const teamBBatting = matchBatting.filter((b) => b.team === match.team_b);
-    const liveAScore = (() => { const s = calcTeamScore(matchBatting, match.team_a); return `${s.runs}/${s.wkts} (${s.overs})`; })();
-    const liveBScore = (() => { const s = calcTeamScore(matchBatting, match.team_b); return `${s.runs}/${s.wkts} (${s.overs})`; })();
+    const liveAScore = getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score).display || '0/0 (0.0)';
+    const liveBScore = getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score).display || '0/0 (0.0)';
     const aScore = isLive
       ? (teamABatting.length > 0 ? liveAScore : (match.team_a_score || liveAScore))
       : (match.team_a_score || liveAScore);

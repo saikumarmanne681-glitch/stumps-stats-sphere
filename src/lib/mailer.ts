@@ -295,3 +295,60 @@ export async function sendScorelistStatusEmailToAdmin(params: {
   `);
   return sendSystemEmail({ to: params.to, subject: `Scorelist Update: ${params.scorelistId} → ${params.stage}`, htmlBody });
 }
+
+export async function sendScorelistReminderEmail(params: {
+  to: string;
+  approverName: string;
+  scorelistId: string;
+  stageLabel: string;
+  pendingSince?: string;
+}) {
+  const htmlBody = cardLayout(`
+    <p style="margin:0 0 8px;font-size:16px;">Hello ${params.approverName},</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">This is a reminder that a scorelist is still waiting for your approval.</p>
+    <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 6px;"><strong>Scorelist ID:</strong> <span style="font-family:monospace">${params.scorelistId}</span></p>
+      <p style="margin:0 0 6px;"><strong>Pending Stage:</strong> ${params.stageLabel}</p>
+      ${params.pendingSince ? `<p style="margin:0;"><strong>Pending Since:</strong> ${params.pendingSince}</p>` : ''}
+    </div>
+    <p style="margin:16px 0 0;color:#374151;">Please visit the management board to review, sign, or comment on the scorelist.</p>
+  `);
+  return sendSystemEmail({ to: params.to, subject: `Reminder: scorelist pending your approval • ${params.scorelistId}`, htmlBody, fromName: 'Cricket Club Approvals' });
+}
+
+export async function sendSupportTicketCreatedEmail(params: {
+  to: string;
+  userName?: string;
+  ticketId: string;
+  subjectLine: string;
+  priority: string;
+  category: string;
+}) {
+  const htmlBody = cardLayout(`
+    <p style="margin:0 0 8px;font-size:16px;">Hello ${params.userName || 'Player'},</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">Your support ticket has been created successfully. Our support and management teams will keep you updated at every important stage.</p>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 6px;"><strong>Ticket ID:</strong> <span style="font-family:monospace">${params.ticketId}</span></p>
+      <p style="margin:0 0 6px;"><strong>Subject:</strong> ${params.subjectLine}</p>
+      <p style="margin:0 0 6px;"><strong>Category:</strong> ${params.category}</p>
+      <p style="margin:0;"><strong>Priority:</strong> ${params.priority}</p>
+    </div>
+    <p style="margin:16px 0 0;color:#374151;">You can track progress and reply from your player dashboard.</p>
+  `);
+  return sendSystemEmail({ to: params.to, subject: `Support ticket created • ${params.ticketId}`, htmlBody, fromName: 'Cricket Club Concierge Support' });
+}
+
+export async function sendAdminCommunicationEmail(params: {
+  to: string;
+  title: string;
+  summary: string;
+  detailLines?: string[];
+}) {
+  const detailHtml = (params.detailLines || []).map((line) => `<li style="margin:6px 0;">${line}</li>`).join('');
+  const htmlBody = cardLayout(`
+    <p style="margin:0 0 8px;font-size:16px;">Admin Notification,</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">${params.summary}</p>
+    ${detailHtml ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:14px;padding:16px;"><ul style="margin:0 0 0 18px;padding:0;">${detailHtml}</ul></div>` : ''}
+  `);
+  return sendSystemEmail({ to: params.to, subject: params.title, htmlBody, fromName: 'Cricket Club Admin Alerts' });
+}

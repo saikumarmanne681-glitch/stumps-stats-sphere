@@ -33,6 +33,13 @@ export function AdminAuditLog() {
   };
 
   const eventTypes = [...new Set(events.map(e => e.event_type))];
+  const parseMetadata = (value: string) => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  };
 
   const filtered = events.filter(e => {
     if (filterType !== 'all' && e.event_type !== filterType) return false;
@@ -85,7 +92,16 @@ export function AdminAuditLog() {
                   <TableCell><Badge variant="outline" className="text-xs">{evt.event_type}</Badge></TableCell>
                   <TableCell className="text-xs">{evt.entity_type}</TableCell>
                   <TableCell className="font-mono text-xs max-w-[100px] truncate">{evt.entity_id}</TableCell>
-                  <TableCell className="text-xs max-w-[150px] truncate">{evt.metadata}</TableCell>
+                  <TableCell className="text-xs max-w-[320px]">
+                    <div className="space-y-1">
+                      <p className="truncate font-mono text-[10px]">{evt.event_id}</p>
+                      <pre className="whitespace-pre-wrap break-words rounded bg-muted/40 p-2 text-[10px] leading-relaxed">
+                        {typeof parseMetadata(evt.metadata) === 'string'
+                          ? String(parseMetadata(evt.metadata))
+                          : JSON.stringify(parseMetadata(evt.metadata), null, 2)}
+                      </pre>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {paged.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No audit events</TableCell></TableRow>}

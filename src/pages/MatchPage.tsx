@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
@@ -12,33 +12,60 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { PageLoader } from '@/components/LoadingOverlay';
 import { SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
-
-function calcTeamScore(batting: any[], team: string) {
-  const rows = batting.filter((b: any) => b.team === team);
-  if (rows.length === 0) return '-';
-  const runs = rows.reduce((s: number, b: any) => s + b.runs, 0);
-  const wkts = rows.filter((b: any) => b.how_out && b.how_out !== 'not out' && b.how_out !== '').length;
-  const balls = rows.reduce((s: number, b: any) => s + b.balls, 0);
-  const overs = Math.floor(balls / 6) + (balls % 6) / 10;
-  return `${runs}/${wkts} (${overs.toFixed(1)})`;
-}
+import { api } from '@/lib/googleSheets';
+import { BattingScorecard, BowlingScorecard } from '@/lib/types';
+import { getTeamScoreSummary } from '@/lib/liveScoring';
 
 const MatchPage = () => {
   const { match_id } = useParams();
   const { matches, batting, bowling, players, tournaments, seasons, loading } = useData();
   const { toast } = useToast();
   const [sharing, setSharing] = useState(false);
+  const [liveBatting, setLiveBatting] = useState<BattingScorecard[]>([]);
+  const [liveBowling, setLiveBowling] = useState<BowlingScorecard[]>([]);
+  const [liveRefreshing, setLiveRefreshing] = useState(false);
 
   const match = matches.find(m => m.match_id === match_id);
   const tournament = match ? tournaments.find(t => t.tournament_id === match.tournament_id) : null;
   const season = match ? seasons.find(s => s.season_id === match.season_id) : null;
-  const matchBatting = useMemo(() => batting.filter(b => b.match_id === match_id), [batting, match_id]);
-  const matchBowling = useMemo(() => bowling.filter(b => b.match_id === match_id), [bowling, match_id]);
+  useEffect(() => {
+    setLiveBatting(batting.filter((entry) => entry.match_id === match_id));
+    setLiveBowling(bowling.filter((entry) => entry.match_id === match_id));
+  }, [batting, bowling, match_id]);
+
+  useEffect(() => {
+    if (!match || match.status !== 'live') return;
+
+    let active = true;
+    const pullLiveData = async () => {
+      setLiveRefreshing(true);
+      try {
+        const [latestBatting, latestBowling] = await Promise.all([api.getBattingScorecard(), api.getBowlingScorecard()]);
+        if (!active) return;
+        setLiveBatting(latestBatting.filter((entry) => entry.match_id === match.match_id));
+        setLiveBowling(latestBowling.filter((entry) => entry.match_id === match.match_id));
+      } catch (error) {
+        console.warn('Unable to refresh live match score data', error);
+      } finally {
+        if (active) setLiveRefreshing(false);
+      }
+    };
+
+    pullLiveData();
+    const intervalId = window.setInterval(pullLiveData, 8000);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [match]);
+
+  const matchBatting = liveBatting;
+  const matchBowling = liveBowling;
   const mom = match ? players.find(p => p.player_id === match.man_of_match) : null;
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
-  const teamAScore = match?.team_a_score || calcTeamScore(matchBatting, match?.team_a || '');
-  const teamBScore = match?.team_b_score || calcTeamScore(matchBatting, match?.team_b || '');
+  const teamAScore = match ? getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score) : null;
+  const teamBScore = match ? getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score) : null;
 
   const topBatsman = useMemo(() => {
     if (matchBatting.length === 0) return null;
@@ -176,18 +203,23 @@ const MatchPage = () => {
             <div className="grid grid-cols-3 gap-4 my-4">
               <div className="text-center">
                 <p className="font-display text-xl font-bold">{match.team_a}</p>
-                <p className="text-3xl font-bold text-primary">{teamAScore}</p>
+                <p className="text-3xl font-bold text-primary">{teamAScore?.display || '0/0 (0.0)'}</p>
               </div>
               <div className="flex items-center justify-center">
                 <span className="text-2xl font-display font-bold text-muted-foreground">VS</span>
               </div>
               <div className="text-center">
                 <p className="font-display text-xl font-bold">{match.team_b}</p>
-                <p className="text-3xl font-bold text-primary">{teamBScore}</p>
+                <p className="text-3xl font-bold text-primary">{teamBScore?.display || '0/0 (0.0)'}</p>
               </div>
             </div>
 
             {match.result && <p className="text-center font-semibold text-primary text-lg">{match.result}</p>}
+            {match.status === 'live' && (
+              <p className="text-center text-xs text-muted-foreground">
+                {liveRefreshing ? 'Refreshing live score data, please wait...' : 'Live score data auto-refreshes every few seconds.'}
+              </p>
+            )}
 
             <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{format(new Date(match.date), 'dd MMM yyyy')}</span>
@@ -202,7 +234,7 @@ const MatchPage = () => {
               )}
             </div>
             <div className="flex justify-center mt-2">
-              <DataIntegrityBadge data={JSON.stringify({ id: match.match_id, a: teamAScore, b: teamBScore })} label="Score Hash" />
+              <DataIntegrityBadge data={JSON.stringify({ id: match.match_id, a: teamAScore?.display, b: teamBScore?.display })} label="Score Hash" />
             </div>
           </CardContent>
         </Card>
