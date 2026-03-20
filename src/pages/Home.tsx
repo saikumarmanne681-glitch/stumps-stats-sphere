@@ -345,7 +345,16 @@ const Home = () => {
         </section>
       </main>
 
-      <MatchDetailDialog match={selectedMatch} open={detailOpen} onOpenChange={setDetailOpen} />
+      <MatchDetailDialog
+        match={selectedMatch}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        batting={batting}
+        bowling={bowling}
+        players={players}
+        tournament={selectedMatch ? tournaments.find((tournament) => tournament.tournament_id === selectedMatch.tournament_id) : undefined}
+        season={selectedMatch ? seasons.find((season) => season.season_id === selectedMatch.season_id) : undefined}
+      />
     </div>
   );
 };
