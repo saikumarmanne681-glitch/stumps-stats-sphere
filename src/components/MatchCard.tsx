@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Match, Tournament, Player, BattingScorecard, Season } from "@/lib/types";
 import { Calendar, MapPin, Award } from "lucide-react";
-import { format } from "date-fns";
+import { formatSheetDate } from "@/lib/dataUtils";
 import { getTeamScoreSummary } from "@/lib/liveScoring";
 
 interface MatchCardProps {
@@ -26,6 +26,7 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
   const matchBatting = batting.filter((b) => b.match_id === match.match_id);
   const teamAScore = getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score);
   const teamBScore = getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score);
+  const matchDateLabel = formatSheetDate(match.date, "dd MMM yyyy", "Date TBD");
 
   return (
     <Card
@@ -76,7 +77,7 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
-            {format(new Date(match.date), "dd MMM yyyy")}
+            {matchDateLabel}
           </span>
           {match.venue && (
             <span className="flex items-center gap-1">

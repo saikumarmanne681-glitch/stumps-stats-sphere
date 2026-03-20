@@ -6,11 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Match, BattingScorecard, BowlingScorecard, Player, Tournament, Season } from '@/lib/types';
 import { Calendar, MapPin, Award, AlertTriangle, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatSheetDate } from '@/lib/dataUtils';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
@@ -91,6 +90,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
 
   const teamAScore = match.team_a_score || calcTeamScore(matchBatting, match.team_a);
   const teamBScore = match.team_b_score || calcTeamScore(matchBatting, match.team_b);
+  const matchDateLabel = formatSheetDate(match.date, 'dd MMM yyyy', 'Date TBD');
 
   const handleReportIssue = async () => {
     if (!reportSubject.trim() || !reportDesc.trim() || !user) return;
@@ -219,7 +219,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{format(new Date(match.date), 'dd MMM yyyy')}</span>
+            <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{matchDateLabel}</span>
             {match.venue && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{match.venue}</span>}
             {match.match_stage && <Badge className="bg-accent text-accent-foreground text-xs">{match.match_stage}</Badge>}
             <Badge variant={match.status === 'completed' ? 'default' : 'secondary'}>{match.status.toUpperCase()}</Badge>

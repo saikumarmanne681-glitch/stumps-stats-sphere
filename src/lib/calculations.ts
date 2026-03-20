@@ -1,3 +1,4 @@
+import { compareSheetDatesDesc } from './dataUtils';
 import { BattingScorecard, BowlingScorecard, Match } from './types';
 
 export function calcBattingStats(batting: BattingScorecard[]) {
@@ -72,7 +73,7 @@ export function getTopWicketTakers(bowling: BowlingScorecard[], limit = 10) {
 
 export function getLatestMatches(matches: Match[], limit = 5) {
   return [...matches]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => compareSheetDatesDesc(a.date, b.date))
     .slice(0, limit);
 }
 
