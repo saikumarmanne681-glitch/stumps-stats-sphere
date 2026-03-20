@@ -12,16 +12,18 @@ import { v2api } from '@/lib/v2api';
 import { DigitalScorelist } from '@/lib/v2types';
 import { SecurityShieldBadge, DataIntegrityBadge, SecurityWatermark } from '@/components/SecurityBadge';
 import { PageLoader } from '@/components/LoadingOverlay';
+import { findTournamentById, normalizeId } from '@/lib/dataUtils';
 
 const TournamentPage = () => {
   const { id } = useParams();
   const { tournaments, seasons, matches, batting, bowling, players, loading } = useData();
   const [officialScorelists, setOfficialScorelists] = useState<DigitalScorelist[]>([]);
   const [scorelistsLoading, setScorelistsLoading] = useState(true);
+  const tournamentId = normalizeId(id);
 
-  const tournament = tournaments.find(t => t.tournament_id === id);
-  const tournamentSeasons = seasons.filter(s => s.tournament_id === id).sort((a, b) => b.year - a.year);
-  const tournamentMatches = matches.filter(m => m.tournament_id === id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const tournament = findTournamentById(tournamentId, tournaments, seasons, matches);
+  const tournamentSeasons = seasons.filter(s => normalizeId(s.tournament_id) === tournamentId).sort((a, b) => b.year - a.year);
+  const tournamentMatches = matches.filter(m => normalizeId(m.tournament_id) === tournamentId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   useEffect(() => {
     let active = true;
@@ -30,13 +32,13 @@ const TournamentPage = () => {
       if (!active) return;
       const filtered = items.filter((s) => {
         const status = String(s.certification_status || '').toLowerCase();
-        return s.tournament_id === id && !!s.locked && status === 'official_certified';
+        return normalizeId(s.tournament_id) === tournamentId && !!s.locked && status === 'official_certified';
       });
       setOfficialScorelists(filtered);
       setScorelistsLoading(false);
     });
     return () => { active = false; };
-  }, [id]);
+  }, [tournamentId]);
 
   const getPlayerName = (pid: string) => players.find(p => p.player_id === pid)?.name || pid;
 

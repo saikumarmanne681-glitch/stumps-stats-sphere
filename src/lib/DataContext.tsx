@@ -70,33 +70,52 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
-    try {
-      const [players, tournaments, seasons, matches, batting, bowling, announcements, messages] = await Promise.all([
-        api.getPlayers(),
-        api.getTournaments(),
-        api.getSeasons(),
-        api.getMatches(),
-        api.getBattingScorecard(),
-        api.getBowlingScorecard(),
-        api.getAnnouncements(),
-        api.getMessages(),
-      ]);
-      setState({
-        players,
-        tournaments,
-        seasons,
-        matches,
-        batting,
-        bowling,
-        announcements,
-        messages,
+    const results = await Promise.allSettled([
+      api.getPlayers(),
+      api.getTournaments(),
+      api.getSeasons(),
+      api.getMatches(),
+      api.getBattingScorecard(),
+      api.getBowlingScorecard(),
+      api.getAnnouncements(),
+      api.getMessages(),
+    ]);
+
+    setState((prev) => {
+      const nextState: DataState = {
+        ...prev,
         loading: false,
         lastRefresh: new Date(),
-      });
-    } catch (err) {
-      console.error("Data refresh failed:", err);
-      setState((prev) => ({ ...prev, loading: false }));
-    }
+      };
+
+      const [players, tournaments, seasons, matches, batting, bowling, announcements, messages] = results;
+
+      if (players.status === "fulfilled") nextState.players = players.value;
+      else console.error("Data refresh failed for players:", players.reason);
+
+      if (tournaments.status === "fulfilled") nextState.tournaments = tournaments.value;
+      else console.error("Data refresh failed for tournaments:", tournaments.reason);
+
+      if (seasons.status === "fulfilled") nextState.seasons = seasons.value;
+      else console.error("Data refresh failed for seasons:", seasons.reason);
+
+      if (matches.status === "fulfilled") nextState.matches = matches.value;
+      else console.error("Data refresh failed for matches:", matches.reason);
+
+      if (batting.status === "fulfilled") nextState.batting = batting.value;
+      else console.error("Data refresh failed for batting:", batting.reason);
+
+      if (bowling.status === "fulfilled") nextState.bowling = bowling.value;
+      else console.error("Data refresh failed for bowling:", bowling.reason);
+
+      if (announcements.status === "fulfilled") nextState.announcements = announcements.value;
+      else console.error("Data refresh failed for announcements:", announcements.reason);
+
+      if (messages.status === "fulfilled") nextState.messages = messages.value;
+      else console.error("Data refresh failed for messages:", messages.reason);
+
+      return nextState;
+    });
   }, []);
 
   useEffect(() => {
