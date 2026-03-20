@@ -26,15 +26,15 @@ export function Leaderboard({ batting, bowling, players, filterMatchIds }: Leade
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card className="border-2 border-primary/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg font-display">
-            <Trophy className="h-5 w-5 text-accent" />
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <Card className="border-white/80 bg-white/70 shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base font-display">
+            <Trophy className="h-4 w-4 text-accent" />
             Top Run Scorers
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -52,7 +52,7 @@ export function Leaderboard({ batting, bowling, players, filterMatchIds }: Leade
                   </TableCell>
                   <TableCell className="font-medium">{getPlayerName(s.player_id)}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{matchCounts[s.player_id] || 0}</TableCell>
-                  <TableCell className="text-right font-bold">{s.runs}</TableCell>
+                  <TableCell className="text-right font-semibold">{s.runs}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -60,14 +60,14 @@ export function Leaderboard({ batting, bowling, players, filterMatchIds }: Leade
         </CardContent>
       </Card>
 
-      <Card className="border-2 border-primary/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg font-display">
-            <Target className="h-5 w-5 text-destructive" />
+      <Card className="border-white/80 bg-white/70 shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base font-display">
+            <Target className="h-4 w-4 text-destructive" />
             Top Wicket Takers
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -85,7 +85,7 @@ export function Leaderboard({ batting, bowling, players, filterMatchIds }: Leade
                   </TableCell>
                   <TableCell className="font-medium">{getPlayerName(s.player_id)}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{matchCounts[s.player_id] || 0}</TableCell>
-                  <TableCell className="text-right font-bold">{s.wickets}</TableCell>
+                  <TableCell className="text-right font-semibold">{s.wickets}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

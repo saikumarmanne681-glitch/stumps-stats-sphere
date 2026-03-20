@@ -25,7 +25,7 @@
     --border: 226 45% 86%;
     --input: 220 46% 89%;
     --ring: 258 82% 62%;
-    --radius: 1rem;
+    --radius: 0.85rem;
     --cricket-green: 163 76% 43%;
     --cricket-dark: 223 34% 22%;
     --cricket-gold: 36 100% 68%;
@@ -81,7 +81,9 @@
   }
   body {
     @apply min-h-screen bg-background text-foreground font-body;
-    background-image: linear-gradient(180deg, rgba(248,250,252,1), rgba(241,245,249,1));
+    background-image:
+      radial-gradient(circle at top, rgba(59, 130, 246, 0.10), transparent 28%),
+      linear-gradient(180deg, rgba(250,252,255,1), rgba(244,247,251,1));
     background-attachment: fixed;
   }
   h1, h2, h3, h4, h5, h6 {
@@ -240,30 +242,30 @@ button:active, [role="button"]:active {
 
 @layer components {
   .portal-hero {
-    @apply rounded-[1.75rem] border border-border bg-card p-5 shadow-sm sm:p-8;
+    @apply rounded-[1.5rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.90),rgba(255,255,255,0.78))] p-5 shadow-[0_22px_60px_-44px_rgba(15,23,42,0.20)] backdrop-blur-xl sm:p-6;
   }
 
   .portal-panel {
-    @apply rounded-[1.5rem] border border-border bg-card;
+    @apply rounded-[1.25rem] border border-white/70 bg-white/78 shadow-[0_18px_44px_-34px_rgba(15,23,42,0.18)] backdrop-blur-xl;
   }
 
   .portal-pill {
-    @apply w-fit rounded-full bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.28em] text-primary;
+    @apply w-fit rounded-full border border-primary/10 bg-primary/8 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.26em] text-primary;
   }
 
   .portal-label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.28em] text-muted-foreground;
+    @apply text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground;
   }
 
   .portal-stat-card {
-    @apply rounded-2xl border border-border bg-background p-4;
+    @apply rounded-[1.15rem] border border-white/80 bg-white/78 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)];
   }
 
   .portal-mini-card {
-    @apply rounded-2xl border border-border bg-muted/40 p-4;
+    @apply flex flex-col rounded-[1rem] border border-white/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.85))] p-3.5;
   }
 
   .portal-input {
-    @apply rounded-xl border-border bg-background shadow-none;
+    @apply rounded-xl border-white/80 bg-white/88 shadow-[0_10px_24px_-20px_rgba(15,23,42,0.16)];
   }
 }

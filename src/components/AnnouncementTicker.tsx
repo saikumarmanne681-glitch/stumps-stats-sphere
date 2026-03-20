@@ -13,7 +13,7 @@ export function AnnouncementTicker() {
 
   if (loading && activeAnnouncements.length === 0) {
     return (
-      <div className="border-b bg-muted/50 px-4 py-2 text-sm text-muted-foreground">
+      <div className="border-b border-white/50 bg-white/60 px-4 py-2 text-sm text-muted-foreground backdrop-blur-xl">
         Loading announcements, please wait...
       </div>
     );
@@ -24,45 +24,31 @@ export function AnnouncementTicker() {
   const tickerText = activeAnnouncements.map(a => `📢 ${a.title}: ${a.message}`).join('   ✦   ');
 
   return (
-    <div className="group relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary border-b border-primary/40">
-      {/* Animated background particles */}
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-accent/80 to-primary/90" />
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-0 left-1/4 w-32 h-32 bg-primary-foreground/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-24 h-24 bg-primary-foreground/10 rounded-full blur-2xl animate-pulse [animation-delay:1s]" />
-        <div className="absolute top-1/2 left-1/2 w-20 h-20 bg-primary-foreground/5 rounded-full blur-2xl animate-pulse [animation-delay:2s]" />
-      </div>
+    <div className="group relative overflow-hidden border-b border-primary/10 bg-[linear-gradient(90deg,rgba(239,246,255,0.95),rgba(255,255,255,0.92),rgba(248,250,252,0.95))]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_left,rgba(59,130,246,0.12),transparent_28%),radial-gradient(circle_at_right,rgba(125,211,252,0.14),transparent_30%)]" />
 
-      {/* Top shimmer line */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-foreground/30 to-transparent" />
-
-      <div className="relative flex items-center py-2.5">
-        {/* Enhanced tag */}
-        <div className="shrink-0 flex items-center gap-1.5 px-4 py-1.5 bg-primary-foreground/20 backdrop-blur-sm rounded-r-full mr-4 z-10 border-r border-primary-foreground/10">
-          <div className="relative">
-            <Volume2 className="h-3.5 w-3.5 text-primary-foreground" />
-            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 bg-primary-foreground rounded-full animate-ping opacity-75" />
-          </div>
-          <span className="text-primary-foreground font-display text-xs font-bold uppercase tracking-wider">Live</span>
-          <Badge className="bg-primary-foreground/20 text-primary-foreground text-[10px] h-4 px-1 border-none">
+      <div className="relative mx-auto flex max-w-7xl items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
+        <div className="shrink-0 flex items-center gap-1.5 rounded-full border border-primary/10 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary shadow-sm">
+          <Volume2 className="h-3.5 w-3.5" />
+          Live feed
+          <Badge className="h-4 border-none bg-primary/10 px-1.5 text-[10px] text-primary shadow-none">
             {activeAnnouncements.length}
           </Badge>
         </div>
 
-        {/* Ticker content */}
-        <div className="animate-ticker whitespace-nowrap text-primary-foreground font-body text-sm font-semibold drop-shadow-sm [animation-duration:40s] group-hover:[animation-play-state:paused]">
-          <span className="inline-flex items-center gap-1">
+        <div className="animate-ticker whitespace-nowrap text-sm font-medium text-foreground/80 [animation-duration:44s] group-hover:[animation-play-state:paused]">
+          <span className="inline-flex items-center gap-1.5">
             {tickerText}
-            <ChevronRight className="h-3 w-3 inline opacity-50" />
+            <ChevronRight className="h-3 w-3 inline opacity-40" />
             {tickerText}
           </span>
         </div>
 
-        <div className="ml-auto mr-3 hidden items-center gap-2 md:flex">
-          <Badge className="border-none bg-primary-foreground/15 text-primary-foreground text-[10px]">
-            <Sparkles className="mr-1 h-3 w-3" /> Priority Feed
+        <div className="ml-auto hidden items-center gap-2 md:flex">
+          <Badge className="border-none bg-primary/8 text-[10px] text-primary shadow-none">
+            <Sparkles className="mr-1 h-3 w-3" /> Curated
           </Badge>
-          <Badge className="border-none bg-primary-foreground/15 text-primary-foreground text-[10px]">
+          <Badge className="border-none bg-emerald-500/10 text-[10px] text-emerald-700 shadow-none">
             <Shield className="mr-1 h-3 w-3" /> Verified
           </Badge>
           <DataIntegrityBadge
@@ -71,9 +57,6 @@ export function AnnouncementTicker() {
           />
         </div>
       </div>
-
-      {/* Bottom shimmer line */}
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-foreground/20 to-transparent" />
     </div>
   );
 }
