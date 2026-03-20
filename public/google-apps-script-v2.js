@@ -24,6 +24,14 @@
 // AUDIT_EVENTS: ["event_id","actor_user","event_type","entity_type","entity_id","metadata","timestamp"],
 // MANAGEMENT_USERS: ["management_id","name","email","phone","designation","role","authority_level","signature_image","status","created_at","username","password"],
 // MATCH_TIMELINE: ["event_id","match_id","over","event_type","description","player_id","team","timestamp"],
+// elections: ["election_id","title","description","roles_json","eligible_roles_json","status","nomination_start","nomination_end","voting_start","voting_end","created_by","created_at","results_published_at"],
+// votes: ["vote_id","election_id","role_name","voter_user_id","voter_name","nominee_user_id","nominee_name","submitted_at","immutable_hash"],
+// nominations: ["nomination_id","election_id","role_name","nominee_user_id","nominee_name","proposer_user_id","proposer_name","manifesto","status","reviewed_by","reviewed_at","created_at"],
+// election_terms: ["assignment_id","election_id","role_name","user_id","user_name","term_start","term_end","assigned_at","source_vote_count"],
+// tournaments_v2: ["tournament_id","name","format","venue","start_date","end_date","registration_deadline","created_by","created_at","status","notes"],
+// registrations: ["registration_id","tournament_id","team_name","contact_name","contact_email","contact_phone","players_json","submitted_by","submitted_by_name","submitted_at","status","reviewed_by","reviewed_at","review_notes"],
+// schedules: ["schedule_id","tournament_id","tournament_name","version_number","matches_json","created_by","created_by_name","timestamp","change_log","status","parent_schedule_id","hash","rejection_reason"],
+// approvals: ["approval_id","schedule_id","approver_id","approver_name","approver_role","decision","comments","timestamp"],
 //
 // Also add to getKeyColumn function:
 // SUPPORT_TICKETS: "ticket_id",
@@ -36,6 +44,14 @@
 // AUDIT_EVENTS: "event_id",
 // MANAGEMENT_USERS: "management_id",
 // MATCH_TIMELINE: "event_id",
+// elections: "election_id",
+// votes: "vote_id",
+// nominations: "nomination_id",
+// election_terms: "assignment_id",
+// tournaments_v2: "tournament_id",
+// registrations: "registration_id",
+// schedules: "schedule_id",
+// approvals: "approval_id",
 
 
 // OPTIONAL: Add action support to sync/update missing headers without seeding data:
