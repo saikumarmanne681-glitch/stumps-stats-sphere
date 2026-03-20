@@ -33,7 +33,7 @@ export function MatchCard({ match, tournament, season, players = [], batting = [
 
   return (
     <Card
-      className={`h-full border border-border bg-card shadow-none transition-all duration-200 ${isInteractive ? "cursor-pointer active:scale-[0.98] hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary/[0.03] focus-within:border-primary/60" : ""}`}
+      className={`h-full border border-white/80 bg-white/84 shadow-[0_16px_38px_-30px_rgba(15,23,42,0.16)] transition-all duration-200 ${isInteractive ? "cursor-pointer active:scale-[0.99] hover:-translate-y-0.5 hover:border-primary/35 hover:bg-primary/[0.03] focus-within:border-primary/60" : ""}`}
       onClick={onClick}
       role={isInteractive ? "button" : undefined}
       tabIndex={isInteractive ? 0 : undefined}
@@ -45,15 +45,15 @@ export function MatchCard({ match, tournament, season, players = [], batting = [
       } : undefined}
       aria-label={isInteractive ? `Open match details for ${match.team_a} vs ${match.team_b}` : undefined}
     >
-      <CardContent className="flex h-full flex-col gap-4 p-4 sm:p-5">
+      <CardContent className="flex h-full flex-col gap-3.5 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <span className="block text-xs font-mono text-muted-foreground">{match.match_id}</span>
-            {isInteractive && <span className="text-[11px] font-medium text-primary">Tap for full scorecard</span>}
+            <span className="block text-[11px] font-mono text-muted-foreground">{match.match_id}</span>
+            {isInteractive && <span className="text-[11px] font-medium text-primary">Open scorecard</span>}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-1">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
             {match.match_stage && (
-              <Badge variant="secondary" className="text-[10px] font-display">
+              <Badge variant="secondary" className="text-[10px] font-medium">
                 {match.match_stage}
               </Badge>
             )}
@@ -65,31 +65,31 @@ export function MatchCard({ match, tournament, season, players = [], batting = [
         </div>
 
         {tournament && (
-          <p className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wide">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {tournament.name} • {tournament.format}
             {season ? ` • ${season.year}` : ""}
           </p>
         )}
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <div className="text-center flex-1">
-            <span className="block font-display text-base font-semibold sm:text-lg">{match.team_a}</span>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5">
+          <div className="text-center">
+            <span className="block font-display text-[15px] font-semibold sm:text-base">{match.team_a}</span>
             {(teamAScore.display || match.status === "live") && (
-              <span className="text-sm font-bold text-primary">{teamAScore.display || "0/0 (0.0)"}</span>
+              <span className="text-sm font-semibold text-primary">{teamAScore.display || "0/0 (0.0)"}</span>
             )}
           </div>
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">vs</span>
-          <div className="text-center flex-1">
-            <span className="block font-display text-base font-semibold sm:text-lg">{match.team_b}</span>
+          <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-muted-foreground">vs</span>
+          <div className="text-center">
+            <span className="block font-display text-[15px] font-semibold sm:text-base">{match.team_b}</span>
             {(teamBScore.display || match.status === "live") && (
-              <span className="text-sm font-bold text-primary">{teamBScore.display || "0/0 (0.0)"}</span>
+              <span className="text-sm font-semibold text-primary">{teamBScore.display || "0/0 (0.0)"}</span>
             )}
           </div>
         </div>
 
-        {match.result && <p className="text-sm text-primary font-medium mb-2 text-center">{match.result}</p>}
+        {match.result && <p className="text-sm font-medium text-primary text-center">{match.result}</p>}
 
-        <div className="mt-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+        <div className="mt-auto flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {matchDateLabel}
@@ -102,16 +102,16 @@ export function MatchCard({ match, tournament, season, players = [], batting = [
           )}
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
           {mom ? (
-            <div className="flex items-center gap-1 text-xs text-accent">
+            <div className="flex items-center gap-1 text-[11px] text-accent">
               <Award className="h-3 w-3" />
               <span className="font-medium">MOM: {mom.name}</span>
             </div>
           ) : <span />}
           {isInteractive && (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
-              View details <ChevronRight className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+              Details <ChevronRight className="h-3 w-3" />
             </span>
           )}
         </div>

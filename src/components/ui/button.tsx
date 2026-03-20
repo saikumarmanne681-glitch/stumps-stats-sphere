@@ -6,22 +6,22 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:-translate-y-0.5 active:translate-y-0 shadow-[0_10px_30px_-18px_rgba(76,29,149,0.5)]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:-translate-y-0.5 active:translate-y-0 shadow-[0_14px_34px_-24px_rgba(15,23,42,0.28)]",
   {
     variants: {
       variant: {
-        default: "border border-primary/20 bg-gradient-to-r from-primary via-sky-500 to-primary text-primary-foreground hover:brightness-105",
+        default: "border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--primary)),rgba(96,165,250,0.92))] text-primary-foreground hover:brightness-105",
         destructive: "border border-destructive/20 bg-gradient-to-r from-destructive to-rose-400 text-destructive-foreground hover:brightness-105",
-        outline: "border border-primary/15 bg-white/80 text-foreground hover:bg-primary/5 hover:text-primary",
+        outline: "border border-border/80 bg-white/80 text-foreground hover:bg-primary/5 hover:text-primary",
         secondary: "border border-sky-200 bg-gradient-to-r from-sky-100 to-cyan-100 text-secondary-foreground hover:from-sky-200 hover:to-cyan-100",
         ghost: "bg-transparent text-foreground hover:bg-primary/10 hover:text-primary shadow-none",
         link: "text-primary underline-offset-4 shadow-none hover:underline",
       },
       size: {
-        default: "h-11 px-5 py-2.5",
-        sm: "h-9 px-4 text-xs",
-        lg: "h-12 px-8 text-base",
-        icon: "h-10 w-10 rounded-2xl",
+        default: "h-10 px-4 py-2",
+        sm: "h-8 px-3.5 text-xs",
+        lg: "h-11 px-6 text-sm",
+        icon: "h-9 w-9 rounded-xl",
       },
     },
     defaultVariants: {

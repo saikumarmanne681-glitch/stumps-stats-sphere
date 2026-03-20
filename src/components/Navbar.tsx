@@ -3,20 +3,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { ClipboardList, Database, Home, LayoutDashboard, LogIn, LogOut, Menu, Radio, Shield, Trophy, Users, Vote } from 'lucide-react';
+import { ClipboardList, Database, Home, LayoutDashboard, LogIn, LogOut, Menu, Radio, Shield, Sparkles, Trophy, Users, Vote } from 'lucide-react';
 
 export function Navbar() {
   const { user, logout, isAdmin, isPlayer, isManagement } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
-  const navButtonClass = 'justify-start rounded-full px-4 text-foreground hover:bg-primary/8 hover:text-primary';
+  const navButtonClass = 'justify-start rounded-full px-3.5 text-foreground/80 hover:bg-primary/8 hover:text-primary';
 
   const NavItems = ({ mobile = false }: { mobile?: boolean }) => {
     const close = () => mobile && setOpen(false);
 
     return (
-      <div className={mobile ? 'flex flex-col gap-2' : 'flex flex-wrap items-center gap-2'}>
+      <div className={mobile ? 'flex flex-col gap-1.5' : 'flex flex-wrap items-center gap-1.5'}>
         <Button variant="ghost" size="sm" className={navButtonClass} asChild onClick={close}>
           <Link to="/"><Home className="h-4 w-4" /> Home</Link>
         </Button>
@@ -88,14 +88,14 @@ export function Navbar() {
         )}
 
         {user && (
-          <div className={`flex items-center gap-2 ${mobile ? 'mt-4 border-t border-border pt-4' : 'ml-1'}`}>
-            <div className="rounded-full border border-border bg-muted px-3 py-1 text-sm text-muted-foreground">
+          <div className={`flex items-center gap-2 ${mobile ? 'mt-3 border-t border-border/70 pt-3' : 'ml-1 border-l border-border/60 pl-2'}`}>
+            <div className="rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs text-muted-foreground">
               Hi, <strong className="text-foreground">{user.name}</strong>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full text-foreground hover:bg-primary/8 hover:text-primary"
+              className="rounded-full text-foreground/80 hover:bg-primary/8 hover:text-primary"
               onClick={() => {
                 logout();
                 navigate('/');
@@ -111,17 +111,20 @@ export function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+    <nav className="sticky top-0 z-40 border-b border-white/50 bg-background/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">🏏</div>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,hsl(var(--primary)),rgba(125,211,252,0.95))] text-primary-foreground shadow-[0_14px_30px_-18px_rgba(37,99,235,0.6)]">🏏</div>
           <div className="min-w-0">
-            <p className="truncate font-display text-lg font-bold text-foreground">Stumps Stats Sphere</p>
-            <p className="truncate text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Cricket portal</p>
+            <p className="truncate font-display text-base font-semibold tracking-tight text-foreground">Stumps Stats Sphere</p>
+            <p className="truncate text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Cricket portal</p>
           </div>
         </Link>
 
-        <div className="hidden lg:flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2">
+        <div className="hidden lg:flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-2.5 py-2 shadow-[0_12px_30px_-24px_rgba(15,23,42,0.22)] backdrop-blur-xl">
+          <div className="flex items-center gap-2 rounded-full bg-primary/8 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-primary">
+            <Sparkles className="h-3.5 w-3.5" /> Refined UI
+          </div>
           <NavItems />
         </div>
 
@@ -132,7 +135,7 @@ export function Navbar() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[88vw] max-w-sm border-border bg-background pt-10">
+            <SheetContent side="right" className="w-[88vw] max-w-sm border-border/70 bg-background/95 pt-10 backdrop-blur-xl">
               <NavItems mobile />
             </SheetContent>
           </Sheet>
