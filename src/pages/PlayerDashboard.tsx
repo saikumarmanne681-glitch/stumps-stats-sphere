@@ -291,9 +291,15 @@ const PlayerDashboard = () => {
 
           {/* Enhanced Messages Tab */}
           <TabsContent value="messages" className="space-y-4 mt-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl font-bold flex items-center gap-2">📬 Messages</h2>
-              {unreadCount > 0 && <Badge className="bg-destructive text-destructive-foreground">{unreadCount} unread</Badge>}
+            <div className="admin-section-shell overflow-hidden p-5 md:p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-primary">Inbox</p>
+                  <h2 className="font-display text-2xl font-bold flex items-center gap-2">📬 Messages</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Your conversations with admin stay grouped in one clean thread view.</p>
+                </div>
+                {unreadCount > 0 && <Badge className="w-fit rounded-full bg-destructive px-3 py-1 text-destructive-foreground">{unreadCount} unread</Badge>}
+              </div>
             </div>
             {threads.length === 0 && <Card><CardContent className="p-8 text-center text-muted-foreground">No messages. Messages from admin will appear here.</CardContent></Card>}
             {threads.map(([rootId, thread]) => {
@@ -302,31 +308,31 @@ const PlayerDashboard = () => {
               const isExpanded = expandedThread === rootId;
 
               return (
-                <Card key={rootId} className={`transition-all ${threadUnread > 0 ? 'border-l-4 border-l-accent shadow-sm' : ''} ${isExpanded ? 'ring-1 ring-primary/20' : ''}`}>
+                <Card key={rootId} className={`overflow-hidden rounded-[1.5rem] transition-all ${threadUnread > 0 ? 'border-l-4 border-l-accent shadow-sm' : 'border-primary/10'} ${isExpanded ? 'ring-1 ring-primary/20 shadow-lg shadow-primary/10' : ''}`}>
                   <div
-                    className="p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                    className="cursor-pointer bg-gradient-to-r from-background to-primary/5 p-4 transition-colors hover:bg-muted/30"
                     onClick={() => {
                       setExpandedThread(isExpanded ? '' : rootId);
                       thread.filter(m => !m.read && m.from_id !== user.player_id).forEach(m => updateMessage({ ...m, read: true }));
                     }}
                   >
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="mb-1 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-semibold text-sm">{root.subject}</span>
+                        <span className="font-semibold text-sm md:text-base">{root.subject}</span>
                         {threadUnread > 0 && <Badge className="bg-accent text-accent-foreground text-xs">{threadUnread} new</Badge>}
                       </div>
                       <span className="text-xs text-muted-foreground">{thread.length} msg{thread.length > 1 ? 's' : ''}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{getDisplayName(root.from_id)} • {format(new Date(thread[thread.length - 1].timestamp || thread[thread.length - 1].date), 'dd MMM HH:mm')}</p>
+                    <p className="text-xs text-muted-foreground md:text-sm">{getDisplayName(root.from_id)} • {format(new Date(thread[thread.length - 1].timestamp || thread[thread.length - 1].date), 'dd MMM HH:mm')}</p>
                   </div>
 
                   {isExpanded && (
-                    <CardContent className="pt-0 border-t">
-                      <div className="max-h-[400px] overflow-y-auto space-y-3 py-3 scrollbar-thin">
+                    <CardContent className="border-t border-primary/10 bg-muted/20 pt-0">
+                      <div className="max-h-[420px] overflow-y-auto space-y-4 py-4 scrollbar-thin">
                         {thread.map(msg => (
                           <div key={msg.id} className={`flex ${msg.from_id === user.player_id ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] rounded-xl p-3 ${msg.from_id === user.player_id ? 'bg-primary/10 border border-primary/20' : 'bg-muted'}`}>
+                            <div className={`max-w-[84%] rounded-[1.25rem] border p-4 shadow-sm ${msg.from_id === user.player_id ? 'bg-primary/10 border-primary/20' : 'bg-card border-border'}`}>
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-xs font-semibold">{getDisplayName(msg.from_id)}</span>
                                 <span className="text-xs text-muted-foreground">{format(new Date(msg.timestamp || msg.date), 'dd MMM HH:mm')}</span>
@@ -334,12 +340,12 @@ const PlayerDashboard = () => {
                                   msg.read ? <CheckCheck className="h-3 w-3 text-primary" /> : <Clock className="h-3 w-3 text-muted-foreground" />
                                 )}
                               </div>
-                              <p className="text-sm leading-relaxed">{msg.body}</p>
+                              <p className="text-sm leading-6">{msg.body}</p>
                             </div>
                           </div>
                         ))}
                       </div>
-                      <div className="flex gap-2 pt-3 border-t">
+                      <div className="flex gap-2 border-t border-primary/10 pt-4">
                         <Input
                           placeholder="Type your reply..."
                           value={replyBody[rootId] || ''}

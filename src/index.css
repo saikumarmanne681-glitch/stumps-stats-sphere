@@ -123,3 +123,26 @@ button:active, [role="button"]:active {
 .animate-ticker {
   animation: ticker 20s linear infinite;
 }
+
+@layer components {
+  .glass-panel {
+    @apply border border-white/50 bg-white/70 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] backdrop-blur-xl;
+  }
+
+  .admin-section-shell {
+    @apply rounded-[1.75rem] border border-primary/15 bg-gradient-to-br from-white via-white to-primary/5 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.55)];
+  }
+
+  .section-heading {
+    @apply font-display text-2xl font-bold tracking-tight text-foreground;
+  }
+
+  .metric-tile {
+    @apply rounded-2xl border border-primary/10 bg-gradient-to-br from-background via-background to-primary/5 p-4 shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md;
+  }
+
+  .soft-dot-grid {
+    background-image: radial-gradient(circle at 1px 1px, hsl(var(--primary) / 0.12) 1px, transparent 0);
+    background-size: 20px 20px;
+  }
+}

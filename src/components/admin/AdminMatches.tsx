@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -19,9 +19,11 @@ import { useData } from "@/lib/DataContext";
 import { Match, BattingScorecard, BowlingScorecard } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { generateId } from "@/lib/utils";
-import { Loader2, Plus, Pencil, Trash2, Users } from "lucide-react";
+import { ClipboardList, Loader2, Pencil, Plus, Search, Sparkles, Trash2, Users, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { MATCH_STAGES } from "@/lib/v2types";
+import { logAudit } from "@/lib/v2api";
 
 interface PlayerPerformance {
   player_id: string;
@@ -111,9 +113,11 @@ export function AdminMatches() {
     }
     if (editMatch.match_id) {
       await updateMatch(editMatch);
+      logAudit("admin", "admin_save_match", "match", editMatch.match_id, JSON.stringify({ teams: `${editMatch.team_a} vs ${editMatch.team_b}`, status: editMatch.status, stage: editMatch.match_stage || "" }));
     } else {
       const newId = generateId("M");
       await addMatch({ ...editMatch, match_id: newId });
+      logAudit("admin", "admin_add_match", "match", newId, JSON.stringify({ teams: `${editMatch.team_a} vs ${editMatch.team_b}`, status: editMatch.status, stage: editMatch.match_stage || "" }));
     }
     toast({ title: "Match Saved" });
     setMatchOpen(false);
@@ -171,7 +175,9 @@ export function AdminMatches() {
 
     setPerformances(perfs);
     setScorecardTeamTab("teamA");
+    setScorecardPlayerSearch("");
     setScorecardOpen(true);
+    logAudit("admin", "open_scorecard_entry", "match", matchId, JSON.stringify({ teamAPlayers: allTeamAIds.length, teamBPlayers: allTeamBIds.length }));
   };
 
   const togglePlayer = (playerId: string, team: "A" | "B") => {
@@ -198,6 +204,74 @@ export function AdminMatches() {
 
   const [savingProgress, setSavingProgress] = useState(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [matchSearch, setMatchSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [scorecardPlayerSearch, setScorecardPlayerSearch] = useState("");
+
+  const getRecentTeamLineup = (teamName: string) => {
+    const relatedMatchIds = matches
+      .filter((match) => match.team_a === teamName || match.team_b === teamName)
+      .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime())
+      .slice(0, 5)
+      .map((match) => match.match_id);
+
+    return Array.from(
+      new Set(
+        [...batting, ...bowling]
+          .filter((row) => relatedMatchIds.includes(row.match_id) && row.team === teamName)
+          .map((row) => row.player_id),
+      ),
+    );
+  };
+
+  const applyRecentLineup = (team: "A" | "B") => {
+    const match = matches.find((item) => item.match_id === scorecardMatchId);
+    if (!match) return;
+    const teamName = team === "A" ? match.team_a : match.team_b;
+    const recentLineup = getRecentTeamLineup(teamName);
+    if (recentLineup.length === 0) {
+      toast({ title: "No previous lineup found", description: `No recent scorecard data is available yet for ${teamName}.` });
+      return;
+    }
+
+    const setPlayers = team === "A" ? setTeamAPlayers : setTeamBPlayers;
+    const existingTeamRows = performances.filter((item) => item.team === teamName);
+    const existingIds = new Set(existingTeamRows.map((item) => item.player_id));
+    const newRows = recentLineup.filter((playerId) => !existingIds.has(playerId)).map((playerId) => emptyPerformance(playerId, teamName));
+
+    setPlayers(Array.from(new Set([...recentLineup])));
+    setPerformances((prev) => [
+      ...prev.filter((item) => item.team !== teamName),
+      ...existingTeamRows,
+      ...newRows,
+    ]);
+    logAudit("admin", "apply_recent_lineup", "match", scorecardMatchId, JSON.stringify({ team: teamName, players: recentLineup.length }));
+    toast({ title: "Recent lineup applied", description: `${recentLineup.length} players loaded for ${teamName}.` });
+  };
+
+  const filteredPlayers = useMemo(() => {
+    const query = scorecardPlayerSearch.trim().toLowerCase();
+    return players.filter((player) => player.status === "active" && (!query || `${player.name} ${player.player_id}`.toLowerCase().includes(query)));
+  }, [players, scorecardPlayerSearch]);
+
+  const visibleMatches = useMemo(() => {
+    const query = matchSearch.trim().toLowerCase();
+    return [...matches]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .filter((match) => {
+        if (statusFilter !== "all" && match.status !== statusFilter) return false;
+        if (!query) return true;
+        return [match.match_id, match.team_a, match.team_b, match.venue, match.result, match.match_stage]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      });
+  }, [matches, matchSearch, statusFilter]);
+
+  const latestMatchTemplate = useMemo(() => {
+    return [...matches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] || null;
+  }, [matches]);
 
   const saveScorecard = async () => {
     const match = matches.find((m) => m.match_id === scorecardMatchId);
@@ -268,6 +342,8 @@ export function AdminMatches() {
       clearInterval(progressInterval);
       setSavingProgress(100);
       setSaveSuccess(true);
+
+      logAudit("admin", "admin_save_scorecard", "match", scorecardMatchId, JSON.stringify({ battingEntries: newBatting.length, bowlingEntries: newBowling.length, teamAScore, teamBScore }));
 
       toast({
         title: "✅ Scorecard Saved Successfully!",
@@ -447,9 +523,62 @@ export function AdminMatches() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="font-display">🏏 Matches</CardTitle>
+      <section className="admin-section-shell soft-dot-grid overflow-hidden p-6">
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-primary">
+              <ClipboardList className="h-3.5 w-3.5" /> Fast match ops
+            </div>
+            <div>
+              <h2 className="section-heading">Make daily match entry dramatically faster.</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Search fixtures instantly, reuse recent team lineups, and keep scorecard entry focused on speed without changing any match logic.</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="metric-tile"><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Total matches</p><p className="mt-2 text-3xl font-bold text-primary">{matches.length}</p><p className="mt-1 text-sm text-muted-foreground">All scheduled, live, and completed fixtures.</p></div>
+              <div className="metric-tile"><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live now</p><p className="mt-2 text-3xl font-bold text-foreground">{matches.filter((m) => m.status === "live").length}</p><p className="mt-1 text-sm text-muted-foreground">Matches currently open for scoring.</p></div>
+              <div className="metric-tile"><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Completed</p><p className="mt-2 text-3xl font-bold text-foreground">{matches.filter((m) => m.status === "completed").length}</p><p className="mt-1 text-sm text-muted-foreground">Finished fixtures with scorecards available.</p></div>
+            </div>
+          </div>
+          <div className="glass-panel rounded-[1.75rem] p-5">
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary"><Wand2 className="h-4 w-4" /> Quick-start helper</div>
+            <p className="mt-2 text-sm text-muted-foreground">Use the latest saved match as a template for faster entry when tournaments have similar stages and venues.</p>
+            {latestMatchTemplate ? (
+              <div className="mt-4 rounded-[1.25rem] border border-primary/10 bg-background/80 p-4">
+                <p className="font-semibold">{latestMatchTemplate.team_a} vs {latestMatchTemplate.team_b}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{latestMatchTemplate.match_stage || "No stage"} • {latestMatchTemplate.venue || "Venue pending"} • {latestMatchTemplate.date || "Date pending"}</p>
+                <Button
+                  variant="outline"
+                  className="mt-4 w-full rounded-xl"
+                  onClick={() => setEditMatch({
+                    ...emptyMatch,
+                    tournament_id: latestMatchTemplate.tournament_id,
+                    season_id: latestMatchTemplate.season_id,
+                    venue: latestMatchTemplate.venue,
+                    team_a: latestMatchTemplate.team_a,
+                    team_b: latestMatchTemplate.team_b,
+                    toss_winner: latestMatchTemplate.toss_winner,
+                    toss_decision: latestMatchTemplate.toss_decision,
+                    match_stage: latestMatchTemplate.match_stage || "",
+                  });
+                    setMatchOpen(true);
+                  }}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" /> Reuse latest match shell
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-[1.25rem] border border-dashed border-primary/20 bg-muted/30 p-6 text-center text-sm text-muted-foreground">Add your first match to unlock one-click templates.</div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <Card className="admin-section-shell overflow-hidden">
+        <CardHeader className="flex flex-col gap-4 border-b border-primary/10 bg-gradient-to-r from-background to-primary/5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle className="font-display text-xl">🏏 Matches & Scorecards</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Filter fixtures quickly and jump straight into score entry.</p>
+          </div>
           <Dialog open={matchOpen} onOpenChange={setMatchOpen}>
             <DialogTrigger asChild>
               <Button size="sm" onClick={() => setEditMatch({ ...emptyMatch })}>
@@ -564,7 +693,7 @@ export function AdminMatches() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value=" ">None</SelectItem>
-                      {['League', 'Group Stage', 'Quarter Final', 'Semi Final', 'Final', 'Qualifier', 'Eliminator', 'Friendly', 'Super Over', 'Play-off'].map(s => (
+                      {MATCH_STAGES.map(s => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>
@@ -635,7 +764,23 @@ export function AdminMatches() {
             </DialogContent>
           </Dialog>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4 p-4 md:p-6">
+          <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input value={matchSearch} onChange={(e) => setMatchSearch(e.target.value)} placeholder="Search match ID, teams, stage, venue, or result..." className="rounded-full pl-9" />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="rounded-full"><SelectValue placeholder="Filter status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="live">Live</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -643,15 +788,14 @@ export function AdminMatches() {
                 <TableHead>Date</TableHead>
                 <TableHead>Teams</TableHead>
                 <TableHead>Score</TableHead>
+                <TableHead>Stage</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Result</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...matches]
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map((m) => {
+              {visibleMatches.map((m) => {
                   // Auto-calc scores from batting if not saved on match
                   const calcScore = (team: string) => {
                     const rows = batting.filter(b => b.match_id === m.match_id && b.team === team);
@@ -683,6 +827,9 @@ export function AdminMatches() {
                         </span>
                       )}
                       {!scoreA && !scoreB && "-"}
+                    </TableCell>
+                    <TableCell>
+                      {m.match_stage ? <Badge variant="outline" className="rounded-full">{m.match_stage}</Badge> : <span className="text-xs text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell>
                       <Badge variant={m.status === "completed" ? "default" : "secondary"}>{m.status}</Badge>
@@ -732,6 +879,9 @@ export function AdminMatches() {
                   </TableRow>
                   );
                 })}
+              {visibleMatches.length === 0 && (
+                <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">No matches found for the current filters.</TableCell></TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -739,12 +889,12 @@ export function AdminMatches() {
 
       {/* Scorecard Entry Dialog */}
       <Dialog open={scorecardOpen} onOpenChange={setScorecardOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col rounded-[2rem] border-primary/10">
           <DialogHeader>
             <DialogTitle className="font-display">
               📊 Scorecard Entry — {scorecardMatch?.team_a} vs {scorecardMatch?.team_b} ({scorecardMatchId})
             </DialogTitle>
-            <DialogDescription>Add players and enter their batting/bowling performance.</DialogDescription>
+            <DialogDescription>Use search, recent lineup presets, and live score previews to finish entry faster.</DialogDescription>
           </DialogHeader>
 
           <Tabs
@@ -761,8 +911,13 @@ export function AdminMatches() {
               </TabsTrigger>
             </TabsList>
 
+            <div className="relative mt-4">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input value={scorecardPlayerSearch} onChange={(e) => setScorecardPlayerSearch(e.target.value)} placeholder="Search players by name or ID..." className="mb-4 rounded-full pl-9" />
+            </div>
+
             <div
-              className="flex-1 overflow-y-auto mt-4 pr-2 scrollbar-thin"
+              className="flex-1 overflow-y-auto pr-2 scrollbar-thin"
               style={{ maxHeight: "calc(90vh - 220px)" }}
             >
               <TabsContent value="teamA" className="space-y-4 mt-0">
@@ -770,11 +925,14 @@ export function AdminMatches() {
                   <Label className="text-sm font-semibold mb-2 block">
                     Select players for {scorecardMatch?.team_a}:
                   </Label>
-                  <p className="text-xs text-muted-foreground mb-2">Same player can appear in both teams</p>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground">Same player can appear in both teams</p>
+                    <Button type="button" size="sm" variant="outline" className="rounded-full" onClick={() => applyRecentLineup("A")}>
+                      <Sparkles className="mr-1 h-3.5 w-3.5" /> Apply recent lineup
+                    </Button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    {players
-                      .filter((p) => p.status === "active")
-                      .map((p) => (
+                    {filteredPlayers.map((p) => (
                         <label
                           key={p.player_id}
                           className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm"
@@ -796,11 +954,14 @@ export function AdminMatches() {
                   <Label className="text-sm font-semibold mb-2 block">
                     Select players for {scorecardMatch?.team_b}:
                   </Label>
-                  <p className="text-xs text-muted-foreground mb-2">Same player can appear in both teams</p>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground">Same player can appear in both teams</p>
+                    <Button type="button" size="sm" variant="outline" className="rounded-full" onClick={() => applyRecentLineup("B")}>
+                      <Sparkles className="mr-1 h-3.5 w-3.5" /> Apply recent lineup
+                    </Button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    {players
-                      .filter((p) => p.status === "active")
-                      .map((p) => (
+                    {filteredPlayers.map((p) => (
                         <label
                           key={p.player_id}
                           className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm"
@@ -822,7 +983,7 @@ export function AdminMatches() {
           <div className="flex items-center justify-between gap-2 pt-4 border-t mt-2">
             {/* Auto-calculated score preview */}
             {scorecardMatch && (
-              <div className="text-xs text-muted-foreground space-y-1">
+              <div className="rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3 text-xs text-muted-foreground space-y-1">
                 <p>{scorecardMatch.team_a}: {(() => {
                   const rows = performances.filter(p => p.team === scorecardMatch.team_a && p.did_bat);
                   const runs = rows.reduce((s, r) => s + r.bat_runs, 0);
@@ -879,7 +1040,7 @@ export function AdminMatches() {
               📊 Scorecard — {sel.team_a} vs {sel.team_b} ({sel.match_id})
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4 p-4 md:p-6">
             <Tabs defaultValue="teamA_view">
               <TabsList>
                 <TabsTrigger value="teamA_view">{sel.team_a}</TabsTrigger>
