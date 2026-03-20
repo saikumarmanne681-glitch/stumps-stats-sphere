@@ -549,17 +549,18 @@ export function AdminMatches() {
                 <Button
                   variant="outline"
                   className="mt-4 w-full rounded-xl"
-                  onClick={() => setEditMatch({
-                    ...emptyMatch,
-                    tournament_id: latestMatchTemplate.tournament_id,
-                    season_id: latestMatchTemplate.season_id,
-                    venue: latestMatchTemplate.venue,
-                    team_a: latestMatchTemplate.team_a,
-                    team_b: latestMatchTemplate.team_b,
-                    toss_winner: latestMatchTemplate.toss_winner,
-                    toss_decision: latestMatchTemplate.toss_decision,
-                    match_stage: latestMatchTemplate.match_stage || "",
-                  });
+                  onClick={() => {
+                    setEditMatch({
+                      ...emptyMatch,
+                      tournament_id: latestMatchTemplate.tournament_id,
+                      season_id: latestMatchTemplate.season_id,
+                      venue: latestMatchTemplate.venue,
+                      team_a: latestMatchTemplate.team_a,
+                      team_b: latestMatchTemplate.team_b,
+                      toss_winner: latestMatchTemplate.toss_winner,
+                      toss_decision: latestMatchTemplate.toss_decision,
+                      match_stage: latestMatchTemplate.match_stage || "",
+                    });
                     setMatchOpen(true);
                   }}
                 >
