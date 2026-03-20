@@ -70,18 +70,20 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
   const [reportCategory, setReportCategory] = useState('Scorecard');
   const [reportPriority, setReportPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [submitting, setSubmitting] = useState(false);
-
-  if (!match) return null;
-
-  const issueTemplate = useMemo(() => buildMatchIssueTemplate(match, tournament, season), [match, tournament, season]);
+  const issueTemplate = useMemo(
+    () => (match ? buildMatchIssueTemplate(match, tournament, season) : null),
+    [match, tournament, season],
+  );
 
   useEffect(() => {
-    if (!showReport) return;
+    if (!showReport || !issueTemplate || !match) return;
     setReportSubject((prev) => prev || issueTemplate.subject);
     setReportDesc((prev) => prev || issueTemplate.description);
     setReportCategory('Scorecard');
     setReportPriority(match.status === 'live' ? 'high' : 'medium');
-  }, [showReport, issueTemplate, match.status]);
+  }, [showReport, issueTemplate, match]);
+
+  if (!match) return null;
 
   const matchBatting = batting.filter(b => b.match_id === match.match_id);
   const matchBowling = bowling.filter(b => b.match_id === match.match_id);
