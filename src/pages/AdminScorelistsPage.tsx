@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
@@ -205,6 +206,34 @@ const AdminScorelistsPage = () => {
     toast({ title: `Approval emails delivered to ${attempts.length} recipient(s)` });
   };
 
+  const getVerifyUrl = (scorelistId: string) => `${window.location.origin}/verify-scorelist/${encodeURIComponent(scorelistId)}`;
+
+  const renderVerificationQrMarkup = (verifyUrl: string, size = 108) => renderToStaticMarkup(
+    <QRCodeSVG
+      value={verifyUrl}
+      size={size}
+      level="H"
+      includeMargin
+      bgColor="#ffffff"
+      fgColor="#0f5132"
+    />
+  );
+
+  const securityFeatureItems = [
+    {
+      title: 'Security Thread',
+      description: 'Embedded twin border threads mimic metallic register lines and expose tamper evidence across the page.',
+    },
+    {
+      title: 'Micro-lettering',
+      description: 'Magnification-only microtext repeats the document ID, verification URL, and certification statement in the footer band.',
+    },
+    {
+      title: 'Intaglio Printing',
+      description: 'Raised-ink styling with embossed shadows highlights the title, certification badge, and verification seal for tactile-style emphasis.',
+    },
+  ];
+
   const handleExportPDF = (sl: DigitalScorelist) => {
     const payload = getPayload(sl);
     const match = payload?.match;
@@ -234,6 +263,13 @@ const AdminScorelistsPage = () => {
     const certRows = certs.map(c => `<tr><td>${c.approver_name}</td><td>${c.designation}</td><td>${stageLabels[c.stage] || c.stage.replace(/_/g, ' ')}</td><td>${new Date(c.timestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">${c.token.substring(0,12)}</td></tr>`).join('');
     const draftTimestamp = sl.generated_at || new Date().toISOString();
     const draftBy = sl.generated_by || 'System';
+    const verifyUrl = getVerifyUrl(sl.scorelist_id);
+    const qrMarkup = renderVerificationQrMarkup(verifyUrl, 112);
+    const securityFeaturesMarkup = securityFeatureItems.map((feature) => `
+      <div class="security-feature-card">
+        <div class="security-feature-title">${feature.title}</div>
+        <p>${feature.description}</p>
+      </div>`).join('');
     const draftRow = `<tr><td>${draftBy}</td><td>Scorelist Engine</td><td>${stageLabels.draft}</td><td>${new Date(draftTimestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">DRAFT</td></tr>`;
     const certTimelineRows = `${draftRow}${certRows}`;
     const pendingRows = pendingApprovals.map((p) => `<tr><td>${p.name}</td><td>${p.designation}</td><td>${stageLabels[p.stage] || p.stage}</td><td>Pending</td></tr>`).join('');
@@ -281,22 +317,33 @@ table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #
 .footer{text-align:center;font-size:9px;color:#999;margin-top:30px;border-top:1px solid #ddd;padding-top:10px}
 .certified{background:#e8f5e9;border:2px solid #1e6b3a;text-align:center;padding:12px;border-radius:8px;font-weight:bold;color:#1e6b3a;margin:20px 0}
 .match-book-page{page-break-before:always}
- .security-grid{position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:linear-gradient(rgba(26,122,73,0.045) 1px, transparent 1px),linear-gradient(90deg, rgba(26,122,73,0.045) 1px, transparent 1px);background-size:28px 28px}
- .security-thread{position:fixed;top:0;bottom:0;width:16px;pointer-events:none;z-index:-1;background:repeating-linear-gradient(180deg, rgba(11,89,53,0.16) 0 7px, rgba(255,255,255,0.06) 7px 14px)}
- .security-thread.left{left:18px}.security-thread.right{right:18px}
- .microtext{position:fixed;left:0;right:0;bottom:12px;text-align:center;font-size:8px;letter-spacing:1.5px;color:rgba(10,89,52,0.33);pointer-events:none;z-index:-1}
- .cert-grid{border:1px solid #b7d5c0;background-image:linear-gradient(rgba(30,107,58,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(30,107,58,0.08) 1px, transparent 1px);background-size:18px 18px;padding:8px;border-radius:8px}
- .status-chip{display:inline-block;margin:8px auto 0;padding:4px 10px;border-radius:999px;background:#e8f5e9;border:1px solid #8ac8a1;color:#145c36;font-weight:bold;font-size:11px}
- @media print{.watermark{display:block}}</style></head><body>
+.intaglio{letter-spacing:0.08em;text-transform:uppercase;text-shadow:0.4px 0 #0b5a35, -0.4px 0 #0b5a35, 0 1px rgba(255,255,255,0.8);color:#124928}
+.security-grid{position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:linear-gradient(rgba(26,122,73,0.045) 1px, transparent 1px),linear-gradient(90deg, rgba(26,122,73,0.045) 1px, transparent 1px);background-size:28px 28px}
+.security-thread{position:fixed;top:0;bottom:0;width:16px;pointer-events:none;z-index:-1;background:repeating-linear-gradient(180deg, rgba(11,89,53,0.36) 0 6px, rgba(255,255,255,0.18) 6px 12px, rgba(194,160,63,0.38) 12px 18px);box-shadow:0 0 0 1px rgba(11,89,53,0.22), inset 0 0 10px rgba(255,255,255,0.3)}
+.security-thread.left{left:18px}.security-thread.right{right:18px}
+.microtext{position:fixed;left:0;right:0;bottom:12px;text-align:center;font-size:8px;letter-spacing:1.5px;color:rgba(10,89,52,0.33);pointer-events:none;z-index:-1}
+.cert-grid{border:1px solid #b7d5c0;background-image:linear-gradient(rgba(30,107,58,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(30,107,58,0.08) 1px, transparent 1px);background-size:18px 18px;padding:8px;border-radius:8px}
+.status-chip{display:inline-block;margin:8px auto 0;padding:4px 10px;border-radius:999px;background:#e8f5e9;border:1px solid #8ac8a1;color:#145c36;font-weight:bold;font-size:11px}.verification-panel{display:flex;gap:18px;align-items:center;justify-content:space-between;margin:18px 0 24px;padding:16px 18px;border:1px solid #b7d5c0;border-radius:12px;background:linear-gradient(135deg, rgba(232,245,233,0.9), rgba(244,250,246,0.98))}.verification-copy{flex:1}.verification-copy p{margin:4px 0}.verification-url{font-family:monospace;font-size:11px;word-break:break-all;color:#145c36}.verification-qr{display:flex;align-items:center;justify-content:center;padding:10px;border-radius:12px;border:1px solid #9cc8ab;background:#fff;box-shadow:inset 0 0 0 4px rgba(30,107,58,0.06)}.security-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 22px}.security-feature-card{border:1px solid #b7d5c0;border-radius:10px;background:#fcfefd;padding:12px 14px}.security-feature-card p{margin:6px 0 0;font-size:11px;line-height:1.45;color:#355244}.security-feature-title{font-weight:700;color:#124928}.security-seal{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid #7ab28d;background:#fff;color:#145c36;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
+@media print{.watermark{display:block}}</style></head><body>
 <div class="security-grid"></div>
 <div class="security-thread left"></div>
 <div class="security-thread right"></div>
-<div class="microtext">DIGITAL CERTIFIED RECORD · SECURITY LAYER · TAMPER EVIDENT</div>
+<div class="microtext">MICROTEXT • ${sl.scorelist_id} • ${verifyUrl} • DIGITAL CERTIFIED RECORD • MICROTEXT</div>
 <div class="watermark">VERIFIED MATCH RECORD</div>
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
-<h1>Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
+<h1 class="intaglio">Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
 <p style="text-align:center;font-family:monospace;font-size:11px;color:#999">${sl.scorelist_id}</p>
-<p style="text-align:center"><span class="status-chip">${stageLabels[effectiveStatus] || effectiveStatus}${effectiveLocked ? ' • LOCKED' : ''}</span></p>
+<p style="text-align:center"><span class="status-chip intaglio">${stageLabels[effectiveStatus] || effectiveStatus}${effectiveLocked ? ' • LOCKED' : ''}</span></p>
+<div class="verification-panel">
+  <div class="verification-copy">
+    <div class="security-seal intaglio">QR Verification Enabled</div>
+    <p><strong>Verify this scorelist instantly:</strong> scan the QR code or open the secure verification URL below.</p>
+    <p class="verification-url">${verifyUrl}</p>
+    <p style="font-size:11px;color:#355244">The QR target is bound to this document ID so reviewers can confirm hash-backed authenticity from the verification page.</p>
+  </div>
+  <div class="verification-qr">${qrMarkup}</div>
+</div>
+<div class="security-features">${securityFeaturesMarkup}</div>
 <p style="text-align:center;margin:6px 0"><strong>Tournament:</strong> ${tournament?.name || '-'} | <strong>Format:</strong> ${tournament?.format || '-'} | <strong>Overs:</strong> ${tournament?.overs || '-'}</p>
 <p style="text-align:center;margin:6px 0"><strong>Season:</strong> ${season?.year || '-'} | <strong>Dates:</strong> ${season?.start_date || '-'} to ${season?.end_date || '-'}</p>
 ${match ? `<div class="scoreboard"><div><h3>${match.team_a}</h3><div class="team-score">${aScore}</div></div><div style="display:flex;align-items:center"><span style="font-size:24px;color:#999">VS</span></div><div><h3>${match.team_b}</h3><div class="team-score">${bScore}</div></div></div>` : ''}
@@ -363,7 +410,6 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
   };
 
   const getPayload = (sl: DigitalScorelist) => { try { return JSON.parse(sl.payload_json); } catch { return null; } };
-  const verifyUrl = `${window.location.origin}/verify-scorelist/`;
 
   // Determine which certification stage this management user can approve
   const userStage = isManagement && user?.designation ? resolveStageFromDesignation(user.designation) : null;
@@ -679,11 +725,25 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                     </Card>
 
                     {/* QR + Security */}
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6 py-4">
-                      <QRCodeSVG value={`${verifyUrl}${encodeURIComponent(viewScorelist.scorelist_id)}`} size={100} />
-                      <div className="text-sm text-center sm:text-left">
-                        <p className="font-semibold">Scan to Verify</p>
-                        <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{verifyUrl}{encodeURIComponent(viewScorelist.scorelist_id)}</p>
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5 space-y-4">
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6">
+                        <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm">
+                          <QRCodeSVG value={getVerifyUrl(viewScorelist.scorelist_id)} size={100} level="H" includeMargin />
+                        </div>
+                        <div className="text-sm text-center sm:text-left">
+                          <p className="font-semibold">Scan to Verify</p>
+                          <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{getVerifyUrl(viewScorelist.scorelist_id)}</p>
+                          <p className="text-xs text-muted-foreground mt-2">This same QR code is embedded in the exported PDF for fast verification.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-3 text-left">
+                        {securityFeatureItems.map((feature) => (
+                          <div key={feature.title} className="rounded-lg border bg-background/90 p-3 shadow-sm">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-primary">{feature.title}</p>
+                            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
