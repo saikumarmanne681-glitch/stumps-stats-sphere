@@ -1,5 +1,5 @@
 import { scheduleApproverRoles } from '@/lib/accessControl';
-import { CertificationApproval, DigitalScorelist, ManagementUser } from '@/lib/v2types';
+import { CertificationApproval, CertificationStage, DigitalScorelist, ManagementUser } from '@/lib/v2types';
 import { ScheduleApprovalRecord, ScheduleRecord } from '@/schedules/types';
 
 export const scorelistStageOrder = ['draft', 'scoring_completed', 'referee_verified', 'director_approved', 'official_certified'] as const;
@@ -47,7 +47,7 @@ function normalizeDesignation(designation?: string) {
   return String(designation || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-export function resolveStageFromDesignation(designation?: string): (typeof scorelistStageOrder)[number] | null {
+export function resolveStageFromDesignation(designation?: string): CertificationStage | null {
   const value = normalizeDesignation(designation);
   if (!value) return null;
   if (value.includes('scoring')) return 'scoring_completed';
@@ -67,17 +67,18 @@ export function readScorelistCertifications(scorelist: DigitalScorelist): Certif
   }
 }
 
-function readScorelistStatus(scorelist: DigitalScorelist, certifications: CertificationApproval[]) {
+function readScorelistStatus(scorelist: DigitalScorelist, certifications: CertificationApproval[]): CertificationStage {
   if (scorelist.certification_status) return scorelist.certification_status;
-  return certifications.reduce<string>((current, approval) => {
-    return scorelistStageOrder.indexOf(approval.stage as (typeof scorelistStageOrder)[number]) > scorelistStageOrder.indexOf(current as (typeof scorelistStageOrder)[number])
-      ? approval.stage
+  return certifications.reduce<CertificationStage>((current, approval) => {
+    const approvalStage = approval.stage as CertificationStage;
+    return scorelistStageOrder.indexOf(approvalStage) > scorelistStageOrder.indexOf(current)
+      ? approvalStage
       : current;
   }, 'draft');
 }
 
 export interface ScorelistRoadmapStep {
-  stage: (typeof scorelistStageOrder)[number];
+  stage: CertificationStage;
   label: string;
   responsibility: string;
   completed: boolean;
