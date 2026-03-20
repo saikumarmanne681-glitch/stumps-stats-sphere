@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,10 @@ const TournamentsHubPage = () => {
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleMatch[]>([{ match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' }]);
   const [changeLog, setChangeLog] = useState('');
 
+  useEffect(() => {
+    Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
+  }, []);
+
   if (!user) return <Navigate to="/login" replace />;
 
   const tournaments = useMemo(() => tournamentService.getTournaments(), [refreshKey]);
@@ -34,18 +38,18 @@ const TournamentsHubPage = () => {
   const activeRegistrations = registrations.filter((item) => item.tournament_id === activeTournament?.tournament_id);
   const approvedSchedules = activeTournament ? scheduleService.getApprovedSchedulesForTournament(activeTournament.tournament_id) : [];
 
-  const createTournament = () => {
+  const createTournament = async () => {
     if (!user || !canManageTournament(user)) return;
-    const record = tournamentService.createTournament({ ...tournamentForm, created_by: getActorId(user), status: 'open' }, user);
+    const record = await tournamentService.createTournament({ ...tournamentForm, created_by: getActorId(user), status: 'open' }, user);
     setSelectedTournament(record.tournament_id);
     setTournamentForm({ name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '' });
     setRefreshKey((value) => value + 1);
     toast({ title: 'Tournament created', description: 'Registration is now open for members.' });
   };
 
-  const submitRegistration = () => {
+  const submitRegistration = async () => {
     if (!activeTournament || !user) return;
-    tournamentService.submitRegistration({
+    await tournamentService.submitRegistration({
       tournament_id: activeTournament.tournament_id,
       team_name: registrationForm.team_name,
       contact_name: registrationForm.contact_name,
@@ -79,18 +83,18 @@ const TournamentsHubPage = () => {
     setScheduleDraft((prev) => prev.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
   };
 
-  const submitScheduleForApproval = (scheduleId: string) => {
+  const submitScheduleForApproval = async (scheduleId: string) => {
     if (!user) return;
-    scheduleService.submitForApproval(scheduleId, user);
+    await scheduleService.submitForApproval(scheduleId, user);
     setRefreshKey((value) => value + 1);
     toast({ title: 'Sent for approval', description: 'The office bearer approval workflow has started.' });
   };
 
-  const decideSchedule = (scheduleId: string, decision: 'approved' | 'rejected') => {
+  const decideSchedule = async (scheduleId: string, decision: 'approved' | 'rejected') => {
     if (!user) return;
     try {
-      if (decision === 'approved') scheduleService.approveSchedule(scheduleId, approvalComments[scheduleId] || '', user);
-      else scheduleService.rejectSchedule(scheduleId, approvalComments[scheduleId] || '', user);
+      if (decision === 'approved') await scheduleService.approveSchedule(scheduleId, approvalComments[scheduleId] || '', user);
+      else await scheduleService.rejectSchedule(scheduleId, approvalComments[scheduleId] || '', user);
       setRefreshKey((value) => value + 1);
       toast({ title: `Schedule ${decision}`, description: decision === 'approved' ? 'Your approval has been recorded.' : 'The version moved back to draft.' });
     } catch (error) {
@@ -98,9 +102,9 @@ const TournamentsHubPage = () => {
     }
   };
 
-  const reviewRegistration = (registrationId: string, status: 'approved' | 'rejected') => {
+  const reviewRegistration = async (registrationId: string, status: 'approved' | 'rejected') => {
     if (!user || !canApproveTournamentRegistration(user)) return;
-    tournamentService.reviewRegistration(registrationId, status, reviewNotes[registrationId] || '', user);
+    await tournamentService.reviewRegistration(registrationId, status, reviewNotes[registrationId] || '', user);
     setRefreshKey((value) => value + 1);
     toast({ title: `Registration ${status}`, description: 'The applicant can now see the updated status.' });
   };

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,10 @@ export function AdminGovernance() {
   const [tournamentName, setTournamentName] = useState('');
   const [changeLog, setChangeLog] = useState('');
   const [matches, setMatches] = useState<ScheduleMatch[]>([initialMatch()]);
+
+  useEffect(() => {
+    Promise.all([electionService.syncFromBackend(), scheduleService.syncFromBackend(), tournamentService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
+  }, []);
 
   const elections = useMemo(() => electionService.getElections(), [refreshKey]);
   const schedules = useMemo(() => scheduleService.getSchedules(), [refreshKey]);
@@ -123,7 +127,7 @@ export function AdminGovernance() {
                   {diff.length === 0 && <p className="text-sm text-muted-foreground">No previous version for comparison.</p>}
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={() => { scheduleService.submitForApproval(schedule.schedule_id, user!); setRefreshKey((value) => value + 1); }}>Send for Approval</Button>
+                  <Button size="sm" variant="outline" onClick={async () => { await scheduleService.submitForApproval(schedule.schedule_id, user!); setRefreshKey((value) => value + 1); }}>Send for Approval</Button>
                 </div>
                 <div className="text-sm text-muted-foreground">Approvals: {scheduleApprovals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'None yet'}</div>
               </div>

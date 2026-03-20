@@ -14,6 +14,7 @@ import { PageLoader } from '@/components/LoadingOverlay';
 import { compareSheetDatesDesc, findTournamentById, formatSheetDate, hasSheetDate, normalizeId } from '@/lib/dataUtils';
 import { useAuth } from '@/lib/auth';
 import { ApprovedSchedulePanel } from '@/schedules/ApprovedSchedulePanel';
+import { scheduleService } from '@/schedules/scheduleService';
 import { tournamentService } from '@/tournaments/tournamentService';
 
 const TournamentPage = () => {
@@ -29,6 +30,9 @@ const TournamentPage = () => {
   const tournamentMatches = matches.filter(m => normalizeId(m.tournament_id) === tournamentId).sort((a, b) => compareSheetDatesDesc(a.date, b.date));
 
   useEffect(() => {
+    if (user) {
+      Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend()]).catch(() => undefined);
+    }
     let active = true;
     setScorelistsLoading(true);
     v2api

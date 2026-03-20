@@ -33,6 +33,13 @@ export const v2api = {
     const result = await res.json();
     return !!result.success;
   },
+
+  // Generic custom sheet helpers for isolated feature modules
+  getCustomSheet: <T>(sheet: string) => fetchV2Sheet<T>(sheet),
+  addCustomSheetRow: <T>(sheet: string, row: T) => writeV2Sheet(sheet, 'add', row),
+  updateCustomSheetRow: <T>(sheet: string, row: T) => writeV2Sheet(sheet, 'update', row),
+  deleteCustomSheetRow: <T>(sheet: string, row: T) => writeV2Sheet(sheet, 'delete', row),
+
   // Support Tickets
   getTickets: () => fetchV2Sheet<SupportTicket>('SUPPORT_TICKETS'),
   addTicket: (t: SupportTicket) => writeV2Sheet('SUPPORT_TICKETS', 'add', t),

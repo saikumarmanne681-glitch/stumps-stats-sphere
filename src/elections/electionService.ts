@@ -1,7 +1,7 @@
 import { generateId } from '@/lib/utils';
 import { getActorId, getActorName } from '@/lib/accessControl';
 import { AuthUser } from '@/lib/types';
-import { logAudit } from '@/lib/v2api';
+import { logAudit, v2api } from '@/lib/v2api';
 import { ElectionAuditLog, ElectionRecord, ElectionResultSummary, ElectionTermRecord, NominationRecord, VoteRecord } from './types';
 
 const STORAGE = {
@@ -10,6 +10,13 @@ const STORAGE = {
   votes: 'club:votes',
   terms: 'club:election-terms',
   audit: 'club:elections:audit',
+} as const;
+
+const SHEETS = {
+  elections: 'elections',
+  nominations: 'nominations',
+  votes: 'votes',
+  terms: 'election_terms',
 } as const;
 
 const read = <T,>(key: string): T[] => {
@@ -38,9 +45,37 @@ function appendAudit(entry: ElectionAuditLog) {
   logAudit(entry.actor_id, entry.action, entry.entity_type, entry.entity_id, entry.details);
 }
 
+async function safeSyncRow<T>(method: 'add' | 'update', sheet: string, row: T) {
+  try {
+    await v2api.syncHeaders().catch(() => false);
+    if (method === 'add') return await v2api.addCustomSheetRow(sheet, row);
+    return await v2api.updateCustomSheetRow(sheet, row);
+  } catch {
+    return false;
+  }
+}
+
 export const electionService = {
   getTables() {
-    return ['elections', 'nominations', 'votes'] as const;
+    return ['elections', 'nominations', 'votes', 'election_terms'] as const;
+  },
+
+  async syncFromBackend() {
+    try {
+      await v2api.syncHeaders().catch(() => false);
+      const [elections, nominations, votes, terms] = await Promise.all([
+        v2api.getCustomSheet<ElectionRecord>(SHEETS.elections),
+        v2api.getCustomSheet<NominationRecord>(SHEETS.nominations),
+        v2api.getCustomSheet<VoteRecord>(SHEETS.votes),
+        v2api.getCustomSheet<ElectionTermRecord>(SHEETS.terms),
+      ]);
+      if (elections.length) write(STORAGE.elections, elections);
+      if (nominations.length) write(STORAGE.nominations, nominations);
+      if (votes.length) write(STORAGE.votes, votes);
+      if (terms.length) write(STORAGE.terms, terms);
+    } catch {
+      // local cache remains the fallback if Apps Script is not ready yet
+    }
   },
 
   getElections() {
@@ -63,15 +98,15 @@ export const electionService = {
     return read<ElectionAuditLog>(STORAGE.audit);
   },
 
-  createElection(input: Omit<ElectionRecord, 'election_id' | 'created_at' | 'results_published_at'>, user: AuthUser) {
+  async createElection(input: Omit<ElectionRecord, 'election_id' | 'created_at' | 'results_published_at'>, user: AuthUser) {
     const record: ElectionRecord = {
       ...input,
       election_id: generateId('ELC'),
       created_at: new Date().toISOString(),
       results_published_at: '',
     };
-    const items = this.getElections();
-    write(STORAGE.elections, [record, ...items]);
+    write(STORAGE.elections, [record, ...this.getElections()]);
+    await safeSyncRow('add', SHEETS.elections, record);
     appendAudit({
       audit_id: generateId('EAUD'),
       module: 'elections',
@@ -86,7 +121,7 @@ export const electionService = {
     return record;
   },
 
-  submitNomination(input: Omit<NominationRecord, 'nomination_id' | 'created_at' | 'status' | 'reviewed_by' | 'reviewed_at'>, user: AuthUser) {
+  async submitNomination(input: Omit<NominationRecord, 'nomination_id' | 'created_at' | 'status' | 'reviewed_by' | 'reviewed_at'>, user: AuthUser) {
     const record: NominationRecord = {
       ...input,
       nomination_id: generateId('NOM'),
@@ -95,8 +130,8 @@ export const electionService = {
       reviewed_by: '',
       reviewed_at: '',
     };
-    const items = this.getNominations();
-    write(STORAGE.nominations, [record, ...items]);
+    write(STORAGE.nominations, [record, ...this.getNominations()]);
+    await safeSyncRow('add', SHEETS.nominations, record);
     appendAudit({
       audit_id: generateId('EAUD'),
       module: 'elections',
@@ -111,10 +146,11 @@ export const electionService = {
     return record;
   },
 
-  reviewNomination(nominationId: string, status: 'approved' | 'rejected', user: AuthUser) {
-    const items = this.getNominations();
-    const updated = items.map((item) => item.nomination_id === nominationId ? { ...item, status, reviewed_by: getActorId(user), reviewed_at: new Date().toISOString() } : item);
+  async reviewNomination(nominationId: string, status: 'approved' | 'rejected', user: AuthUser) {
+    const updated = this.getNominations().map((item) => item.nomination_id === nominationId ? { ...item, status, reviewed_by: getActorId(user), reviewed_at: new Date().toISOString() } : item);
     write(STORAGE.nominations, updated);
+    const changed = updated.find((item) => item.nomination_id === nominationId);
+    if (changed) await safeSyncRow('update', SHEETS.nominations, changed);
     appendAudit({
       audit_id: generateId('EAUD'),
       module: 'elections',
@@ -151,6 +187,7 @@ export const electionService = {
         submitted_at: new Date().toISOString(),
         immutable_hash,
       };
+      await safeSyncRow('add', SHEETS.votes, vote);
       return vote;
     }));
 
@@ -190,7 +227,7 @@ export const electionService = {
     return results.sort((a, b) => a.role_name.localeCompare(b.role_name));
   },
 
-  publishResults(electionId: string, termStart: string, termEnd: string, user: AuthUser) {
+  async publishResults(electionId: string, termStart: string, termEnd: string, user: AuthUser) {
     const results = this.calculateResults(electionId);
     const assignments = results
       .filter((result) => result.winner_user_id)
@@ -207,7 +244,11 @@ export const electionService = {
       } satisfies ElectionTermRecord));
 
     write(STORAGE.terms, [...assignments, ...this.getTerms()]);
-    write(STORAGE.elections, this.getElections().map((item) => item.election_id === electionId ? { ...item, status: 'closed', results_published_at: new Date().toISOString() } : item));
+    const updatedElections = this.getElections().map((item) => item.election_id === electionId ? { ...item, status: 'closed', results_published_at: new Date().toISOString() } : item);
+    write(STORAGE.elections, updatedElections);
+    await Promise.all(assignments.map((item) => safeSyncRow('add', SHEETS.terms, item)));
+    const changedElection = updatedElections.find((item) => item.election_id === electionId);
+    if (changedElection) await safeSyncRow('update', SHEETS.elections, changedElection);
     appendAudit({
       audit_id: generateId('EAUD'),
       module: 'elections',

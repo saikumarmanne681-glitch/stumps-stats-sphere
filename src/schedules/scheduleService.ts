@@ -1,13 +1,18 @@
 import { canApproveSchedule, getActorId, getActorName, isScheduleApproverRole, scheduleApproverRoles } from '@/lib/accessControl';
 import { AuthUser } from '@/lib/types';
 import { generateId } from '@/lib/utils';
-import { logAudit } from '@/lib/v2api';
+import { logAudit, v2api } from '@/lib/v2api';
 import { ScheduleApprovalRecord, ScheduleAuditLog, ScheduleDiffEntry, ScheduleMatch, ScheduleRecord } from './types';
 
 const STORAGE = {
   schedules: 'club:schedules',
   approvals: 'club:schedules:approvals',
   audit: 'club:schedules:audit',
+} as const;
+
+const SHEETS = {
+  schedules: 'schedules',
+  approvals: 'approvals',
 } as const;
 
 const read = <T,>(key: string): T[] => {
@@ -38,31 +43,62 @@ function keyForMatch(match: ScheduleMatch) {
   return match.match_id || `${match.date}:${match.time}:${match.team_a}:${match.team_b}`;
 }
 
-function textLines(schedule: ScheduleRecord, approvals: ScheduleApprovalRecord[]) {
-  const matches = JSON.parse(schedule.matches_json) as ScheduleMatch[];
-  return [
-    `%PDF-1.3`,
-    `1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj`,
-    `2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj`,
-    `3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj`,
-    `4 0 obj << /Length 5 0 R >> stream`,
-    `BT /F1 10 Tf 40 760 Td 14 TL (${`Tournament: ${schedule.tournament_name}`.replace(/[()]/g, '')}) Tj T* (${`Version: ${schedule.version_number}`.replace(/[()]/g, '')}) Tj T* (${`Status: ${schedule.status}`.replace(/[()]/g, '')}) Tj T* (${`Timestamp: ${schedule.timestamp}`.replace(/[()]/g, '')}) Tj T* (${`Hash: ${schedule.hash}`.slice(0, 80).replace(/[()]/g, '')}) Tj T* (${`Approvals: ${approvals.filter((item) => item.decision === 'approved').map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'Pending'}`.replace(/[()]/g, '')}) Tj T* ${matches.slice(0, 20).map((match) => `(${`${match.date} ${match.time} ${match.team_a} vs ${match.team_b} @ ${match.venue}`.replace(/[()]/g, '')}) Tj T*`).join(' ')} ET`,
-    `endstream endobj`,
-    `${String(0).length} 0 obj ${String(0)}`,
-    `5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj`,
-    `xref`,
-    `0 6`,
-    `0000000000 65535 f `,
-    `trailer << /Root 1 0 R /Size 6 >>`,
-    `startxref`,
-    `0`,
-    `%%EOF`,
-  ].join('\n');
+function escapePdfText(value: string) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+function buildSimplePdf(lines: string[]) {
+  const textStream = `BT /F1 10 Tf 40 760 Td 14 TL ${lines.map((line) => `(${escapePdfText(line)}) Tj T*`).join(' ')} ET`;
+  const objects = [
+    '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+    '2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj',
+    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >> endobj',
+    `4 0 obj << /Length ${textStream.length} >> stream\n${textStream}\nendstream endobj`,
+    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(pdf.length);
+    pdf += `${object}\n`;
+  }
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  });
+  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return pdf;
+}
+
+async function safeSyncRow<T>(method: 'add' | 'update', sheet: string, row: T) {
+  try {
+    await v2api.syncHeaders().catch(() => false);
+    if (method === 'add') return await v2api.addCustomSheetRow(sheet, row);
+    return await v2api.updateCustomSheetRow(sheet, row);
+  } catch {
+    return false;
+  }
 }
 
 export const scheduleService = {
   getTables() {
     return ['schedules', 'approvals'] as const;
+  },
+  async syncFromBackend() {
+    try {
+      await v2api.syncHeaders().catch(() => false);
+      const [schedules, approvals] = await Promise.all([
+        v2api.getCustomSheet<ScheduleRecord>(SHEETS.schedules),
+        v2api.getCustomSheet<ScheduleApprovalRecord>(SHEETS.approvals),
+      ]);
+      if (schedules.length) write(STORAGE.schedules, schedules);
+      if (approvals.length) write(STORAGE.approvals, approvals);
+    } catch {
+      // local cache remains the fallback
+    }
   },
   getSchedules() {
     return read<ScheduleRecord>(STORAGE.schedules).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
@@ -93,14 +129,18 @@ export const scheduleService = {
       rejection_reason: '',
     };
     write(STORAGE.schedules, [record, ...this.getSchedules()]);
+    await safeSyncRow('add', SHEETS.schedules, record);
     appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: record.schedule_id, action: 'create_schedule_version', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId: record.tournament_id, version: version_number, matches: input.matches.length }) });
     return record;
   },
-  submitForApproval(scheduleId: string, user: AuthUser) {
-    write(STORAGE.schedules, this.getSchedules().map((item) => item.schedule_id === scheduleId ? { ...item, status: 'pending_approval', rejection_reason: '' } : item));
+  async submitForApproval(scheduleId: string, user: AuthUser) {
+    const updated = this.getSchedules().map((item) => item.schedule_id === scheduleId ? { ...item, status: 'pending_approval', rejection_reason: '' } : item);
+    write(STORAGE.schedules, updated);
+    const changed = updated.find((item) => item.schedule_id === scheduleId);
+    if (changed) await safeSyncRow('update', SHEETS.schedules, changed);
     appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: scheduleId, action: 'submit_schedule_for_approval', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ status: 'pending_approval' }) });
   },
-  approveSchedule(scheduleId: string, comments: string, user: AuthUser) {
+  async approveSchedule(scheduleId: string, comments: string, user: AuthUser) {
     if (!canApproveSchedule(user) || !isScheduleApproverRole(user.designation)) throw new Error('Only authorized office bearers can approve schedules.');
     const existing = this.getApprovals().find((item) => item.schedule_id === scheduleId && item.approver_id === getActorId(user));
     if (existing) throw new Error('You have already submitted an approval for this schedule version.');
@@ -115,17 +155,22 @@ export const scheduleService = {
       comments,
       timestamp: new Date().toISOString(),
     };
-    write(STORAGE.approvals, [approval, ...this.getApprovals()]);
+    const storedApprovals = [approval, ...this.getApprovals()];
+    write(STORAGE.approvals, storedApprovals);
+    await safeSyncRow('add', SHEETS.approvals, approval);
 
-    const approvals = this.getApprovals().filter((item) => item.schedule_id === scheduleId && item.decision === 'approved');
+    const approvals = storedApprovals.filter((item) => item.schedule_id === scheduleId && item.decision === 'approved');
     const approvedRoles = new Set(approvals.map((item) => item.approver_role));
     const fullyApproved = scheduleApproverRoles.every((role) => approvedRoles.has(role));
 
-    write(STORAGE.schedules, this.getSchedules().map((item) => item.schedule_id === scheduleId ? { ...item, status: fullyApproved ? 'approved' : item.status } : item));
+    const updatedSchedules = this.getSchedules().map((item) => item.schedule_id === scheduleId ? { ...item, status: fullyApproved ? 'approved' : item.status } : item);
+    write(STORAGE.schedules, updatedSchedules);
+    const changed = updatedSchedules.find((item) => item.schedule_id === scheduleId);
+    if (changed) await safeSyncRow('update', SHEETS.schedules, changed);
     appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'approval', entity_id: approval.approval_id, action: 'approve_schedule', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ scheduleId, approverRole: approval.approver_role, fullyApproved }) });
     return approval;
   },
-  rejectSchedule(scheduleId: string, comments: string, user: AuthUser) {
+  async rejectSchedule(scheduleId: string, comments: string, user: AuthUser) {
     if (!canApproveSchedule(user) || !isScheduleApproverRole(user.designation)) throw new Error('Only authorized office bearers can reject schedules.');
     const approval: ScheduleApprovalRecord = {
       approval_id: generateId('APR'),
@@ -138,7 +183,11 @@ export const scheduleService = {
       timestamp: new Date().toISOString(),
     };
     write(STORAGE.approvals, [approval, ...this.getApprovals()]);
-    write(STORAGE.schedules, this.getSchedules().map((item) => item.schedule_id === scheduleId ? { ...item, status: 'draft', rejection_reason: comments } : item));
+    await safeSyncRow('add', SHEETS.approvals, approval);
+    const updatedSchedules = this.getSchedules().map((item) => item.schedule_id === scheduleId ? { ...item, status: 'draft', rejection_reason: comments } : item);
+    write(STORAGE.schedules, updatedSchedules);
+    const changed = updatedSchedules.find((item) => item.schedule_id === scheduleId);
+    if (changed) await safeSyncRow('update', SHEETS.schedules, changed);
     appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'approval', entity_id: approval.approval_id, action: 'reject_schedule', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ scheduleId, comments }) });
     return approval;
   },
@@ -163,7 +212,18 @@ export const scheduleService = {
     const schedule = this.getSchedules().find((item) => item.schedule_id === scheduleId);
     if (!schedule) throw new Error('Schedule not found');
     const approvals = this.getApprovals().filter((item) => item.schedule_id === scheduleId && item.decision === 'approved');
-    const content = textLines(schedule, approvals);
+    const matches = JSON.parse(schedule.matches_json) as ScheduleMatch[];
+    const lines = [
+      `Tournament: ${schedule.tournament_name}`,
+      `Version: ${schedule.version_number}`,
+      `Status: ${schedule.status}`,
+      `Timestamp: ${schedule.timestamp}`,
+      `Hash: ${schedule.hash}`,
+      `Approved by: ${approvals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'Pending'}`,
+      'Matches:',
+      ...matches.slice(0, 25).map((match) => `${match.date} ${match.time} ${match.team_a} vs ${match.team_b} @ ${match.venue}`),
+    ];
+    const content = buildSimplePdf(lines);
     const blob = new Blob([content], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

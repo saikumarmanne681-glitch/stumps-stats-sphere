@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,10 @@ const ElectionsPage = () => {
   const [manifesto, setManifesto] = useState('');
   const [voteSelections, setVoteSelections] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    electionService.syncFromBackend().finally(() => setRefreshKey((value) => value + 1));
+  }, []);
+
   if (!user) return <Navigate to="/login" replace />;
 
   const elections = useMemo(() => electionService.getElections(), [refreshKey]);
@@ -45,9 +49,9 @@ const ElectionsPage = () => {
     return acc;
   }, {});
 
-  const handleCreateElection = () => {
+  const handleCreateElection = async () => {
     if (!user || !canManageElections(user)) return;
-    electionService.createElection({
+    await electionService.createElection({
       title,
       description,
       roles_json: roles.split(',').map((item) => item.trim()).filter(Boolean).join('|'),
@@ -65,9 +69,9 @@ const ElectionsPage = () => {
     setRefreshKey((value) => value + 1);
   };
 
-  const handleNominate = () => {
+  const handleNominate = async () => {
     if (!activeElection || !user || !canContestElection(user) || !nominationRole) return;
-    electionService.submitNomination({
+    await electionService.submitNomination({
       election_id: activeElection.election_id,
       role_name: nominationRole,
       nominee_user_id: getActorId(user),
@@ -97,9 +101,9 @@ const ElectionsPage = () => {
     }
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!activeElection || !user || !canManageElections(user) || !termStart || !termEnd) return;
-    electionService.publishResults(activeElection.election_id, termStart, termEnd, user);
+    await electionService.publishResults(activeElection.election_id, termStart, termEnd, user);
     toast({ title: 'Results published', description: 'Winning candidates have been assigned to their terms.' });
     setRefreshKey((value) => value + 1);
   };
@@ -264,8 +268,8 @@ const ElectionsPage = () => {
                       <div key={item.nomination_id} className="rounded border p-3 space-y-2">
                         <p className="text-sm font-medium">{item.nominee_name} · {item.role_name}</p>
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => { electionService.reviewNomination(item.nomination_id, 'approved', user); setRefreshKey((value) => value + 1); }}>Approve</Button>
-                          <Button size="sm" variant="destructive" onClick={() => { electionService.reviewNomination(item.nomination_id, 'rejected', user); setRefreshKey((value) => value + 1); }}>Reject</Button>
+                          <Button size="sm" onClick={async () => { await electionService.reviewNomination(item.nomination_id, 'approved', user); setRefreshKey((value) => value + 1); }}>Approve</Button>
+                          <Button size="sm" variant="destructive" onClick={async () => { await electionService.reviewNomination(item.nomination_id, 'rejected', user); setRefreshKey((value) => value + 1); }}>Reject</Button>
                         </div>
                       </div>
                     ))}
