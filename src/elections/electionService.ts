@@ -3,6 +3,7 @@ import { getActorId, getActorName } from '@/lib/accessControl';
 import { AuthUser } from '@/lib/types';
 import { logAudit, v2api } from '@/lib/v2api';
 import { ElectionAuditLog, ElectionRecord, ElectionResultSummary, ElectionTermRecord, NominationRecord, VoteRecord } from './types';
+import { clearRecentOperation, isRecentOperation } from '@/lib/requestGuards';
 
 const STORAGE = {
   elections: 'club:elections',
@@ -100,6 +101,8 @@ export const electionService = {
 
   async createElection(input: Omit<ElectionRecord, 'election_id' | 'created_at' | 'results_published_at'>, user: AuthUser) {
     if (user.type !== 'admin') throw new Error('Only admin can create elections.');
+    const duplicateKey = `election:create:${getActorId(user)}:${String(input.title || '').trim().toLowerCase()}`;
+    if (isRecentOperation(duplicateKey)) throw new Error('Election creation is already being processed.');
     const record: ElectionRecord = {
       ...input,
       election_id: generateId('ELC'),
@@ -107,7 +110,11 @@ export const electionService = {
       results_published_at: '',
     };
     write(STORAGE.elections, [record, ...this.getElections()]);
-    await safeSyncRow('add', SHEETS.elections, record);
+    try {
+      await safeSyncRow('add', SHEETS.elections, record);
+    } finally {
+      clearRecentOperation(duplicateKey);
+    }
     appendAudit({
       audit_id: generateId('EAUD'),
       module: 'elections',
@@ -124,6 +131,13 @@ export const electionService = {
 
   async submitNomination(input: Omit<NominationRecord, 'nomination_id' | 'created_at' | 'status' | 'reviewed_by' | 'reviewed_at'>, user: AuthUser) {
     if (user.type !== 'player') throw new Error('Only players can submit nominations.');
+    const duplicateKey = `nomination:create:${input.election_id}:${input.role_name}:${getActorId(user)}`;
+    if (isRecentOperation(duplicateKey)) throw new Error('Nomination submission is already in progress.');
+    const existingNomination = this.getNominations().find((item) => item.election_id === input.election_id && item.role_name.toLowerCase() === input.role_name.toLowerCase() && item.nominee_user_id === input.nominee_user_id && item.status !== 'rejected');
+    if (existingNomination) {
+      clearRecentOperation(duplicateKey);
+      throw new Error('You already have an active nomination for this role.');
+    }
     const record: NominationRecord = {
       ...input,
       nomination_id: generateId('NOM'),
@@ -133,7 +147,11 @@ export const electionService = {
       reviewed_at: '',
     };
     write(STORAGE.nominations, [record, ...this.getNominations()]);
-    await safeSyncRow('add', SHEETS.nominations, record);
+    try {
+      await safeSyncRow('add', SHEETS.nominations, record);
+    } finally {
+      clearRecentOperation(duplicateKey);
+    }
     appendAudit({
       audit_id: generateId('EAUD'),
       module: 'elections',
@@ -170,10 +188,13 @@ export const electionService = {
   async castVotes(input: { electionId: string; selections: Record<string, { nominee_user_id: string; nominee_name: string }> }, user: AuthUser) {
     if (user.type !== 'player') throw new Error('Only players can vote in elections.');
     const voterId = getActorId(user);
+    const duplicateKey = `vote:create:${input.electionId}:${voterId}:${Object.keys(input.selections).sort().join('|')}`;
+    if (isRecentOperation(duplicateKey)) throw new Error('Vote submission is already being processed.');
     const voterName = getActorName(user);
     const existing = this.getVotes().filter((vote) => vote.election_id === input.electionId && vote.voter_user_id === voterId);
     const incomingRoles = Object.keys(input.selections);
     if (existing.some((vote) => incomingRoles.includes(vote.role_name))) {
+      clearRecentOperation(duplicateKey);
       throw new Error('You have already voted for one or more selected roles.');
     }
 
@@ -193,7 +214,7 @@ export const electionService = {
       };
       await safeSyncRow('add', SHEETS.votes, vote);
       return vote;
-    }));
+    })).finally(() => clearRecentOperation(duplicateKey));
 
     write(STORAGE.votes, [...newVotes, ...this.getVotes()]);
     appendAudit({
@@ -233,38 +254,44 @@ export const electionService = {
 
   async publishResults(electionId: string, termStart: string, termEnd: string, user: AuthUser) {
     if (user.type !== 'admin') throw new Error('Only admin can publish election results.');
-    const results = this.calculateResults(electionId);
-    const assignments = results
-      .filter((result) => result.winner_user_id)
-      .map((result) => ({
-        assignment_id: generateId('TERM'),
-        election_id: electionId,
-        role_name: result.role_name,
-        user_id: result.winner_user_id,
-        user_name: result.winner_name,
-        term_start: termStart,
-        term_end: termEnd,
-        assigned_at: new Date().toISOString(),
-        source_vote_count: result.nominees[0]?.votes || 0,
-      } satisfies ElectionTermRecord));
+    const duplicateKey = `election:publish:${electionId}`;
+    if (isRecentOperation(duplicateKey)) throw new Error('Result publication is already in progress.');
+    try {
+      const results = this.calculateResults(electionId);
+      const assignments = results
+        .filter((result) => result.winner_user_id)
+        .map((result) => ({
+          assignment_id: generateId('TERM'),
+          election_id: electionId,
+          role_name: result.role_name,
+          user_id: result.winner_user_id,
+          user_name: result.winner_name,
+          term_start: termStart,
+          term_end: termEnd,
+          assigned_at: new Date().toISOString(),
+          source_vote_count: result.nominees[0]?.votes || 0,
+        } satisfies ElectionTermRecord));
 
-    write(STORAGE.terms, [...assignments, ...this.getTerms()]);
-    const updatedElections = this.getElections().map((item) => item.election_id === electionId ? { ...item, status: 'closed', results_published_at: new Date().toISOString() } : item);
-    write(STORAGE.elections, updatedElections);
-    await Promise.all(assignments.map((item) => safeSyncRow('add', SHEETS.terms, item)));
-    const changedElection = updatedElections.find((item) => item.election_id === electionId);
-    if (changedElection) await safeSyncRow('update', SHEETS.elections, changedElection);
-    appendAudit({
-      audit_id: generateId('EAUD'),
-      module: 'elections',
-      entity_type: 'election',
-      entity_id: electionId,
-      action: 'publish_results',
-      actor_id: getActorId(user),
-      actor_name: getActorName(user),
-      timestamp: new Date().toISOString(),
-      details: JSON.stringify({ termStart, termEnd, assignments: assignments.length }),
-    });
-    return assignments;
+      write(STORAGE.terms, [...assignments, ...this.getTerms()]);
+      const updatedElections = this.getElections().map((item) => item.election_id === electionId ? { ...item, status: 'closed', results_published_at: new Date().toISOString() } : item);
+      write(STORAGE.elections, updatedElections);
+      await Promise.all(assignments.map((item) => safeSyncRow('add', SHEETS.terms, item)));
+      const changedElection = updatedElections.find((item) => item.election_id === electionId);
+      if (changedElection) await safeSyncRow('update', SHEETS.elections, changedElection);
+      appendAudit({
+        audit_id: generateId('EAUD'),
+        module: 'elections',
+        entity_type: 'election',
+        entity_id: electionId,
+        action: 'publish_results',
+        actor_id: getActorId(user),
+        actor_name: getActorName(user),
+        timestamp: new Date().toISOString(),
+        details: JSON.stringify({ termStart, termEnd, assignments: assignments.length }),
+      });
+      return assignments;
+    } finally {
+      clearRecentOperation(duplicateKey);
+    }
   },
 };

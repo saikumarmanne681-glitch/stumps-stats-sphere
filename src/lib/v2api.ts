@@ -1,5 +1,6 @@
 import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, ManagementUser, MatchTimeline } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
+import { createPayloadKey, runSingleFlight } from './requestGuards';
 
 async function fetchV2Sheet<T>(sheet: string): Promise<T[]> {
   const url = getAppsScriptUrl();
@@ -12,13 +13,16 @@ async function fetchV2Sheet<T>(sheet: string): Promise<T[]> {
 async function writeV2Sheet<T>(sheet: string, action: 'add' | 'update' | 'delete', payload: T): Promise<boolean> {
   const url = getAppsScriptUrl();
   if (!url) return false;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action, sheet, data: payload }),
+  const requestKey = createPayloadKey(`v2-sheet:${sheet}:${action}`, payload);
+  return runSingleFlight(requestKey, async () => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, sheet, data: payload }),
+    });
+    const result = await res.json();
+    return result.success;
   });
-  const result = await res.json();
-  return result.success;
 }
 
 export const v2api = {
