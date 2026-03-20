@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,24 +6,24 @@
 
 @layer base {
   :root {
-    --background: 210 100% 98%;
-    --foreground: 223 34% 22%;
+    --background: 220 45% 97%;
+    --foreground: 230 33% 15%;
     --card: 0 0% 100%;
     --card-foreground: 223 34% 22%;
     --popover: 0 0% 100%;
     --popover-foreground: 223 34% 22%;
-    --primary: 258 82% 62%;
+    --primary: 262 83% 62%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 193 88% 93%;
+    --secondary: 189 92% 92%;
     --secondary-foreground: 222 40% 28%;
-    --muted: 220 60% 96%;
+    --muted: 222 48% 94%;
     --muted-foreground: 222 18% 45%;
-    --accent: 36 100% 68%;
+    --accent: 188 95% 58%;
     --accent-foreground: 221 39% 24%;
     --destructive: 349 88% 63%;
     --destructive-foreground: 0 0% 100%;
-    --border: 224 63% 88%;
-    --input: 221 67% 91%;
+    --border: 226 45% 86%;
+    --input: 220 46% 89%;
     --ring: 258 82% 62%;
     --radius: 1rem;
     --cricket-green: 163 76% 43%;
@@ -82,23 +82,33 @@
   body {
     @apply min-h-screen bg-background text-foreground font-body;
     background-image:
-      radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 24%),
-      radial-gradient(circle at top right, rgba(168, 85, 247, 0.16), transparent 28%),
-      radial-gradient(circle at bottom center, rgba(251, 191, 36, 0.14), transparent 26%),
-      linear-gradient(180deg, rgba(255,255,255,0.82), rgba(245,247,255,0.96));
+      radial-gradient(circle at top left, rgba(34, 211, 238, 0.22), transparent 24%),
+      radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.18), transparent 30%),
+      radial-gradient(circle at 50% 100%, rgba(59, 130, 246, 0.14), transparent 26%),
+      linear-gradient(180deg, rgba(248,250,255,0.96), rgba(238,242,255,0.98));
     background-attachment: fixed;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Oswald', sans-serif;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgba(124, 58, 237, 0.22);
+    color: hsl(var(--foreground));
   }
 }
 
+
 @layer components {
   .font-display {
-    font-family: 'Oswald', sans-serif;
+    font-family: 'Space Grotesk', sans-serif;
   }
   .font-body {
-    font-family: 'Source Sans 3', sans-serif;
+    font-family: 'Inter', sans-serif;
   }
   .scrollbar-thin {
     scrollbar-width: thin;
@@ -143,7 +153,72 @@
   .hero-gradient {
     background-image: linear-gradient(135deg, rgba(14,165,233,0.12), rgba(168,85,247,0.16), rgba(251,191,36,0.16));
   }
+
+
+  .glass-card {
+    @apply rounded-[1.6rem] border border-white/70 bg-white/70 shadow-[0_24px_90px_-50px_rgba(76,29,149,0.35)] backdrop-blur-2xl;
+  }
+
+  .eyebrow {
+    @apply mb-2 text-[11px] font-semibold uppercase tracking-[0.35em] text-primary/70;
+  }
+
+  .neo-input {
+    @apply border-white/80 bg-white/75 shadow-[0_18px_40px_-28px_rgba(76,29,149,0.35)] backdrop-blur-xl;
+  }
+
+  .hero-panel {
+    @apply relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.90),rgba(76,29,149,0.82),rgba(8,47,73,0.86))] shadow-[0_40px_120px_-60px_rgba(15,23,42,0.95)];
+  }
+
+  .hero-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(125deg, rgba(255,255,255,0.08), transparent 40%, rgba(255,255,255,0.05));
+    pointer-events: none;
+  }
+
+  .hero-grid {
+    background-image: linear-gradient(rgba(124,58,237,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.08) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 75%);
+  }
+
+  .hero-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(28px);
+    opacity: 0.6;
+    animation: float 10s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .hero-orb-cyan { top: 4rem; right: 8%; height: 14rem; width: 14rem; background: rgba(34,211,238,0.22); }
+  .hero-orb-violet { top: 2rem; left: 8%; height: 18rem; width: 18rem; background: rgba(168,85,247,0.20); animation-delay: -2s; }
+  .hero-orb-gold { bottom: 0; left: 35%; height: 12rem; width: 12rem; background: rgba(59,130,246,0.18); animation-delay: -4s; }
+
+  .hero-badge {
+    @apply w-fit rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-xl;
+  }
+
+  .hero-stat-card {
+    @apply rounded-[1.4rem] border border-white/10 bg-white/10 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl;
+  }
+
+  .hero-visual {
+    box-shadow: 0 30px 70px -40px rgba(34, 211, 238, 0.55);
+  }
+
+  .feature-chip {
+    @apply flex items-start gap-3 rounded-[1.4rem] border border-white/10 bg-white/10 p-4 backdrop-blur-xl;
+  }
+
+  .feature-chip-icon {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10;
+  }
 }
+
 
 button, [role="button"], a[class*="btn"] {
   transition: transform 0.12s ease, box-shadow 0.2s ease, opacity 0.2s ease;
@@ -159,4 +234,9 @@ button:active, [role="button"]:active {
 
 .animate-ticker {
   animation: ticker 20s linear infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -18px, 0) scale(1.04); }
 }
