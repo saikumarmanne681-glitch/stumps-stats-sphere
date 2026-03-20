@@ -11,6 +11,7 @@ import { scheduleService } from '@/schedules/scheduleService';
 import { ScheduleMatch } from '@/schedules/types';
 import { tournamentService } from '@/tournaments/tournamentService';
 import { useToast } from '@/hooks/use-toast';
+import { getScheduleApprovalRoadmap, getScheduleDetailedStatus } from '@/lib/workflowStatus';
 
 const initialMatch = (): ScheduleMatch => ({ match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' });
 
@@ -63,7 +64,7 @@ export function AdminGovernance() {
           </div>
           <div className="rounded-lg border p-4">
             <p className="text-sm text-muted-foreground">Can administer</p>
-            <p className="font-medium">{canManageElections(user) ? 'Yes' : 'Admin / Election Officer only'}</p>
+            <p className="font-medium">{canManageElections(user) ? 'Yes — admin only' : 'Admin only'}</p>
           </div>
           <div className="rounded-lg border p-4">
             <p className="text-sm text-muted-foreground">Audit source</p>
@@ -98,25 +99,51 @@ export function AdminGovernance() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Approval Panel</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Approval roadmap for tournament schedules</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {pendingSchedules.map((schedule) => {
             const scheduleApprovals = approvals.filter((item) => item.schedule_id === schedule.schedule_id);
             const previous = schedules.find((item) => item.schedule_id === schedule.parent_schedule_id);
             const diff = scheduleService.diffVersions(previous, schedule);
+            const roadmap = getScheduleApprovalRoadmap(schedule, approvals);
+            const detailedStatus = getScheduleDetailedStatus(schedule, approvals);
+
             return (
-              <div key={schedule.schedule_id} className="rounded-lg border p-4 space-y-3">
+              <div key={schedule.schedule_id} className="rounded-lg border p-4 space-y-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
                     <p className="font-semibold">{schedule.tournament_name} · v{schedule.version_number}</p>
                     <p className="text-sm text-muted-foreground">Created by {schedule.created_by_name} ({schedule.created_by || getActorId(user)})</p>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    <Badge>{schedule.status}</Badge>
+                    <Badge>{detailedStatus}</Badge>
                     <Badge variant="outline">Hash {schedule.hash.slice(0, 10)}…</Badge>
                   </div>
                 </div>
-                <p className="text-sm"><strong>Change log:</strong> {schedule.change_log || 'No change log'}</p>
+
+                <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+                  <p><strong>Current status:</strong> {detailedStatus}</p>
+                  <p><strong>Change log:</strong> {schedule.change_log || 'No change log'}</p>
+                  {schedule.rejection_reason && <p><strong>Revision note:</strong> {schedule.rejection_reason}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Approval roadmap</p>
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                    {roadmap.map((step) => (
+                      <div key={step.role} className={`rounded-lg border p-3 ${step.completed ? 'border-primary/30 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">{step.role}</p>
+                          <Badge variant={step.completed ? 'default' : 'secondary'}>{step.completed ? 'Approved' : `Pending with ${step.role}`}</Badge>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {step.approval ? `${step.approval.approver_name} • ${new Date(step.approval.timestamp).toLocaleString()}` : 'Waiting for this office bearer approval.'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Diff against previous version</p>
                   {diff.map((entry) => (
@@ -126,10 +153,11 @@ export function AdminGovernance() {
                   ))}
                   {diff.length === 0 && <p className="text-sm text-muted-foreground">No previous version for comparison.</p>}
                 </div>
+
                 <div className="flex gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={async () => { await scheduleService.submitForApproval(schedule.schedule_id, user!); setRefreshKey((value) => value + 1); }}>Send for Approval</Button>
                 </div>
-                <div className="text-sm text-muted-foreground">Approvals: {scheduleApprovals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'None yet'}</div>
+                <div className="text-sm text-muted-foreground">Approvals received: {scheduleApprovals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'None yet'}</div>
               </div>
             );
           })}

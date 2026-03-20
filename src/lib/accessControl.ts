@@ -35,17 +35,15 @@ export function isAdminOrDesignation(user: AuthUser | null | undefined, designat
 }
 
 export function canManageElections(user: AuthUser | null | undefined) {
-  return isAdminOrDesignation(user, MANAGEMENT_DESIGNATIONS.ELECTION_OFFICER);
+  return user?.type === 'admin';
 }
 
 export function canVoteInElection(user: AuthUser | null | undefined) {
-  if (!user) return false;
-  if (user.type === 'management' && user.designation === MANAGEMENT_DESIGNATIONS.ELECTION_OFFICER) return false;
-  return true;
+  return user?.type === 'player';
 }
 
 export function canContestElection(user: AuthUser | null | undefined) {
-  return canVoteInElection(user);
+  return user?.type === 'player';
 }
 
 export function canManageTournament(user: AuthUser | null | undefined) {

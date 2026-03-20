@@ -3,6 +3,7 @@ import { AuthUser } from '@/lib/types';
 import { generateId } from '@/lib/utils';
 import { logAudit, v2api } from '@/lib/v2api';
 import { ScheduleApprovalRecord, ScheduleAuditLog, ScheduleDiffEntry, ScheduleMatch, ScheduleRecord } from './types';
+import { getScheduleDetailedStatus } from '@/lib/workflowStatus';
 
 const STORAGE = {
   schedules: 'club:schedules',
@@ -212,14 +213,15 @@ export const scheduleService = {
     const schedule = this.getSchedules().find((item) => item.schedule_id === scheduleId);
     if (!schedule) throw new Error('Schedule not found');
     const approvals = this.getApprovals().filter((item) => item.schedule_id === scheduleId && item.decision === 'approved');
+    const detailedStatus = getScheduleDetailedStatus(schedule, this.getApprovals());
     const matches = JSON.parse(schedule.matches_json) as ScheduleMatch[];
     const lines = [
       `Tournament: ${schedule.tournament_name}`,
       `Version: ${schedule.version_number}`,
-      `Status: ${schedule.status}`,
+      `Status: ${detailedStatus}`,
       `Timestamp: ${schedule.timestamp}`,
       `Hash: ${schedule.hash}`,
-      `Approved by: ${approvals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'Pending'}`,
+      `Approved by: ${approvals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || detailedStatus}`,
       'Matches:',
       ...matches.slice(0, 25).map((match) => `${match.date} ${match.time} ${match.team_a} vs ${match.team_b} @ ${match.venue}`),
     ];
