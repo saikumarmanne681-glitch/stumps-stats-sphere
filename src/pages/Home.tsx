@@ -13,9 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trophy, Calendar, MapPin, Users, TrendingUp, Shield, ExternalLink, Lock } from "lucide-react";
-import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { SessionFingerprint, DataIntegrityBadge, SecurityShieldBadge } from "@/components/SecurityBadge";
+import { formatSheetDate, hasSheetDate } from "@/lib/dataUtils";
 
 const Home = () => {
   const { players, tournaments, seasons, matches, batting, bowling, announcements, loading } = useData();
@@ -198,9 +198,9 @@ const Home = () => {
                     {liveMatches > 0 && (
                       <Badge className="bg-destructive text-destructive-foreground animate-pulse">{liveMatches} LIVE</Badge>
                     )}
-                    {season.start_date && season.end_date && (
+                    {hasSheetDate(season.start_date) && hasSheetDate(season.end_date) && (
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(season.start_date), "dd MMM")} – {format(new Date(season.end_date), "dd MMM yyyy")}
+                        {formatSheetDate(season.start_date, "dd MMM")} – {formatSheetDate(season.end_date, "dd MMM yyyy")}
                       </p>
                     )}
                     <div className="rounded-xl border bg-muted/20 p-3">
