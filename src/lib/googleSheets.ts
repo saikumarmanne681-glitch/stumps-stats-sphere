@@ -1,4 +1,5 @@
 import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message } from "./types";
+import { normalizeSheetRows } from "./dataUtils";
 import {
   mockPlayers,
   mockTournaments,
@@ -40,7 +41,7 @@ async function fetchSheet<T>(sheet: string): Promise<T[]> {
   }
   const res = await fetch(`${APPS_SCRIPT_URL}?action=get&sheet=${sheet}`);
   const data = await res.json();
-  return data as T[];
+  return normalizeSheetRows(data as T[]);
 }
 
 async function writeSheet<T>(sheet: string, action: "add" | "update" | "delete", payload: T): Promise<boolean> {
