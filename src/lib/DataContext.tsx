@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message } from "./types";
 import { api, isConnected } from "./googleSheets";
+import { logAudit, v2api } from "./v2api";
 
 interface DataState {
   players: Player[];
@@ -119,6 +120,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    v2api.syncHeaders().catch(console.warn);
     refresh();
     intervalRef.current = setInterval(refresh, 30000);
     return () => {
@@ -128,9 +130,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Helper: optimistic update + API call + refresh
   const mutate = useCallback(
-    async (apiFn: () => Promise<boolean>, optimisticUpdate: (prev: DataState) => DataState) => {
+    async (
+      apiFn: () => Promise<boolean>,
+      optimisticUpdate: (prev: DataState) => DataState,
+      audit?: { actor: string; eventType: string; entityType: string; entityId: string; metadata?: string },
+    ) => {
       setState((prev) => optimisticUpdate(prev));
       const success = await apiFn();
+      if (success && audit) {
+        logAudit(audit.actor, audit.eventType, audit.entityType, audit.entityId, audit.metadata || '');
+      }
       if (isConnected() && success) {
         // Refresh from server after a short delay to let sheet update
         setTimeout(refresh, 500);
@@ -148,16 +157,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       mutate(
         () => api.addPlayer(p),
         (prev) => ({ ...prev, players: [...prev.players, p] }),
+        { actor: "system", eventType: "add_player", entityType: "player", entityId: p.player_id, metadata: JSON.stringify({ name: p.name, role: p.role, status: p.status }) },
       ),
     updatePlayer: async (p) =>
       mutate(
         () => api.updatePlayer(p),
         (prev) => ({ ...prev, players: prev.players.map((x) => (x.player_id === p.player_id ? p : x)) }),
+        { actor: "system", eventType: "update_player", entityType: "player", entityId: p.player_id, metadata: JSON.stringify({ name: p.name, role: p.role, status: p.status }) },
       ),
     deletePlayer: async (id) =>
       mutate(
         () => api.deletePlayer(id),
         (prev) => ({ ...prev, players: prev.players.filter((x) => x.player_id !== id) }),
+        { actor: "system", eventType: "delete_player", entityType: "player", entityId: id },
       ),
 
     // Tournaments
@@ -165,6 +177,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       mutate(
         () => api.addTournament(t),
         (prev) => ({ ...prev, tournaments: [...prev.tournaments, t] }),
+        { actor: "system", eventType: "add_tournament", entityType: "tournament", entityId: t.tournament_id, metadata: JSON.stringify({ name: t.name, format: t.format, overs: t.overs }) },
       ),
     updateTournament: async (t) =>
       mutate(
@@ -173,11 +186,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           tournaments: prev.tournaments.map((x) => (x.tournament_id === t.tournament_id ? t : x)),
         }),
+        { actor: "system", eventType: "update_tournament", entityType: "tournament", entityId: t.tournament_id, metadata: JSON.stringify({ name: t.name, format: t.format, overs: t.overs }) },
       ),
     deleteTournament: async (id) =>
       mutate(
         () => api.deleteTournament(id),
         (prev) => ({ ...prev, tournaments: prev.tournaments.filter((x) => x.tournament_id !== id) }),
+        { actor: "system", eventType: "delete_tournament", entityType: "tournament", entityId: id },
       ),
 
     // Seasons
@@ -185,16 +200,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       mutate(
         () => api.addSeason(s),
         (prev) => ({ ...prev, seasons: [...prev.seasons, s] }),
+        { actor: "system", eventType: "add_season", entityType: "season", entityId: s.season_id, metadata: JSON.stringify({ year: s.year, tournamentId: s.tournament_id, status: s.status }) },
       ),
     updateSeason: async (s) =>
       mutate(
         () => api.updateSeason(s),
         (prev) => ({ ...prev, seasons: prev.seasons.map((x) => (x.season_id === s.season_id ? s : x)) }),
+        { actor: "system", eventType: "update_season", entityType: "season", entityId: s.season_id, metadata: JSON.stringify({ year: s.year, tournamentId: s.tournament_id, status: s.status }) },
       ),
     deleteSeason: async (id) =>
       mutate(
         () => api.deleteSeason(id),
         (prev) => ({ ...prev, seasons: prev.seasons.filter((x) => x.season_id !== id) }),
+        { actor: "system", eventType: "delete_season", entityType: "season", entityId: id },
       ),
 
     // Matches
@@ -202,16 +220,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       mutate(
         () => api.addMatch(m),
         (prev) => ({ ...prev, matches: [...prev.matches, m] }),
+        { actor: "system", eventType: "add_match", entityType: "match", entityId: m.match_id, metadata: JSON.stringify({ teams: `${m.team_a} vs ${m.team_b}`, status: m.status, matchStage: m.match_stage || "" }) },
       ),
     updateMatch: async (m) =>
       mutate(
         () => api.updateMatch(m),
         (prev) => ({ ...prev, matches: prev.matches.map((x) => (x.match_id === m.match_id ? m : x)) }),
+        { actor: "system", eventType: "update_match", entityType: "match", entityId: m.match_id, metadata: JSON.stringify({ teams: `${m.team_a} vs ${m.team_b}`, status: m.status, matchStage: m.match_stage || "", result: m.result || "" }) },
       ),
     deleteMatch: async (id) =>
       mutate(
         () => api.deleteMatch(id),
         (prev) => ({ ...prev, matches: prev.matches.filter((x) => x.match_id !== id) }),
+        { actor: "system", eventType: "delete_match", entityType: "match", entityId: id },
       ),
 
     // Batting
@@ -253,16 +274,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       mutate(
         () => api.addAnnouncement(a),
         (prev) => ({ ...prev, announcements: [...prev.announcements, a] }),
+        { actor: a.created_by || "admin", eventType: "add_announcement", entityType: "announcement", entityId: a.id, metadata: JSON.stringify({ title: a.title, active: a.active }) },
       ),
     updateAnnouncement: async (a) =>
       mutate(
         () => api.updateAnnouncement(a),
         (prev) => ({ ...prev, announcements: prev.announcements.map((x) => (x.id === a.id ? a : x)) }),
+        { actor: a.created_by || "admin", eventType: "update_announcement", entityType: "announcement", entityId: a.id, metadata: JSON.stringify({ title: a.title, active: a.active }) },
       ),
     deleteAnnouncement: async (id) =>
       mutate(
         () => api.deleteAnnouncement(id),
         (prev) => ({ ...prev, announcements: prev.announcements.filter((x) => x.id !== id) }),
+        { actor: "admin", eventType: "delete_announcement", entityType: "announcement", entityId: id },
       ),
 
     // Messages
@@ -270,11 +294,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       mutate(
         () => api.addMessage(m),
         (prev) => ({ ...prev, messages: [...prev.messages, m] }),
+        { actor: m.from_id || "system", eventType: "add_message", entityType: "message", entityId: m.id, metadata: JSON.stringify({ to: m.to_id, subject: m.subject, replyTo: m.reply_to || "" }) },
       ),
     updateMessage: async (m) =>
       mutate(
         () => api.updateMessage(m),
         (prev) => ({ ...prev, messages: prev.messages.map((x) => (x.id === m.id ? m : x)) }),
+        { actor: m.from_id || "system", eventType: "update_message", entityType: "message", entityId: m.id, metadata: JSON.stringify({ to: m.to_id, read: m.read, replyTo: m.reply_to || "" }) },
       ),
 
     // Bulk scorecard
@@ -297,6 +323,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         batting: [...prev.batting.filter((b) => b.match_id !== matchId), ...newBatting],
         bowling: [...prev.bowling.filter((b) => b.match_id !== matchId), ...newBowling],
       }));
+
+      logAudit("system", "save_scorecard_bulk", "match", matchId, JSON.stringify({ battingEntries: newBatting.length, bowlingEntries: newBowling.length }));
 
       if (isConnected()) setTimeout(refresh, 1000);
     },

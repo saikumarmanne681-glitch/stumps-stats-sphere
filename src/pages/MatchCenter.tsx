@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useData } from '@/lib/DataContext';
 import { useAuth } from '@/lib/auth';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
@@ -13,9 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate } from 'react-router-dom';
-import { Loader2, Undo2, Redo2, Play, StopCircle, RotateCcw, Trophy, Zap, Save } from 'lucide-react';
+import { Loader2, Undo2, Redo2, Play, StopCircle, RotateCcw, Trophy, Save } from 'lucide-react';
 import { generateId } from '@/lib/utils';
-import { MATCH_STAGES } from '@/lib/v2types';
 import { BattingScorecard, BowlingScorecard } from '@/lib/types';
 
 interface ScoringAction {
@@ -31,10 +30,24 @@ interface ScoringAction {
   timestamp: string;
 }
 
+
+function advanceOver(value: string) {
+  const [oversText, ballsText] = value.split('.');
+  let overs = Number(oversText || 0);
+  let balls = Number(ballsText || 0);
+  if (Number.isNaN(overs) || Number.isNaN(balls)) return value;
+  balls += 1;
+  if (balls >= 6) {
+    overs += 1;
+    balls = 0;
+  }
+  return `${overs}.${balls}`;
+}
+
 const MatchCenter = () => {
   const { isAdmin } = useAuth();
   const { user } = useAuth();
-  const { matches, batting, bowling, players, tournaments, seasons, updateMatch, saveScorecardBulk, refresh } = useData();
+  const { matches, batting, bowling, players, tournaments, seasons, updateMatch, saveScorecardBulk } = useData();
   const { toast } = useToast();
 
   const [selectedMatchId, setSelectedMatchId] = useState('');
@@ -81,6 +94,10 @@ const MatchCenter = () => {
 
   const runRate = (runs: number, balls: number) => balls > 0 ? ((runs / balls) * 6).toFixed(2) : '0.00';
   const isLiveMatch = match?.status === 'live';
+  const battingTeamName = match ? (battingTeam === 'A' ? match.team_a : match.team_b) : '';
+  const bowlingTeamName = match ? (battingTeam === 'A' ? match.team_b : match.team_a) : '';
+  const battingOptions = useMemo(() => players.filter((player) => !battingTeamName || liveBatting.some((entry) => entry.team === battingTeamName && entry.player_id === player.player_id) || liveBowling.some((entry) => entry.team === battingTeamName && entry.player_id === player.player_id)), [players, battingTeamName, liveBatting, liveBowling]);
+  const bowlingOptions = useMemo(() => players.filter((player) => !bowlingTeamName || liveBatting.some((entry) => entry.team === bowlingTeamName && entry.player_id === player.player_id) || liveBowling.some((entry) => entry.team === bowlingTeamName && entry.player_id === player.player_id)), [players, bowlingTeamName, liveBatting, liveBowling]);
 
   const addTimelineEvent = async (eventType: string, description: string, playerId: string = '') => {
     if (!match) return;
@@ -172,6 +189,8 @@ const MatchCenter = () => {
     };
     addScoringAction(action);
     await addTimelineEvent(runs === 4 ? 'FOUR' : runs === 6 ? 'SIX' : 'RUNS', `Over ${currentOver} – ${desc}`, currentBatsman);
+    logAudit(user?.username || 'admin', 'score_runs', 'match', match.match_id, JSON.stringify({ over: currentOver, runs, batsmanId: currentBatsman, bowlerId: currentBowler, team }));
+    setCurrentOver((prev) => advanceOver(prev));
     toast({ title: desc, description: `Over ${currentOver}` });
   };
 
@@ -210,6 +229,9 @@ const MatchCenter = () => {
     };
     addScoringAction(action);
     await addTimelineEvent('WICKET', `Over ${currentOver} – ${desc}`, currentBatsman);
+    logAudit(user?.username || 'admin', 'record_wicket', 'match', match.match_id, JSON.stringify({ over: currentOver, wicketType, batsmanId: currentBatsman, bowlerId: currentBowler, team }));
+    setCurrentOver((prev) => advanceOver(prev));
+    setCurrentBatsman('');
     toast({ title: 'Wicket!', description: `${wicketType} - Over ${currentOver}`, variant: 'destructive' });
   };
 
@@ -244,6 +266,7 @@ const MatchCenter = () => {
     };
     addScoringAction(action);
     await addTimelineEvent('EXTRA', `Over ${currentOver} – ${desc}`);
+    logAudit(user?.username || 'admin', 'record_extra', 'match', match.match_id, JSON.stringify({ over: currentOver, extraType: type, runs, bowlerId: currentBowler }));
   };
 
   const undoLastAction = () => {
@@ -289,6 +312,7 @@ const MatchCenter = () => {
         team_a_score: `${aScore.runs}/${aScore.wkts} (${aScore.overs})`,
         team_b_score: `${bScore.runs}/${bScore.wkts} (${bScore.overs})`,
       });
+      logAudit(user?.username || 'admin', 'save_live_scoring', 'match', match.match_id, JSON.stringify({ teamAScore: aScore, teamBScore: bScore, actions: scoringHistory.length }));
       toast({ title: '✅ Scoring data saved to database!' });
     } catch (e) {
       toast({ title: 'Error saving', variant: 'destructive' });
@@ -312,6 +336,9 @@ const MatchCenter = () => {
     setInnings(2);
     setBattingTeam(battingTeam === 'A' ? 'B' : 'A');
     setCurrentOver('0.0');
+    setCurrentBatsman('');
+    setCurrentBowler('');
+    logAudit(user?.username || 'admin', 'end_innings', 'match', match.match_id, JSON.stringify({ completedInnings: innings }));
     toast({ title: `Innings ${innings} ended` });
   };
 
@@ -436,13 +463,13 @@ const MatchCenter = () => {
                   )}
                   {match.status === 'live' && (
                     <>
-                      <Button variant="secondary" onClick={handleSaveScoring} disabled={loading} className="gap-1">
+                      <Button variant="secondary" onClick={handleSaveScoring} disabled={loading} className="gap-1 rounded-full">
                         <Save className="h-4 w-4" /> Save Scores
                       </Button>
-                      <Button variant="outline" onClick={handleEndInnings} className="gap-1">
+                      <Button variant="outline" onClick={handleEndInnings} className="gap-1 rounded-full">
                         <RotateCcw className="h-4 w-4" /> End Innings
                       </Button>
-                      <Button variant="destructive" onClick={handleFinishMatch} className="gap-1">
+                      <Button variant="destructive" onClick={handleFinishMatch} className="gap-1 rounded-full">
                         <StopCircle className="h-4 w-4" /> Finish Match
                       </Button>
                     </>
@@ -480,7 +507,7 @@ const MatchCenter = () => {
                           <Select value={currentBatsman} onValueChange={setCurrentBatsman} disabled={!isLiveMatch}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="Select" /></SelectTrigger>
                             <SelectContent>
-                              {players.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
+                              {(battingOptions.length > 0 ? battingOptions : players).map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </div>
@@ -489,9 +516,19 @@ const MatchCenter = () => {
                           <Select value={currentBowler} onValueChange={setCurrentBowler} disabled={!isLiveMatch}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="Select" /></SelectTrigger>
                             <SelectContent>
-                              {players.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
+                              {(bowlingOptions.length > 0 ? bowlingOptions : players).map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
                             </SelectContent>
                           </Select>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-primary/10 bg-primary/5 p-3 text-xs text-muted-foreground">
+                        <p className="font-semibold text-foreground">Smart helpers</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Badge variant="outline" className="rounded-full">Innings {innings}</Badge>
+                          <Badge variant="outline" className="rounded-full">Batting: {battingTeamName || '-'}</Badge>
+                          <Badge variant="outline" className="rounded-full">Bowling: {bowlingTeamName || '-'}</Badge>
+                          {currentBatsman && <Badge className="rounded-full bg-primary/15 text-primary">Striker selected</Badge>}
+                          {currentBowler && <Badge className="rounded-full bg-accent/15 text-foreground">Bowler selected</Badge>}
                         </div>
                       </div>
                       <div className="grid grid-cols-4 gap-2">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,28 @@ function calcTeamScore(batting: BattingScorecard[], team: string): string {
 
 const CATEGORIES = ['Scorecard', 'Technical', 'Bug Report', 'General'];
 
+
+function buildMatchIssueTemplate(match: Match, tournament?: Tournament, season?: Season) {
+  return {
+    subject: `Issue in ${match.team_a} vs ${match.team_b}` ,
+    description: [
+      `Please review this match issue.`,
+      '',
+      `Match ID: ${match.match_id}`,
+      `Fixture: ${match.team_a} vs ${match.team_b}`,
+      `Tournament: ${tournament?.name || '-'}`,
+      `Season: ${season?.year || '-'}`,
+      `Stage: ${match.match_stage || '-'}`,
+      `Date: ${match.date || '-'}`,
+      `Venue: ${match.venue || '-'}`,
+      `Status: ${match.status || '-'}`,
+      `Visible score: ${match.team_a_score || '-'} | ${match.team_b_score || '-'}`,
+      '',
+      `Issue details:`,
+    ].join('\n'),
+  };
+}
+
 export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling, players, tournament, season }: MatchDetailDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -51,6 +73,16 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
   const [submitting, setSubmitting] = useState(false);
 
   if (!match) return null;
+
+  const issueTemplate = useMemo(() => buildMatchIssueTemplate(match, tournament, season), [match, tournament, season]);
+
+  useEffect(() => {
+    if (!showReport) return;
+    setReportSubject((prev) => prev || issueTemplate.subject);
+    setReportDesc((prev) => prev || issueTemplate.description);
+    setReportCategory('Scorecard');
+    setReportPriority(match.status === 'live' ? 'high' : 'medium');
+  }, [showReport, issueTemplate, match.status]);
 
   const matchBatting = batting.filter(b => b.match_id === match.match_id);
   const matchBowling = bowling.filter(b => b.match_id === match.match_id);
@@ -71,7 +103,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
       category: reportCategory,
       priority: reportPriority,
       subject: `[Match: ${match.team_a} vs ${match.team_b}] ${reportSubject}`,
-      description: `Match ID: ${match.match_id}\n${match.team_a} vs ${match.team_b}\n\n${reportDesc}`,
+      description: `${reportDesc}\n${reportDesc.includes('Issue details:') ? '' : '\nIssue details:'}\nRaised by: ${user.player_id || user.management_id || user.username}`,
       attachment_url: '',
       status: 'open',
       assigned_admin_id: '',
@@ -175,12 +207,12 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-4 md:p-6">
+      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col rounded-[2rem] border-primary/10 p-4 md:p-6">
         <DialogHeader>
           <DialogTitle className="font-display text-lg md:text-xl">{match.team_a} vs {match.team_b}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-2 pb-3 border-b">
+        <div className="space-y-3 rounded-[1.5rem] border border-primary/10 bg-gradient-to-br from-primary/5 via-background to-accent/10 p-4 pb-4">
           {tournament && (
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               {tournament.name} • {tournament.format}{season ? ` • ${season.year}` : ''}
@@ -193,7 +225,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
             <Badge variant={match.status === 'completed' ? 'default' : 'secondary'}>{match.status.toUpperCase()}</Badge>
           </div>
 
-          <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3 mt-2">
+          <div className="mt-2 flex items-center justify-between rounded-[1.25rem] border border-primary/10 bg-background/80 p-3 shadow-sm">
             <div className="text-center flex-1">
               <p className="font-display text-sm md:text-lg font-bold">{match.team_a}</p>
               <p className="text-primary font-bold text-lg md:text-xl">{teamAScore}</p>
@@ -228,12 +260,18 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
         {user && (
           <div className="border-t pt-3">
             {!showReport ? (
-              <Button variant="outline" size="sm" onClick={() => setShowReport(true)} className="gap-1 w-full md:w-auto">
+              <Button variant="outline" size="sm" onClick={() => setShowReport(true)} className="w-full gap-1 rounded-full md:w-auto">
                 <AlertTriangle className="h-3 w-3" /> Report Issue with this Match
               </Button>
             ) : (
-              <div className="space-y-3 p-3 rounded-lg border bg-muted/30">
-                <p className="text-sm font-semibold">Report Issue</p>
+              <div className="space-y-4 rounded-[1.5rem] border border-primary/10 bg-gradient-to-br from-background via-background to-primary/5 p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Report Issue</p>
+                    <p className="text-xs text-muted-foreground">We pre-filled match metadata so you can describe the issue faster.</p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full">Auto-filled</Badge>
+                </div>
                 <Input value={reportSubject} onChange={e => setReportSubject(e.target.value)} placeholder="Brief summary..." />
                 <div className="flex gap-2">
                   <Select value={reportCategory} onValueChange={setReportCategory}>
@@ -249,11 +287,12 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
                     </SelectContent>
                   </Select>
                 </div>
-                <Textarea value={reportDesc} onChange={e => setReportDesc(e.target.value)} placeholder="Describe the issue..." className="min-h-[60px]" />
+                <Textarea value={reportDesc} onChange={e => setReportDesc(e.target.value)} placeholder="Describe the issue..." className="min-h-[180px] rounded-2xl text-sm leading-6" />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleReportIssue} disabled={submitting || !reportSubject.trim() || !reportDesc.trim()}>
                     {submitting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} Submit
                   </Button>
+                  <Button size="sm" variant="secondary" onClick={() => { setReportSubject(issueTemplate.subject); setReportDesc(issueTemplate.description); }}>Reset template</Button>
                   <Button size="sm" variant="ghost" onClick={() => setShowReport(false)}>Cancel</Button>
                 </div>
               </div>
