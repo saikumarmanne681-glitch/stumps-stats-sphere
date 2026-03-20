@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Award, Share2, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { PageLoader } from '@/components/LoadingOverlay';
+import { SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
 
 function calcTeamScore(batting: any[], team: string) {
   const rows = batting.filter((b: any) => b.team === team);
@@ -26,35 +28,33 @@ const MatchPage = () => {
   const { matches, batting, bowling, players, tournaments, seasons, loading } = useData();
   const { toast } = useToast();
   const [sharing, setSharing] = useState(false);
-  
+
   const match = matches.find(m => m.match_id === match_id);
   const tournament = match ? tournaments.find(t => t.tournament_id === match.tournament_id) : null;
   const season = match ? seasons.find(s => s.season_id === match.season_id) : null;
-  const matchBatting = batting.filter(b => b.match_id === match_id);
-  const matchBowling = bowling.filter(b => b.match_id === match_id);
+  const matchBatting = useMemo(() => batting.filter(b => b.match_id === match_id), [batting, match_id]);
+  const matchBowling = useMemo(() => bowling.filter(b => b.match_id === match_id), [bowling, match_id]);
   const mom = match ? players.find(p => p.player_id === match.man_of_match) : null;
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
   const teamAScore = match?.team_a_score || calcTeamScore(matchBatting, match?.team_a || '');
   const teamBScore = match?.team_b_score || calcTeamScore(matchBatting, match?.team_b || '');
 
-  // Top performers
   const topBatsman = useMemo(() => {
     if (matchBatting.length === 0) return null;
     return [...matchBatting].sort((a, b) => b.runs - a.runs)[0];
   }, [matchBatting]);
-  
+
   const topBowler = useMemo(() => {
     if (matchBowling.length === 0) return null;
     return [...matchBowling].sort((a, b) => b.wickets - a.wickets)[0];
   }, [matchBowling]);
 
+  // Show loading state instead of "not found" while data loads
   if (loading) return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container mx-auto px-4 py-20 text-center text-muted-foreground">
-        Loading match details, please wait...
-      </div>
+      <PageLoader message="Loading match details..." />
     </div>
   );
 
@@ -63,6 +63,7 @@ const MatchPage = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-20 text-center">
         <h1 className="font-display text-3xl mb-4">Match Not Found</h1>
+        <p className="text-muted-foreground mb-4">The match you're looking for doesn't exist or may have been removed.</p>
         <Button asChild><Link to="/"><ArrowLeft className="h-4 w-4 mr-1" /> Back to Home</Link></Button>
       </div>
     </div>
@@ -75,34 +76,18 @@ const MatchPage = () => {
     setSharing(true);
     try {
       if (navigator.share) {
-        await navigator.share({
-          title: `${match.team_a} vs ${match.team_b}`,
-          text: shareText,
-          url: shareUrl,
-        });
+        await navigator.share({ title: `${match.team_a} vs ${match.team_b}`, text: shareText, url: shareUrl });
         return;
       }
-
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        toast({
-          title: 'Link copied',
-          description: 'Match link copied to clipboard.',
-        });
+        toast({ title: 'Link copied', description: 'Match link copied to clipboard.' });
         return;
       }
-
       throw new Error('No supported share mechanism available');
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
-      }
-      toast({
-        title: 'Share failed',
-        description: 'Could not share this match right now.',
-        variant: 'destructive',
-      });
-      console.error('Share action failed', error);
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      toast({ title: 'Share failed', description: 'Could not share this match right now.', variant: 'destructive' });
     } finally {
       setSharing(false);
     }
@@ -175,6 +160,7 @@ const MatchPage = () => {
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild><Link to="/"><ArrowLeft className="h-4 w-4" /></Link></Button>
           <h1 className="font-display text-2xl font-bold">{match.team_a} vs {match.team_b}</h1>
+          <SecurityShieldBadge label="Official" variant="certified" />
         </div>
 
         {/* Match Header */}
@@ -183,7 +169,7 @@ const MatchPage = () => {
             <div className="flex flex-wrap items-center gap-2 mb-4">
               {tournament && <Badge variant="outline">{tournament.name} • {tournament.format}</Badge>}
               {season && <Badge variant="outline">Season {season.year}</Badge>}
-              {match.match_stage && <Badge className="bg-accent text-accent-foreground">{match.match_stage}</Badge>}
+              {match.match_stage && <Badge className="bg-accent/20 text-accent-foreground border border-accent/30">{match.match_stage}</Badge>}
               <Badge className={match.status === 'live' ? 'bg-destructive text-destructive-foreground animate-pulse' : 'bg-primary text-primary-foreground'}>{match.status.toUpperCase()}</Badge>
             </div>
 
@@ -209,6 +195,14 @@ const MatchPage = () => {
               <Button variant="outline" size="sm" onClick={handleShare} className="gap-1" loading={sharing} loadingText="Preparing link...">
                 <Share2 className="h-3 w-3" /> Share
               </Button>
+              {tournament && (
+                <Button variant="ghost" size="sm" asChild className="gap-1">
+                  <Link to={`/tournament/${tournament.tournament_id}`}>View Tournament →</Link>
+                </Button>
+              )}
+            </div>
+            <div className="flex justify-center mt-2">
+              <DataIntegrityBadge data={JSON.stringify({ id: match.match_id, a: teamAScore, b: teamBScore })} label="Score Hash" />
             </div>
           </CardContent>
         </Card>
