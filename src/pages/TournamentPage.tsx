@@ -12,9 +12,13 @@ import { DigitalScorelist } from '@/lib/v2types';
 import { SecurityShieldBadge, DataIntegrityBadge, SecurityWatermark } from '@/components/SecurityBadge';
 import { PageLoader } from '@/components/LoadingOverlay';
 import { compareSheetDatesDesc, findTournamentById, formatSheetDate, hasSheetDate, normalizeId } from '@/lib/dataUtils';
+import { useAuth } from '@/lib/auth';
+import { ApprovedSchedulePanel } from '@/schedules/ApprovedSchedulePanel';
+import { tournamentService } from '@/tournaments/tournamentService';
 
 const TournamentPage = () => {
   const { id } = useParams();
+  const { user } = useAuth();
   const { tournaments, seasons, matches, batting, bowling, players, loading } = useData();
   const [officialScorelists, setOfficialScorelists] = useState<DigitalScorelist[]>([]);
   const [scorelistsLoading, setScorelistsLoading] = useState(true);
@@ -254,6 +258,38 @@ const TournamentPage = () => {
             )}
           </CardContent>
         </Card>
+
+
+        {user ? (
+          <div className="grid gap-6 lg:grid-cols-2"> 
+            <Card>
+              <CardHeader><CardTitle className="font-display">📝 Member Registration</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <p className="text-muted-foreground">Tournament registrations are only visible to logged-in users and are managed from the dedicated tournaments workspace.</p>
+                <div className="rounded-lg border p-4">
+                  <p><strong>Pending registrations:</strong> {tournamentService.getRegistrations().filter((item) => item.tournament_id === tournament.tournament_id && item.status === 'pending').length}</p>
+                  <p><strong>Approved registrations:</strong> {tournamentService.getRegistrations().filter((item) => item.tournament_id === tournament.tournament_id && item.status === 'approved').length}</p>
+                  <p><strong>Rejected registrations:</strong> {tournamentService.getRegistrations().filter((item) => item.tournament_id === tournament.tournament_id && item.status === 'rejected').length}</p>
+                </div>
+                <Button asChild>
+                  <Link to="/tournaments">Open Registrations & Schedule</Link>
+                </Button>
+              </CardContent>
+            </Card>
+            <ApprovedSchedulePanel tournamentId={tournament.tournament_id} />
+          </div>
+        ) : (
+          <Card className="border-dashed">
+            <CardContent className="p-6 flex items-start gap-3">
+              <Lock className="h-5 w-5 mt-0.5 text-primary" />
+              <div className="space-y-2">
+                <p className="font-semibold">Members-only tournament operations</p>
+                <p className="text-sm text-muted-foreground">Registration workflows and approved schedule downloads are available only after login, while existing public tournament details remain unchanged.</p>
+                <Button asChild size="sm"><Link to="/login">Login to access new features</Link></Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Matches */}
         <Card>
