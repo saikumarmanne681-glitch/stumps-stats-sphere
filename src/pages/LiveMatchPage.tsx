@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { v2api } from '@/lib/v2api';
 import { MatchTimeline } from '@/lib/v2types';
 import { Radio, Calendar, MapPin, Share2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { compareSheetDatesDesc, formatSheetDate } from '@/lib/dataUtils';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +14,7 @@ import { api } from '@/lib/googleSheets';
 import { getTeamScoreSummary } from '@/lib/liveScoring';
 
 const LiveMatchPage = () => {
-  const { matches, batting, bowling, players, tournaments, seasons } = useData();
+  const { matches, batting, bowling, tournaments, seasons } = useData();
   const [timeline, setTimeline] = useState<MatchTimeline[]>([]);
   const [liveBatting, setLiveBatting] = useState(batting);
   const [liveBowling, setLiveBowling] = useState(bowling);
@@ -25,7 +24,7 @@ const LiveMatchPage = () => {
   const liveMatches = matches.filter(m => m.status === 'live');
   const recentCompleted = matches
     .filter(m => m.status === 'completed')
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => compareSheetDatesDesc(a.date, b.date))
     .slice(0, 5);
 
   useEffect(() => {
@@ -54,7 +53,6 @@ const LiveMatchPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
   const handleShare = async (match: typeof matches[0]) => {
     setShareLoadingMatchId(match.match_id);
@@ -103,6 +101,7 @@ const LiveMatchPage = () => {
     const matchBowling = liveBowling.filter(b => b.match_id === match.match_id);
     const matchTimeline = timeline.filter(t => t.match_id === match.match_id)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const matchDateLabel = formatSheetDate(match.date, 'dd MMM yyyy', 'Date TBD');
 
     const teamABatting = matchBatting.filter((b) => b.team === match.team_a);
     const teamBBatting = matchBatting.filter((b) => b.team === match.team_b);
@@ -142,7 +141,7 @@ const LiveMatchPage = () => {
           {match.result && <p className="text-center font-semibold text-primary">{match.result}</p>}
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{format(new Date(match.date), 'dd MMM yyyy')}</span>
+            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{matchDateLabel}</span>
             {match.venue && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{match.venue}</span>}
             <Button
               variant="outline"

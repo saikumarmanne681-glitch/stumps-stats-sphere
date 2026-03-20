@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Award, Share2, ArrowLeft } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatSheetDate } from '@/lib/dataUtils';
 import { useToast } from '@/hooks/use-toast';
 import { PageLoader } from '@/components/LoadingOverlay';
 import { SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
@@ -66,6 +66,7 @@ const MatchPage = () => {
 
   const teamAScore = match ? getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score) : null;
   const teamBScore = match ? getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score) : null;
+  const matchDateLabel = match ? formatSheetDate(match.date, 'dd MMM yyyy', 'Date TBD') : 'Date TBD';
 
   const topBatsman = useMemo(() => {
     if (matchBatting.length === 0) return null;
@@ -222,7 +223,7 @@ const MatchPage = () => {
             )}
 
             <div className="flex flex-wrap items-center justify-center gap-4 mt-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{format(new Date(match.date), 'dd MMM yyyy')}</span>
+              <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{matchDateLabel}</span>
               {match.venue && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{match.venue}</span>}
               <Button variant="outline" size="sm" onClick={handleShare} className="gap-1" loading={sharing} loadingText="Preparing link...">
                 <Share2 className="h-3 w-3" /> Share
