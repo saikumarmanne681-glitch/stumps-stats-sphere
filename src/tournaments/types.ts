@@ -12,7 +12,10 @@ export interface TournamentRegistryRecord {
   created_at: string;
   status: 'open' | 'closed';
   notes: string;
+  linked_tournament_id?: string;
+  linked_season_id?: string;
 }
+
 
 export interface RegistrationRecord {
   registration_id: string;
