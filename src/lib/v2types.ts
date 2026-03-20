@@ -203,3 +203,5 @@ export const CERTIFICATION_STAGES = [
   'director_approved',
   'official_certified',
 ] as const;
+
+export type CertificationStage = (typeof CERTIFICATION_STAGES)[number];
