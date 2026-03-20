@@ -6,22 +6,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trophy, Calendar } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, MapPin, Users, Shield, Lock, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { v2api } from '@/lib/v2api';
 import { DigitalScorelist } from '@/lib/v2types';
+import { SecurityShieldBadge, DataIntegrityBadge, SecurityWatermark } from '@/components/SecurityBadge';
+import { PageLoader } from '@/components/LoadingOverlay';
 
 const TournamentPage = () => {
   const { id } = useParams();
-  const { tournaments, seasons, matches, batting, bowling, players } = useData();
+  const { tournaments, seasons, matches, batting, bowling, players, loading } = useData();
   const [officialScorelists, setOfficialScorelists] = useState<DigitalScorelist[]>([]);
-  
+  const [scorelistsLoading, setScorelistsLoading] = useState(true);
+
   const tournament = tournaments.find(t => t.tournament_id === id);
   const tournamentSeasons = seasons.filter(s => s.tournament_id === id).sort((a, b) => b.year - a.year);
   const tournamentMatches = matches.filter(m => m.tournament_id === id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  
+
   useEffect(() => {
     let active = true;
+    setScorelistsLoading(true);
     v2api.getScorelists().then((items) => {
       if (!active) return;
       const filtered = items.filter((s) => {
@@ -29,11 +33,17 @@ const TournamentPage = () => {
         return s.tournament_id === id && !!s.locked && status === 'official_certified';
       });
       setOfficialScorelists(filtered);
+      setScorelistsLoading(false);
     });
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [id]);
+
+  if (loading) return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <PageLoader message="Loading tournament data..." />
+    </div>
+  );
 
   if (!tournament) return (
     <div className="min-h-screen bg-background">
@@ -45,13 +55,89 @@ const TournamentPage = () => {
     </div>
   );
 
-  const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
+  const getPlayerName = (pid: string) => players.find(p => p.player_id === pid)?.name || pid;
+
+  // Compute stats
+  const completedMatches = tournamentMatches.filter(m => m.status === 'completed');
+  const liveMatches = tournamentMatches.filter(m => m.status === 'live');
+  const allTeams = new Set<string>();
+  tournamentMatches.forEach(m => { allTeams.add(m.team_a); allTeams.add(m.team_b); });
+
+  // Top performers across tournament
+  const tournamentMatchIds = new Set(tournamentMatches.map(m => m.match_id));
+  const tBatting = batting.filter(b => tournamentMatchIds.has(b.match_id));
+  const tBowling = bowling.filter(b => tournamentMatchIds.has(b.match_id));
+
+  const topRunScorer = useMemo(() => {
+    const map: Record<string, number> = {};
+    tBatting.forEach(b => { map[b.player_id] = (map[b.player_id] || 0) + b.runs; });
+    const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+    return sorted[0] ? { id: sorted[0][0], runs: sorted[0][1] } : null;
+  }, [tBatting]);
+
+  const topWicketTaker = useMemo(() => {
+    const map: Record<string, number> = {};
+    tBowling.forEach(b => { map[b.player_id] = (map[b.player_id] || 0) + b.wickets; });
+    const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+    return sorted[0] && sorted[0][1] > 0 ? { id: sorted[0][0], wickets: sorted[0][1] } : null;
+  }, [tBowling]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <SecurityWatermark />
       <Navbar />
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <Button variant="ghost" size="sm" asChild><Link to="/"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Link></Button>
+      <div className="container mx-auto px-4 py-8 space-y-6 relative z-10">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild><Link to="/"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Link></Button>
+          <SecurityShieldBadge label="Official Tournament Page" variant="certified" />
+        </div>
+
+        {/* Tournament Hero */}
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent overflow-hidden">
+          <CardContent className="p-6 md:p-8">
+            <div className="flex flex-col md:flex-row items-start gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+                <Trophy className="h-8 w-8 text-primary-foreground" />
+              </div>
+              <div className="flex-1">
+                <h1 className="font-display text-3xl md:text-4xl font-bold">{tournament.name}</h1>
+                <p className="text-muted-foreground mt-1">{tournament.format} • {tournament.overs} overs per side</p>
+                {tournament.description && <p className="text-sm text-muted-foreground mt-2">{tournament.description}</p>}
+                <div className="flex flex-wrap gap-3 mt-4">
+                  <Badge className="bg-primary/10 text-primary border-primary/20 gap-1"><Calendar className="h-3 w-3" /> {tournamentSeasons.length} Seasons</Badge>
+                  <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {completedMatches.length + liveMatches.length} Matches</Badge>
+                  <Badge variant="outline" className="gap-1"><Users className="h-3 w-3" /> {allTeams.size} Teams</Badge>
+                  {liveMatches.length > 0 && <Badge className="bg-destructive text-destructive-foreground animate-pulse">{liveMatches.length} LIVE</Badge>}
+                </div>
+              </div>
+            </div>
+
+            {/* Top performers */}
+            {(topRunScorer || topWicketTaker) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 pt-6 border-t border-border/50">
+                {topRunScorer && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5">
+                    <span className="text-2xl">🏏</span>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Top Run Scorer</p>
+                      <p className="font-display font-bold">{getPlayerName(topRunScorer.id)} – {topRunScorer.runs} runs</p>
+                    </div>
+                  </div>
+                )}
+                {topWicketTaker && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/5">
+                    <span className="text-2xl">🎯</span>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Top Wicket Taker</p>
+                      <p className="font-display font-bold">{getPlayerName(topWicketTaker.id)} – {topWicketTaker.wickets} wickets</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" asChild>
             <Link to={`/leaderboards?tournament=${tournament.tournament_id}`}>View Tournament Standings</Link>
@@ -59,96 +145,144 @@ const TournamentPage = () => {
           <Button variant="secondary" size="sm" asChild>
             <Link to="/leaderboards">View Global Leaderboards</Link>
           </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/live">Live Matches</Link>
+          </Button>
         </div>
-
-        <Card className="border-l-4 border-l-accent bg-gradient-to-r from-accent/5 to-transparent">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <Trophy className="h-10 w-10 text-accent" />
-              <div>
-                <h1 className="font-display text-3xl font-bold">{tournament.name}</h1>
-                <p className="text-muted-foreground">{tournament.format} • {tournament.overs} overs</p>
-                {tournament.description && <p className="text-sm text-muted-foreground mt-1">{tournament.description}</p>}
-              </div>
-            </div>
-            <div className="flex gap-4 mt-4">
-              <Badge>{tournamentSeasons.length} Seasons</Badge>
-              <Badge variant="outline">{tournamentMatches.length} Matches</Badge>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Seasons */}
         <Card>
-          <CardHeader><CardTitle className="font-display">📅 Seasons</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-display flex items-center gap-2">📅 Seasons</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {tournamentSeasons.map(s => (
-                <Card key={s.season_id} className="border">
-                  <CardContent className="p-4">
-                    <p className="font-display text-xl font-bold">{s.year}</p>
-                    <p className="text-xs text-muted-foreground">{format(new Date(s.start_date), 'dd MMM')} - {format(new Date(s.end_date), 'dd MMM yyyy')}</p>
-                    <Badge variant={s.status === 'ongoing' ? 'default' : 'secondary'} className="mt-2">{s.status}</Badge>
-                    <p className="text-sm mt-2">{matches.filter(m => m.season_id === s.season_id).length} matches</p>
-                    <Button asChild variant="ghost" size="sm" className="mt-2 px-0">
-                      <Link to={`/leaderboards?tournament=${tournament.tournament_id}&season=${s.season_id}`}>View standings →</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Match Schedule */}
-        <Card>
-          <CardHeader><CardTitle className="font-display">🏏 Matches</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead>Date</TableHead><TableHead>Match</TableHead><TableHead>Stage</TableHead><TableHead>Score</TableHead><TableHead>Result</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {tournamentMatches.map(m => {
-                  const s = seasons.find(s => s.season_id === m.season_id);
+            {tournamentSeasons.length === 0 ? (
+              <p className="text-muted-foreground text-center py-6">No seasons yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tournamentSeasons.map(s => {
+                  const sMatches = matches.filter(m => m.season_id === s.season_id);
+                  const sLive = sMatches.filter(m => m.status === 'live').length;
                   return (
-                    <TableRow key={m.match_id}>
-                      <TableCell className="text-sm whitespace-nowrap">{format(new Date(m.date), 'dd MMM yyyy')}</TableCell>
-                      <TableCell>
-                        <Link to={`/match/${m.match_id}`} className="font-medium hover:text-primary hover:underline">
-                          {m.team_a} vs {m.team_b}
-                        </Link>
-                        {s && <span className="text-xs text-muted-foreground ml-2">({s.year})</span>}
-                      </TableCell>
-                      <TableCell>{m.match_stage ? <Badge variant="outline" className="text-xs">{m.match_stage}</Badge> : '-'}</TableCell>
-                      <TableCell className="text-xs">
-                        {m.team_a_score && <span className="block">{m.team_a}: {m.team_a_score}</span>}
-                        {m.team_b_score && <span className="block">{m.team_b}: {m.team_b_score}</span>}
-                      </TableCell>
-                      <TableCell className="text-xs max-w-[200px] truncate">{m.result || '-'}</TableCell>
-                    </TableRow>
+                    <Card key={s.season_id} className="border hover:shadow-lg transition-all group">
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="font-display text-2xl font-bold text-primary">{s.year}</p>
+                          <Badge variant={s.status === 'ongoing' ? 'default' : s.status === 'upcoming' ? 'secondary' : 'outline'} className="capitalize">
+                            {s.status === 'ongoing' && '🔴 '}{s.status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(s.start_date), 'dd MMM')} – {format(new Date(s.end_date), 'dd MMM yyyy')}
+                        </p>
+                        <div className="flex gap-2 text-center">
+                          <div className="flex-1 bg-muted/50 rounded p-2">
+                            <p className="font-bold">{sMatches.length}</p>
+                            <p className="text-[10px] text-muted-foreground">Matches</p>
+                          </div>
+                          <div className="flex-1 bg-muted/50 rounded p-2">
+                            <p className="font-bold">{sMatches.filter(m => m.status === 'completed').length}</p>
+                            <p className="text-[10px] text-muted-foreground">Completed</p>
+                          </div>
+                          {sLive > 0 && (
+                            <div className="flex-1 bg-destructive/10 rounded p-2">
+                              <p className="font-bold text-destructive">{sLive}</p>
+                              <p className="text-[10px] text-destructive">LIVE</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <Button asChild variant="outline" size="sm" className="text-xs">
+                            <Link to={`/leaderboards?tournament=${tournament.tournament_id}&season=${s.season_id}`}>Standings →</Link>
+                          </Button>
+                          <Button asChild variant="ghost" size="sm" className="text-xs">
+                            <Link to={`/tournament/${tournament.tournament_id}`}>Details</Link>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
+        {/* Matches */}
         <Card>
-          <CardHeader><CardTitle className="font-display">🔒 Official Certified Scorelists</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-display">🏏 Matches ({tournamentMatches.length})</CardTitle></CardHeader>
+          <CardContent>
+            {tournamentMatches.length === 0 ? (
+              <p className="text-muted-foreground text-center py-6">No matches scheduled yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Date</TableHead><TableHead>Match</TableHead><TableHead>Stage</TableHead><TableHead>Score</TableHead><TableHead>Result</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {tournamentMatches.map(m => {
+                      const s = seasons.find(s => s.season_id === m.season_id);
+                      return (
+                        <TableRow key={m.match_id} className="hover:bg-muted/50">
+                          <TableCell className="text-sm whitespace-nowrap">{format(new Date(m.date), 'dd MMM yyyy')}</TableCell>
+                          <TableCell>
+                            <Link to={`/match/${m.match_id}`} className="font-medium hover:text-primary hover:underline">
+                              {m.team_a} vs {m.team_b}
+                            </Link>
+                            {s && <span className="text-xs text-muted-foreground ml-2">({s.year})</span>}
+                            {m.status === 'live' && <Badge className="ml-2 bg-destructive text-destructive-foreground animate-pulse text-[10px]">LIVE</Badge>}
+                          </TableCell>
+                          <TableCell>
+                            {m.match_stage ? <Badge variant="outline" className="text-xs">{m.match_stage}</Badge> : '-'}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {m.team_a_score && <span className="block">{m.team_a}: {m.team_a_score}</span>}
+                            {m.team_b_score && <span className="block">{m.team_b}: {m.team_b_score}</span>}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate">{m.result || '-'}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Official Certified Scorelists */}
+        <Card className="border-2 border-primary/10">
+          <CardHeader>
+            <CardTitle className="font-display flex items-center gap-2">
+              <Lock className="h-5 w-5 text-primary" /> Official Certified Scorelists
+              <SecurityShieldBadge label="Tamper-Proof" variant="encrypted" />
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
-            {officialScorelists.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No official locked scorelists available for this tournament yet.</p>
+            {scorelistsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                Loading certified scorelists...
+              </div>
+            ) : officialScorelists.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">No official locked scorelists available for this tournament yet.</p>
             ) : (
               <div className="space-y-2">
                 {officialScorelists.map((s) => (
-                  <div key={s.scorelist_id} className="rounded-md border p-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-mono text-xs">{s.scorelist_id}</p>
-                      <p className="text-xs text-muted-foreground">Generated by {s.generated_by || 'System'} • {s.generated_at ? format(new Date(s.generated_at), 'dd MMM yyyy, p') : '-'}</p>
+                  <div key={s.scorelist_id} className="rounded-lg border p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-primary" />
+                        <p className="font-mono text-sm font-medium">{s.scorelist_id}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Generated by {s.generated_by || 'System'} • {s.generated_at ? format(new Date(s.generated_at), 'dd MMM yyyy, p') : '-'}
+                      </p>
+                      <DataIntegrityBadge data={s.hash_digest || s.scorelist_id} label="Document Hash" />
                     </div>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link to={`/verify-scorelist/${s.scorelist_id}`}>View Certified</Link>
+                    <Button size="sm" variant="outline" asChild className="gap-1">
+                      <Link to={`/verify-scorelist/${s.scorelist_id}`}>
+                        <ExternalLink className="h-3 w-3" /> View Certified
+                      </Link>
                     </Button>
                   </div>
                 ))}
