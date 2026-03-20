@@ -38,6 +38,34 @@ const TournamentPage = () => {
     return () => { active = false; };
   }, [id]);
 
+  const getPlayerName = (pid: string) => players.find(p => p.player_id === pid)?.name || pid;
+
+  const completedMatches = tournamentMatches.filter(m => m.status === 'completed');
+  const liveMatches = tournamentMatches.filter(m => m.status === 'live');
+  const allTeams = useMemo(() => {
+    const s = new Set<string>();
+    tournamentMatches.forEach(m => { s.add(m.team_a); s.add(m.team_b); });
+    return s;
+  }, [tournamentMatches]);
+
+  const tournamentMatchIds = useMemo(() => new Set(tournamentMatches.map(m => m.match_id)), [tournamentMatches]);
+  const tBatting = useMemo(() => batting.filter(b => tournamentMatchIds.has(b.match_id)), [batting, tournamentMatchIds]);
+  const tBowling = useMemo(() => bowling.filter(b => tournamentMatchIds.has(b.match_id)), [bowling, tournamentMatchIds]);
+
+  const topRunScorer = useMemo(() => {
+    const map: Record<string, number> = {};
+    tBatting.forEach(b => { map[b.player_id] = (map[b.player_id] || 0) + b.runs; });
+    const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+    return sorted[0] ? { id: sorted[0][0], runs: sorted[0][1] } : null;
+  }, [tBatting]);
+
+  const topWicketTaker = useMemo(() => {
+    const map: Record<string, number> = {};
+    tBowling.forEach(b => { map[b.player_id] = (map[b.player_id] || 0) + b.wickets; });
+    const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+    return sorted[0] && sorted[0][1] > 0 ? { id: sorted[0][0], wickets: sorted[0][1] } : null;
+  }, [tBowling]);
+
   if (loading) return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -54,33 +82,6 @@ const TournamentPage = () => {
       </div>
     </div>
   );
-
-  const getPlayerName = (pid: string) => players.find(p => p.player_id === pid)?.name || pid;
-
-  // Compute stats
-  const completedMatches = tournamentMatches.filter(m => m.status === 'completed');
-  const liveMatches = tournamentMatches.filter(m => m.status === 'live');
-  const allTeams = new Set<string>();
-  tournamentMatches.forEach(m => { allTeams.add(m.team_a); allTeams.add(m.team_b); });
-
-  // Top performers across tournament
-  const tournamentMatchIds = new Set(tournamentMatches.map(m => m.match_id));
-  const tBatting = batting.filter(b => tournamentMatchIds.has(b.match_id));
-  const tBowling = bowling.filter(b => tournamentMatchIds.has(b.match_id));
-
-  const topRunScorer = useMemo(() => {
-    const map: Record<string, number> = {};
-    tBatting.forEach(b => { map[b.player_id] = (map[b.player_id] || 0) + b.runs; });
-    const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
-    return sorted[0] ? { id: sorted[0][0], runs: sorted[0][1] } : null;
-  }, [tBatting]);
-
-  const topWicketTaker = useMemo(() => {
-    const map: Record<string, number> = {};
-    tBowling.forEach(b => { map[b.player_id] = (map[b.player_id] || 0) + b.wickets; });
-    const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
-    return sorted[0] && sorted[0][1] > 0 ? { id: sorted[0][0], wickets: sorted[0][1] } : null;
-  }, [tBowling]);
 
   return (
     <div className="min-h-screen bg-background relative">
