@@ -46,12 +46,12 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
           <span className="text-xs text-muted-foreground font-mono">{match.match_id}</span>
           <div className="flex items-center gap-1">
             {match.match_stage && (
-              <Badge variant="outline" className="text-[10px]">
+              <Badge className="bg-accent/20 text-accent-foreground border border-accent/30 text-[10px] font-display">
                 {match.match_stage}
               </Badge>
             )}
             <Badge className={statusColors[match.status] || 'bg-muted'}>
-              {match.status.toUpperCase()}
+              {match.status === 'live' && '🔴 '}{match.status.toUpperCase()}
             </Badge>
           </div>
         </div>

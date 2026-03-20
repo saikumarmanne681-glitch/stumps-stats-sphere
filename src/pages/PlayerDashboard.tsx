@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,22 +10,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/lib/DataContext';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount } from '@/lib/calculations';
 import { generateId } from '@/lib/utils';
-import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Mail, Settings } from 'lucide-react';
+import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { PlayerSupport } from '@/components/player/PlayerSupport';
 import { PlayerEmailSettings } from '@/components/player/PlayerEmailSettings';
+import { SessionFingerprint, SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
+import { logAudit } from '@/lib/v2api';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
   const { toast } = useToast();
-  const { players, tournaments, seasons, matches, batting, bowling, messages, addMessage, updateMessage } = useData();
+  const { players, tournaments, seasons, matches, batting, bowling, messages, addMessage, updateMessage, loading } = useData();
   const [filterTournament, setFilterTournament] = useState<string>('all');
   const [filterSeason, setFilterSeason] = useState<string>('all');
   const [replyBody, setReplyBody] = useState<Record<string, string>>({});
   const [expandedThread, setExpandedThread] = useState<string>('');
+  const [replySending, setReplySending] = useState<string | null>(null);
 
   const player = useMemo(() => {
     if (!user?.player_id) return null;
@@ -76,6 +79,7 @@ const PlayerDashboard = () => {
   const handleReply = async (threadId: string, lastMsg: typeof playerMessages[0]) => {
     const body = replyBody[threadId];
     if (!body?.trim()) return;
+    setReplySending(threadId);
     await addMessage({
       id: generateId('MSG'),
       from_id: user.player_id!,
@@ -87,8 +91,10 @@ const PlayerDashboard = () => {
       reply_to: lastMsg.id,
       timestamp: new Date().toISOString(),
     });
+    logAudit(user.player_id!, 'player_reply_message', 'message', threadId, JSON.stringify({ to: lastMsg.from_id }));
     toast({ title: 'Reply Sent' });
     setReplyBody(prev => ({ ...prev, [threadId]: '' }));
+    setReplySending(null);
   };
 
   const getDisplayName = (id: string) => {
@@ -97,24 +103,46 @@ const PlayerDashboard = () => {
     return players.find(p => p.player_id === id)?.name || id;
   };
 
+  const unreadCount = playerMessages.filter(m => !m.read && m.from_id !== user.player_id).length;
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6 space-y-6">
-        <Card className="border-l-4 border-l-primary">
-          <CardContent className="p-6 flex flex-col md:flex-row items-start md:items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-8 w-8 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h1 className="font-display text-2xl font-bold">{player.name}</h1>
-              <p className="text-muted-foreground">{player.role.toUpperCase()} • {player.player_id}</p>
-              <p className="text-sm text-muted-foreground">{player.phone}</p>
-            </div>
-            <div className="flex gap-4 text-center">
-              <div><p className="text-2xl font-bold text-primary">{totalMatches}</p><p className="text-xs text-muted-foreground">Matches</p></div>
-              <div><p className="text-2xl font-bold text-accent">{battingStats?.totalRuns || 0}</p><p className="text-xs text-muted-foreground">Runs</p></div>
-              <div><p className="text-2xl font-bold text-destructive">{bowlingStats?.totalWickets || 0}</p><p className="text-xs text-muted-foreground">Wickets</p></div>
+        {/* Enhanced Player Hero Card */}
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent overflow-hidden">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+                <User className="h-10 w-10 text-primary-foreground" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h1 className="font-display text-2xl md:text-3xl font-bold">{player.name}</h1>
+                  <SecurityShieldBadge label="Verified" />
+                </div>
+                <p className="text-muted-foreground">{player.role.toUpperCase()} • {player.player_id}</p>
+                <p className="text-sm text-muted-foreground">{player.phone}</p>
+                <SessionFingerprint />
+              </div>
+              {/* Quick Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-3 rounded-xl bg-primary/10">
+                  <Activity className="h-4 w-4 text-primary mx-auto mb-1" />
+                  <p className="text-2xl font-bold text-primary">{totalMatches}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Matches</p>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-accent/10">
+                  <TrendingUp className="h-4 w-4 text-accent mx-auto mb-1" />
+                  <p className="text-2xl font-bold text-accent">{battingStats?.totalRuns || 0}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Runs</p>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-destructive/10">
+                  <Target className="h-4 w-4 text-destructive mx-auto mb-1" />
+                  <p className="text-2xl font-bold text-destructive">{bowlingStats?.totalWickets || 0}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Wickets</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -124,9 +152,9 @@ const PlayerDashboard = () => {
             <TabsTrigger value="stats" className="flex items-center gap-1"><BarChart3 className="h-4 w-4" /> Career Stats</TabsTrigger>
             <TabsTrigger value="messages" className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" /> Messages
-              {playerMessages.filter(m => !m.read && m.from_id !== user.player_id && m.to_id !== 'all').length > 0 && (
+              {unreadCount > 0 && (
                 <Badge className="ml-1 bg-destructive text-destructive-foreground text-xs h-5 w-5 p-0 flex items-center justify-center rounded-full">
-                  {playerMessages.filter(m => !m.read && m.from_id !== user.player_id).length}
+                  {unreadCount}
                 </Badge>
               )}
             </TabsTrigger>
@@ -158,15 +186,16 @@ const PlayerDashboard = () => {
               </div>
             </div>
 
-            <Card>
-              <CardHeader><CardTitle className="font-display">🏏 Batting Statistics</CardTitle></CardHeader>
+            {/* Batting */}
+            <Card className="border-l-4 border-l-primary">
+              <CardHeader><CardTitle className="font-display flex items-center gap-2"><TrendingUp className="h-5 w-5 text-primary" /> Batting Statistics</CardTitle></CardHeader>
               <CardContent>
                 {battingStats ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {[['Innings', battingStats.innings], ['Runs', battingStats.totalRuns], ['Average', battingStats.avg.toFixed(2)], ['Strike Rate', battingStats.sr.toFixed(1)], ['Highest', battingStats.highest], ['4s', battingStats.totalFours], ['6s', battingStats.totalSixes], ['50s', battingStats.fifties], ['100s', battingStats.hundreds], ['30s', battingStats.thirties]].map(([label, value]) => (
-                      <div key={String(label)} className="bg-muted rounded-lg p-3 text-center">
-                        <p className="text-xl font-bold">{value}</p>
-                        <p className="text-xs text-muted-foreground">{label}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-3">
+                    {([['Innings', battingStats.innings], ['Runs', battingStats.totalRuns], ['Average', battingStats.avg.toFixed(2)], ['Strike Rate', battingStats.sr.toFixed(1)], ['Highest', battingStats.highest], ['4s', battingStats.totalFours], ['6s', battingStats.totalSixes], ['50s', battingStats.fifties], ['100s', battingStats.hundreds], ['30s', battingStats.thirties]] as [string, string | number][]).map(([label, value]) => (
+                      <div key={label} className="bg-gradient-to-br from-muted/80 to-muted/40 rounded-xl p-3 text-center border border-border/50 hover:border-primary/30 transition-colors">
+                        <p className="text-xl font-bold text-primary">{value}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
                       </div>
                     ))}
                   </div>
@@ -174,15 +203,16 @@ const PlayerDashboard = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader><CardTitle className="font-display">🎯 Bowling Statistics</CardTitle></CardHeader>
+            {/* Bowling */}
+            <Card className="border-l-4 border-l-destructive">
+              <CardHeader><CardTitle className="font-display flex items-center gap-2"><Target className="h-5 w-5 text-destructive" /> Bowling Statistics</CardTitle></CardHeader>
               <CardContent>
                 {bowlingStats ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {[['Innings', bowlingStats.innings], ['Overs', bowlingStats.totalOvers], ['Wickets', bowlingStats.totalWickets], ['Economy', bowlingStats.economy.toFixed(2)], ['Average', bowlingStats.avg.toFixed(2)], ['Maidens', bowlingStats.totalMaidens], ['Best', bowlingStats.bestFigures], ['3W', bowlingStats.threeWickets], ['5W', bowlingStats.fiveWickets]].map(([label, value]) => (
-                      <div key={String(label)} className="bg-muted rounded-lg p-3 text-center">
-                        <p className="text-xl font-bold">{value}</p>
-                        <p className="text-xs text-muted-foreground">{label}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-3">
+                    {([['Innings', bowlingStats.innings], ['Overs', bowlingStats.totalOvers], ['Wickets', bowlingStats.totalWickets], ['Economy', bowlingStats.economy.toFixed(2)], ['Average', bowlingStats.avg.toFixed(2)], ['Maidens', bowlingStats.totalMaidens], ['Best', bowlingStats.bestFigures], ['3W', bowlingStats.threeWickets], ['5W', bowlingStats.fiveWickets]] as [string, string | number][]).map(([label, value]) => (
+                      <div key={label} className="bg-gradient-to-br from-muted/80 to-muted/40 rounded-xl p-3 text-center border border-border/50 hover:border-destructive/30 transition-colors">
+                        <p className="text-xl font-bold text-destructive">{value}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
                       </div>
                     ))}
                   </div>
@@ -190,47 +220,56 @@ const PlayerDashboard = () => {
               </CardContent>
             </Card>
 
+            {/* Match History */}
             <Card>
-              <CardHeader><CardTitle className="font-display">📋 Match History</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-display flex items-center gap-2"><Award className="h-5 w-5 text-accent" /> Match History</CardTitle></CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader><TableRow><TableHead>Match</TableHead><TableHead>Date</TableHead><TableHead>Teams</TableHead><TableHead>Runs</TableHead><TableHead>Wickets</TableHead><TableHead>Result</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {matches.filter(m => relevantMatchIds.includes(m.match_id) &&
-                      (batting.some(b => b.player_id === user.player_id && b.match_id === m.match_id) ||
-                       bowling.some(b => b.player_id === user.player_id && b.match_id === m.match_id))
-                    ).map(match => {
-                      const bat = batting.find(b => b.player_id === user.player_id && b.match_id === match.match_id);
-                      const bowl = bowling.find(b => b.player_id === user.player_id && b.match_id === match.match_id);
-                      return (
-                        <TableRow key={match.match_id}>
-                          <TableCell className="font-mono text-xs">{match.match_id}</TableCell>
-                          <TableCell>{format(new Date(match.date), 'dd MMM yyyy')}</TableCell>
-                          <TableCell>{match.team_a} vs {match.team_b}</TableCell>
-                          <TableCell>{bat ? `${bat.runs}(${bat.balls})` : '-'}</TableCell>
-                          <TableCell>{bowl ? `${bowl.wickets}/${bowl.runs_conceded}` : '-'}</TableCell>
-                          <TableCell className="text-xs">{match.result || '-'}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Match</TableHead><TableHead>Date</TableHead><TableHead>Teams</TableHead><TableHead>Runs</TableHead><TableHead>Wickets</TableHead><TableHead>Result</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {matches.filter(m => relevantMatchIds.includes(m.match_id) &&
+                        (batting.some(b => b.player_id === user.player_id && b.match_id === m.match_id) ||
+                         bowling.some(b => b.player_id === user.player_id && b.match_id === m.match_id))
+                      ).map(match => {
+                        const bat = batting.find(b => b.player_id === user.player_id && b.match_id === match.match_id);
+                        const bowl = bowling.find(b => b.player_id === user.player_id && b.match_id === match.match_id);
+                        return (
+                          <TableRow key={match.match_id} className="hover:bg-muted/50">
+                            <TableCell>
+                              <Link to={`/match/${match.match_id}`} className="font-mono text-xs hover:text-primary hover:underline">{match.match_id}</Link>
+                            </TableCell>
+                            <TableCell className="text-sm">{format(new Date(match.date), 'dd MMM yyyy')}</TableCell>
+                            <TableCell className="font-medium">{match.team_a} vs {match.team_b}</TableCell>
+                            <TableCell className="font-bold text-primary">{bat ? `${bat.runs}(${bat.balls})` : '-'}</TableCell>
+                            <TableCell className="font-bold text-destructive">{bowl ? `${bowl.wickets}/${bowl.runs_conceded}` : '-'}</TableCell>
+                            <TableCell className="text-xs max-w-[200px] truncate">{match.result || '-'}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
+          {/* Enhanced Messages Tab */}
           <TabsContent value="messages" className="space-y-4 mt-4">
-            <h2 className="font-display text-xl font-bold">📬 Messages</h2>
-            {threads.length === 0 && <p className="text-muted-foreground">No messages.</p>}
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold flex items-center gap-2">📬 Messages</h2>
+              {unreadCount > 0 && <Badge className="bg-destructive text-destructive-foreground">{unreadCount} unread</Badge>}
+            </div>
+            {threads.length === 0 && <Card><CardContent className="p-8 text-center text-muted-foreground">No messages. Messages from admin will appear here.</CardContent></Card>}
             {threads.map(([rootId, thread]) => {
               const root = thread[0];
-              const unreadCount = thread.filter(m => !m.read && m.from_id !== user.player_id).length;
+              const threadUnread = thread.filter(m => !m.read && m.from_id !== user.player_id).length;
               const isExpanded = expandedThread === rootId;
-              
+
               return (
-                <Card key={rootId} className={unreadCount > 0 ? 'border-l-4 border-l-accent' : ''}>
+                <Card key={rootId} className={`transition-all ${threadUnread > 0 ? 'border-l-4 border-l-accent shadow-sm' : ''} ${isExpanded ? 'ring-1 ring-primary/20' : ''}`}>
                   <div
-                    className="p-4 cursor-pointer hover:bg-muted/30"
+                    className="p-4 cursor-pointer hover:bg-muted/30 transition-colors"
                     onClick={() => {
                       setExpandedThread(isExpanded ? '' : rootId);
                       thread.filter(m => !m.read && m.from_id !== user.player_id).forEach(m => updateMessage({ ...m, read: true }));
@@ -238,8 +277,9 @@ const PlayerDashboard = () => {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
                         <span className="font-semibold text-sm">{root.subject}</span>
-                        {unreadCount > 0 && <Badge className="bg-accent text-accent-foreground text-xs">{unreadCount} new</Badge>}
+                        {threadUnread > 0 && <Badge className="bg-accent text-accent-foreground text-xs">{threadUnread} new</Badge>}
                       </div>
                       <span className="text-xs text-muted-foreground">{thread.length} msg{thread.length > 1 ? 's' : ''}</span>
                     </div>
@@ -251,7 +291,7 @@ const PlayerDashboard = () => {
                       <div className="max-h-[400px] overflow-y-auto space-y-3 py-3 scrollbar-thin">
                         {thread.map(msg => (
                           <div key={msg.id} className={`flex ${msg.from_id === user.player_id ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] rounded-lg p-3 ${msg.from_id === user.player_id ? 'bg-primary/10 border border-primary/20' : 'bg-muted'}`}>
+                            <div className={`max-w-[80%] rounded-xl p-3 ${msg.from_id === user.player_id ? 'bg-primary/10 border border-primary/20' : 'bg-muted'}`}>
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-xs font-semibold">{getDisplayName(msg.from_id)}</span>
                                 <span className="text-xs text-muted-foreground">{format(new Date(msg.timestamp || msg.date), 'dd MMM HH:mm')}</span>
@@ -259,7 +299,7 @@ const PlayerDashboard = () => {
                                   msg.read ? <CheckCheck className="h-3 w-3 text-primary" /> : <Clock className="h-3 w-3 text-muted-foreground" />
                                 )}
                               </div>
-                              <p className="text-sm">{msg.body}</p>
+                              <p className="text-sm leading-relaxed">{msg.body}</p>
                             </div>
                           </div>
                         ))}
@@ -270,8 +310,15 @@ const PlayerDashboard = () => {
                           value={replyBody[rootId] || ''}
                           onChange={e => setReplyBody(prev => ({ ...prev, [rootId]: e.target.value }))}
                           className="flex-1"
+                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(rootId, thread[thread.length - 1]); } }}
                         />
-                        <Button size="sm" onClick={() => handleReply(rootId, thread[thread.length - 1])} disabled={!replyBody[rootId]?.trim()}>
+                        <Button
+                          size="sm"
+                          onClick={() => handleReply(rootId, thread[thread.length - 1])}
+                          disabled={!replyBody[rootId]?.trim()}
+                          loading={replySending === rootId}
+                          loadingText="Sending..."
+                        >
                           <Send className="h-3 w-3 mr-1" /> Reply
                         </Button>
                       </div>

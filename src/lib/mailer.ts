@@ -151,12 +151,7 @@ export async function sendScorelistApprovalRequestBulk(params: {
         stageLabel: params.stageLabel,
         actorName: params.actorName,
       });
-      return {
-        to: recipient.to,
-        success: result.success,
-        reason: result.reason,
-        raw: result.raw,
-      };
+      return { to: recipient.to, success: result.success, reason: result.reason, raw: result.raw };
     }),
   );
   return attempts;
@@ -172,12 +167,7 @@ export async function sendOtpEmail(params: { to: string; userName?: string; otp:
     <p style="margin:0;color:#6b7280;font-size:13px;">Valid until: ${new Date(params.expiresAt).toLocaleString()}</p>
     <p style="margin:10px 0 0;color:#dc2626;font-size:13px;">If you did not request this, please ignore this email.</p>
   `);
-  return sendSystemEmail({
-    to: params.to,
-    subject: 'Your Cricket Club verification OTP',
-    htmlBody,
-    fromName: 'Cricket Club Security',
-  });
+  return sendSystemEmail({ to: params.to, subject: 'Your Cricket Club verification OTP', htmlBody, fromName: 'Cricket Club Security' });
 }
 
 export async function sendWelcomeSubscriptionEmail(params: { to: string; userName?: string; actions: string[] }) {
@@ -191,11 +181,7 @@ export async function sendWelcomeSubscriptionEmail(params: { to: string; userNam
     </div>
     <p style="margin:16px 0 0;line-height:1.6;color:#374151;">You can update notification preferences any time from your dashboard.</p>
   `);
-  return sendSystemEmail({
-    to: params.to,
-    subject: 'Welcome! Your communication preferences are now active',
-    htmlBody,
-  });
+  return sendSystemEmail({ to: params.to, subject: 'Welcome! Your communication preferences are now active', htmlBody });
 }
 
 export async function sendScorelistApprovalRequestEmail(params: {
@@ -215,12 +201,7 @@ export async function sendScorelistApprovalRequestEmail(params: {
     </div>
     <p style="margin:16px 0 0;color:#374151;">Please log in to the management dashboard to review and sign.</p>
   `);
-  return sendSystemEmail({
-    to: params.to,
-    subject: `Approval Required: ${params.scorelistId}`,
-    htmlBody,
-    fromName: 'Cricket Club Approvals',
-  });
+  return sendSystemEmail({ to: params.to, subject: `Approval Required: ${params.scorelistId}`, htmlBody, fromName: 'Cricket Club Approvals' });
 }
 
 export async function sendSupportUpdateEmail(params: {
@@ -237,21 +218,80 @@ export async function sendSupportUpdateEmail(params: {
   const chipColor = params.updateType === 'status' ? '#1d4ed8' : params.updateType === 'assignment' ? '#7c3aed' : '#0f766e';
   const htmlBody = cardLayout(`
     <p style="margin:0 0 8px;font-size:16px;">Hello ${params.userName || 'Player'},</p>
-    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">Your support request has been updated by our premium support desk. We are actively tracking this case for a timely resolution.</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">Your support request has been updated by our premium support desk.</p>
     <div style="background:linear-gradient(135deg,#f8fafc,#eef2ff);border:1px solid #dbeafe;border-radius:14px;padding:16px;">
       <p style="margin:0 0 8px;"><strong>Ticket ID:</strong> <span style="font-family:monospace">${params.ticketId}</span></p>
       <p style="margin:0 0 8px;"><strong>Subject:</strong> ${params.subjectLine}</p>
-      <p style="margin:0 0 8px;"><strong>Status:</strong> <span style="padding:2px 10px;border-radius:999px;background:${chipColor};color:#fff;font-size:12px;text-transform:capitalize;">${params.status.replace('_', ' ')}</span></p>
+      <p style="margin:0 0 8px;"><strong>Status:</strong> <span style="padding:2px 10px;border-radius:999px;background:${chipColor};color:#fff;font-size:12px;">${params.status.replace('_', ' ')}</span></p>
       <p style="margin:0;"><strong>Updated by:</strong> ${params.actorName}${params.actorDesignation ? ` · ${params.actorDesignation}` : ''}</p>
     </div>
     ${params.detail ? `<p style="margin:16px 0 0;line-height:1.6;color:#374151;"><strong>Latest note:</strong> ${params.detail}</p>` : ''}
-    <p style="margin:16px 0 0;line-height:1.6;color:#374151;">Please log in to your player dashboard to review the update and continue the conversation if needed.</p>
+    <p style="margin:16px 0 0;line-height:1.6;color:#374151;">Please log in to your player dashboard to review.</p>
   `);
+  return sendSystemEmail({ to: params.to, subject: `Support Case Update • ${params.ticketId}`, htmlBody, fromName: 'Cricket Club Concierge Support' });
+}
 
-  return sendSystemEmail({
-    to: params.to,
-    subject: `Support Case Update • ${params.ticketId}`,
-    htmlBody,
-    fromName: 'Cricket Club Concierge Support',
-  });
+/** Send email when management/admin sends a message or notice to a player */
+export async function sendMessageNotificationEmail(params: {
+  to: string;
+  playerName: string;
+  senderName: string;
+  senderDesignation?: string;
+  subject: string;
+  bodyPreview: string;
+}) {
+  const htmlBody = cardLayout(`
+    <p style="margin:0 0 8px;font-size:16px;">Hello ${params.playerName},</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">You have received a new message from the Cricket Club administration.</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 8px;"><strong>From:</strong> ${params.senderName}${params.senderDesignation ? ` (${params.senderDesignation})` : ''}</p>
+      <p style="margin:0 0 8px;"><strong>Subject:</strong> ${params.subject}</p>
+      <p style="margin:0;color:#374151;font-style:italic;">"${params.bodyPreview.slice(0, 300)}${params.bodyPreview.length > 300 ? '...' : ''}"</p>
+    </div>
+    <p style="margin:16px 0 0;color:#374151;">Log in to your player dashboard to view the full message and reply.</p>
+  `);
+  return sendSystemEmail({ to: params.to, subject: `New Message: ${params.subject}`, htmlBody, fromName: 'Cricket Club Messages' });
+}
+
+/** Send approval thank you email */
+export async function sendApprovalThankYouEmail(params: {
+  to: string;
+  approverName: string;
+  scorelistId: string;
+  stage: string;
+  nextStage?: string;
+}) {
+  const htmlBody = cardLayout(`
+    <p style="margin:0 0 8px;font-size:16px;">Dear ${params.approverName},</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">Thank you for signing and approving the digital scorelist.</p>
+    <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 6px;"><strong>Scorelist ID:</strong> <span style="font-family:monospace">${params.scorelistId}</span></p>
+      <p style="margin:0 0 6px;"><strong>Your Stage:</strong> ${params.stage}</p>
+      ${params.nextStage ? `<p style="margin:0;"><strong>Next Approval:</strong> ${params.nextStage}</p>` : '<p style="margin:0;color:#059669;font-weight:600;">✅ This scorelist is now OFFICIALLY CERTIFIED</p>'}
+    </div>
+    <p style="margin:16px 0 0;color:#374151;">Your signature has been recorded in the audit trail.</p>
+  `);
+  return sendSystemEmail({ to: params.to, subject: `Thank you for signing: ${params.scorelistId}`, htmlBody, fromName: 'Cricket Club Certifications' });
+}
+
+/** Send scorelist status change email to admin */
+export async function sendScorelistStatusEmailToAdmin(params: {
+  to: string;
+  scorelistId: string;
+  stage: string;
+  signedBy: string;
+  designation: string;
+  comment?: string;
+}) {
+  const htmlBody = cardLayout(`
+    <p style="margin:0 0 8px;font-size:16px;">Admin Notification,</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">A scorelist certification status has changed.</p>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 6px;"><strong>Scorelist:</strong> <span style="font-family:monospace">${params.scorelistId}</span></p>
+      <p style="margin:0 0 6px;"><strong>New Stage:</strong> ${params.stage}</p>
+      <p style="margin:0 0 6px;"><strong>Signed By:</strong> ${params.signedBy} (${params.designation})</p>
+      ${params.comment ? `<p style="margin:0;"><strong>Comment:</strong> ${params.comment}</p>` : ''}
+    </div>
+  `);
+  return sendSystemEmail({ to: params.to, subject: `Scorelist Update: ${params.scorelistId} → ${params.stage}`, htmlBody });
 }
