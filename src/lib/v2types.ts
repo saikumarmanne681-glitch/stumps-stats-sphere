@@ -188,6 +188,7 @@ export const MANAGEMENT_ROLES = [
   'President',
   'Vice President',
   'Tournament Director',
+  'Election Officer',
   'Match Referee',
   'Scoring Official',
   'Media Manager',
