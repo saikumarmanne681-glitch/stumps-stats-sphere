@@ -14,6 +14,7 @@ import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp,
 import { format } from 'date-fns';
 import { v2api, logAudit, istNow } from '@/lib/v2api';
 import { ManagementUser, DigitalScorelist, CertificationApproval } from '@/lib/v2types';
+import { getScorelistDetailedStatus, getScorelistRoadmap, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
 import { useData } from '@/lib/DataContext';
@@ -22,19 +23,8 @@ import { getAdminNotificationRecipient, sendScorelistApprovalRequestBulk, sendSy
 import { DataIntegrityBadge, SecurityShieldBadge, SessionFingerprint } from '@/components/SecurityBadge';
 import { PageLoader } from '@/components/LoadingOverlay';
 
-const designationToStage: Record<string, string> = {
-  'Scoring Official': 'scoring_completed',
-  'Match Referee': 'referee_verified',
-  'Tournament Director': 'director_approved',
-  President: 'official_certified',
-  'Vice President': 'official_certified',
-};
-
-const stageOrder = ['draft', 'scoring_completed', 'referee_verified', 'director_approved', 'official_certified'];
-const stageLabels: Record<string, string> = {
-  draft: 'Draft', scoring_completed: 'Scoring Completed', referee_verified: 'Referee Verified',
-  director_approved: 'Director Approved', official_certified: 'Official Certified',
-};
+const stageOrder = [...scorelistStageOrder];
+const stageLabels: Record<string, string> = scorelistStageLabels;
 
 const ManagementPage = () => {
   const { user, isManagement, isAdmin } = useAuth();
@@ -79,7 +69,7 @@ const ManagementPage = () => {
     if (!isManagement || !user?.management_id) return false;
     const certs: CertificationApproval[] = s.certifications_json ? JSON.parse(s.certifications_json) : [];
     if (certs.some(c => c.approver_id === user.management_id)) return false;
-    const userStage = designationToStage[user.designation || ''];
+    const userStage = resolveStageFromDesignation(user.designation || '');
     if (!userStage) return false;
     if (userStage === 'official_certified' && certs.some(c => c.stage === 'official_certified')) return false;
     const currentIdx = stageOrder.indexOf(s.certification_status || 'draft');
@@ -102,7 +92,7 @@ const ManagementPage = () => {
         to: currentMgmt.email,
         approverName: currentMgmt.name,
         scorelistId: scorelist.scorelist_id,
-        stageLabel: stageLabels[designationToStage[user.designation || ''] || 'draft'] || 'Pending approval',
+        stageLabel: stageLabels[resolveStageFromDesignation(user.designation || '') || 'draft'] || 'Pending approval',
         pendingSince: scorelist.generated_at,
       }).catch(console.warn);
       stored[scorelist.scorelist_id] = Date.now();
@@ -119,7 +109,7 @@ const ManagementPage = () => {
       setScorelistActionLoading(false);
       toast({ title: 'Already signed' }); return;
     }
-    const stage = designationToStage[user.designation || ''] || 'referee_verified';
+    const stage = resolveStageFromDesignation(user.designation || '') || 'referee_verified';
     certs.push({
       approver_id: user.management_id,
       approver_name: user.name || 'Management User',
@@ -157,7 +147,7 @@ const ManagementPage = () => {
     // Send approval request to next stage
     const nextStage = locked ? null : stageOrder[stageOrder.indexOf(stage) + 1];
     if (nextStage) {
-      const eligibleApprovers = mgmtUsers.filter((m) => designationToStage[m.designation] === nextStage && m.email);
+      const eligibleApprovers = mgmtUsers.filter((m) => resolveStageFromDesignation(m.designation) === nextStage && m.email);
       if (eligibleApprovers.length > 0) {
         await sendScorelistApprovalRequestBulk({ recipients: eligibleApprovers.map((m) => ({ to: m.email, approverName: m.name })), scorelistId: scorelist.scorelist_id, stageLabel: stageLabels[nextStage] || nextStage, actorName: user.name || user.username });
       }
@@ -351,7 +341,7 @@ const ManagementPage = () => {
                         <div>
                           <p className="font-mono text-xs text-muted-foreground">{s.scorelist_id}</p>
                           {match && <p className="font-display font-bold text-sm">{match.team_a} {match.team_a_score || ''} vs {match.team_b} {match.team_b_score || ''}</p>}
-                          <Badge className="bg-accent/20 text-accent-foreground text-xs mt-1">{stageLabels[s.certification_status || 'draft']}</Badge>
+                          <Badge className="bg-accent/20 text-accent-foreground text-xs mt-1">{getScorelistDetailedStatus(s, mgmtUsers)}</Badge>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <Button size="sm" onClick={() => openReviewDialog(s, 'approve')} className="gap-1 bg-primary hover:bg-primary/90">
@@ -369,7 +359,15 @@ const ManagementPage = () => {
                         </div>
                       </div>
                       {isExpanded && (
-                        <div className="border-t pt-3 space-y-2">
+                        <div className="border-t pt-3 space-y-3">
+                          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+                            {getScorelistRoadmap(s, mgmtUsers).map((step) => (
+                              <div key={step.stage} className={`rounded-lg border p-3 text-xs ${step.completed ? 'border-primary/20 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                                <p className="font-semibold">{step.label}</p>
+                                <p className="mt-1 text-muted-foreground">{step.completed ? (step.approvals[0] ? `Completed by ${step.approvals[0].designation}` : 'Completed') : (step.pendingApprovers.length > 0 ? `Pending with ${step.pendingApprovers.map((member) => member.designation || member.name).join(', ')}` : `Pending at ${step.label}`)}</p>
+                              </div>
+                            ))}
+                          </div>
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Certification Timeline</p>
                           {stageOrder.map(stage => {
                             const cert = stage === 'draft'
@@ -409,7 +407,7 @@ const ManagementPage = () => {
                           </div>
                         </div>
                         <Badge className={s.locked ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}>
-                          {s.locked ? '🔒 Certified' : stageLabels[s.certification_status || 'draft']}
+                          {s.locked ? `🔒 ${getScorelistDetailedStatus(s, mgmtUsers)}` : getScorelistDetailedStatus(s, mgmtUsers)}
                         </Badge>
                       </CardContent>
                     </Card>

@@ -99,6 +99,7 @@ export const electionService = {
   },
 
   async createElection(input: Omit<ElectionRecord, 'election_id' | 'created_at' | 'results_published_at'>, user: AuthUser) {
+    if (user.type !== 'admin') throw new Error('Only admin can create elections.');
     const record: ElectionRecord = {
       ...input,
       election_id: generateId('ELC'),
@@ -122,6 +123,7 @@ export const electionService = {
   },
 
   async submitNomination(input: Omit<NominationRecord, 'nomination_id' | 'created_at' | 'status' | 'reviewed_by' | 'reviewed_at'>, user: AuthUser) {
+    if (user.type !== 'player') throw new Error('Only players can submit nominations.');
     const record: NominationRecord = {
       ...input,
       nomination_id: generateId('NOM'),
@@ -147,6 +149,7 @@ export const electionService = {
   },
 
   async reviewNomination(nominationId: string, status: 'approved' | 'rejected', user: AuthUser) {
+    if (user.type !== 'admin') throw new Error('Only admin can review nominations.');
     const updated = this.getNominations().map((item) => item.nomination_id === nominationId ? { ...item, status, reviewed_by: getActorId(user), reviewed_at: new Date().toISOString() } : item);
     write(STORAGE.nominations, updated);
     const changed = updated.find((item) => item.nomination_id === nominationId);
@@ -165,6 +168,7 @@ export const electionService = {
   },
 
   async castVotes(input: { electionId: string; selections: Record<string, { nominee_user_id: string; nominee_name: string }> }, user: AuthUser) {
+    if (user.type !== 'player') throw new Error('Only players can vote in elections.');
     const voterId = getActorId(user);
     const voterName = getActorName(user);
     const existing = this.getVotes().filter((vote) => vote.election_id === input.electionId && vote.voter_user_id === voterId);
@@ -228,6 +232,7 @@ export const electionService = {
   },
 
   async publishResults(electionId: string, termStart: string, termEnd: string, user: AuthUser) {
+    if (user.type !== 'admin') throw new Error('Only admin can publish election results.');
     const results = this.calculateResults(electionId);
     const assignments = results
       .filter((result) => result.winner_user_id)

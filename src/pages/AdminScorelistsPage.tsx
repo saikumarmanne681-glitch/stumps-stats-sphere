@@ -12,29 +12,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { v2api, logAudit } from '@/lib/v2api';
 import { DigitalScorelist, CertificationApproval, ManagementUser } from '@/lib/v2types';
+import { getScorelistDetailedStatus, getScorelistRoadmap, readScorelistCertifications, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
 import { sendScorelistApprovalRequestBulk, getAdminNotificationRecipient, explainMailFailure } from '@/lib/mailer';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
-const stageLabels: Record<string, string> = {
-  draft: 'Draft',
-  scoring_completed: 'Scoring Completed',
-  referee_verified: 'Referee Verified',
-  director_approved: 'Director Approved',
-  official_certified: 'Official Certified',
-};
-
-const stageOrder = ['draft', 'scoring_completed', 'referee_verified', 'director_approved', 'official_certified'];
-
-const designationToStage: Record<string, string> = {
-  'Scoring Official': 'scoring_completed',
-  'Match Referee': 'referee_verified',
-  'Tournament Director': 'director_approved',
-  President: 'official_certified',
-  'Vice President': 'official_certified',
-};
+const stageLabels: Record<string, string> = scorelistStageLabels;
+const stageOrder = [...scorelistStageOrder];
 
 const AdminScorelistsPage = () => {
   const { isAdmin, isManagement, user } = useAuth();
@@ -116,17 +102,10 @@ const AdminScorelistsPage = () => {
     URL.revokeObjectURL(url);
   };
 
-  const normalizeDesignation = (designation?: string) => String(designation || '').trim().toLowerCase().replace(/\s+/g, ' ');
   const safeParsePayload = (sl: DigitalScorelist) => { try { return JSON.parse(sl.payload_json || '{}'); } catch { return null; } };
   const readCertifications = (sl: DigitalScorelist): CertificationApproval[] => {
-    if (sl.certifications_json) {
-      try {
-        const parsed = JSON.parse(sl.certifications_json);
-        if (Array.isArray(parsed)) return parsed as CertificationApproval[];
-      } catch {
-        /* ignore */
-      }
-    }
+    const direct = readScorelistCertifications(sl);
+    if (direct.length > 0) return direct;
     const payload = safeParsePayload(sl);
     const fromPayload = payload?.__certification?.approvals;
     return Array.isArray(fromPayload) ? fromPayload : [];
@@ -142,17 +121,6 @@ const AdminScorelistsPage = () => {
     if (typeof sl.locked === 'boolean') return sl.locked;
     const payload = safeParsePayload(sl);
     return !!payload?.__certification?.locked;
-  };
-
-  const resolveStageFromDesignation = (designation?: string): string | null => {
-    const d = normalizeDesignation(designation);
-    if (!d) return null;
-    if (d.includes('scoring')) return 'scoring_completed';
-    if (d.includes('referee')) return 'referee_verified';
-    if (d.includes('director')) return 'director_approved';
-    if (d.includes('president')) return 'official_certified';
-    const mapped = Object.entries(designationToStage).find(([k]) => normalizeDesignation(k) === d)?.[1];
-    return mapped || null;
   };
 
   const requiredApproversByStage = stageOrder.reduce<Record<string, ManagementUser[]>>((acc, stage) => {
@@ -244,14 +212,11 @@ const AdminScorelistsPage = () => {
     const tournament = payload?.tournament;
     const payloadMatches = (payload?.matches || []) as any[];
 
-    const pendingApprovals = stageOrder.flatMap((stage) => {
-      const requiredForStage = requiredApproversByStage[stage] || [];
-      const signedIds = new Set(certs.filter((c) => c.stage === stage).map((c) => c.approver_id));
-      if (stage === 'official_certified' && signedIds.size > 0) return [];
-      return requiredForStage
-        .filter((r) => !signedIds.has(r.management_id))
-        .map((r) => ({ stage, name: r.name, designation: r.designation }));
-    });
+    const roadmap = getScorelistRoadmap(sl, managementUsers);
+    const detailedStatus = getScorelistDetailedStatus(sl, managementUsers);
+    const pendingApprovals = roadmap.flatMap((step) =>
+      step.pendingApprovers.map((approver) => ({ stage: step.stage, name: approver.name, designation: approver.designation })),
+    );
 
     // Build HTML content for print-to-PDF
     const batRows = (payload?.battingData || []).map((b: any) => 
@@ -272,7 +237,7 @@ const AdminScorelistsPage = () => {
       </div>`).join('');
     const draftRow = `<tr><td>${draftBy}</td><td>Scorelist Engine</td><td>${stageLabels.draft}</td><td>${new Date(draftTimestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">DRAFT</td></tr>`;
     const certTimelineRows = `${draftRow}${certRows}`;
-    const pendingRows = pendingApprovals.map((p) => `<tr><td>${p.name}</td><td>${p.designation}</td><td>${stageLabels[p.stage] || p.stage}</td><td>Pending</td></tr>`).join('');
+    const pendingRows = pendingApprovals.map((p) => `<tr><td>${p.name}</td><td>${p.designation}</td><td>${stageLabels[p.stage] || p.stage}</td><td>Pending with ${p.designation}</td></tr>`).join('');
     
     const aScore = match?.team_a_score || '-';
     const bScore = match?.team_b_score || '-';
@@ -333,7 +298,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
 <h1 class="intaglio">Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
 <p style="text-align:center;font-family:monospace;font-size:11px;color:#999">${sl.scorelist_id}</p>
-<p style="text-align:center"><span class="status-chip intaglio">${stageLabels[effectiveStatus] || effectiveStatus}${effectiveLocked ? ' • LOCKED' : ''}</span></p>
+<p style="text-align:center"><span class="status-chip intaglio">${detailedStatus}${effectiveLocked ? ' • LOCKED' : ''}</span></p>
 <div class="verification-panel">
   <div class="verification-copy">
     <div class="security-seal intaglio">QR Verification Enabled</div>
@@ -495,6 +460,8 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
             const effectiveLocked = readLocked(sl);
             const nextStage = getNextStage({ ...sl, certification_status: effectiveStatus });
             const canSign = !effectiveLocked && isManagement && userStage && nextStage === userStage;
+            const roadmap = getScorelistRoadmap(sl, managementUsers);
+            const detailedStatus = getScorelistDetailedStatus(sl, managementUsers);
             const userId = user?.management_id || user?.username || 'admin';
             const alreadySignedThisStage = certs.some(c => c.approver_id === userId && c.stage === userStage);
 
@@ -513,7 +480,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{sl.scope_type}</Badge>
                       <Badge className={effectiveLocked ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}>
-                        {effectiveLocked ? '🔒 ' : ''}{stageLabels[effectiveStatus] || effectiveStatus}
+                        {effectiveLocked ? '🔒 ' : ''}{detailedStatus}
                       </Badge>
                     </div>
                   </div>
@@ -530,6 +497,15 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                         </Badge>
                       );
                     })}
+                  </div>
+
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+                    {roadmap.map((step) => (
+                      <div key={step.stage} className={`rounded-lg border p-3 text-xs ${step.completed ? 'border-primary/20 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                        <p className="font-semibold">{step.label}</p>
+                        <p className="mt-1 text-muted-foreground">{step.completed ? (step.approvals[0] ? `Completed by ${step.approvals[0].designation}` : 'Completed') : (step.pendingApprovers.length > 0 ? `Pending with ${step.pendingApprovers.map((member) => member.designation || member.name).join(', ')}` : `Pending at ${step.label}`)}</p>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -570,6 +546,8 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
               const certs = readCertifications(viewScorelist);
               const effectiveLocked = readLocked(viewScorelist);
               const match = payload?.match;
+              const roadmap = getScorelistRoadmap(viewScorelist, managementUsers);
+              const detailedStatus = getScorelistDetailedStatus(viewScorelist, managementUsers);
               const calcScore = (team: string) => {
                 const rows = (payload?.battingData || []).filter((b: any) => b.team === team);
                 const runs = rows.reduce((s: number, b: any) => s + (b.runs || 0), 0);
@@ -594,6 +572,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                       <p className="text-xs text-muted-foreground uppercase tracking-widest">Cricket Club Portal</p>
                       <h2 className="font-display text-xl md:text-2xl font-bold">Digital {viewScorelist.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h2>
                       <p className="font-mono text-xs text-muted-foreground mt-1">{viewScorelist.scorelist_id}</p>
+                      <p className="text-xs text-muted-foreground mt-2">{detailedStatus}</p>
                     </div>
 
                     {/* Verification Badge */}
@@ -689,6 +668,18 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                         </CardContent>
                       </Card>
                     )}
+
+                    <Card>
+                      <CardHeader><CardTitle className="font-display text-sm">Approval roadmap</CardTitle></CardHeader>
+                      <CardContent className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+                        {roadmap.map((step) => (
+                          <div key={step.stage} className={`rounded-lg border p-3 text-xs ${step.completed ? 'border-primary/20 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                            <p className="font-semibold">{step.label}</p>
+                            <p className="mt-1 text-muted-foreground">{step.completed ? (step.approvals[0] ? `Completed by ${step.approvals[0].designation}` : 'Completed') : (step.pendingApprovers.length > 0 ? `Pending with ${step.pendingApprovers.map((member) => member.designation || member.name).join(', ')}` : `Pending at ${step.label}`)}</p>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
 
                     {/* Certification Timeline */}
                     <Card className="border-2 border-accent/30">
