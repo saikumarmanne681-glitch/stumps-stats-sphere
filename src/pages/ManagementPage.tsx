@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, Star, FileText, Users, AlertTriangle } from 'lucide-react';
+import { format } from 'date-fns';
 import { v2api, logAudit, istNow } from '@/lib/v2api';
 import { ManagementUser, DigitalScorelist, CertificationApproval } from '@/lib/v2types';
 import { useToast } from '@/hooks/use-toast';
