@@ -361,7 +361,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
     await v2api.updateScorelist({
       ...sl,
       payload_json: JSON.stringify(payload),
-      certification_status: stage,
+      certification_status: stage as CertificationStage,
       certifications_json: JSON.stringify(certs),
       locked,
     });
