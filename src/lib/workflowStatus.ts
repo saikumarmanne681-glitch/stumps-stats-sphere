@@ -143,16 +143,21 @@ export function getScorelistDetailedStatus(scorelist: DigitalScorelist, manageme
 }
 
 export function getScheduleApprovalRoadmap(schedule: ScheduleRecord, approvals: ScheduleApprovalRecord[]) {
-  const approvedByRole = new Map(
-    approvals
-      .filter((item) => item.schedule_id === schedule.schedule_id && item.decision === 'approved')
-      .map((item) => [item.approver_role, item]),
-  );
+  const latestDecisionByRole = new Map<string, ScheduleApprovalRecord>();
+
+  approvals
+    .filter((item) => item.schedule_id === schedule.schedule_id)
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    .forEach((item) => {
+      if (!latestDecisionByRole.has(item.approver_role)) {
+        latestDecisionByRole.set(item.approver_role, item);
+      }
+    });
 
   return scheduleApproverRoles.map((role) => ({
     role,
-    approval: approvedByRole.get(role),
-    completed: approvedByRole.has(role),
+    approval: latestDecisionByRole.get(role),
+    completed: latestDecisionByRole.get(role)?.decision === 'approved',
   }));
 }
 

@@ -51,7 +51,7 @@ export function AdminGovernance() {
     toast({ title: 'Schedule version created', description: 'A new draft version has been saved without overwriting prior versions.' });
   };
 
-  const pendingSchedules = schedules.filter((item) => item.status === 'draft' || item.status === 'pending_approval');
+  const visibleSchedules = [...schedules].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
   return (
     <div className="space-y-6">
@@ -101,7 +101,7 @@ export function AdminGovernance() {
       <Card>
         <CardHeader><CardTitle>Approval roadmap for tournament schedules</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          {pendingSchedules.map((schedule) => {
+          {visibleSchedules.map((schedule) => {
             const scheduleApprovals = approvals.filter((item) => item.schedule_id === schedule.schedule_id);
             const previous = schedules.find((item) => item.schedule_id === schedule.parent_schedule_id);
             const diff = scheduleService.diffVersions(previous, schedule);
@@ -131,13 +131,15 @@ export function AdminGovernance() {
                   <p className="text-sm font-medium">Approval roadmap</p>
                   <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                     {roadmap.map((step) => (
-                      <div key={step.role} className={`rounded-lg border p-3 ${step.completed ? 'border-primary/30 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                      <div key={step.role} className={`rounded-lg border p-3 ${step.approval?.decision === 'rejected' ? 'border-destructive/30 bg-destructive/5' : step.completed ? 'border-primary/30 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-medium">{step.role}</p>
-                          <Badge variant={step.completed ? 'default' : 'secondary'}>{step.completed ? 'Approved' : `Pending with ${step.role}`}</Badge>
+                          <Badge variant={step.approval?.decision === 'rejected' ? 'destructive' : step.completed ? 'default' : 'secondary'}>
+                            {step.approval?.decision === 'rejected' ? 'Rejected' : step.completed ? 'Approved' : `Pending with ${step.role}`}
+                          </Badge>
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          {step.approval ? `${step.approval.approver_name} • ${new Date(step.approval.timestamp).toLocaleString()}` : 'Waiting for this office bearer approval.'}
+                          {step.approval ? `${step.approval.approver_name} • ${new Date(step.approval.timestamp).toLocaleString()}${step.approval.comments ? ` • ${step.approval.comments}` : ''}` : 'Waiting for this office bearer approval.'}
                         </p>
                       </div>
                     ))}
@@ -154,14 +156,16 @@ export function AdminGovernance() {
                   {diff.length === 0 && <p className="text-sm text-muted-foreground">No previous version for comparison.</p>}
                 </div>
 
-                <div className="flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={async () => { await scheduleService.submitForApproval(schedule.schedule_id, user!); setRefreshKey((value) => value + 1); }}>Send for Approval</Button>
-                </div>
+                {schedule.status === 'draft' && (
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={async () => { await scheduleService.submitForApproval(schedule.schedule_id, user!); setRefreshKey((value) => value + 1); }}>Send for Approval</Button>
+                  </div>
+                )}
                 <div className="text-sm text-muted-foreground">Approvals received: {scheduleApprovals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'None yet'}</div>
               </div>
             );
           })}
-          {pendingSchedules.length === 0 && <p className="text-sm text-muted-foreground">No draft or pending schedules to review.</p>}
+          {visibleSchedules.length === 0 && <p className="text-sm text-muted-foreground">No schedule versions available yet.</p>}
         </CardContent>
       </Card>
     </div>
