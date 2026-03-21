@@ -111,11 +111,11 @@ const AdminScorelistsPage = () => {
     return Array.isArray(fromPayload) ? fromPayload : [];
   };
   const readStatus = (sl: DigitalScorelist, certs: CertificationApproval[]): CertificationStage => {
-    if (sl.certification_status) return sl.certification_status;
-    const latest = certs.reduce((best, c) => {
+    if (sl.certification_status) return sl.certification_status as CertificationStage;
+    const latest = certs.reduce<CertificationStage>((best, c) => {
       return stageOrder.indexOf(c.stage) > stageOrder.indexOf(best) ? c.stage : best;
-    }, 'draft');
-    return latest || 'draft';
+    }, 'draft' as CertificationStage);
+    return latest || ('draft' as CertificationStage);
   };
   const readLocked = (sl: DigitalScorelist): boolean => {
     if (typeof sl.locked === 'boolean') return sl.locked;
