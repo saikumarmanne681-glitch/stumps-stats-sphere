@@ -41,10 +41,11 @@ function appendAudit(entry: TournamentAuditLog) {
   logAudit(entry.actor_id, entry.action, entry.entity_type, entry.entity_id, entry.details);
 }
 
-async function safeSyncRow<T>(method: 'add' | 'update', sheet: string, row: T) {
+async function safeSyncRow<T>(method: 'add' | 'update' | 'delete', sheet: string, row: T) {
   try {
     await v2api.syncHeaders().catch(() => false);
     if (method === 'add') return await v2api.addCustomSheetRow(sheet, row);
+    if (method === 'delete') return await v2api.deleteCustomSheetRow(sheet, row);
     return await v2api.updateCustomSheetRow(sheet, row);
   } catch {
     return false;
@@ -83,8 +84,20 @@ export const tournamentService = {
     const record: TournamentRegistryRecord = { ...input, tournament_id: generateId('TRN'), created_at: new Date().toISOString() };
     write(STORAGE.tournaments, [record, ...this.getTournaments()]);
     await safeSyncRow('add', SHEETS.tournaments, record);
-    appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'tournament', entity_id: record.tournament_id, action: 'create_tournament', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ name: record.name, format: record.format, status: record.status }) });
+    appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'tournament', entity_id: record.tournament_id, action: 'create_tournament', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ name: record.name, format: record.format, status: record.status, source_type: record.source_type }) });
     return record;
+  },
+  async updateTournament(record: TournamentRegistryRecord, user: AuthUser) {
+    const updated = this.getTournaments().map((item) => item.tournament_id === record.tournament_id ? record : item);
+    write(STORAGE.tournaments, updated);
+    await safeSyncRow('update', SHEETS.tournaments, record);
+    appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'tournament', entity_id: record.tournament_id, action: 'update_tournament', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ name: record.name, status: record.status, source_type: record.source_type }) });
+    return record;
+  },
+  async deleteTournament(tournamentId: string, user: AuthUser) {
+    write(STORAGE.tournaments, this.getTournaments().filter((item) => item.tournament_id !== tournamentId));
+    await safeSyncRow('delete', SHEETS.tournaments, { tournament_id: tournamentId });
+    appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'tournament', entity_id: tournamentId, action: 'delete_tournament', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId }) });
   },
   isDuplicateRegistration(input: Pick<RegistrationRecord, 'tournament_id' | 'season_id' | 'team_name'>, ignoreRegistrationId?: string) {
     const registrationKey = buildRegistrationKey(input);
@@ -100,6 +113,23 @@ export const tournamentService = {
     await safeSyncRow('add', SHEETS.registrations, record);
     appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'registration', entity_id: record.registration_id, action: 'submit_registration', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId: record.tournament_id, seasonId: record.season_id || '', teamName: record.team_name, registrationKey: record.registration_key }) });
     return record;
+  },
+  async updateRegistration(record: RegistrationRecord, user: AuthUser) {
+    const registration_key = buildRegistrationKey(record);
+    if (this.isDuplicateRegistration({ tournament_id: record.tournament_id, season_id: record.season_id, team_name: record.team_name }, record.registration_id)) {
+      throw new Error('A registration for this team already exists for the selected tournament season.');
+    }
+    const normalized = { ...record, registration_key };
+    const updated = this.getRegistrations().map((item) => item.registration_id === record.registration_id ? normalized : item);
+    write(STORAGE.registrations, updated);
+    await safeSyncRow('update', SHEETS.registrations, normalized);
+    appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'registration', entity_id: record.registration_id, action: 'update_registration', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId: normalized.tournament_id, seasonId: normalized.season_id || '', teamName: normalized.team_name, status: normalized.status }) });
+    return normalized;
+  },
+  async deleteRegistration(registrationId: string, user: AuthUser) {
+    write(STORAGE.registrations, this.getRegistrations().filter((item) => item.registration_id !== registrationId));
+    await safeSyncRow('delete', SHEETS.registrations, { registration_id: registrationId });
+    appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'registration', entity_id: registrationId, action: 'delete_registration', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ registrationId }) });
   },
   async reviewRegistration(registrationId: string, status: 'approved' | 'rejected', reviewNotes: string, user: AuthUser) {
     const updated = this.getRegistrations().map((item) => item.registration_id === registrationId ? { ...item, status, review_notes: reviewNotes, reviewed_by: getActorId(user), reviewed_at: new Date().toISOString() } : item);

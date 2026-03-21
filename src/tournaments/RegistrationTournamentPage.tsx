@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, ClipboardList, MapPin } from 'lucide-react';
+import { ApprovedSchedulePanel } from '@/schedules/ApprovedSchedulePanel';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { tournamentService } from './tournamentService';
 import { RegistrationRecord, TournamentRegistryRecord } from './types';
 import { useAuth } from '@/lib/auth';
 import { normalizeId } from '@/lib/dataUtils';
+import { scheduleService } from '@/schedules/scheduleService';
 
 const RegistrationTournamentPage = () => {
   const { id } = useParams();
@@ -16,7 +18,7 @@ const RegistrationTournamentPage = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    tournamentService.syncFromBackend().finally(() => setRefreshKey((value) => value + 1));
+    Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
   }, []);
 
   if (!user) return <Navigate to="/login" replace />;
@@ -74,6 +76,10 @@ const RegistrationTournamentPage = () => {
             <p className="text-sm text-muted-foreground">{tournament.notes || 'This registration page was created for a tournament that is not yet part of the main tournaments catalogue.'}</p>
           </CardContent>
         </Card>
+
+
+
+        <ApprovedSchedulePanel tournamentId={tournament.tournament_id} />
 
         <Card>
           <CardHeader><CardTitle>Registrations received</CardTitle></CardHeader>
