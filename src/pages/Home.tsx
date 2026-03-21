@@ -86,12 +86,12 @@ const Home = () => {
       <Navbar />
       <AnnouncementTicker />
 
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <main className="center-page items-stretch gap-6">
         {/* Hero */}
         <section className="portal-hero overflow-hidden">
-          <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="space-y-5">
-              <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col items-center gap-6">
+            <div className="center-stack max-w-4xl space-y-5">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <Badge className="portal-pill">🏏 Cricket Hub</Badge>
                 <Badge variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-3 py-1 text-[11px] uppercase tracking-widest text-muted-foreground">
                   Stats · Scores · Standings
@@ -99,15 +99,15 @@ const Home = () => {
               </div>
 
               <div className="space-y-3">
-                <h1 className="max-w-3xl font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl lg:leading-tight">
+                <h1 className="max-w-3xl font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-[3.2rem] lg:leading-[1.1]">
                   Your complete cricket analytics portal.
                 </h1>
-                <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+                <p className="max-w-2xl text-base leading-7 text-muted-foreground">
                   Track matches, explore leaderboards, follow live scores, and dive into season-by-season tournament data — all in one place.
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {heroStats.map(({ label, value, icon: Icon }) => (
                   <div key={label} className="portal-stat-card">
                     <div className="flex items-center justify-between">
@@ -121,7 +121,7 @@ const Home = () => {
                 ))}
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-col justify-center gap-3 sm:flex-row">
                 <Button className="sm:min-w-[170px]" asChild>
                   <Link to="/leaderboards">Explore leaderboards</Link>
                 </Button>
@@ -132,7 +132,7 @@ const Home = () => {
             </div>
 
             {/* Snapshot card */}
-            <Card className="portal-panel">
+            <Card className="portal-panel max-w-3xl">
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -177,7 +177,7 @@ const Home = () => {
         )}
 
         {/* Filters + Seasons */}
-        <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+        <section className="mx-auto grid w-full max-w-5xl gap-5">
           <Card className="portal-panel shadow-none">
             <CardContent className="p-5">
               <div className="mb-4">
@@ -208,7 +208,7 @@ const Home = () => {
 
           <Card className="portal-panel shadow-none">
             <CardContent className="p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="mb-4 flex flex-wrap items-center justify-center gap-3 text-center">
                 <div>
                   <p className="portal-label">📋 Seasons Overview</p>
                   <h2 className="font-display text-xl font-semibold tracking-tight">Current campaigns</h2>
@@ -324,7 +324,7 @@ const Home = () => {
           <div className="space-y-5">
             <Card className="portal-panel shadow-none">
               <CardContent className="p-5">
-                <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="mb-4 flex flex-wrap items-center justify-center gap-3 text-center">
                   <div>
                     <p className="portal-label">Leaderboards</p>
                     <h2 className="font-display text-xl font-semibold tracking-tight">Top performers</h2>
