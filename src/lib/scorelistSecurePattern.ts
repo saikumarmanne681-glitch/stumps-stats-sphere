@@ -26,19 +26,19 @@ export interface SecurePatternLayer {
 }
 
 export function buildSecurePatternLayer(options: SecurePatternOptions): SecurePatternLayer {
-  const microtext = `MATCH-${options.matchId || "NA"}-${options.checksum}-${options.timestamp}`;
+  const microtext = `MATCH-${options.matchId || 'NA'}-${options.checksum}-${options.timestamp}`;
   if (!options.enableSecurePattern) {
-    return { enabled: false, microtext, backgroundImage: "", style: "", visibleLabel: microtext };
+    return { enabled: false, microtext, backgroundImage: '', style: '', visibleLabel: microtext };
   }
 
   const seed = hashString(microtext);
   const width = 900;
   const height = 1200;
   // Slightly wider spacing to accommodate text clearly
-  const spacing = 24 + (seed % 7);
+  const spacing = 24 + (seed % 7); 
   const amplitude = 6 + (seed % 5);
   const phase = (seed % 360) * (Math.PI / 180);
-
+  
   const lines: string[] = [];
   const textPaths: string[] = [];
 
@@ -50,16 +50,16 @@ export function buildSecurePatternLayer(options: SecurePatternOptions): SecurePa
   for (let y = -40; y <= height + 40; y += spacing) {
     pathCounter++;
     const pathId = `wave-path-${pathCounter}`;
-
+    
     const c1 = y + Math.sin((y + phase) / 48) * amplitude;
     const c2 = y + Math.cos((y + phase) / 57) * (amplitude + 1);
     const end = y + Math.sin((y + phase) / 63) * amplitude;
-
+    
     const d = `M -40 ${y.toFixed(2)} C ${width * 0.25} ${c1.toFixed(2)}, ${width * 0.65} ${c2.toFixed(2)}, ${width + 40} ${end.toFixed(2)}`;
-
+    
     // 1. Draw the physical wave line
     lines.push(`<path id="${pathId}" d="${d}" class="wave" />`);
-
+    
     // 2. Attach text to the exact same path using <textPath>
     textPaths.push(`
       <text class="path-text" dy="-2">
@@ -75,7 +75,7 @@ export function buildSecurePatternLayer(options: SecurePatternOptions): SecurePa
       <rect x="-260" y="-18" width="520" height="36" rx="18" class="label-band" />
       <text text-anchor="middle" dominant-baseline="middle" class="visible-label">${visibleLabel}</text>
     </g>`;
-  }).join("");
+  }).join('');
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <defs>
@@ -97,8 +97,8 @@ export function buildSecurePatternLayer(options: SecurePatternOptions): SecurePa
       </style>
     </defs>
     <rect width="100%" height="100%" fill="white" fill-opacity="0" />
-    <g>${lines.join("")}</g>
-    <g>${textPaths.join("")}</g>
+    <g>${lines.join('')}</g>
+    <g>${textPaths.join('')}</g>
     ${visibleBands}
   </svg>`;
 
