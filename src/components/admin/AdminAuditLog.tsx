@@ -10,6 +10,7 @@ import { v2api } from '@/lib/v2api';
 import { AuditEvent } from '@/lib/v2types';
 import { useData } from '@/lib/DataContext';
 import { Loader2, Search, Shield, Sparkles } from 'lucide-react';
+import { formatInIST } from '@/lib/time';
 
 export function AdminAuditLog() {
   const { players } = useData();
@@ -115,7 +116,7 @@ export function AdminAuditLog() {
             <TableBody>
               {paged.map((event) => (
                 <TableRow key={event.event_id} className="align-top hover:bg-primary/5">
-                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{event.timestamp}</TableCell>
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{formatInIST(event.timestamp)}</TableCell>
                   <TableCell className="text-sm font-medium">{getActorName(event.actor_user)}</TableCell>
                   <TableCell><Badge variant="outline" className="rounded-full text-xs">{event.event_type}</Badge></TableCell>
                   <TableCell className="text-xs">{event.entity_type}</TableCell>

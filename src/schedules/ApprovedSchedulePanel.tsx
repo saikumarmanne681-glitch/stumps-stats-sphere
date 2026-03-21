@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScheduleMatch } from './types';
 import { scheduleService } from './scheduleService';
+import { formatInIST, formatScheduleSlotInIST } from '@/lib/time';
 
 export function ApprovedSchedulePanel({ tournamentId }: { tournamentId: string }) {
   const schedules = scheduleService.getApprovedSchedulesForTournament(tournamentId);
@@ -30,7 +31,7 @@ export function ApprovedSchedulePanel({ tournamentId }: { tournamentId: string }
             </div>
             <div className="rounded-lg border p-4 text-sm space-y-1">
               <p><strong>Approved by:</strong> {approvals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ')}</p>
-              <p><strong>Timestamp:</strong> {latest.timestamp}</p>
+              <p><strong>Timestamp:</strong> {formatInIST(latest.timestamp)}</p>
               <p><strong>Change log:</strong> {latest.change_log || 'No change log provided.'}</p>
             </div>
             <div className="space-y-3">
@@ -40,7 +41,7 @@ export function ApprovedSchedulePanel({ tournamentId }: { tournamentId: string }
                     <p className="font-semibold">{match.team_a} vs {match.team_b}</p>
                     <Badge variant="outline">{match.stage}</Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">{match.date} · {match.time} · {match.venue}</p>
+                  <p className="text-sm text-muted-foreground">{formatScheduleSlotInIST(match.date, match.time)} · {match.venue}</p>
                   {match.notes && <p className="mt-2 text-sm">{match.notes}</p>}
                 </div>
               ))}

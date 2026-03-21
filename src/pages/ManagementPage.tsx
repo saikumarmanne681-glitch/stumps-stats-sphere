@@ -25,6 +25,7 @@ import { PageLoader } from '@/components/LoadingOverlay';
 import { scheduleService } from '@/schedules/scheduleService';
 import { getActorId, isScheduleApproverRole } from '@/lib/accessControl';
 import { ScheduleRecord } from '@/schedules/types';
+import { formatInIST } from '@/lib/time';
 
 const stageOrder = [...scorelistStageOrder];
 const stageLabels: Record<string, string> = scorelistStageLabels;
@@ -408,7 +409,7 @@ const ManagementPage = () => {
                                 {cert ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />}
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-xs">{stageLabels[stage]}</p>
-                                  {cert && <p className="text-xs text-muted-foreground truncate">{cert.approver_name} ({cert.designation}) • {new Date(cert.timestamp).toLocaleString()}</p>}
+                                  {cert && <p className="text-xs text-muted-foreground truncate">{cert.approver_name} ({cert.designation}) • {formatInIST(cert.timestamp)}</p>}
                                 </div>
                                 {cert && <Badge variant="outline" className="text-[10px] font-mono shrink-0">{cert.token.substring(0, 10)}</Badge>}
                               </div>
@@ -463,7 +464,7 @@ const ManagementPage = () => {
                           <div>
                             <p className="font-display font-bold">{schedule.tournament_name} · Version {schedule.version_number}</p>
                             <p className="text-sm text-muted-foreground">{getScheduleDetailedStatus(schedule, approvals)}</p>
-                            <p className="text-xs text-muted-foreground mt-1">Submitted on {new Date(schedule.timestamp).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Submitted on {formatInIST(schedule.timestamp)}</p>
                           </div>
                           <Badge variant="outline">Hash {schedule.hash.slice(0, 12)}…</Badge>
                         </div>
@@ -478,7 +479,7 @@ const ManagementPage = () => {
                                 </Badge>
                               </div>
                               <p className="mt-1 text-xs text-muted-foreground">
-                                {step.approval ? `${step.approval.approver_name} • ${new Date(step.approval.timestamp).toLocaleString()}` : 'Awaiting action from this approver.'}
+                                {step.approval ? `${step.approval.approver_name} • ${formatInIST(step.approval.timestamp)}` : 'Awaiting action from this approver.'}
                               </p>
                             </div>
                           ))}
@@ -531,7 +532,7 @@ const ManagementPage = () => {
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-semibold text-sm">{msg.subject}</span>
-                          <span className="text-xs text-muted-foreground">{format(new Date(msg.timestamp || msg.date), 'dd MMM HH:mm')}</span>
+                          <span className="text-xs text-muted-foreground">{formatInIST(msg.timestamp || msg.date)}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mb-1">{senderName} → {resolveMessageIdentity(msg.to_id)}</p>
                         <p className="text-sm leading-relaxed">{msg.body}</p>

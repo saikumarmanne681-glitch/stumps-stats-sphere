@@ -1,5 +1,6 @@
 import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, ManagementUser, MatchTimeline } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
+import { nowIso } from './time';
 
 async function fetchV2Sheet<T>(sheet: string): Promise<T[]> {
   const url = getAppsScriptUrl();
@@ -103,7 +104,7 @@ export const v2api = {
 
 // Helper to create IST timestamp
 export function istNow(): string {
-  return new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  return nowIso();
 }
 
 // Audit helper

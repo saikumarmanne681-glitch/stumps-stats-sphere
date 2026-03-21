@@ -4,6 +4,7 @@ import { generateId } from '@/lib/utils';
 import { logAudit, v2api } from '@/lib/v2api';
 import { ScheduleApprovalRecord, ScheduleAuditLog, ScheduleDiffEntry, ScheduleMatch, ScheduleRecord } from './types';
 import { getScheduleDetailedStatus } from '@/lib/workflowStatus';
+import { formatInIST, formatScheduleSlotInIST, nowIso } from '@/lib/time';
 
 const STORAGE = {
   schedules: 'club:schedules',
@@ -26,6 +27,16 @@ const read = <T,>(key: string): T[] => {
 };
 
 const write = <T,>(key: string, data: T[]) => localStorage.setItem(key, JSON.stringify(data));
+
+function dedupeByKey<T>(items: T[], getKey: (item: T) => string) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = getKey(item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 async function digest(input: string) {
   const bytes = new TextEncoder().encode(input);
@@ -95,8 +106,8 @@ export const scheduleService = {
         v2api.getCustomSheet<ScheduleRecord>(SHEETS.schedules),
         v2api.getCustomSheet<ScheduleApprovalRecord>(SHEETS.approvals),
       ]);
-      if (schedules.length) write(STORAGE.schedules, schedules);
-      if (approvals.length) write(STORAGE.approvals, approvals);
+      if (schedules.length) write(STORAGE.schedules, dedupeByKey(schedules, (item) => item.schedule_id));
+      if (approvals.length) write(STORAGE.approvals, dedupeByKey(approvals, (item) => item.approval_id || `${item.schedule_id}:${item.approver_id}:${item.approver_role}`));
     } catch {
       // local cache remains the fallback
     }
@@ -122,7 +133,7 @@ export const scheduleService = {
       matches_json: JSON.stringify(input.matches),
       created_by: getActorId(user),
       created_by_name: getActorName(user),
-      timestamp: new Date().toISOString(),
+      timestamp: nowIso(),
       change_log: input.change_log,
       status: 'draft',
       parent_schedule_id: previousVersions[0]?.schedule_id || '',
@@ -131,7 +142,7 @@ export const scheduleService = {
     };
     write(STORAGE.schedules, [record, ...this.getSchedules()]);
     await safeSyncRow('add', SHEETS.schedules, record);
-    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: record.schedule_id, action: 'create_schedule_version', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId: record.tournament_id, version: version_number, matches: input.matches.length }) });
+    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: record.schedule_id, action: 'create_schedule_version', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: nowIso(), details: JSON.stringify({ tournamentId: record.tournament_id, version: version_number, matches: input.matches.length }) });
     return record;
   },
   async submitForApproval(scheduleId: string, user: AuthUser) {
@@ -139,7 +150,7 @@ export const scheduleService = {
     write(STORAGE.schedules, updated);
     const changed = updated.find((item) => item.schedule_id === scheduleId);
     if (changed) await safeSyncRow('update', SHEETS.schedules, changed);
-    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: scheduleId, action: 'submit_schedule_for_approval', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ status: 'pending_approval' }) });
+    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: scheduleId, action: 'submit_schedule_for_approval', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: nowIso(), details: JSON.stringify({ status: 'pending_approval' }) });
   },
   async approveSchedule(scheduleId: string, comments: string, user: AuthUser) {
     if (!canApproveSchedule(user) || !isScheduleApproverRole(user.designation)) throw new Error('Only authorized office bearers can approve schedules.');
@@ -154,9 +165,9 @@ export const scheduleService = {
       approver_role: user.designation || 'Management',
       decision: 'approved',
       comments,
-      timestamp: new Date().toISOString(),
+      timestamp: nowIso(),
     };
-    const storedApprovals = [approval, ...this.getApprovals()];
+    const storedApprovals = dedupeByKey([approval, ...this.getApprovals()], (item) => item.approval_id || `${item.schedule_id}:${item.approver_id}:${item.approver_role}`);
     write(STORAGE.approvals, storedApprovals);
     await safeSyncRow('add', SHEETS.approvals, approval);
 
@@ -168,7 +179,7 @@ export const scheduleService = {
     write(STORAGE.schedules, updatedSchedules);
     const changed = updatedSchedules.find((item) => item.schedule_id === scheduleId);
     if (changed) await safeSyncRow('update', SHEETS.schedules, changed);
-    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'approval', entity_id: approval.approval_id, action: 'approve_schedule', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ scheduleId, approverRole: approval.approver_role, fullyApproved }) });
+    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'approval', entity_id: approval.approval_id, action: 'approve_schedule', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: nowIso(), details: JSON.stringify({ scheduleId, approverRole: approval.approver_role, fullyApproved }) });
     return approval;
   },
   async rejectSchedule(scheduleId: string, comments: string, user: AuthUser) {
@@ -181,15 +192,15 @@ export const scheduleService = {
       approver_role: user.designation || 'Management',
       decision: 'rejected',
       comments,
-      timestamp: new Date().toISOString(),
+      timestamp: nowIso(),
     };
-    write(STORAGE.approvals, [approval, ...this.getApprovals()]);
+    write(STORAGE.approvals, dedupeByKey([approval, ...this.getApprovals()], (item) => item.approval_id || `${item.schedule_id}:${item.approver_id}:${item.approver_role}`));
     await safeSyncRow('add', SHEETS.approvals, approval);
     const updatedSchedules = this.getSchedules().map((item) => item.schedule_id === scheduleId ? { ...item, status: 'draft', rejection_reason: comments } : item);
     write(STORAGE.schedules, updatedSchedules);
     const changed = updatedSchedules.find((item) => item.schedule_id === scheduleId);
     if (changed) await safeSyncRow('update', SHEETS.schedules, changed);
-    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'approval', entity_id: approval.approval_id, action: 'reject_schedule', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ scheduleId, comments }) });
+    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'approval', entity_id: approval.approval_id, action: 'reject_schedule', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: nowIso(), details: JSON.stringify({ scheduleId, comments }) });
     return approval;
   },
   getApprovedSchedulesForTournament(tournamentId: string) {
@@ -219,13 +230,21 @@ export const scheduleService = {
       `Tournament: ${schedule.tournament_name}`,
       `Version: ${schedule.version_number}`,
       `Status: ${detailedStatus}`,
-      `Timestamp: ${schedule.timestamp}`,
+      `Issued in IST: ${formatInIST(schedule.timestamp)}`,
       `Hash: ${schedule.hash}`,
       `Approved by: ${approvals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || detailedStatus}`,
       'Matches:',
-      ...matches.slice(0, 25).map((match) => `${match.date} ${match.time} ${match.team_a} vs ${match.team_b} @ ${match.venue}`),
+      ...matches.slice(0, 25).map((match) => `${formatScheduleSlotInIST(match.date, match.time)} ${match.team_a} vs ${match.team_b} @ ${match.venue}`),
     ];
-    const content = buildSimplePdf(lines);
+    const securityLines = [
+      'SECURE DIGITAL SCHEDULE',
+      `Verification hash: ${schedule.hash}`,
+      `Protected approval trail: ${approvals.length} recorded sign-off(s)`,
+      `Generated for member viewing on ${formatInIST(nowIso())}`,
+      'Handle as club-controlled digital record only.',
+      ...lines,
+    ];
+    const content = buildSimplePdf(securityLines);
     const blob = new Blob([content], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
