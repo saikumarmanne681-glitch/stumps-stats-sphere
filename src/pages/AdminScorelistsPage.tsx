@@ -350,7 +350,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
       designation: user?.designation || 'Administrator',
       timestamp: new Date().toISOString(),
       token: `CERT_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-      stage,
+      stage: stage as CertificationStage,
     });
     const locked = stage === 'official_certified';
     const payload = safeParsePayload(sl) || {};
