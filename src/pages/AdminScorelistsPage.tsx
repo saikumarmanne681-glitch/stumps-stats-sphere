@@ -111,11 +111,13 @@ const AdminScorelistsPage = () => {
     return Array.isArray(fromPayload) ? fromPayload : [];
   };
   const readStatus = (sl: DigitalScorelist, certs: CertificationApproval[]): CertificationStage => {
-    if (sl.certification_status) return sl.certification_status;
-    const latest = certs.reduce((best, c) => {
-      return stageOrder.indexOf(c.stage) > stageOrder.indexOf(best) ? c.stage : best;
-    }, 'draft');
-    return latest || 'draft';
+    if (sl.certification_status) return sl.certification_status as CertificationStage;
+    if (certs.length === 0) return 'draft';
+    let best: CertificationStage = 'draft';
+    for (const c of certs) {
+      if (stageOrder.indexOf(c.stage) > stageOrder.indexOf(best)) best = c.stage;
+    }
+    return best;
   };
   const readLocked = (sl: DigitalScorelist): boolean => {
     if (typeof sl.locked === 'boolean') return sl.locked;
@@ -348,7 +350,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
       designation: user?.designation || 'Administrator',
       timestamp: new Date().toISOString(),
       token: `CERT_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-      stage,
+      stage: stage as CertificationStage,
     });
     const locked = stage === 'official_certified';
     const payload = safeParsePayload(sl) || {};
@@ -361,12 +363,12 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
     await v2api.updateScorelist({
       ...sl,
       payload_json: JSON.stringify(payload),
-      certification_status: stage,
+      certification_status: stage as CertificationStage,
       certifications_json: JSON.stringify(certs),
       locked,
     });
     logAudit(userId, 'certify_scorelist', 'scorelist', sl.scorelist_id, stage);
-    const nextStage = stageOrder[stageOrder.indexOf(stage) + 1];
+    const nextStage = stageOrder[stageOrder.indexOf(stage as CertificationStage) + 1];
     if (nextStage && !locked) {
       await notifyStageApprovers(sl.scorelist_id, nextStage);
     }

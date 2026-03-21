@@ -120,7 +120,7 @@ export interface CertificationApproval {
   designation: string;
   timestamp: string;
   token: string;
-  stage: string;
+  stage: CertificationStage;
 }
 
 // SLA config
