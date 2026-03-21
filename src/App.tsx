@@ -23,6 +23,7 @@ import AdminScorelistsPage from "./pages/AdminScorelistsPage";
 import LiveMatchPage from "./pages/LiveMatchPage";
 import ElectionsPage from '@/elections/ElectionsPage';
 import TournamentsHubPage from '@/tournaments/TournamentsHubPage';
+import RegistrationTournamentPage from '@/tournaments/RegistrationTournamentPage';
 import { RequireAuth } from '@/components/RequireAuth';
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/management" element={<ManagementPage />} />
             <Route path="/elections" element={<RequireAuth><ElectionsPage /></RequireAuth>} />
             <Route path="/tournaments" element={<RequireAuth><TournamentsHubPage /></RequireAuth>} />
+            <Route path="/tournaments/registration/:id" element={<RequireAuth><RegistrationTournamentPage /></RequireAuth>} />
             <Route path="/live" element={<LiveMatchPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

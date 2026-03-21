@@ -12,11 +12,19 @@ export interface TournamentRegistryRecord {
   created_at: string;
   status: 'open' | 'closed';
   notes: string;
+  season_id?: string;
+  season_year?: number | string;
+  source_type?: 'existing' | 'custom';
+  public_page_path?: string;
 }
 
 export interface RegistrationRecord {
   registration_id: string;
   tournament_id: string;
+  tournament_name?: string;
+  season_id?: string;
+  season_year?: number | string;
+  registration_key?: string;
   team_name: string;
   contact_name: string;
   contact_email: string;

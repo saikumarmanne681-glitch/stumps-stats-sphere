@@ -4,6 +4,14 @@ import { generateId } from '@/lib/utils';
 import { logAudit, v2api } from '@/lib/v2api';
 import { RegistrationRecord, TournamentAuditLog, TournamentRegistryRecord } from './types';
 
+function normalizeText(value: string) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function buildRegistrationKey(input: Pick<RegistrationRecord, 'tournament_id' | 'season_id' | 'team_name'>) {
+  return [String(input.tournament_id || '').trim(), String(input.season_id || 'NA').trim(), normalizeText(input.team_name)].join('::');
+}
+
 const STORAGE = {
   tournaments: 'club:tournaments:registry',
   registrations: 'club:tournaments:registrations',
@@ -55,7 +63,7 @@ export const tournamentService = {
         v2api.getCustomSheet<RegistrationRecord>(SHEETS.registrations),
       ]);
       if (tournaments.length) write(STORAGE.tournaments, tournaments);
-      if (registrations.length) write(STORAGE.registrations, registrations);
+      if (registrations.length) write(STORAGE.registrations, registrations.map((item) => ({ ...item, registration_key: item.registration_key || buildRegistrationKey(item) })));
     } catch {
       // local cache remains the fallback
     }
@@ -64,7 +72,9 @@ export const tournamentService = {
     return read<TournamentRegistryRecord>(STORAGE.tournaments).sort((a, b) => b.created_at.localeCompare(a.created_at));
   },
   getRegistrations() {
-    return read<RegistrationRecord>(STORAGE.registrations).sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
+    return read<RegistrationRecord>(STORAGE.registrations)
+      .map((item) => ({ ...item, registration_key: item.registration_key || buildRegistrationKey(item) }))
+      .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
   },
   getAuditLogs() {
     return read<TournamentAuditLog>(STORAGE.audit);
@@ -76,11 +86,19 @@ export const tournamentService = {
     appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'tournament', entity_id: record.tournament_id, action: 'create_tournament', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ name: record.name, format: record.format, status: record.status }) });
     return record;
   },
-  async submitRegistration(input: Omit<RegistrationRecord, 'registration_id' | 'submitted_at' | 'status' | 'reviewed_by' | 'reviewed_at' | 'review_notes'>, user: AuthUser) {
-    const record: RegistrationRecord = { ...input, registration_id: generateId('REG'), submitted_at: new Date().toISOString(), status: 'pending', reviewed_by: '', reviewed_at: '', review_notes: '' };
+  isDuplicateRegistration(input: Pick<RegistrationRecord, 'tournament_id' | 'season_id' | 'team_name'>, ignoreRegistrationId?: string) {
+    const registrationKey = buildRegistrationKey(input);
+    return this.getRegistrations().some((item) => item.registration_id !== ignoreRegistrationId && (item.registration_key || buildRegistrationKey(item)) === registrationKey);
+  },
+  async submitRegistration(input: Omit<RegistrationRecord, 'registration_id' | 'submitted_at' | 'status' | 'reviewed_by' | 'reviewed_at' | 'review_notes' | 'registration_key'>, user: AuthUser) {
+    const registration_key = buildRegistrationKey(input);
+    if (this.isDuplicateRegistration(input)) {
+      throw new Error('A registration for this team already exists for the selected tournament season.');
+    }
+    const record: RegistrationRecord = { ...input, registration_key, registration_id: generateId('REG'), submitted_at: new Date().toISOString(), status: 'pending', reviewed_by: '', reviewed_at: '', review_notes: '' };
     write(STORAGE.registrations, [record, ...this.getRegistrations()]);
     await safeSyncRow('add', SHEETS.registrations, record);
-    appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'registration', entity_id: record.registration_id, action: 'submit_registration', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId: record.tournament_id, teamName: record.team_name }) });
+    appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'registration', entity_id: record.registration_id, action: 'submit_registration', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId: record.tournament_id, seasonId: record.season_id || '', teamName: record.team_name, registrationKey: record.registration_key }) });
     return record;
   },
   async reviewRegistration(registrationId: string, status: 'approved' | 'rejected', reviewNotes: string, user: AuthUser) {
