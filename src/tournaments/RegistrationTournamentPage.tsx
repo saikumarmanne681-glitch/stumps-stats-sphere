@@ -21,8 +21,6 @@ const RegistrationTournamentPage = () => {
     Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
   }, []);
 
-  if (!user) return <Navigate to="/login" replace />;
-
   const tournamentId = normalizeId(id);
   const tournaments = useMemo(() => tournamentService.getTournaments(), [refreshKey]);
   const registrations = useMemo(() => tournamentService.getRegistrations(), [refreshKey]);
@@ -41,12 +39,15 @@ const RegistrationTournamentPage = () => {
   }
 
   const tournamentRegistrations = registrations.filter((item) => normalizeId(item.tournament_id) === tournamentId);
+  const playerRegistrations = user ? tournamentRegistrations.filter((item) => item.submitted_by === (user.player_id || user.username)) : [];
   const groupedBySeason = tournamentRegistrations.reduce<Record<string, RegistrationRecord[]>>((acc, item) => {
     const key = `${item.season_id || 'NA'}::${item.season_year || 'Open'}`;
     acc[key] = acc[key] || [];
     acc[key].push(item);
     return acc;
   }, {});
+
+  if (!user) return <Navigate to="/login" replace />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,26 +83,31 @@ const RegistrationTournamentPage = () => {
         <ApprovedSchedulePanel tournamentId={tournament.tournament_id} />
 
         <Card>
-          <CardHeader><CardTitle>Registrations received</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{user.type === 'player' ? 'My registration status' : 'Registrations received'}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            {Object.entries(groupedBySeason).map(([key, items]) => (
-              <div key={key} className="rounded-lg border p-4 space-y-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <p className="font-semibold">Season {items[0]?.season_year || 'Open'}{items[0]?.season_id ? ` • ${items[0].season_id}` : ''}</p>
-                  <Badge variant="outline">{items.length} registration(s)</Badge>
-                </div>
-                {items.map((registration) => (
-                  <div key={registration.registration_id} className="rounded-md border bg-muted/20 p-3 text-sm">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className="font-medium">{registration.team_name}</span>
-                      <Badge variant={registration.status === 'approved' ? 'default' : registration.status === 'rejected' ? 'destructive' : 'secondary'}>{registration.status}</Badge>
-                    </div>
-                    <p className="text-muted-foreground mt-1">Contact: {registration.contact_name} · {registration.contact_email}</p>
+            {(user.type === 'player' ? Object.entries(groupedBySeason).filter(([, items]) => items.some((item) => item.submitted_by === (user.player_id || user.username))) : Object.entries(groupedBySeason)).map(([key, items]) => {
+              const visibleItems = user.type === 'player' ? items.filter((item) => item.submitted_by === (user.player_id || user.username)) : items;
+              return (
+                <div key={key} className="rounded-lg border p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="font-semibold">Season {visibleItems[0]?.season_year || 'Open'}{visibleItems[0]?.season_id ? ` • ${visibleItems[0].season_id}` : ''}</p>
+                    <Badge variant="outline">{visibleItems.length} registration(s)</Badge>
                   </div>
-                ))}
-              </div>
-            ))}
-            {tournamentRegistrations.length === 0 && <p className="text-sm text-muted-foreground">No registrations submitted yet.</p>}
+                  {visibleItems.map((registration) => (
+                    <div key={registration.registration_id} className="rounded-md border bg-muted/20 p-3 text-sm">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-medium">{registration.team_name}</span>
+                        <Badge variant={registration.status === 'approved' ? 'default' : registration.status === 'rejected' ? 'destructive' : 'secondary'}>{registration.status}</Badge>
+                      </div>
+                      <p className="text-muted-foreground mt-1">Contact: {registration.contact_name} · {registration.contact_email}</p>
+                      {!!registration.review_notes && <p className="mt-2 text-muted-foreground"><strong>Admin note:</strong> {registration.review_notes}</p>}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            {user.type === 'player' && playerRegistrations.length === 0 && <p className="text-sm text-muted-foreground">You have not submitted a registration for this tournament yet.</p>}
+            {user.type !== 'player' && tournamentRegistrations.length === 0 && <p className="text-sm text-muted-foreground">No registrations submitted yet.</p>}
           </CardContent>
         </Card>
       </div>

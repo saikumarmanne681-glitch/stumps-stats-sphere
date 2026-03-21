@@ -13,6 +13,7 @@ import { tournamentService } from '@/tournaments/tournamentService';
 import { useToast } from '@/hooks/use-toast';
 import { getScheduleApprovalRoadmap, getScheduleDetailedStatus } from '@/lib/workflowStatus';
 import { formatInIST } from '@/lib/time';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const initialMatch = (): ScheduleMatch => ({ match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' });
 
@@ -24,6 +25,7 @@ export function AdminGovernance() {
   const [tournamentName, setTournamentName] = useState('');
   const [changeLog, setChangeLog] = useState('');
   const [matches, setMatches] = useState<ScheduleMatch[]>([initialMatch()]);
+  const [expandedSchedules, setExpandedSchedules] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     Promise.all([electionService.syncFromBackend(), scheduleService.syncFromBackend(), tournamentService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
@@ -52,7 +54,15 @@ export function AdminGovernance() {
     toast({ title: 'Schedule version created', description: 'A new draft version has been saved without overwriting prior versions.' });
   };
 
-  const visibleSchedules = [...schedules].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const visibleSchedules = useMemo(() => {
+    const latestByTournament = new Map<string, typeof schedules[number]>();
+    [...schedules]
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+      .forEach((schedule) => {
+        if (!latestByTournament.has(schedule.tournament_id)) latestByTournament.set(schedule.tournament_id, schedule);
+      });
+    return [...latestByTournament.values()];
+  }, [schedules]);
 
   return (
     <div className="space-y-6">
@@ -100,7 +110,10 @@ export function AdminGovernance() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Approval roadmap for tournament schedules</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Approval roadmap for tournament schedules</CardTitle>
+          <p className="text-sm text-muted-foreground">Showing only the latest active schedule per tournament. Expand a card to inspect the roadmap and version diff.</p>
+        </CardHeader>
         <CardContent className="space-y-4">
           {visibleSchedules.map((schedule) => {
             const scheduleApprovals = approvals.filter((item) => item.schedule_id === schedule.schedule_id);
@@ -108,6 +121,7 @@ export function AdminGovernance() {
             const diff = scheduleService.diffVersions(previous, schedule);
             const roadmap = getScheduleApprovalRoadmap(schedule, approvals);
             const detailedStatus = getScheduleDetailedStatus(schedule, approvals);
+            const isExpanded = expandedSchedules[schedule.schedule_id] ?? false;
 
             return (
               <div key={schedule.schedule_id} className="rounded-lg border p-4 space-y-4">
@@ -119,50 +133,57 @@ export function AdminGovernance() {
                   <div className="flex gap-2 flex-wrap">
                     <Badge>{detailedStatus}</Badge>
                     <Badge variant="outline">Hash {schedule.hash.slice(0, 10)}…</Badge>
+                    <Button size="sm" variant="outline" onClick={() => setExpandedSchedules((prev) => ({ ...prev, [schedule.schedule_id]: !isExpanded }))}>
+                      {isExpanded ? <>Hide details <ChevronUp className="ml-1 h-4 w-4" /></> : <>Show details <ChevronDown className="ml-1 h-4 w-4" /></>}
+                    </Button>
                   </div>
                 </div>
 
-                <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
-                  <p><strong>Current status:</strong> {detailedStatus}</p>
-                  <p><strong>Change log:</strong> {schedule.change_log || 'No change log'}</p>
-                  {schedule.rejection_reason && <p><strong>Revision note:</strong> {schedule.rejection_reason}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Approval roadmap</p>
-                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                    {roadmap.map((step) => (
-                      <div key={step.role} className={`rounded-lg border p-3 ${step.approval?.decision === 'rejected' ? 'border-destructive/30 bg-destructive/5' : step.completed ? 'border-primary/30 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium">{step.role}</p>
-                          <Badge variant={step.approval?.decision === 'rejected' ? 'destructive' : step.completed ? 'default' : 'secondary'}>
-                            {step.approval?.decision === 'rejected' ? 'Rejected' : step.completed ? 'Approved' : `Pending with ${step.role}`}
-                          </Badge>
-                        </div>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {step.approval ? `${step.approval.approver_name} • ${formatInIST(step.approval.timestamp)}${step.approval.comments ? ` • ${step.approval.comments}` : ''}` : 'Waiting for this office bearer approval.'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Diff against previous version</p>
-                  {diff.map((entry) => (
-                    <div key={entry.match_id} className={`rounded border p-2 text-sm ${entry.kind === 'added' ? 'bg-green-500/10 border-green-500/30' : entry.kind === 'updated' ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                      <strong>{entry.kind.toUpperCase()}</strong> · {entry.current?.team_a || entry.previous?.team_a} vs {entry.current?.team_b || entry.previous?.team_b}
+                {isExpanded && (
+                  <>
+                    <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+                      <p><strong>Current status:</strong> {detailedStatus}</p>
+                      <p><strong>Change log:</strong> {schedule.change_log || 'No change log'}</p>
+                      {schedule.rejection_reason && <p><strong>Revision note:</strong> {schedule.rejection_reason}</p>}
                     </div>
-                  ))}
-                  {diff.length === 0 && <p className="text-sm text-muted-foreground">No previous version for comparison.</p>}
-                </div>
 
-                {schedule.status === 'draft' && (
-                  <div className="flex gap-2 flex-wrap">
-                    <Button size="sm" variant="outline" onClick={async () => { await scheduleService.submitForApproval(schedule.schedule_id, user!); setRefreshKey((value) => value + 1); }}>Send for Approval</Button>
-                  </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Approval roadmap</p>
+                      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                        {roadmap.map((step) => (
+                          <div key={step.role} className={`rounded-lg border p-3 ${step.approval?.decision === 'rejected' ? 'border-destructive/30 bg-destructive/5' : step.completed ? 'border-primary/30 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-medium">{step.role}</p>
+                              <Badge variant={step.approval?.decision === 'rejected' ? 'destructive' : step.completed ? 'default' : 'secondary'}>
+                                {step.approval?.decision === 'rejected' ? 'Rejected' : step.completed ? 'Approved' : `Pending with ${step.role}`}
+                              </Badge>
+                            </div>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              {step.approval ? `${step.approval.approver_name} • ${formatInIST(step.approval.timestamp)}${step.approval.comments ? ` • ${step.approval.comments}` : ''}` : 'Waiting for this office bearer approval.'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Diff against previous version</p>
+                      {diff.map((entry) => (
+                        <div key={entry.match_id} className={`rounded border p-2 text-sm ${entry.kind === 'added' ? 'bg-green-500/10 border-green-500/30' : entry.kind === 'updated' ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                          <strong>{entry.kind.toUpperCase()}</strong> · {entry.current?.team_a || entry.previous?.team_a} vs {entry.current?.team_b || entry.previous?.team_b}
+                        </div>
+                      ))}
+                      {diff.length === 0 && <p className="text-sm text-muted-foreground">No previous version for comparison.</p>}
+                    </div>
+
+                    {schedule.status === 'draft' && (
+                      <div className="flex gap-2 flex-wrap">
+                        <Button size="sm" variant="outline" onClick={async () => { await scheduleService.submitForApproval(schedule.schedule_id, user!); setRefreshKey((value) => value + 1); }}>Send for Approval</Button>
+                      </div>
+                    )}
+                    <div className="text-sm text-muted-foreground">Approvals received: {scheduleApprovals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'None yet'}</div>
+                  </>
                 )}
-                <div className="text-sm text-muted-foreground">Approvals received: {scheduleApprovals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'None yet'}</div>
               </div>
             );
           })}

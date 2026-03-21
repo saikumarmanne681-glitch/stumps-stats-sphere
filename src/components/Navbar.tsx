@@ -30,7 +30,7 @@ export function Navbar() {
           </Button>
         )}
 
-        {user && (
+        {user && user.type !== 'management' && (
           <>
             <Button variant="ghost" size="sm" asChild onClick={close}>
               <Link to="/elections"><Vote className="h-4 w-4 mr-1" /> Elections</Link>

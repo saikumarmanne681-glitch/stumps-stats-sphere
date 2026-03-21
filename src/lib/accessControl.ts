@@ -51,7 +51,7 @@ export function canManageTournament(user: AuthUser | null | undefined) {
 }
 
 export function canApproveTournamentRegistration(user: AuthUser | null | undefined) {
-  return user?.type === 'management' && user.designation === MANAGEMENT_DESIGNATIONS.TOURNAMENT_DIRECTOR;
+  return user?.type === 'admin' || (user?.type === 'management' && user.designation === MANAGEMENT_DESIGNATIONS.TOURNAMENT_DIRECTOR);
 }
 
 export function canApproveSchedule(user: AuthUser | null | undefined) {

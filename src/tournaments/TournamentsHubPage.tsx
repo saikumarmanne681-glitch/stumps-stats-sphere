@@ -61,8 +61,6 @@ const TournamentsHubPage = () => {
     Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
   }, []);
 
-  if (!user) return <Navigate to="/login" replace />;
-
   const registryTournaments = useMemo(() => tournamentService.getTournaments(), [refreshKey]);
   const registrations = useMemo(() => tournamentService.getRegistrations(), [refreshKey]);
 
@@ -108,12 +106,15 @@ const TournamentsHubPage = () => {
     if (activeTarget) setSelectedTargetKey(activeTarget.key);
   }, [activeTarget?.key]);
 
-  const activeRegistrations = registrations.filter((item) => normalizeId(item.tournament_id) === normalizeId(activeTarget?.tournament_id) && normalizeId(item.season_id) === normalizeId(activeTarget?.season_id));
-  const approvedSchedules = activeTarget ? scheduleService.getApprovedSchedulesForTournament(activeTarget.tournament_id) : [];
-  const linkedRecord = activeTarget?.registryRecord;
-
   const linkedSeasonCandidates = existingSeasonOptions.filter((item) => !item.registryRecord);
   const canCurrentUserApproveSchedules = canApproveSchedule(user);
+  const canCurrentUserApproveRegistrations = canApproveTournamentRegistration(user);
+  const isPlayerView = user?.type === 'player';
+  const currentActorId = getActorId(user);
+  const activeRegistrations = registrations.filter((item) => normalizeId(item.tournament_id) === normalizeId(activeTarget?.tournament_id) && normalizeId(item.season_id) === normalizeId(activeTarget?.season_id));
+  const visibleRegistrations = isPlayerView ? activeRegistrations.filter((item) => item.submitted_by === currentActorId) : activeRegistrations;
+  const approvedSchedules = activeTarget ? scheduleService.getApprovedSchedulesForTournament(activeTarget.tournament_id) : [];
+  const linkedRecord = activeTarget?.registryRecord;
 
   const createTournament = async () => {
     if (!user || !canManageTournament(user)) return;
@@ -310,6 +311,8 @@ const TournamentsHubPage = () => {
     toast({ title: `Registration ${status}`, description: 'The applicant can now see the updated status.' });
   };
 
+  if (!user) return <Navigate to="/login" replace />;
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -419,23 +422,31 @@ const TournamentsHubPage = () => {
                     </div>
                   )}
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Team name</Label>
-                    <Input value={registrationForm.team_name} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, team_name: e.target.value }))} />
-                    <Label>Contact name</Label>
-                    <Input value={registrationForm.contact_name} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_name: e.target.value }))} />
-                    <Label>Contact email</Label>
-                    <Input value={registrationForm.contact_email} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_email: e.target.value }))} />
-                    <Label>Contact phone</Label>
-                    <Input value={registrationForm.contact_phone} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_phone: e.target.value }))} />
+                {isPlayerView ? (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Team name</Label>
+                        <Input value={registrationForm.team_name} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, team_name: e.target.value }))} />
+                        <Label>Contact name</Label>
+                        <Input value={registrationForm.contact_name} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_name: e.target.value }))} />
+                        <Label>Contact email</Label>
+                        <Input value={registrationForm.contact_email} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_email: e.target.value }))} />
+                        <Label>Contact phone</Label>
+                        <Input value={registrationForm.contact_phone} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_phone: e.target.value }))} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Players (one per line)</Label>
+                        <Textarea className="min-h-[220px]" value={registrationForm.players} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, players: e.target.value }))} />
+                      </div>
+                    </div>
+                    <Button onClick={submitRegistration} disabled={!registrationForm.team_name.trim()}><ShieldCheck className="h-4 w-4 mr-1" /> Submit Registration</Button>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    Players can register their teams here and track only their own registration status. Admins and tournament directors can review submissions below.
                   </div>
-                  <div className="space-y-2">
-                    <Label>Players (one per line)</Label>
-                    <Textarea className="min-h-[220px]" value={registrationForm.players} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, players: e.target.value }))} />
-                  </div>
-                </div>
-                <Button onClick={submitRegistration} disabled={!registrationForm.team_name.trim()}><ShieldCheck className="h-4 w-4 mr-1" /> Submit Registration</Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -443,9 +454,9 @@ const TournamentsHubPage = () => {
 
         {activeTarget && (
           <Card>
-            <CardHeader><CardTitle>Registrations</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{isPlayerView ? 'My registrations' : 'Registrations'}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              {activeRegistrations.map((registration) => {
+              {visibleRegistrations.map((registration) => {
                 const isEditing = editingRegistrationId === registration.registration_id;
                 return (
                   <div key={registration.registration_id} className="rounded-lg border p-4 space-y-3">
@@ -456,11 +467,11 @@ const TournamentsHubPage = () => {
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         <Badge variant={registration.status === 'approved' ? 'default' : registration.status === 'rejected' ? 'destructive' : 'secondary'}>{registration.status}</Badge>
-                        <Button size="sm" variant="outline" onClick={() => isEditing ? setEditingRegistrationId(null) : startEditRegistration(registration)}>{isEditing ? 'Cancel' : 'Edit'}</Button>
-                        <Button size="sm" variant="destructive" onClick={() => removeRegistration(registration.registration_id)}>Delete</Button>
+                        {!isPlayerView && <Button size="sm" variant="outline" onClick={() => isEditing ? setEditingRegistrationId(null) : startEditRegistration(registration)}>{isEditing ? 'Cancel' : 'Edit'}</Button>}
+                        {!isPlayerView && <Button size="sm" variant="destructive" onClick={() => removeRegistration(registration.registration_id)}>Delete</Button>}
                       </div>
                     </div>
-                    {isEditing ? (
+                    {!isPlayerView && isEditing ? (
                       <div className="grid gap-3 md:grid-cols-2">
                         <div className="space-y-2">
                           <Label>Team name</Label>
@@ -492,7 +503,7 @@ const TournamentsHubPage = () => {
                         {!!registration.review_notes && <p className="text-sm text-muted-foreground"><strong>Review note:</strong> {registration.review_notes}</p>}
                       </>
                     )}
-                    {canApproveTournamentRegistration(user) && !isEditing && (
+                    {canCurrentUserApproveRegistrations && !isPlayerView && !isEditing && (
                       <div className="space-y-2">
                         <Textarea placeholder="Review note" value={reviewNotes[registration.registration_id] || ''} onChange={(e) => setReviewNotes((prev) => ({ ...prev, [registration.registration_id]: e.target.value }))} />
                         <div className="flex gap-2">
@@ -504,12 +515,12 @@ const TournamentsHubPage = () => {
                   </div>
                 );
               })}
-              {activeRegistrations.length === 0 && <p className="text-sm text-muted-foreground">No registrations submitted yet.</p>}
+              {visibleRegistrations.length === 0 && <p className="text-sm text-muted-foreground">{isPlayerView ? 'You have not submitted any registrations for this tournament yet.' : 'No registrations submitted yet.'}</p>}
             </CardContent>
           </Card>
         )}
 
-        {activeTarget && (
+        {activeTarget && !isPlayerView && (
           <Card>
             <CardHeader><CardTitle>Schedule Versions & Workflow</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -590,6 +601,24 @@ const TournamentsHubPage = () => {
                   </div>
                 );
               })}
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTarget && isPlayerView && approvedSchedules.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle>Published schedule</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {approvedSchedules.map((schedule) => (
+                <div key={schedule.schedule_id} className="rounded-lg border p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="font-semibold">Version {schedule.version_number}</p>
+                    <Badge>{formatInIST(schedule.timestamp)}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{schedule.change_log || 'Published tournament schedule.'}</p>
+                  <Button variant="outline" onClick={() => scheduleService.downloadPdf(schedule.schedule_id)}>Download published schedule</Button>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}
