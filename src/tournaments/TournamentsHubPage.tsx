@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/lib/auth';
-import { canApproveTournamentRegistration, canManageTournament, getActorId, getActorName } from '@/lib/accessControl';
+import { canApproveSchedule, canApproveTournamentRegistration, canManageTournament, getActorId, getActorName } from '@/lib/accessControl';
 import { useToast } from '@/hooks/use-toast';
 import { tournamentService } from './tournamentService';
 import { scheduleService } from '@/schedules/scheduleService';
@@ -17,6 +17,7 @@ import { ScheduleMatch } from '@/schedules/types';
 import { useData } from '@/lib/DataContext';
 import { normalizeId } from '@/lib/dataUtils';
 import { RegistrationRecord, TournamentRegistryRecord } from './types';
+import { getScheduleApprovalRoadmap, getScheduleDetailedStatus } from '@/lib/workflowStatus';
 
 const emptyScheduleRow: ScheduleMatch = { match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' };
 const emptyTournamentForm = { name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '', season_year: String(new Date().getFullYear()) };
@@ -111,6 +112,7 @@ const TournamentsHubPage = () => {
   const linkedRecord = activeTarget?.registryRecord;
 
   const linkedSeasonCandidates = existingSeasonOptions.filter((item) => !item.registryRecord);
+  const canCurrentUserApproveSchedules = canApproveSchedule(user);
 
   const createTournament = async () => {
     if (!user || !canManageTournament(user)) return;
@@ -532,6 +534,9 @@ const TournamentsHubPage = () => {
                 const previous = scheduleService.getSchedules().find((item) => item.schedule_id === schedule.parent_schedule_id);
                 const diff = scheduleService.diffVersions(previous, schedule);
                 const approvals = scheduleService.getApprovals().filter((item) => item.schedule_id === schedule.schedule_id);
+                const roadmap = getScheduleApprovalRoadmap(schedule, approvals);
+                const hasCurrentUserDecision = approvals.some((item) => item.approver_id === getActorId(user));
+                const canReviewSchedule = canCurrentUserApproveSchedules && schedule.status === 'pending_approval' && !hasCurrentUserDecision;
                 return (
                   <div key={schedule.schedule_id} className="rounded-lg border p-4 space-y-3">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -545,6 +550,24 @@ const TournamentsHubPage = () => {
                       </div>
                     </div>
                     <p className="text-sm"><strong>Change log:</strong> {schedule.change_log || '—'}</p>
+                    <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                      <p className="text-sm"><strong>Status:</strong> {getScheduleDetailedStatus(schedule, approvals)}</p>
+                      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                        {roadmap.map((step) => (
+                          <div key={step.role} className={`rounded border p-2 text-sm ${step.approval?.decision === 'rejected' ? 'border-destructive/30 bg-destructive/5' : step.completed ? 'border-primary/20 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-medium">{step.role}</p>
+                              <Badge variant={step.approval?.decision === 'rejected' ? 'destructive' : step.completed ? 'default' : 'secondary'}>
+                                {step.approval?.decision === 'rejected' ? 'Rejected' : step.completed ? 'Approved' : 'Pending'}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {step.approval ? `${step.approval.approver_name} • ${new Date(step.approval.timestamp).toLocaleString()}` : 'Awaiting action from this approver.'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       {diff.map((entry) => (
                         <div key={entry.match_id} className={`rounded border p-2 text-sm ${entry.kind === 'added' ? 'bg-green-500/10 border-green-500/30' : entry.kind === 'updated' ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
@@ -554,12 +577,14 @@ const TournamentsHubPage = () => {
                       {diff.length === 0 && <p className="text-sm text-muted-foreground">Baseline version.</p>}
                     </div>
                     <p className="text-sm text-muted-foreground">Approvals: {approvals.filter((item) => item.decision === 'approved').map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'Pending'}</p>
-                    <Textarea placeholder="Approval or rejection note" value={approvalComments[schedule.schedule_id] || ''} onChange={(e) => setApprovalComments((prev) => ({ ...prev, [schedule.schedule_id]: e.target.value }))} />
+                    {canReviewSchedule && (
+                      <Textarea placeholder="Approval or rejection note" value={approvalComments[schedule.schedule_id] || ''} onChange={(e) => setApprovalComments((prev) => ({ ...prev, [schedule.schedule_id]: e.target.value }))} />
+                    )}
                     <div className="flex gap-2 flex-wrap">
                       {canManageTournament(user) && schedule.status === 'draft' && <Button variant="outline" onClick={() => submitScheduleForApproval(schedule.schedule_id)}>Send for Approval</Button>}
                       <Button variant="outline" onClick={() => scheduleService.downloadPdf(schedule.schedule_id)} disabled={schedule.status !== 'approved'}>PDF</Button>
-                      <Button onClick={() => decideSchedule(schedule.schedule_id, 'approved')} disabled={schedule.status !== 'pending_approval'}>Approve</Button>
-                      <Button variant="destructive" onClick={() => decideSchedule(schedule.schedule_id, 'rejected')} disabled={schedule.status !== 'pending_approval'}>Reject</Button>
+                      {canReviewSchedule && <Button onClick={() => decideSchedule(schedule.schedule_id, 'approved')}>Approve</Button>}
+                      {canReviewSchedule && <Button variant="destructive" onClick={() => decideSchedule(schedule.schedule_id, 'rejected')}>Reject</Button>}
                     </div>
                   </div>
                 );

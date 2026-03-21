@@ -14,7 +14,7 @@ import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp,
 import { format } from 'date-fns';
 import { v2api, logAudit, istNow } from '@/lib/v2api';
 import { ManagementUser, DigitalScorelist, CertificationApproval } from '@/lib/v2types';
-import { getScorelistDetailedStatus, getScorelistRoadmap, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
+import { getScheduleApprovalRoadmap, getScheduleDetailedStatus, getScorelistDetailedStatus, getScorelistRoadmap, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
 import { useData } from '@/lib/DataContext';
@@ -22,6 +22,9 @@ import { generateId } from '@/lib/utils';
 import { getAdminNotificationRecipient, sendScorelistApprovalRequestBulk, sendSystemEmail, sendApprovalThankYouEmail, sendScorelistStatusEmailToAdmin, sendMessageNotificationEmail, sendScorelistReminderEmail } from '@/lib/mailer';
 import { DataIntegrityBadge, SecurityShieldBadge, SessionFingerprint } from '@/components/SecurityBadge';
 import { PageLoader } from '@/components/LoadingOverlay';
+import { scheduleService } from '@/schedules/scheduleService';
+import { getActorId, isScheduleApproverRole } from '@/lib/accessControl';
+import { ScheduleRecord } from '@/schedules/types';
 
 const stageOrder = [...scorelistStageOrder];
 const stageLabels: Record<string, string> = scorelistStageLabels;
@@ -44,9 +47,11 @@ const ManagementPage = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewingScorelist, setReviewingScorelist] = useState<DigitalScorelist | null>(null);
   const [scorelistActionLoading, setScorelistActionLoading] = useState(false);
+  const [scheduleActionLoadingId, setScheduleActionLoadingId] = useState<string | null>(null);
+  const [scheduleComments, setScheduleComments] = useState<Record<string, string>>({});
 
   const refresh = async () => {
-    const [users, scorelistData] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists()]);
+    const [users, scorelistData] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), scheduleService.syncFromBackend()]);
     setMgmtUsers(users.filter(m => String(m.status || '').trim().toLowerCase() !== 'inactive'));
     setScorelists(scorelistData);
     setLoading(false);
@@ -76,6 +81,30 @@ const ManagementPage = () => {
     const nextStage = currentIdx < stageOrder.length - 1 ? stageOrder[currentIdx + 1] : null;
     return nextStage === userStage;
   }), [isManagement, scorelists, user?.designation, user?.management_id]);
+  const scheduleApprover = isManagement && isScheduleApproverRole(user?.designation);
+  const pendingSchedules = useMemo(() => {
+    if (!scheduleApprover || !user) return [] as ScheduleRecord[];
+    return scheduleService.getSchedules().filter((schedule) => {
+      if (schedule.status !== 'pending_approval') return false;
+      const approvals = scheduleService.getApprovals().filter((item) => item.schedule_id === schedule.schedule_id);
+      return !approvals.some((item) => item.approver_id === getActorId(user));
+    });
+  }, [scheduleApprover, user, loading, scheduleActionLoadingId]);
+
+  const reviewSchedule = async (scheduleId: string, decision: 'approved' | 'rejected') => {
+    if (!user) return;
+    setScheduleActionLoadingId(scheduleId);
+    try {
+      if (decision === 'approved') await scheduleService.approveSchedule(scheduleId, scheduleComments[scheduleId] || '', user);
+      else await scheduleService.rejectSchedule(scheduleId, scheduleComments[scheduleId] || '', user);
+      toast({ title: decision === 'approved' ? 'Schedule approved' : 'Schedule rejected', description: decision === 'approved' ? 'Your schedule approval has been recorded.' : 'The schedule was returned for revision.' });
+      await refresh();
+    } catch (error) {
+      toast({ title: 'Schedule action failed', description: error instanceof Error ? error.message : 'Unexpected error', variant: 'destructive' });
+    } finally {
+      setScheduleActionLoadingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!isManagement || !user?.management_id) return;
@@ -317,6 +346,7 @@ const ManagementPage = () => {
                 {pendingScorelists.length > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1">{pendingScorelists.length}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="all" className="text-xs md:text-sm gap-1"><Shield className="h-3 w-3" /> All Scorelists</TabsTrigger>
+              {scheduleApprover && <TabsTrigger value="schedule-approvals" className="text-xs md:text-sm gap-1"><Clock className="h-3 w-3" /> Schedule Approvals {pendingSchedules.length > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1">{pendingSchedules.length}</Badge>}</TabsTrigger>}
               <TabsTrigger value="messages" className="text-xs md:text-sm gap-1"><MessageSquare className="h-3 w-3" /> Messages</TabsTrigger>
               <TabsTrigger value="compose" className="text-xs md:text-sm gap-1"><Send className="h-3 w-3" /> Send Notice</TabsTrigger>
             </TabsList>
@@ -415,6 +445,79 @@ const ManagementPage = () => {
                 })}
               </div>
             </TabsContent>
+
+            {scheduleApprover && (
+              <TabsContent value="schedule-approvals" className="mt-4 space-y-3">
+                {pendingSchedules.length === 0 && (
+                  <Card><CardContent className="p-6 text-center text-muted-foreground">No schedules are waiting for your approval right now.</CardContent></Card>
+                )}
+                {pendingSchedules.map((schedule) => {
+                  const approvals = scheduleService.getApprovals().filter((item) => item.schedule_id === schedule.schedule_id);
+                  const roadmap = getScheduleApprovalRoadmap(schedule, approvals);
+                  const previous = scheduleService.getSchedules().find((item) => item.schedule_id === schedule.parent_schedule_id);
+                  const diff = scheduleService.diffVersions(previous, schedule);
+                  return (
+                    <Card key={schedule.schedule_id} className="border-l-4 border-l-primary/50">
+                      <CardContent className="p-4 space-y-4">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div>
+                            <p className="font-display font-bold">{schedule.tournament_name} · Version {schedule.version_number}</p>
+                            <p className="text-sm text-muted-foreground">{getScheduleDetailedStatus(schedule, approvals)}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Submitted on {new Date(schedule.timestamp).toLocaleString()}</p>
+                          </div>
+                          <Badge variant="outline">Hash {schedule.hash.slice(0, 12)}…</Badge>
+                        </div>
+
+                        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                          {roadmap.map((step) => (
+                            <div key={step.role} className={`rounded-lg border p-3 text-sm ${step.approval?.decision === 'rejected' ? 'border-destructive/30 bg-destructive/5' : step.completed ? 'border-primary/20 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-medium">{step.role}</p>
+                                <Badge variant={step.approval?.decision === 'rejected' ? 'destructive' : step.completed ? 'default' : 'secondary'}>
+                                  {step.approval?.decision === 'rejected' ? 'Rejected' : step.completed ? 'Approved' : 'Pending'}
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {step.approval ? `${step.approval.approver_name} • ${new Date(step.approval.timestamp).toLocaleString()}` : 'Awaiting action from this approver.'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="rounded-lg border bg-muted/20 p-3 text-sm space-y-1">
+                          <p><strong>Change log:</strong> {schedule.change_log || '—'}</p>
+                          {schedule.rejection_reason && <p><strong>Revision note:</strong> {schedule.rejection_reason}</p>}
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Diff against previous version</p>
+                          {diff.length === 0 && <p className="text-sm text-muted-foreground">Baseline version.</p>}
+                          {diff.map((entry) => (
+                            <div key={entry.match_id} className={`rounded border p-2 text-sm ${entry.kind === 'added' ? 'bg-green-500/10 border-green-500/30' : entry.kind === 'updated' ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                              {entry.kind.toUpperCase()} · {entry.current?.team_a || entry.previous?.team_a} vs {entry.current?.team_b || entry.previous?.team_b}
+                            </div>
+                          ))}
+                        </div>
+
+                        <Textarea
+                          placeholder="Approval or rejection note"
+                          value={scheduleComments[schedule.schedule_id] || ''}
+                          onChange={(e) => setScheduleComments((prev) => ({ ...prev, [schedule.schedule_id]: e.target.value }))}
+                        />
+                        <div className="flex gap-2 flex-wrap">
+                          <Button loading={scheduleActionLoadingId === schedule.schedule_id} loadingText="Approving..." onClick={() => reviewSchedule(schedule.schedule_id, 'approved')}>
+                            Approve
+                          </Button>
+                          <Button variant="destructive" loading={scheduleActionLoadingId === schedule.schedule_id} loadingText="Rejecting..." onClick={() => reviewSchedule(schedule.schedule_id, 'rejected')}>
+                            Reject
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </TabsContent>
+            )}
 
             <TabsContent value="messages" className="mt-4 space-y-3">
               <h3 className="font-display text-lg font-bold flex items-center gap-2"><MessageSquare className="h-5 w-5 text-primary" /> Messages</h3>
