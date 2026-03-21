@@ -1,8 +1,15 @@
-import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
+/** @type {import('tailwindcss').Config} */
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
+    "./pages/**/*.{js,ts,jsx,tsx}",
+    "./app/**/*.{js,ts,jsx,tsx}",
+  ],
   prefix: "",
   theme: {
     container: {
@@ -14,8 +21,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Oswald', 'sans-serif'],
-        body: ['Source Sans 3', 'sans-serif'],
+        display: ["Space Grotesk", "sans-serif"],
+        body: ["Inter", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -90,5 +97,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
-} satisfies Config;
+  plugins: [tailwindcssAnimate],
+};
