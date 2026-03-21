@@ -284,27 +284,25 @@ const AdminScorelistsPage = () => {
     });
 
     const html = `<!DOCTYPE html><html><head><title>Scorelist ${sl.scorelist_id}</title>
-<style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a;position:relative;background:#fff}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
-table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f0f7f0;text-align:left}
-.scoreboard{display:flex;justify-content:space-around;text-align:center;background:#f0f7f0;padding:20px;border-radius:8px;margin:20px 0}
+<style>* { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; } body{font-family:Arial,sans-serif;margin:40px 40px 54px 58px;color:#1a1a1a;position:relative;background-color:#fff;background-image:repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03)), repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03));background-size:20px 20px;background-position:0 0,10px 10px}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
+table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,255,0.94)}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f0f7f0;text-align:left}
+.scoreboard{display:flex;justify-content:space-around;text-align:center;background:rgba(240,247,240,0.96);padding:20px;border-radius:8px;margin:20px 0;border:1px solid rgba(30,107,58,0.14)}
 .team-score{font-size:28px;font-weight:bold;color:#1e6b3a}.watermark{position:fixed;top:40%;left:10%;transform:rotate(-30deg);font-size:80px;color:rgba(30,107,58,0.04);white-space:nowrap;pointer-events:none;z-index:-1}.secure-pattern{position:fixed;inset:0;pointer-events:none;z-index:-3}.secure-pattern-notice{margin:10px 0 18px;padding:10px 14px;border:1px dashed #7ab28d;border-radius:10px;background:rgba(232,245,233,0.92);color:#145c36;font-size:11px;font-weight:700;letter-spacing:0.08em;text-align:center;text-transform:uppercase}
-.footer{text-align:center;font-size:9px;color:#999;margin-top:30px;border-top:1px solid #ddd;padding-top:10px}
-.certified{background:#e8f5e9;border:2px solid #1e6b3a;text-align:center;padding:12px;border-radius:8px;font-weight:bold;color:#1e6b3a;margin:20px 0}
+.footer{text-align:center;font-size:9px;color:#999;margin-top:30px;border-top:1px solid #ddd;padding-top:10px;position:relative;z-index:1;background:rgba(255,255,255,0.78)}
+.certified{background:#e8f5e9;border:2px solid #1e6b3a;text-align:center;padding:12px;border-radius:8px;font-weight:bold;color:#1e6b3a;margin:20px 0;text-shadow:0.5px 0.5px 0px rgba(255,255,255,0.8), -0.5px -0.5px 0px rgba(0,0,0,0.3)}
 .match-book-page{page-break-before:always}
-.intaglio{letter-spacing:0.08em;text-transform:uppercase;text-shadow:0.4px 0 #0b5a35, -0.4px 0 #0b5a35, 0 1px rgba(255,255,255,0.8);color:#124928}
-.security-grid{position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:linear-gradient(rgba(26,122,73,0.045) 1px, transparent 1px),linear-gradient(90deg, rgba(26,122,73,0.045) 1px, transparent 1px);background-size:28px 28px}
-.security-thread{position:fixed;top:0;bottom:0;width:16px;pointer-events:none;z-index:-1;background:repeating-linear-gradient(180deg, rgba(11,89,53,0.36) 0 6px, rgba(255,255,255,0.18) 6px 12px, rgba(194,160,63,0.38) 12px 18px);box-shadow:0 0 0 1px rgba(11,89,53,0.22), inset 0 0 10px rgba(255,255,255,0.3)}
-.security-thread.left{left:18px}.security-thread.right{right:18px}
-.microtext{position:fixed;left:0;right:0;bottom:12px;text-align:center;font-size:8px;letter-spacing:1.5px;color:rgba(10,89,52,0.33);pointer-events:none;z-index:-1}
-.cert-grid{border:1px solid #b7d5c0;background-image:linear-gradient(rgba(30,107,58,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(30,107,58,0.08) 1px, transparent 1px);background-size:18px 18px;padding:8px;border-radius:8px}
-.status-chip{display:inline-block;margin:8px auto 0;padding:4px 10px;border-radius:999px;background:#e8f5e9;border:1px solid #8ac8a1;color:#145c36;font-weight:bold;font-size:11px}.verification-panel{display:flex;gap:18px;align-items:center;justify-content:space-between;margin:18px 0 24px;padding:16px 18px;border:1px solid #b7d5c0;border-radius:12px;background:linear-gradient(135deg, rgba(232,245,233,0.9), rgba(244,250,246,0.98))}.verification-copy{flex:1}.verification-copy p{margin:4px 0}.verification-url{font-family:monospace;font-size:11px;word-break:break-all;color:#145c36}.verification-qr{display:flex;align-items:center;justify-content:center;padding:10px;border-radius:12px;border:1px solid #9cc8ab;background:#fff;box-shadow:inset 0 0 0 4px rgba(30,107,58,0.06)}.security-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 22px}.security-feature-card{border:1px solid #b7d5c0;border-radius:10px;background:#fcfefd;padding:12px 14px}.security-feature-card p{margin:6px 0 0;font-size:11px;line-height:1.45;color:#355244}.security-feature-title{font-weight:700;color:#124928}.security-seal{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid #7ab28d;background:#fff;color:#145c36;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
+.intaglio{letter-spacing:0.08em;text-transform:uppercase;text-shadow:0.5px 0.5px 0px rgba(255,255,255,0.8), -0.5px -0.5px 0px rgba(0,0,0,0.3);color:#124928}
+.security-grid{position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03)), repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03));background-size:20px 20px;background-position:0 0,10px 10px}
+.security-thread{position:fixed;top:0;bottom:0;left:14px;width:15px;pointer-events:none;z-index:-1;background:repeating-linear-gradient(180deg, rgba(11,89,53,0.3) 0px, rgba(255,255,255,0.4) 4px, rgba(194,160,63,0.3) 8px);box-shadow:inset 0 0 4px rgba(0,0,0,0.1)}
+.microtext{position:fixed;left:36px;right:18px;bottom:10px;overflow:hidden;white-space:nowrap;text-align:left;font-size:6px;letter-spacing:2px;color:rgba(10,89,52,0.6);opacity:0.6;pointer-events:none;z-index:-1;text-transform:uppercase}
+.cert-grid{border:1px solid #b7d5c0;background-image:linear-gradient(rgba(30,107,58,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(30,107,58,0.08) 1px, transparent 1px);background-size:18px 18px;padding:8px;border-radius:8px;background-color:rgba(255,255,255,0.9)}
+.status-chip{display:inline-block;margin:8px auto 0;padding:4px 10px;border-radius:999px;background:#e8f5e9;border:1px solid #8ac8a1;color:#145c36;font-weight:bold;font-size:11px;text-shadow:0.5px 0.5px 0px rgba(255,255,255,0.8), -0.5px -0.5px 0px rgba(0,0,0,0.3)}.verification-panel{display:flex;gap:18px;align-items:center;justify-content:space-between;margin:18px 0 24px;padding:16px 18px;border:1px solid #b7d5c0;border-radius:12px;background:linear-gradient(135deg, rgba(232,245,233,0.9), rgba(244,250,246,0.98))}.verification-copy{flex:1}.verification-copy p{margin:4px 0}.verification-url{font-family:monospace;font-size:11px;word-break:break-all;color:#145c36}.verification-qr{display:flex;align-items:center;justify-content:center;padding:10px;border-radius:12px;border:1px solid #9cc8ab;background:#fff;box-shadow:inset 0 0 0 4px rgba(30,107,58,0.06)}.security-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 22px}.security-feature-card{border:1px solid #b7d5c0;border-radius:10px;background:rgba(252,254,253,0.94);padding:12px 14px}.security-feature-card p{margin:6px 0 0;font-size:11px;line-height:1.45;color:#355244}.security-feature-title{font-weight:700;color:#124928}.security-seal{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid #7ab28d;background:#fff;color:#145c36;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
 
-@media print{ .watermark{display:block;} * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }</style></head><body>
+@media print{ .watermark{display:block;} * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; } }</style></head><body>
 ${securePattern.enabled ? `<div class="secure-pattern" style="${securePattern.style}"></div>` : ''}
 <div class="security-grid"></div>
-<div class="security-thread left"></div>
-<div class="security-thread right"></div>
-<div class="microtext">MICROTEXT • ${sl.scorelist_id} • ${verifyUrl} • DIGITAL CERTIFIED RECORD • MICROTEXT${securePattern.enabled ? ` • ${securePattern.microtext}` : ''}</div>
+<div class="security-thread"></div>
+<div class="microtext">${`${sl.scorelist_id} • ${sl.hash_digest} • `.repeat(18)}${securePattern.enabled ? `${securePattern.microtext} • ` : ''}</div>
 <div class="watermark">VERIFIED MATCH RECORD</div>
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
 <h1 class="intaglio">Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
@@ -332,7 +330,7 @@ ${payloadMatches.length > 0 ? `<p style="text-align:center;font-weight:bold;back
 ${tournamentMatchBlocks}
 <h2>🏛️ Certification Timeline</h2><div class="cert-grid"><table><tr><th>Name</th><th>Designation</th><th>Stage</th><th>Timestamp</th><th>Token</th></tr>${certTimelineRows}</table></div>
 <h2>🧾 Pending Approvals</h2><table><tr><th>Name</th><th>Designation</th><th>Required Stage</th><th>Status</th></tr>${pendingRows || '<tr><td colspan="4" style="text-align:center;color:#1e6b3a;font-weight:bold">All required approvals completed</td></tr>'}</table>
-${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESULT</div>' : ''}
+${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MATCH RESULT</div>' : ''}
 <div class="footer"><p>Document ID: ${sl.scorelist_id} | Hash: ${sl.hash_digest.substring(0,32)}...</p><p>Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.</p></div>
 </body></html>`;
 
@@ -562,7 +560,12 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
               };
 
               return (
-                <div className="relative">
+                <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-white/95 p-3 md:p-4 before:pointer-events-none before:absolute before:inset-0 before:bg-[repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03)),repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03))] before:bg-[length:20px_20px] before:bg-[position:0_0,10px_10px]">
+                  <div className="pointer-events-none absolute bottom-2 left-10 right-3 overflow-hidden whitespace-nowrap text-left font-mono text-[6px] uppercase tracking-[0.35em] text-primary/60 opacity-60">
+                    {`${`${viewScorelist.scorelist_id} • ${viewScorelist.hash_digest} • `.repeat(10)}`}
+                  </div>
+                  <div className="pointer-events-none absolute inset-y-0 left-3 w-[15px] rounded-sm bg-[repeating-linear-gradient(180deg,rgba(11,89,53,0.3)_0px,rgba(255,255,255,0.4)_4px,rgba(194,160,63,0.3)_8px)] shadow-[inset_0_0_4px_rgba(0,0,0,0.1)]"></div>
+
                   {/* Watermark */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
                     <p className="text-4xl md:text-6xl font-display font-bold text-muted/10 rotate-[-30deg] whitespace-nowrap select-none">
@@ -570,13 +573,13 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                     </p>
                   </div>
 
-                  <div className="relative z-10 space-y-4 md:space-y-6">
+                  <div className="relative z-10 space-y-4 pb-5 pl-6 md:space-y-6 md:pl-7">
                     {/* Header */}
-                    <div className="text-center border-b pb-4">
-                      <p className="text-xs text-muted-foreground uppercase tracking-widest">Cricket Club Portal</p>
-                      <h2 className="font-display text-xl md:text-2xl font-bold">Digital {viewScorelist.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h2>
-                      <p className="font-mono text-xs text-muted-foreground mt-1">{viewScorelist.scorelist_id}</p>
-                      <p className="text-xs text-muted-foreground mt-2">{detailedStatus}</p>
+                    <div className="border-b border-primary/20 pb-4 text-center">
+                      <p className="text-xs uppercase tracking-widest text-muted-foreground">Cricket Club Portal</p>
+                      <h2 className="font-display text-xl font-bold text-primary md:text-2xl [text-shadow:0.5px_0.5px_0px_rgba(255,255,255,0.8),-0.5px_-0.5px_0px_rgba(0,0,0,0.3)]">Digital {viewScorelist.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h2>
+                      <p className="mt-1 font-mono text-xs text-muted-foreground">{viewScorelist.scorelist_id}</p>
+                      <p className="mt-2 text-xs text-muted-foreground"><span className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-semibold uppercase tracking-[0.2em] text-primary [text-shadow:0.5px_0.5px_0px_rgba(255,255,255,0.8),-0.5px_-0.5px_0px_rgba(0,0,0,0.3)]">{detailedStatus}</span></p>
                     </div>
 
                     {/* Verification Badge */}
@@ -712,7 +715,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                         })}
 
                         {effectiveLocked && (
-                          <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary font-semibold text-sm">
+                          <div className="flex items-center gap-2 rounded-lg bg-primary/10 p-3 text-sm font-semibold text-primary [text-shadow:0.5px_0.5px_0px_rgba(255,255,255,0.8),-0.5px_-0.5px_0px_rgba(0,0,0,0.3)]">
                             <Lock className="h-4 w-4" /> ✔ OFFICIALLY CERTIFIED MATCH RESULT
                           </div>
                         )}
@@ -720,7 +723,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                     </Card>
 
                     {/* QR + Security */}
-                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5 space-y-4">
+                    <div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5">
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6">
                         <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm">
                           <QRCodeSVG value={getVerifyUrl(viewScorelist.scorelist_id)} size={100} level="H" includeMargin />
@@ -753,7 +756,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                     </div>
 
                     {/* Security Footer */}
-                    <div className="border-t pt-4 text-center space-y-1">
+                    <div className="space-y-1 border-t border-primary/20 pt-4 text-center">
                       <p className="text-xs text-muted-foreground font-mono">Document ID: {viewScorelist.scorelist_id}</p>
                       <p className="text-xs text-muted-foreground font-mono">Integrity Hash: {viewScorelist.hash_digest.substring(0, 32)}...</p>
                       <p className="text-[10px] text-muted-foreground/60 italic mt-2">
