@@ -3,6 +3,7 @@ import { getActorId, getActorName } from '@/lib/accessControl';
 import { AuthUser } from '@/lib/types';
 import { logAudit, v2api } from '@/lib/v2api';
 import { ElectionAuditLog, ElectionRecord, ElectionResultSummary, ElectionTermRecord, NominationRecord, VoteRecord } from './types';
+import { nowIso } from '@/lib/time';
 
 const STORAGE = {
   elections: 'club:elections',
@@ -31,6 +32,16 @@ const read = <T,>(key: string): T[] => {
 const write = <T,>(key: string, data: T[]) => {
   localStorage.setItem(key, JSON.stringify(data));
 };
+
+function dedupeByKey<T>(items: T[], getKey: (item: T) => string) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = getKey(item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 async function digest(input: string) {
   const bytes = new TextEncoder().encode(input);
@@ -69,10 +80,10 @@ export const electionService = {
         v2api.getCustomSheet<VoteRecord>(SHEETS.votes),
         v2api.getCustomSheet<ElectionTermRecord>(SHEETS.terms),
       ]);
-      if (elections.length) write(STORAGE.elections, elections);
-      if (nominations.length) write(STORAGE.nominations, nominations);
-      if (votes.length) write(STORAGE.votes, votes);
-      if (terms.length) write(STORAGE.terms, terms);
+      if (elections.length) write(STORAGE.elections, dedupeByKey(elections, (item) => item.election_id));
+      if (nominations.length) write(STORAGE.nominations, dedupeByKey(nominations, (item) => item.nomination_id || `${item.election_id}:${item.nominee_user_id}:${item.role_name}`));
+      if (votes.length) write(STORAGE.votes, dedupeByKey(votes, (item) => item.vote_id || `${item.election_id}:${item.voter_user_id}:${item.role_name}`));
+      if (terms.length) write(STORAGE.terms, dedupeByKey(terms, (item) => item.assignment_id || `${item.election_id}:${item.role_name}:${item.user_id}`));
     } catch {
       // local cache remains the fallback if Apps Script is not ready yet
     }
@@ -103,10 +114,10 @@ export const electionService = {
     const record: ElectionRecord = {
       ...input,
       election_id: generateId('ELC'),
-      created_at: new Date().toISOString(),
+      created_at: nowIso(),
       results_published_at: '',
     };
-    write(STORAGE.elections, [record, ...this.getElections()]);
+    write(STORAGE.elections, dedupeByKey([record, ...this.getElections()], (item) => item.election_id));
     await safeSyncRow('add', SHEETS.elections, record);
     appendAudit({
       audit_id: generateId('EAUD'),
@@ -116,7 +127,7 @@ export const electionService = {
       action: 'create_election',
       actor_id: getActorId(user),
       actor_name: getActorName(user),
-      timestamp: new Date().toISOString(),
+      timestamp: nowIso(),
       details: JSON.stringify({ title: record.title, roles: record.roles_json, status: record.status }),
     });
     return record;
@@ -124,15 +135,18 @@ export const electionService = {
 
   async submitNomination(input: Omit<NominationRecord, 'nomination_id' | 'created_at' | 'status' | 'reviewed_by' | 'reviewed_at'>, user: AuthUser) {
     if (user.type !== 'player') throw new Error('Only players can submit nominations.');
+    const existingNomination = this.getNominations().find((item) => item.election_id === input.election_id && item.role_name === input.role_name && item.nominee_user_id === input.nominee_user_id && item.status !== 'rejected');
+    if (existingNomination) throw new Error('A nomination for this role already exists for this player. Please edit the existing record instead of creating a duplicate.');
+
     const record: NominationRecord = {
       ...input,
       nomination_id: generateId('NOM'),
-      created_at: new Date().toISOString(),
+      created_at: nowIso(),
       status: 'pending',
       reviewed_by: '',
       reviewed_at: '',
     };
-    write(STORAGE.nominations, [record, ...this.getNominations()]);
+    write(STORAGE.nominations, dedupeByKey([record, ...this.getNominations()], (item) => item.nomination_id || `${item.election_id}:${item.nominee_user_id}:${item.role_name}`));
     await safeSyncRow('add', SHEETS.nominations, record);
     appendAudit({
       audit_id: generateId('EAUD'),
@@ -142,7 +156,7 @@ export const electionService = {
       action: 'submit_nomination',
       actor_id: getActorId(user),
       actor_name: getActorName(user),
-      timestamp: new Date().toISOString(),
+      timestamp: nowIso(),
       details: JSON.stringify({ electionId: record.election_id, roleName: record.role_name, nominee: record.nominee_name }),
     });
     return record;
@@ -150,7 +164,10 @@ export const electionService = {
 
   async reviewNomination(nominationId: string, status: 'approved' | 'rejected', user: AuthUser) {
     if (user.type !== 'admin') throw new Error('Only admin can review nominations.');
-    const updated = this.getNominations().map((item) => item.nomination_id === nominationId ? { ...item, status, reviewed_by: getActorId(user), reviewed_at: new Date().toISOString() } : item);
+    const current = this.getNominations().find((item) => item.nomination_id === nominationId);
+    if (!current) throw new Error('Nomination not found.');
+    if (current.status === status) return current;
+    const updated = this.getNominations().map((item) => item.nomination_id === nominationId ? { ...item, status, reviewed_by: getActorId(user), reviewed_at: nowIso() } : item);
     write(STORAGE.nominations, updated);
     const changed = updated.find((item) => item.nomination_id === nominationId);
     if (changed) await safeSyncRow('update', SHEETS.nominations, changed);
@@ -162,7 +179,7 @@ export const electionService = {
       action: `nomination_${status}`,
       actor_id: getActorId(user),
       actor_name: getActorName(user),
-      timestamp: new Date().toISOString(),
+      timestamp: nowIso(),
       details: JSON.stringify({ status }),
     });
   },
@@ -173,29 +190,28 @@ export const electionService = {
     const voterName = getActorName(user);
     const existing = this.getVotes().filter((vote) => vote.election_id === input.electionId && vote.voter_user_id === voterId);
     const incomingRoles = Object.keys(input.selections);
-    if (existing.some((vote) => incomingRoles.includes(vote.role_name))) {
-      throw new Error('You have already voted for one or more selected roles.');
-    }
 
     const newVotes = await Promise.all(incomingRoles.map(async (roleName) => {
       const selection = input.selections[roleName];
+      const existingVote = existing.find((vote) => vote.role_name === roleName);
       const immutable_hash = await digest(`${input.electionId}:${roleName}:${voterId}:${selection.nominee_user_id}:${Date.now()}`);
       const vote: VoteRecord = {
-        vote_id: generateId('VOTE'),
+        vote_id: existingVote?.vote_id || generateId('VOTE'),
         election_id: input.electionId,
         role_name: roleName,
         voter_user_id: voterId,
         voter_name: voterName,
         nominee_user_id: selection.nominee_user_id,
         nominee_name: selection.nominee_name,
-        submitted_at: new Date().toISOString(),
+        submitted_at: nowIso(),
         immutable_hash,
       };
-      await safeSyncRow('add', SHEETS.votes, vote);
+      await safeSyncRow(existingVote ? 'update' : 'add', SHEETS.votes, vote);
       return vote;
     }));
 
-    write(STORAGE.votes, [...newVotes, ...this.getVotes()]);
+    const untouchedVotes = this.getVotes().filter((vote) => !(vote.election_id === input.electionId && vote.voter_user_id === voterId && incomingRoles.includes(vote.role_name)));
+    write(STORAGE.votes, dedupeByKey([...newVotes, ...untouchedVotes], (item) => item.vote_id || `${item.election_id}:${item.voter_user_id}:${item.role_name}`));
     appendAudit({
       audit_id: generateId('EAUD'),
       module: 'elections',
@@ -204,7 +220,7 @@ export const electionService = {
       action: 'cast_votes',
       actor_id: voterId,
       actor_name: voterName,
-      timestamp: new Date().toISOString(),
+      timestamp: nowIso(),
       details: JSON.stringify({ roles: incomingRoles }),
     });
     return newVotes;
@@ -244,12 +260,12 @@ export const electionService = {
         user_name: result.winner_name,
         term_start: termStart,
         term_end: termEnd,
-        assigned_at: new Date().toISOString(),
+        assigned_at: nowIso(),
         source_vote_count: result.nominees[0]?.votes || 0,
       } satisfies ElectionTermRecord));
 
-    write(STORAGE.terms, [...assignments, ...this.getTerms()]);
-    const updatedElections = this.getElections().map((item) => item.election_id === electionId ? { ...item, status: 'closed', results_published_at: new Date().toISOString() } : item);
+    write(STORAGE.terms, dedupeByKey([...assignments, ...this.getTerms()], (item) => item.assignment_id || `${item.election_id}:${item.role_name}:${item.user_id}`));
+    const updatedElections = this.getElections().map((item) => item.election_id === electionId ? { ...item, status: 'closed', results_published_at: nowIso() } : item);
     write(STORAGE.elections, updatedElections);
     await Promise.all(assignments.map((item) => safeSyncRow('add', SHEETS.terms, item)));
     const changedElection = updatedElections.find((item) => item.election_id === electionId);
@@ -262,7 +278,7 @@ export const electionService = {
       action: 'publish_results',
       actor_id: getActorId(user),
       actor_name: getActorName(user),
-      timestamp: new Date().toISOString(),
+      timestamp: nowIso(),
       details: JSON.stringify({ termStart, termEnd, assignments: assignments.length }),
     });
     return assignments;

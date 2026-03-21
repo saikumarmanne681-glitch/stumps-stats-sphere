@@ -11,6 +11,7 @@ import { v2api } from '@/lib/v2api';
 import { UserPresence, getPresenceStatus } from '@/lib/v2types';
 import { Loader2, Search, RefreshCw, Wifi, WifiOff, Clock } from 'lucide-react';
 import { ManagementUser } from '@/lib/v2types';
+import { formatInIST } from '@/lib/time';
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
   online: <Wifi className="h-4 w-4 text-green-500" />,
@@ -59,7 +60,7 @@ export function AdminPresence() {
       let lastSeenDisplay = p.last_seen || p.last_heartbeat || 'Never';
       try {
         const d = new Date(lastSeenDisplay);
-        if (!isNaN(d.getTime())) lastSeenDisplay = d.toLocaleString();
+        if (!isNaN(d.getTime())) lastSeenDisplay = formatInIST(d);
       } catch { /* keep raw */ }
       return { ...p, name, role, status, lastSeenDisplay };
     });

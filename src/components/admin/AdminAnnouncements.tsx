@@ -13,8 +13,8 @@ import { Announcement } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { generateId } from '@/lib/utils';
 import { BellRing, CalendarClock, Megaphone, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
 import { logAudit } from '@/lib/v2api';
+import { formatDateInIST } from '@/lib/time';
 
 const quickTemplates = [
   {
@@ -202,7 +202,7 @@ export function AdminAnnouncements() {
                           <p className="font-mono text-[11px] text-muted-foreground">{item.id}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{format(new Date(item.date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{formatDateInIST(item.date)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Badge className={item.active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}>
@@ -258,7 +258,7 @@ export function AdminAnnouncements() {
                   </div>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.message}</p>
                   <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className="gap-1"><CalendarClock className="h-3 w-3" /> {format(new Date(item.date), 'dd MMM yyyy')}</Badge>
+                    <Badge variant="outline" className="gap-1"><CalendarClock className="h-3 w-3" /> {formatDateInIST(item.date)}</Badge>
                     <Badge className={item.active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}>{item.active ? 'Showing now' : 'Draft / hidden'}</Badge>
                   </div>
                 </div>

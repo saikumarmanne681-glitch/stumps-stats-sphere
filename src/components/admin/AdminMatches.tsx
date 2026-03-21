@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { MATCH_STAGES } from "@/lib/v2types";
 import { logAudit } from "@/lib/v2api";
+import { formatDateInIST } from '@/lib/time';
 
 interface PlayerPerformance {
   player_id: string;
@@ -812,7 +813,7 @@ export function AdminMatches() {
                   return (
                   <TableRow key={m.match_id} className={selectedMatch === m.match_id ? "bg-primary/5" : ""}>
                     <TableCell className="font-mono text-xs">{m.match_id}</TableCell>
-                    <TableCell>{m.date ? format(new Date(m.date), "dd MMM yyyy") : "-"}</TableCell>
+                    <TableCell>{m.date ? formatDateInIST(m.date) : "-"}</TableCell>
                     <TableCell className="font-medium">
                       {m.team_a} vs {m.team_b}
                     </TableCell>

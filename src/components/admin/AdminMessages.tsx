@@ -11,10 +11,10 @@ import { Message } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { generateId } from '@/lib/utils';
 import { BellRing, CheckCheck, Clock, MessageSquare, Search, Send, Sparkles, Users } from 'lucide-react';
-import { format } from 'date-fns';
 import { logAudit, v2api } from '@/lib/v2api';
 import { ManagementUser } from '@/lib/v2types';
 import { getAdminNotificationRecipient, sendAdminCommunicationEmail, sendMessageNotificationEmail, sendSystemEmail } from '@/lib/mailer';
+import { formatInIST } from '@/lib/time';
 
 const quickMessageTemplates = [
   {
@@ -365,7 +365,7 @@ export function AdminMessages() {
                       <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{lastMessage.body}</p>
                     </div>
                     <div className="flex items-center gap-2 md:flex-col md:items-end">
-                      <Badge variant="outline" className="rounded-full">{format(new Date(lastMessage.timestamp || lastMessage.date), 'dd MMM HH:mm')}</Badge>
+                      <Badge variant="outline" className="rounded-full">{formatInIST(lastMessage.timestamp || lastMessage.date)}</Badge>
                       <span className="text-xs text-muted-foreground">Thread ID {rootId}</span>
                     </div>
                   </div>
@@ -379,7 +379,7 @@ export function AdminMessages() {
                           <div className={`max-w-[88%] rounded-[1.25rem] border px-4 py-3 shadow-sm ${message.from_id === 'admin' ? 'border-primary/20 bg-primary/10' : 'border-border bg-card'}`}>
                             <div className="mb-1 flex flex-wrap items-center gap-2">
                               <span className="text-xs font-semibold uppercase tracking-wide text-foreground">{getDisplayName(message.from_id)}</span>
-                              <span className="text-xs text-muted-foreground">{format(new Date(message.timestamp || message.date), 'dd MMM yyyy HH:mm')}</span>
+                              <span className="text-xs text-muted-foreground">{formatInIST(message.timestamp || message.date)}</span>
                               {message.from_id === 'admin' && (message.read ? <CheckCheck className="h-3.5 w-3.5 text-primary" /> : <Clock className="h-3.5 w-3.5 text-muted-foreground" />)}
                             </div>
                             <p className="text-sm leading-6">{message.body}</p>
