@@ -112,10 +112,12 @@ const AdminScorelistsPage = () => {
   };
   const readStatus = (sl: DigitalScorelist, certs: CertificationApproval[]): CertificationStage => {
     if (sl.certification_status) return sl.certification_status as CertificationStage;
-    const latest = certs.reduce<CertificationStage>((best, c) => {
-      return stageOrder.indexOf(c.stage) > stageOrder.indexOf(best) ? c.stage : best;
-    }, 'draft' as CertificationStage);
-    return latest || ('draft' as CertificationStage);
+    if (certs.length === 0) return 'draft';
+    let best: CertificationStage = 'draft';
+    for (const c of certs) {
+      if (stageOrder.indexOf(c.stage) > stageOrder.indexOf(best)) best = c.stage;
+    }
+    return best;
   };
   const readLocked = (sl: DigitalScorelist): boolean => {
     if (typeof sl.locked === 'boolean') return sl.locked;
