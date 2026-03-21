@@ -14,11 +14,11 @@ import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Se
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 import { PlayerSupport } from '@/components/player/PlayerSupport';
 import { PlayerEmailSettings } from '@/components/player/PlayerEmailSettings';
 import { SessionFingerprint, SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
 import { logAudit } from '@/lib/v2api';
+import { formatDateInIST, formatInIST } from '@/lib/time';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -274,7 +274,7 @@ const PlayerDashboard = () => {
                             <TableCell>
                               <Link to={`/match/${match.match_id}`} className="font-mono text-xs hover:text-primary hover:underline">{match.match_id}</Link>
                             </TableCell>
-                            <TableCell className="text-sm">{format(new Date(match.date), 'dd MMM yyyy')}</TableCell>
+                            <TableCell className="text-sm">{formatDateInIST(match.date)}</TableCell>
                             <TableCell className="font-medium">{match.team_a} vs {match.team_b}</TableCell>
                             <TableCell className="font-bold text-primary">{bat ? `${bat.runs}(${bat.balls})` : '-'}</TableCell>
                             <TableCell className="font-bold text-destructive">{bowl ? `${bowl.wickets}/${bowl.runs_conceded}` : '-'}</TableCell>
@@ -324,7 +324,7 @@ const PlayerDashboard = () => {
                       </div>
                       <span className="text-xs text-muted-foreground">{thread.length} msg{thread.length > 1 ? 's' : ''}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground md:text-sm">{getDisplayName(root.from_id)} • {format(new Date(thread[thread.length - 1].timestamp || thread[thread.length - 1].date), 'dd MMM HH:mm')}</p>
+                    <p className="text-xs text-muted-foreground md:text-sm">{getDisplayName(root.from_id)} • {formatInIST(thread[thread.length - 1].timestamp || thread[thread.length - 1].date)}</p>
                   </div>
 
                   {isExpanded && (
@@ -335,7 +335,7 @@ const PlayerDashboard = () => {
                             <div className={`max-w-[84%] rounded-[1.25rem] border p-4 shadow-sm ${msg.from_id === user.player_id ? 'bg-primary/10 border-primary/20' : 'bg-card border-border'}`}>
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-xs font-semibold">{getDisplayName(msg.from_id)}</span>
-                                <span className="text-xs text-muted-foreground">{format(new Date(msg.timestamp || msg.date), 'dd MMM HH:mm')}</span>
+                                <span className="text-xs text-muted-foreground">{formatInIST(msg.timestamp || msg.date)}</span>
                                 {msg.from_id === user.player_id && (
                                   msg.read ? <CheckCheck className="h-3 w-3 text-primary" /> : <Clock className="h-3 w-3 text-muted-foreground" />
                                 )}

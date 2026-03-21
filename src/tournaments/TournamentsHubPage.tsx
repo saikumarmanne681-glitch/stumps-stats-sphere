@@ -18,6 +18,7 @@ import { useData } from '@/lib/DataContext';
 import { normalizeId } from '@/lib/dataUtils';
 import { RegistrationRecord, TournamentRegistryRecord } from './types';
 import { getScheduleApprovalRoadmap, getScheduleDetailedStatus } from '@/lib/workflowStatus';
+import { formatInIST } from '@/lib/time';
 
 const emptyScheduleRow: ScheduleMatch = { match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' };
 const emptyTournamentForm = { name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '', season_year: String(new Date().getFullYear()) };
@@ -542,7 +543,7 @@ const TournamentsHubPage = () => {
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div>
                         <p className="font-semibold">Version {schedule.version_number}</p>
-                        <p className="text-sm text-muted-foreground">{schedule.timestamp}</p>
+                        <p className="text-sm text-muted-foreground">{formatInIST(schedule.timestamp)}</p>
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         <Badge variant={schedule.status === 'approved' ? 'default' : schedule.status === 'rejected' ? 'destructive' : 'secondary'}>{schedule.status}</Badge>
@@ -562,7 +563,7 @@ const TournamentsHubPage = () => {
                               </Badge>
                             </div>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              {step.approval ? `${step.approval.approver_name} • ${new Date(step.approval.timestamp).toLocaleString()}` : 'Awaiting action from this approver.'}
+                              {step.approval ? `${step.approval.approver_name} • ${formatInIST(step.approval.timestamp)}` : 'Awaiting action from this approver.'}
                             </p>
                           </div>
                         ))}
