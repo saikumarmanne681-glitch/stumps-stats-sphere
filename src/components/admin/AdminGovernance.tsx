@@ -12,6 +12,7 @@ import { ScheduleMatch } from '@/schedules/types';
 import { tournamentService } from '@/tournaments/tournamentService';
 import { useToast } from '@/hooks/use-toast';
 import { getScheduleApprovalRoadmap, getScheduleDetailedStatus } from '@/lib/workflowStatus';
+import { formatInIST } from '@/lib/time';
 
 const initialMatch = (): ScheduleMatch => ({ match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' });
 
@@ -139,7 +140,7 @@ export function AdminGovernance() {
                           </Badge>
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          {step.approval ? `${step.approval.approver_name} • ${new Date(step.approval.timestamp).toLocaleString()}${step.approval.comments ? ` • ${step.approval.comments}` : ''}` : 'Waiting for this office bearer approval.'}
+                          {step.approval ? `${step.approval.approver_name} • ${formatInIST(step.approval.timestamp)}${step.approval.comments ? ` • ${step.approval.comments}` : ''}` : 'Waiting for this office bearer approval.'}
                         </p>
                       </div>
                     ))}

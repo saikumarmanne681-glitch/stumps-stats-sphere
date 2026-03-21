@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Trophy, Target } from 'lucide-react';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount } from '@/lib/calculations';
-import { format } from 'date-fns';
+import { formatDateInIST } from '@/lib/time';
 
 const PlayerPage = () => {
   const { player_id } = useParams();
@@ -120,7 +120,7 @@ const PlayerPage = () => {
                   const t = tournaments.find(t => t.tournament_id === m.tournament_id);
                   return (
                     <TableRow key={m.match_id}>
-                      <TableCell className="text-sm">{format(new Date(m.date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell className="text-sm">{formatDateInIST(m.date)}</TableCell>
                       <TableCell>
                         <Link to={`/match/${m.match_id}`} className="hover:text-primary hover:underline font-medium">
                           {m.team_a} vs {m.team_b}

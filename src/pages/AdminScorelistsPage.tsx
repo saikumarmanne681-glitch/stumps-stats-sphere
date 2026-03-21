@@ -19,6 +19,7 @@ import { sendScorelistApprovalRequestBulk, getAdminNotificationRecipient, explai
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { formatInIST } from '@/lib/time';
 
 const stageLabels: Record<string, string> = scorelistStageLabels;
 const stageOrder = [...scorelistStageOrder];
@@ -226,7 +227,7 @@ const AdminScorelistsPage = () => {
     const bowlRows = (payload?.bowlingData || []).map((b: any) =>
       `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right">${b.overs}</td><td style="text-align:right">${b.maidens}</td><td style="text-align:right">${b.runs_conceded}</td><td style="text-align:right;font-weight:bold">${b.wickets}</td></tr>`
     ).join('');
-    const certRows = certs.map(c => `<tr><td>${c.approver_name}</td><td>${c.designation}</td><td>${stageLabels[c.stage] || c.stage.replace(/_/g, ' ')}</td><td>${new Date(c.timestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">${c.token.substring(0,12)}</td></tr>`).join('');
+    const certRows = certs.map(c => `<tr><td>${c.approver_name}</td><td>${c.designation}</td><td>${stageLabels[c.stage] || c.stage.replace(/_/g, ' ')}</td><td>${formatInIST(c.timestamp)}</td><td style="font-family:monospace;font-size:10px">${c.token.substring(0,12)}</td></tr>`).join('');
     const draftTimestamp = sl.generated_at || new Date().toISOString();
     const draftBy = sl.generated_by || 'System';
     const verifyUrl = getVerifyUrl(sl.scorelist_id);
@@ -236,7 +237,7 @@ const AdminScorelistsPage = () => {
         <div class="security-feature-title">${feature.title}</div>
         <p>${feature.description}</p>
       </div>`).join('');
-    const draftRow = `<tr><td>${draftBy}</td><td>Scorelist Engine</td><td>${stageLabels.draft}</td><td>${new Date(draftTimestamp).toLocaleString()}</td><td style="font-family:monospace;font-size:10px">DRAFT</td></tr>`;
+    const draftRow = `<tr><td>${draftBy}</td><td>Scorelist Engine</td><td>${stageLabels.draft}</td><td>${formatInIST(draftTimestamp)}</td><td style="font-family:monospace;font-size:10px">DRAFT</td></tr>`;
     const certTimelineRows = `${draftRow}${certRows}`;
     const pendingRows = pendingApprovals.map((p) => `<tr><td>${p.name}</td><td>${p.designation}</td><td>${stageLabels[p.stage] || p.stage}</td><td>Pending with ${p.designation}</td></tr>`).join('');
     
@@ -710,7 +711,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
                               {cert ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />}
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium capitalize text-xs md:text-sm">{stageLabels[stage]}</p>
-                                {cert && <p className="text-xs text-muted-foreground truncate">{cert.approver_name} – {cert.designation} • {new Date(cert.timestamp).toLocaleString()}</p>}
+                                {cert && <p className="text-xs text-muted-foreground truncate">{cert.approver_name} – {cert.designation} • {formatInIST(cert.timestamp)}</p>}
                               </div>
                               {cert && <Badge variant="outline" className="text-[10px] font-mono shrink-0">{cert.token.substring(0, 10)}</Badge>}
                             </div>

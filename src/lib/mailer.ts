@@ -1,4 +1,5 @@
 import { getAppsScriptUrl } from './googleSheets';
+import { formatInIST } from './time';
 
 export const DEFAULT_FROM_EMAIL = 'impdocs1308@gmail.com';
 const ADMIN_MAILBOX_KEY = 'adminMailboxEmail';
@@ -87,12 +88,12 @@ function cardLayout(content: string) {
       <div style="max-width:680px;margin:24px auto;padding:0 16px;">
         <div style="background:linear-gradient(135deg,#0f172a,#111827,#1f2937);border-radius:16px 16px 0 0;padding:28px 24px;color:#fff;">
           <p style="margin:0;font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.82;">Cricket Club Portal</p>
-          <h1 style="margin:8px 0 0;font-size:24px;font-weight:700;">Premium Notification Center</h1>
+          <h1 style="margin:8px 0 0;font-size:24px;font-weight:700;">Luxury Communication Desk</h1>
         </div>
         <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:24px;">
           ${content}
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
-          <p style="margin:0;font-size:12px;color:#6b7280;">Sent by Cricket Club Portal · Admin Desk</p>
+          <p style="margin:0;font-size:12px;color:#6b7280;">Delivered by Cricket Club Portal · Luxury Member Communications</p>
           <p style="margin:4px 0 0;font-size:12px;color:#6b7280;">From/Reply: ${effectiveSender}</p>
         </div>
       </div>
@@ -164,7 +165,7 @@ export async function sendOtpEmail(params: { to: string; userName?: string; otp:
     <div style="text-align:center;margin:20px 0;">
       <span style="display:inline-block;padding:14px 24px;background:#111827;color:#fff;border-radius:12px;font-size:30px;letter-spacing:8px;font-weight:700;">${params.otp}</span>
     </div>
-    <p style="margin:0;color:#6b7280;font-size:13px;">Valid until: ${new Date(params.expiresAt).toLocaleString()}</p>
+    <p style="margin:0;color:#6b7280;font-size:13px;">Valid until: ${formatInIST(params.expiresAt)}</p>
     <p style="margin:10px 0 0;color:#dc2626;font-size:13px;">If you did not request this, please ignore this email.</p>
   `);
   return sendSystemEmail({ to: params.to, subject: 'Your Cricket Club verification OTP', htmlBody, fromName: 'Cricket Club Security' });
@@ -174,7 +175,7 @@ export async function sendWelcomeSubscriptionEmail(params: { to: string; userNam
   const actionsHtml = params.actions.map((a) => `<li style="margin:6px 0;">${a}</li>`).join('');
   const htmlBody = cardLayout(`
     <p style="margin:0 0 8px;font-size:16px;">Congratulations ${params.userName || 'User'} 🎉</p>
-    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">You have been successfully subscribed for premium portal communications.</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">You have been successfully enrolled for our luxury portal communications.</p>
     <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px;">
       <p style="margin:0 0 10px;font-weight:600;">Active communication channels:</p>
       <ul style="margin:0 0 0 18px;padding:0;line-height:1.5;">${actionsHtml}</ul>
@@ -242,7 +243,7 @@ export async function sendMessageNotificationEmail(params: {
 }) {
   const htmlBody = cardLayout(`
     <p style="margin:0 0 8px;font-size:16px;">Hello ${params.playerName},</p>
-    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">You have received a new message from the Cricket Club administration.</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">A premium communication has arrived from the Cricket Club administration.</p>
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:16px;">
       <p style="margin:0 0 8px;"><strong>From:</strong> ${params.senderName}${params.senderDesignation ? ` (${params.senderDesignation})` : ''}</p>
       <p style="margin:0 0 8px;"><strong>Subject:</strong> ${params.subject}</p>
