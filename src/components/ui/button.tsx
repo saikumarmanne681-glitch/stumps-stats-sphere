@@ -40,17 +40,38 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, loading = false, loadingText, children, disabled, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, loading = false, loadingText, children, disabled, onClick, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
+    const [internalLoading, setInternalLoading] = React.useState(false);
+
+    const handleClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (!onClick) return;
+
+      const result = onClick(event);
+      if (event.defaultPrevented) return;
+
+      if (result && typeof result === "object" && "then" in result && typeof result.then === "function") {
+        try {
+          setInternalLoading(true);
+          await result;
+        } finally {
+          setInternalLoading(false);
+        }
+      }
+    };
+
+    const isLoading = loading || internalLoading;
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        disabled={disabled || loading}
-        aria-busy={loading}
+        disabled={disabled || isLoading}
+        aria-busy={isLoading}
+        onClick={handleClick}
         {...props}
       >
-        {loading ? (
+        {isLoading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>{loadingText || "Loading, please wait..."}</span>
