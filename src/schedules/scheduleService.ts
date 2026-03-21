@@ -4,7 +4,6 @@ import { generateId } from '@/lib/utils';
 import { logAudit, v2api } from '@/lib/v2api';
 import { ScheduleApprovalRecord, ScheduleAuditLog, ScheduleDiffEntry, ScheduleMatch, ScheduleRecord } from './types';
 import { getScheduleDetailedStatus } from '@/lib/workflowStatus';
-import { clearRecentOperation, isRecentOperation } from '@/lib/requestGuards';
 
 const STORAGE = {
   schedules: 'club:schedules',
@@ -111,10 +110,8 @@ export const scheduleService = {
   getAuditLogs() {
     return read<ScheduleAuditLog>(STORAGE.audit);
   },
-  async createVersion(input: { tournament_id: string; tournament_name: string; season_id?: string; season_label?: string; matches: ScheduleMatch[]; change_log: string }, user: AuthUser) {
-    const duplicateKey = `schedule:create:${input.tournament_id}:${input.season_id || 'no-season'}:${getActorId(user)}`;
-    if (isRecentOperation(duplicateKey)) throw new Error('A schedule save is already in progress. Please wait.');
-    const previousVersions = this.getSchedules().filter((item) => item.tournament_id === input.tournament_id && (item.season_id || '') === (input.season_id || '')).sort((a, b) => b.version_number - a.version_number);
+  async createVersion(input: { tournament_id: string; tournament_name: string; matches: ScheduleMatch[]; change_log: string }, user: AuthUser) {
+    const previousVersions = this.getSchedules().filter((item) => item.tournament_id === input.tournament_id).sort((a, b) => b.version_number - a.version_number);
     const version_number = (previousVersions[0]?.version_number || 0) + 1;
     const hash = await digest(JSON.stringify({ tournamentId: input.tournament_id, version_number, matches: input.matches, createdBy: getActorId(user), timestamp: Date.now() }));
     const record: ScheduleRecord = {
@@ -122,8 +119,6 @@ export const scheduleService = {
       tournament_id: input.tournament_id,
       tournament_name: input.tournament_name,
       version_number,
-      season_id: input.season_id || '',
-      season_label: input.season_label || '',
       matches_json: JSON.stringify(input.matches),
       created_by: getActorId(user),
       created_by_name: getActorName(user),
@@ -135,12 +130,8 @@ export const scheduleService = {
       rejection_reason: '',
     };
     write(STORAGE.schedules, [record, ...this.getSchedules()]);
-    try {
-      await safeSyncRow('add', SHEETS.schedules, record);
-    } finally {
-      clearRecentOperation(duplicateKey);
-    }
-    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: record.schedule_id, action: 'create_schedule_version', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId: record.tournament_id, seasonId: record.season_id, version: version_number, matches: input.matches.length }) });
+    await safeSyncRow('add', SHEETS.schedules, record);
+    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: record.schedule_id, action: 'create_schedule_version', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId: record.tournament_id, version: version_number, matches: input.matches.length }) });
     return record;
   },
   async submitForApproval(scheduleId: string, user: AuthUser) {
@@ -201,8 +192,8 @@ export const scheduleService = {
     appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'approval', entity_id: approval.approval_id, action: 'reject_schedule', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ scheduleId, comments }) });
     return approval;
   },
-  getApprovedSchedulesForTournament(tournamentId: string, seasonId?: string) {
-    return this.getSchedules().filter((item) => item.tournament_id === tournamentId && item.status === 'approved' && (!seasonId || (item.season_id || '') === seasonId)).sort((a, b) => b.version_number - a.version_number);
+  getApprovedSchedulesForTournament(tournamentId: string) {
+    return this.getSchedules().filter((item) => item.tournament_id === tournamentId && item.status === 'approved').sort((a, b) => b.version_number - a.version_number);
   },
   diffVersions(previous?: ScheduleRecord, current?: ScheduleRecord) {
     const previousMatches = new Map<string, ScheduleMatch>((previous ? JSON.parse(previous.matches_json) : [] as ScheduleMatch[]).map((match: ScheduleMatch) => [keyForMatch(match), match]));

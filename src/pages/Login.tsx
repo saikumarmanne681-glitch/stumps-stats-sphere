@@ -34,48 +34,71 @@ const Login = () => {
     }
   };
 
-  const LoginForm = ({ type, icon: Icon, label }: { type: 'admin' | 'player' | 'management'; icon: typeof Shield; label: string }) => (
-    <div className="space-y-4 mt-4">
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Username</Label>
-        <Input placeholder={`Enter your ${type} username`} value={username} onChange={e => setUsername(e.target.value)} className="bg-card/80" />
-      </div>
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Password</Label>
-        <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="bg-card/80" />
-      </div>
-      <Button className="w-full" onClick={() => handleLogin(type)} loading={loading} loadingText="Signing in...">
-        <Icon className="h-4 w-4" /> Login as {label}
-      </Button>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="center-page min-h-[calc(100vh-5rem)] justify-center">
-        <Card className="w-full max-w-lg text-center">
-          <CardHeader className="text-center pb-3">
-            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-[1.35rem] bg-primary text-3xl text-primary-foreground shadow-[0_18px_34px_-18px_rgba(22,101,52,0.55)]">🏏</div>
-            <CardTitle className="font-display text-3xl">Welcome Back</CardTitle>
-            <CardDescription>Sign in to your cricket portal account</CardDescription>
+      <div className="flex items-center justify-center py-20 px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-2 text-4xl">🏏</div>
+            <CardTitle className="font-display text-2xl">Login to Cricket Club</CardTitle>
+            <CardDescription>Choose your role and sign in</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="admin" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="admin" className="flex items-center gap-1 text-xs">
-                  <Shield className="h-3.5 w-3.5" /> Admin
+                <TabsTrigger value="admin" className="flex items-center gap-1">
+                  <Shield className="h-4 w-4" /> Admin
                 </TabsTrigger>
-                <TabsTrigger value="player" className="flex items-center gap-1 text-xs">
-                  <User className="h-3.5 w-3.5" /> Player
+                <TabsTrigger value="player" className="flex items-center gap-1">
+                  <User className="h-4 w-4" /> Player
                 </TabsTrigger>
-                <TabsTrigger value="management" className="flex items-center gap-1 text-xs">
-                  <Users className="h-3.5 w-3.5" /> Board
+                <TabsTrigger value="management" className="flex items-center gap-1">
+                  <Users className="h-4 w-4" /> Management
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="admin"><LoginForm type="admin" icon={Shield} label="Admin" /></TabsContent>
-              <TabsContent value="player"><LoginForm type="player" icon={User} label="Player" /></TabsContent>
-              <TabsContent value="management"><LoginForm type="management" icon={Users} label="Management" /></TabsContent>
+
+              <TabsContent value="admin" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <Input type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                </div>
+                <Button className="w-full" onClick={() => handleLogin('admin')} disabled={loading}>
+                  {loading ? 'Logging in...' : 'Login as Admin'}
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="player" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input placeholder="your username" value={username} onChange={e => setUsername(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <Input type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                </div>
+                <Button className="w-full" onClick={() => handleLogin('player')} disabled={loading}>
+                  {loading ? 'Logging in...' : 'Login as Player'}
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="management" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input placeholder="management username" value={username} onChange={e => setUsername(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Password</Label>
+                  <Input type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                </div>
+                <Button className="w-full" onClick={() => handleLogin('management')} disabled={loading}>
+                  {loading ? 'Logging in...' : 'Login as Management'}
+                </Button>
+              </TabsContent>
             </Tabs>
           </CardContent>
         </Card>

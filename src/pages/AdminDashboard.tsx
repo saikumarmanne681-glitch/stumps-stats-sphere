@@ -25,15 +25,15 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="center-page items-stretch text-left">
-        <div className="page-shell mb-2 p-6 sm:p-8">
-          <div className="flex flex-col items-center gap-5 text-center md:text-center">
-            <div className="center-stack">
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-6 rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-background to-accent/10 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Operations command center</p>
               <h1 className="font-display text-3xl font-bold">⚙️ Admin Dashboard</h1>
               <p className="mt-1 text-sm text-muted-foreground">Manage tournaments, communication, support, scorelists, live scoring, and security auditing from one place.</p>
             </div>
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline" size="sm">
                 <Link to="/admin/match-center"><Zap className="h-4 w-4 mr-1" /> Open Live Scoring Panel</Link>
               </Button>
@@ -45,7 +45,7 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="matches" className="w-full">
-          <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-center gap-2 rounded-[1.3rem] border border-primary/10 bg-white p-2">
+          <TabsList className="flex flex-wrap h-auto gap-1 mb-6">
             <TabsTrigger value="matches" className="flex items-center gap-1 text-xs">
               <Gamepad2 className="h-3 w-3" /> Matches & Scorecards
             </TabsTrigger>

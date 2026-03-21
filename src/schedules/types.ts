@@ -4,8 +4,6 @@ export interface ScheduleRecord {
   schedule_id: string;
   tournament_id: string;
   tournament_name: string;
-  season_id?: string;
-  season_label?: string;
   version_number: number;
   matches_json: string;
   created_by: string;

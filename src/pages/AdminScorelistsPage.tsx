@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { v2api, logAudit } from '@/lib/v2api';
-import { DigitalScorelist, CertificationApproval, CertificationStage, ManagementUser } from '@/lib/v2types';
+import { DigitalScorelist, CertificationApproval, ManagementUser } from '@/lib/v2types';
 import { getScorelistDetailedStatus, getScorelistRoadmap, readScorelistCertifications, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
 import { sendScorelistApprovalRequestBulk, getAdminNotificationRecipient, explainMailFailure } from '@/lib/mailer';
@@ -19,8 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
-const stageLabels: Record<CertificationStage, string> = scorelistStageLabels;
-const stageOrder: CertificationStage[] = [...scorelistStageOrder];
+const stageLabels: Record<string, string> = scorelistStageLabels;
+const stageOrder = [...scorelistStageOrder];
 
 const AdminScorelistsPage = () => {
   const { isAdmin, isManagement, user } = useAuth();
@@ -110,14 +110,12 @@ const AdminScorelistsPage = () => {
     const fromPayload = payload?.__certification?.approvals;
     return Array.isArray(fromPayload) ? fromPayload : [];
   };
-  const readStatus = (sl: DigitalScorelist, certs: CertificationApproval[]): CertificationStage => {
-    if (sl.certification_status) return sl.certification_status as CertificationStage;
-    if (certs.length === 0) return 'draft';
-    let best: CertificationStage = 'draft';
-    for (const c of certs) {
-      if (stageOrder.indexOf(c.stage) > stageOrder.indexOf(best)) best = c.stage;
-    }
-    return best;
+  const readStatus = (sl: DigitalScorelist, certs: CertificationApproval[]): string => {
+    if (sl.certification_status) return sl.certification_status;
+    const latest = certs.reduce((best, c) => {
+      return stageOrder.indexOf(c.stage) > stageOrder.indexOf(best) ? c.stage : best;
+    }, 'draft');
+    return latest || 'draft';
   };
   const readLocked = (sl: DigitalScorelist): boolean => {
     if (typeof sl.locked === 'boolean') return sl.locked;
@@ -125,12 +123,12 @@ const AdminScorelistsPage = () => {
     return !!payload?.__certification?.locked;
   };
 
-  const requiredApproversByStage = stageOrder.reduce<Record<CertificationStage, ManagementUser[]>>((acc, stage) => {
+  const requiredApproversByStage = stageOrder.reduce<Record<string, ManagementUser[]>>((acc, stage) => {
     acc[stage] = managementUsers.filter((m) => resolveStageFromDesignation(m.designation) === stage);
     return acc;
-  }, {} as Record<CertificationStage, ManagementUser[]>);
+  }, {} as Record<string, ManagementUser[]>);
 
-  const notifyStageApprovers = async (scorelistId: string, stage: CertificationStage) => {
+  const notifyStageApprovers = async (scorelistId: string, stage: string) => {
     const stageRecipients = (requiredApproversByStage[stage] || []).filter((m) => !!String(m.email || '').trim());
     const adminRecipient = getAdminNotificationRecipient();
     const recipients = [...stageRecipients];
@@ -350,7 +348,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
       designation: user?.designation || 'Administrator',
       timestamp: new Date().toISOString(),
       token: `CERT_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-      stage: stage as CertificationStage,
+      stage,
     });
     const locked = stage === 'official_certified';
     const payload = safeParsePayload(sl) || {};
@@ -363,12 +361,12 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
     await v2api.updateScorelist({
       ...sl,
       payload_json: JSON.stringify(payload),
-      certification_status: stage as CertificationStage,
+      certification_status: stage,
       certifications_json: JSON.stringify(certs),
       locked,
     });
     logAudit(userId, 'certify_scorelist', 'scorelist', sl.scorelist_id, stage);
-    const nextStage = stageOrder[stageOrder.indexOf(stage as CertificationStage) + 1];
+    const nextStage = stageOrder[stageOrder.indexOf(stage) + 1];
     if (nextStage && !locked) {
       await notifyStageApprovers(sl.scorelist_id, nextStage);
     }
@@ -381,8 +379,8 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
   // Determine which certification stage this management user can approve
   const userStage = isManagement && user?.designation ? resolveStageFromDesignation(user.designation) : null;
 
-  const getNextStage = (sl: DigitalScorelist): CertificationStage | null => {
-    const current = (sl.certification_status as CertificationStage) || 'draft';
+  const getNextStage = (sl: DigitalScorelist): string | null => {
+    const current = sl.certification_status || 'draft';
     const idx = stageOrder.indexOf(current);
     if (idx < stageOrder.length - 1) return stageOrder[idx + 1];
     return null;

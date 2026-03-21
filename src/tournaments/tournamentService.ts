@@ -2,7 +2,6 @@ import { getActorId, getActorName } from '@/lib/accessControl';
 import { AuthUser } from '@/lib/types';
 import { generateId } from '@/lib/utils';
 import { logAudit, v2api } from '@/lib/v2api';
-import { clearRecentOperation, isRecentOperation } from '@/lib/requestGuards';
 import { RegistrationRecord, TournamentAuditLog, TournamentRegistryRecord } from './types';
 
 const STORAGE = {
@@ -71,34 +70,16 @@ export const tournamentService = {
     return read<TournamentAuditLog>(STORAGE.audit);
   },
   async createTournament(input: Omit<TournamentRegistryRecord, 'tournament_id' | 'created_at'>, user: AuthUser) {
-    const duplicateKey = `tournament:create:${getActorId(user)}:${String(input.name || '').trim().toLowerCase()}:${input.start_date}:${input.end_date}`;
-    if (isRecentOperation(duplicateKey)) throw new Error('Tournament creation is already being processed. Please wait a moment.');
     const record: TournamentRegistryRecord = { ...input, tournament_id: generateId('TRN'), created_at: new Date().toISOString() };
     write(STORAGE.tournaments, [record, ...this.getTournaments()]);
-    try {
-      await safeSyncRow('add', SHEETS.tournaments, record);
-    } finally {
-      clearRecentOperation(duplicateKey);
-    }
+    await safeSyncRow('add', SHEETS.tournaments, record);
     appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'tournament', entity_id: record.tournament_id, action: 'create_tournament', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ name: record.name, format: record.format, status: record.status }) });
     return record;
   },
   async submitRegistration(input: Omit<RegistrationRecord, 'registration_id' | 'submitted_at' | 'status' | 'reviewed_by' | 'reviewed_at' | 'review_notes'>, user: AuthUser) {
-    const teamName = String(input.team_name || '').trim().toLowerCase();
-    const duplicateKey = `registration:create:${input.tournament_id}:${getActorId(user)}:${teamName}`;
-    if (isRecentOperation(duplicateKey)) throw new Error('Registration submission is already in progress. Please wait.');
-    const alreadyRegistered = this.getRegistrations().some((item) => item.tournament_id === input.tournament_id && item.submitted_by === input.submitted_by && item.team_name.trim().toLowerCase() === teamName && item.status !== 'rejected');
-    if (alreadyRegistered) {
-      clearRecentOperation(duplicateKey);
-      throw new Error('This team already has an active registration for the selected tournament.');
-    }
     const record: RegistrationRecord = { ...input, registration_id: generateId('REG'), submitted_at: new Date().toISOString(), status: 'pending', reviewed_by: '', reviewed_at: '', review_notes: '' };
     write(STORAGE.registrations, [record, ...this.getRegistrations()]);
-    try {
-      await safeSyncRow('add', SHEETS.registrations, record);
-    } finally {
-      clearRecentOperation(duplicateKey);
-    }
+    await safeSyncRow('add', SHEETS.registrations, record);
     appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'registration', entity_id: record.registration_id, action: 'submit_registration', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournamentId: record.tournament_id, teamName: record.team_name }) });
     return record;
   },

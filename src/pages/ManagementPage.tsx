@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, Star, FileText, Users, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { v2api, logAudit, istNow } from '@/lib/v2api';
-import { ManagementUser, DigitalScorelist, CertificationApproval, CertificationStage } from '@/lib/v2types';
+import { ManagementUser, DigitalScorelist, CertificationApproval } from '@/lib/v2types';
 import { getScorelistDetailedStatus, getScorelistRoadmap, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
@@ -23,8 +23,8 @@ import { getAdminNotificationRecipient, sendScorelistApprovalRequestBulk, sendSy
 import { DataIntegrityBadge, SecurityShieldBadge, SessionFingerprint } from '@/components/SecurityBadge';
 import { PageLoader } from '@/components/LoadingOverlay';
 
-const stageOrder: CertificationStage[] = [...scorelistStageOrder];
-const stageLabels: Record<CertificationStage, string> = scorelistStageLabels;
+const stageOrder = [...scorelistStageOrder];
+const stageLabels: Record<string, string> = scorelistStageLabels;
 
 const ManagementPage = () => {
   const { user, isManagement, isAdmin } = useAuth();
@@ -72,7 +72,7 @@ const ManagementPage = () => {
     const userStage = resolveStageFromDesignation(user.designation || '');
     if (!userStage) return false;
     if (userStage === 'official_certified' && certs.some(c => c.stage === 'official_certified')) return false;
-    const currentIdx = stageOrder.indexOf((s.certification_status as CertificationStage) || 'draft');
+    const currentIdx = stageOrder.indexOf(s.certification_status || 'draft');
     const nextStage = currentIdx < stageOrder.length - 1 ? stageOrder[currentIdx + 1] : null;
     return nextStage === userStage;
   }), [isManagement, scorelists, user?.designation, user?.management_id]);

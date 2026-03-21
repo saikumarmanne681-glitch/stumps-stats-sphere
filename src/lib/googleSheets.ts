@@ -1,6 +1,5 @@
 import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message } from "./types";
 import { normalizeSheetRows } from "./dataUtils";
-import { createPayloadKey, runSingleFlight } from "./requestGuards";
 import {
   mockPlayers,
   mockTournaments,
@@ -47,16 +46,13 @@ async function fetchSheet<T>(sheet: string): Promise<T[]> {
 
 async function writeSheet<T>(sheet: string, action: "add" | "update" | "delete", payload: T): Promise<boolean> {
   if (USE_MOCK()) return true;
-  const requestKey = createPayloadKey(`legacy-sheet:${sheet}:${action}`, payload);
-  return runSingleFlight(requestKey, async () => {
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ action, sheet, data: payload }),
-    });
-    const result = await res.json();
-    return result.success;
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action, sheet, data: payload }),
   });
+  const result = await res.json();
+  return result.success;
 }
 
 export async function seedGoogleSheet(): Promise<{ success: boolean; message: string }> {

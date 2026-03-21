@@ -108,16 +108,16 @@ const PlayerDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="center-page items-stretch space-y-0 text-left">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         {loading && <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">Refreshing player dashboard data, please wait...</p>}
         {/* Enhanced Player Hero Card */}
-        <Card className="page-shell overflow-hidden border-primary/15 bg-gradient-to-br from-white via-white to-primary/5">
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent overflow-hidden">
           <CardContent className="p-6">
-            <div className="flex flex-col items-center gap-5 text-center md:text-center">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
               <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
                 <User className="h-10 w-10 text-primary-foreground" />
               </div>
-              <div className="center-stack flex-1">
+              <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <h1 className="font-display text-2xl md:text-3xl font-bold">{player.name}</h1>
                   <SecurityShieldBadge label="Verified" />
@@ -127,7 +127,7 @@ const PlayerDashboard = () => {
                 <SessionFingerprint />
               </div>
               {/* Quick Stats */}
-              <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-3 rounded-xl bg-primary/10">
                   <Activity className="h-4 w-4 text-primary mx-auto mb-1" />
                   <p className="text-2xl font-bold text-primary">{totalMatches}</p>
@@ -148,7 +148,7 @@ const PlayerDashboard = () => {
           </CardContent>
         </Card>
 
-        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Unread messages</p>
@@ -183,7 +183,7 @@ const PlayerDashboard = () => {
         </div>
 
         <Tabs defaultValue="stats">
-          <TabsList className="flex h-auto w-full flex-wrap justify-center gap-2 rounded-[1.25rem] border border-primary/10 bg-white p-2">
+          <TabsList className="flex flex-wrap h-auto gap-1">
             <TabsTrigger value="stats" className="flex items-center gap-1"><BarChart3 className="h-4 w-4" /> Career Stats</TabsTrigger>
             <TabsTrigger value="messages" className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" /> Messages

@@ -130,7 +130,7 @@ const MatchPage = () => {
           <div>
             <h4 className="text-sm font-semibold mb-2 text-primary">🏏 Batting</h4>
             <div className="overflow-x-auto">
-              <Table className="min-w-[640px]">
+              <Table>
                 <TableHeader><TableRow>
                   <TableHead>Batter</TableHead><TableHead className="text-right">R</TableHead><TableHead className="text-right">B</TableHead>
                   <TableHead className="text-right">4s</TableHead><TableHead className="text-right">6s</TableHead><TableHead className="text-right">SR</TableHead><TableHead>Dismissal</TableHead>
@@ -156,7 +156,7 @@ const MatchPage = () => {
           <div>
             <h4 className="text-sm font-semibold mb-2 text-destructive">🎯 Bowling</h4>
             <div className="overflow-x-auto">
-              <Table className="min-w-[520px]">
+              <Table>
                 <TableHeader><TableRow>
                   <TableHead>Bowler</TableHead><TableHead className="text-right">O</TableHead><TableHead className="text-right">M</TableHead>
                   <TableHead className="text-right">R</TableHead><TableHead className="text-right">W</TableHead><TableHead className="text-right">Eco</TableHead>
@@ -185,7 +185,7 @@ const MatchPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild><Link to="/"><ArrowLeft className="h-4 w-4" /></Link></Button>
           <h1 className="font-display text-2xl font-bold">{match.team_a} vs {match.team_b}</h1>
           <SecurityShieldBadge label="Official" variant="certified" />
@@ -201,17 +201,17 @@ const MatchPage = () => {
               <Badge className={match.status === 'live' ? 'bg-destructive text-destructive-foreground animate-pulse' : 'bg-primary text-primary-foreground'}>{match.status.toUpperCase()}</Badge>
             </div>
 
-            <div className="my-4 grid grid-cols-[1fr_auto_1fr] gap-2 sm:gap-4">
+            <div className="grid grid-cols-3 gap-4 my-4">
               <div className="text-center">
-                <p className="font-display text-base font-bold sm:text-xl">{match.team_a}</p>
-                <p className="text-xl font-bold text-primary sm:text-3xl">{teamAScore?.display || '0/0 (0.0)'}</p>
+                <p className="font-display text-xl font-bold">{match.team_a}</p>
+                <p className="text-3xl font-bold text-primary">{teamAScore?.display || '0/0 (0.0)'}</p>
               </div>
               <div className="flex items-center justify-center">
-                <span className="text-base font-display font-bold text-muted-foreground sm:text-2xl">VS</span>
+                <span className="text-2xl font-display font-bold text-muted-foreground">VS</span>
               </div>
               <div className="text-center">
-                <p className="font-display text-base font-bold sm:text-xl">{match.team_b}</p>
-                <p className="text-xl font-bold text-primary sm:text-3xl">{teamBScore?.display || '0/0 (0.0)'}</p>
+                <p className="font-display text-xl font-bold">{match.team_b}</p>
+                <p className="text-3xl font-bold text-primary">{teamBScore?.display || '0/0 (0.0)'}</p>
               </div>
             </div>
 

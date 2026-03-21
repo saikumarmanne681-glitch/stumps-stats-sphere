@@ -280,7 +280,7 @@ const TournamentPage = () => {
                 </Button>
               </CardContent>
             </Card>
-            <ApprovedSchedulePanel tournamentId={tournament.tournament_id} seasonId={tournamentSeasons[0]?.season_id} />
+            <ApprovedSchedulePanel tournamentId={tournament.tournament_id} />
           </div>
         ) : (
           <Card className="border-dashed">

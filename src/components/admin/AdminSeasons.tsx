@@ -17,25 +17,19 @@ export function AdminSeasons() {
   const { seasons, tournaments, addSeason, updateSeason, deleteSeason } = useData();
   const [editItem, setEditItem] = useState<Season | null>(null);
   const [open, setOpen] = useState(false);
-  const [actionKey, setActionKey] = useState<string | null>(null);
   const { toast } = useToast();
 
   const empty: Season = { season_id: '', tournament_id: '', year: new Date().getFullYear(), start_date: '', end_date: '', status: 'upcoming' };
 
   const handleSave = async () => {
     if (!editItem?.tournament_id || !editItem?.year) { toast({ title: 'Error', description: 'Fill required fields', variant: 'destructive' }); return; }
-    setActionKey(editItem.season_id || 'new');
-    try {
-      if (editItem.season_id) {
-        await updateSeason(editItem);
-      } else {
-        await addSeason({ ...editItem, season_id: generateId('S') });
-      }
-      toast({ title: 'Saved' });
-      setOpen(false);
-    } finally {
-      setActionKey(null);
+    if (editItem.season_id) {
+      await updateSeason(editItem);
+    } else {
+      await addSeason({ ...editItem, season_id: generateId('S') });
     }
+    toast({ title: 'Saved' });
+    setOpen(false);
   };
 
   const getTournamentName = (id: string) => tournaments.find(t => t.tournament_id === id)?.name || id;
@@ -75,7 +69,7 @@ export function AdminSeasons() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleSave} className="w-full" loading={!!actionKey} loadingText="Saving season...">Save</Button>
+              <Button onClick={handleSave} className="w-full">Save</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -93,7 +87,7 @@ export function AdminSeasons() {
                 <TableCell>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" onClick={() => { setEditItem(s); setOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                    <Button size="icon" variant="ghost" onClick={async () => { setActionKey(s.season_id); try { await deleteSeason(s.season_id); toast({ title: 'Deleted' }); } finally { setActionKey(null); } }} loading={actionKey === s.season_id}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    <Button size="icon" variant="ghost" onClick={async () => { await deleteSeason(s.season_id); toast({ title: 'Deleted' }); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
