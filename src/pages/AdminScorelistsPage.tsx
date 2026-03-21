@@ -286,7 +286,7 @@ const AdminScorelistsPage = () => {
 <style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a;position:relative;background:#fff}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
 table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f0f7f0;text-align:left}
 .scoreboard{display:flex;justify-content:space-around;text-align:center;background:#f0f7f0;padding:20px;border-radius:8px;margin:20px 0}
-.team-score{font-size:28px;font-weight:bold;color:#1e6b3a}.watermark{position:fixed;top:40%;left:10%;transform:rotate(-30deg);font-size:80px;color:rgba(30,107,58,0.04);white-space:nowrap;pointer-events:none;z-index:-1}.secure-pattern{position:fixed;inset:0;pointer-events:none;z-index:-3}
+.team-score{font-size:28px;font-weight:bold;color:#1e6b3a}.watermark{position:fixed;top:40%;left:10%;transform:rotate(-30deg);font-size:80px;color:rgba(30,107,58,0.04);white-space:nowrap;pointer-events:none;z-index:-1}.secure-pattern{position:fixed;inset:0;pointer-events:none;z-index:-3}.secure-pattern-notice{margin:10px 0 18px;padding:10px 14px;border:1px dashed #7ab28d;border-radius:10px;background:rgba(232,245,233,0.92);color:#145c36;font-size:11px;font-weight:700;letter-spacing:0.08em;text-align:center;text-transform:uppercase}
 .footer{text-align:center;font-size:9px;color:#999;margin-top:30px;border-top:1px solid #ddd;padding-top:10px}
 .certified{background:#e8f5e9;border:2px solid #1e6b3a;text-align:center;padding:12px;border-radius:8px;font-weight:bold;color:#1e6b3a;margin:20px 0}
 .match-book-page{page-break-before:always}
@@ -307,6 +307,7 @@ ${securePattern.enabled ? `<div class="secure-pattern" style="${securePattern.st
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
 <h1 class="intaglio">Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
 <p style="text-align:center;font-family:monospace;font-size:11px;color:#999">${sl.scorelist_id}</p>
+${securePattern.enabled ? `<div class="secure-pattern-notice">Visible anti-copy background active • ${securePattern.visibleLabel}</div>` : ''}
 <p style="text-align:center"><span class="status-chip intaglio">${detailedStatus}${effectiveLocked ? ' • LOCKED' : ''}</span></p>
 <div class="verification-panel">
   <div class="verification-copy">
