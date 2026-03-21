@@ -269,15 +269,21 @@ const TournamentPage = () => {
             <Card>
               <CardHeader><CardTitle className="font-display">📝 Member Registration</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <p className="text-muted-foreground">Tournament registrations are only visible to logged-in users and are managed from the dedicated tournaments workspace.</p>
-                <div className="rounded-lg border p-4">
+                <p className="text-muted-foreground">If this tournament has linked registration seasons, approved schedules and registration totals will surface here while deeper admin edits stay in the tournament workspace.</p>
+                <div className="rounded-lg border p-4 space-y-1">
                   <p><strong>Pending registrations:</strong> {tournamentService.getRegistrations().filter((item) => item.tournament_id === tournament.tournament_id && item.status === 'pending').length}</p>
                   <p><strong>Approved registrations:</strong> {tournamentService.getRegistrations().filter((item) => item.tournament_id === tournament.tournament_id && item.status === 'approved').length}</p>
                   <p><strong>Rejected registrations:</strong> {tournamentService.getRegistrations().filter((item) => item.tournament_id === tournament.tournament_id && item.status === 'rejected').length}</p>
+                  <p><strong>Approved schedules:</strong> {scheduleService.getApprovedSchedulesForTournament(tournament.tournament_id).length}</p>
                 </div>
-                <Button asChild>
-                  <Link to="/tournaments">Open Registrations & Schedule</Link>
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                  <Button asChild>
+                    <Link to="/tournaments">Open Registrations & Schedule</Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link to={`/tournaments?focus=${tournament.tournament_id}`}>Manage linked seasons</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
             <ApprovedSchedulePanel tournamentId={tournament.tournament_id} />

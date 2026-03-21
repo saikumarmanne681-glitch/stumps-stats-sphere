@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { Calendar, ExternalLink, Link2, ShieldCheck } from 'lucide-react';
+import { Calendar, ExternalLink, Link2, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,22 +16,44 @@ import { scheduleService } from '@/schedules/scheduleService';
 import { ScheduleMatch } from '@/schedules/types';
 import { useData } from '@/lib/DataContext';
 import { normalizeId } from '@/lib/dataUtils';
+import { RegistrationRecord, TournamentRegistryRecord } from './types';
 
 const emptyScheduleRow: ScheduleMatch = { match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' };
+const emptyTournamentForm = { name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '', season_year: String(new Date().getFullYear()) };
+const emptyRegistrationForm = { team_name: '', contact_name: '', contact_email: '', contact_phone: '', players: '' };
+
+type RegistrationTarget = {
+  key: string;
+  tournament_id: string;
+  season_id: string;
+  season_year: number | string;
+  tournament_name: string;
+  format: string;
+  venue: string;
+  publicPath: string;
+  source_type: 'existing' | 'custom';
+  registryRecord?: TournamentRegistryRecord;
+};
+
+const parsePlayers = (value: string) => value.split('\n').map((item) => item.trim()).filter(Boolean);
 
 const TournamentsHubPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { tournaments: catalogTournaments, seasons } = useData();
   const [refreshKey, setRefreshKey] = useState(0);
-  const [selectedTournament, setSelectedTournament] = useState('');
-  const [selectedSeason, setSelectedSeason] = useState('');
-  const [tournamentForm, setTournamentForm] = useState({ name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '', season_year: String(new Date().getFullYear()) });
-  const [registrationForm, setRegistrationForm] = useState({ team_name: '', contact_name: '', contact_email: '', contact_phone: '', players: '' });
+  const [selectedTargetKey, setSelectedTargetKey] = useState('');
+  const [mode, setMode] = useState<'link' | 'create'>('link');
+  const [tournamentForm, setTournamentForm] = useState(emptyTournamentForm);
+  const [registrationForm, setRegistrationForm] = useState(emptyRegistrationForm);
+  const [editingTournament, setEditingTournament] = useState<TournamentRegistryRecord | null>(null);
+  const [editingRegistrationId, setEditingRegistrationId] = useState<string | null>(null);
+  const [draftRegistration, setDraftRegistration] = useState<Record<string, string>>({});
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [approvalComments, setApprovalComments] = useState<Record<string, string>>({});
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleMatch[]>([emptyScheduleRow]);
   const [changeLog, setChangeLog] = useState('');
+  const [linkedSeasonKey, setLinkedSeasonKey] = useState('');
 
   useEffect(() => {
     Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
@@ -56,34 +78,39 @@ const TournamentsHubPage = () => {
           venue: tournament.description || 'Existing tournament season',
           publicPath: `/tournament/${tournament.tournament_id}#season-${season.season_id}`,
           source_type: 'existing' as const,
+          registryRecord: registryTournaments.find((item) => normalizeId(item.tournament_id) === normalizeId(tournament.tournament_id) && normalizeId(item.season_id) === normalizeId(season.season_id)),
         } : null;
       })
-      .filter(Boolean),
-  [catalogTournaments, seasons]);
+      .filter(Boolean) as RegistrationTarget[],
+  [catalogTournaments, seasons, registryTournaments]);
 
-  const customTournamentOptions = useMemo(() => registryTournaments.map((item) => ({
-    key: `${item.tournament_id}::${item.season_id || 'NA'}`,
-    tournament_id: item.tournament_id,
-    season_id: item.season_id || '',
-    season_year: item.season_year || '',
-    tournament_name: item.name,
-    format: item.format,
-    venue: item.venue,
-    publicPath: item.public_page_path || `/tournaments/registration/${item.tournament_id}`,
-    source_type: (item.source_type || 'custom') as 'custom',
-  })), [registryTournaments]);
+  const customTournamentOptions = useMemo(() => registryTournaments
+    .filter((item) => item.source_type !== 'existing')
+    .map((item) => ({
+      key: `${item.tournament_id}::${item.season_id || 'NA'}`,
+      tournament_id: item.tournament_id,
+      season_id: item.season_id || '',
+      season_year: item.season_year || '',
+      tournament_name: item.name,
+      format: item.format,
+      venue: item.venue,
+      publicPath: item.public_page_path || `/tournaments/registration/${item.tournament_id}`,
+      source_type: 'custom' as const,
+      registryRecord: item,
+    })), [registryTournaments]);
 
   const registrationTargets = [...existingSeasonOptions, ...customTournamentOptions];
-  const activeTarget = registrationTargets.find((item) => item.key === `${selectedTournament}::${selectedSeason}`) || registrationTargets[0];
+  const activeTarget = registrationTargets.find((item) => item.key === selectedTargetKey) || registrationTargets[0];
 
   useEffect(() => {
-    if (!activeTarget) return;
-    setSelectedTournament(activeTarget.tournament_id);
-    setSelectedSeason(activeTarget.season_id);
+    if (activeTarget) setSelectedTargetKey(activeTarget.key);
   }, [activeTarget?.key]);
 
   const activeRegistrations = registrations.filter((item) => normalizeId(item.tournament_id) === normalizeId(activeTarget?.tournament_id) && normalizeId(item.season_id) === normalizeId(activeTarget?.season_id));
   const approvedSchedules = activeTarget ? scheduleService.getApprovedSchedulesForTournament(activeTarget.tournament_id) : [];
+  const linkedRecord = activeTarget?.registryRecord;
+
+  const linkedSeasonCandidates = existingSeasonOptions.filter((item) => !item.registryRecord);
 
   const createTournament = async () => {
     if (!user || !canManageTournament(user)) return;
@@ -102,11 +129,72 @@ const TournamentsHubPage = () => {
       source_type: 'custom',
       public_page_path: '',
     }, user);
-    setSelectedTournament(record.tournament_id);
-    setSelectedSeason('');
-    setTournamentForm({ name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '', season_year: String(new Date().getFullYear()) });
+    setTournamentForm(emptyTournamentForm);
+    setSelectedTargetKey(`${record.tournament_id}::NA`);
     setRefreshKey((value) => value + 1);
     toast({ title: 'Tournament registration page created', description: 'This new competition now has its own dedicated registration page.' });
+  };
+
+  const linkExistingSeason = async () => {
+    if (!user || !canManageTournament(user) || !linkedSeasonKey) return;
+    const target = existingSeasonOptions.find((item) => item.key === linkedSeasonKey);
+    if (!target) return;
+    const season = seasons.find((item) => normalizeId(item.season_id) === normalizeId(target.season_id));
+    await tournamentService.createTournament({
+      name: target.tournament_name,
+      format: target.format,
+      venue: target.venue,
+      start_date: season?.start_date || '',
+      end_date: season?.end_date || '',
+      registration_deadline: '',
+      notes: `Linked registration workflow for ${target.tournament_name} season ${target.season_year}.`,
+      created_by: getActorId(user),
+      status: 'open',
+      season_id: target.season_id,
+      season_year: target.season_year,
+      source_type: 'existing',
+      public_page_path: target.publicPath,
+    }, user);
+    setLinkedSeasonKey('');
+    setSelectedTargetKey(target.key);
+    setRefreshKey((value) => value + 1);
+    toast({ title: 'Existing tournament linked', description: 'This season now has a managed registration workflow and will surface on the tournament page.' });
+  };
+
+  const startEditTournament = (record: TournamentRegistryRecord) => {
+    setEditingTournament(record);
+    setTournamentForm({
+      name: record.name,
+      format: record.format,
+      venue: record.venue,
+      start_date: record.start_date,
+      end_date: record.end_date,
+      registration_deadline: record.registration_deadline,
+      notes: record.notes,
+      season_year: String(record.season_year || ''),
+    });
+    setMode('create');
+  };
+
+  const saveTournamentEdits = async () => {
+    if (!user || !editingTournament) return;
+    const updated: TournamentRegistryRecord = {
+      ...editingTournament,
+      ...tournamentForm,
+      season_year: Number(tournamentForm.season_year) || tournamentForm.season_year,
+    };
+    await tournamentService.updateTournament(updated, user);
+    setEditingTournament(null);
+    setTournamentForm(emptyTournamentForm);
+    setRefreshKey((value) => value + 1);
+    toast({ title: 'Registration target updated', description: 'Changes were saved and synced to the sheet.' });
+  };
+
+  const deleteTournamentTarget = async (record: TournamentRegistryRecord) => {
+    if (!user) return;
+    await tournamentService.deleteTournament(record.tournament_id, user);
+    setRefreshKey((value) => value + 1);
+    toast({ title: 'Registration target deleted', description: 'The target was removed and the change was sent to the sheet.' });
   };
 
   const submitRegistration = async () => {
@@ -121,16 +209,58 @@ const TournamentsHubPage = () => {
         contact_name: registrationForm.contact_name,
         contact_email: registrationForm.contact_email,
         contact_phone: registrationForm.contact_phone,
-        players_json: JSON.stringify(registrationForm.players.split('\n').map((item) => item.trim()).filter(Boolean)),
+        players_json: JSON.stringify(parsePlayers(registrationForm.players)),
         submitted_by: getActorId(user),
         submitted_by_name: getActorName(user),
       }, user);
-      setRegistrationForm({ team_name: '', contact_name: '', contact_email: '', contact_phone: '', players: '' });
+      setRegistrationForm(emptyRegistrationForm);
       setRefreshKey((value) => value + 1);
       toast({ title: 'Registration submitted', description: 'Your team registration is pending Tournament Director approval.' });
     } catch (error) {
       toast({ title: 'Registration blocked', description: error instanceof Error ? error.message : 'Duplicate registration detected.', variant: 'destructive' });
     }
+  };
+
+  const startEditRegistration = (registration: RegistrationRecord) => {
+    setEditingRegistrationId(registration.registration_id);
+    setDraftRegistration({
+      team_name: registration.team_name,
+      contact_name: registration.contact_name,
+      contact_email: registration.contact_email,
+      contact_phone: registration.contact_phone,
+      players: (JSON.parse(registration.players_json) as string[]).join('\n'),
+      status: registration.status,
+      review_notes: registration.review_notes,
+    });
+  };
+
+  const saveRegistrationEdit = async (registration: RegistrationRecord) => {
+    if (!user) return;
+    try {
+      await tournamentService.updateRegistration({
+        ...registration,
+        team_name: draftRegistration.team_name || registration.team_name,
+        contact_name: draftRegistration.contact_name || registration.contact_name,
+        contact_email: draftRegistration.contact_email || registration.contact_email,
+        contact_phone: draftRegistration.contact_phone || registration.contact_phone,
+        players_json: JSON.stringify(parsePlayers(draftRegistration.players || '')),
+        status: (draftRegistration.status as RegistrationRecord['status']) || registration.status,
+        review_notes: draftRegistration.review_notes || '',
+      }, user);
+      setEditingRegistrationId(null);
+      setDraftRegistration({});
+      setRefreshKey((value) => value + 1);
+      toast({ title: 'Registration updated', description: 'The row was modified from the UI and synced to the sheet.' });
+    } catch (error) {
+      toast({ title: 'Could not update registration', description: error instanceof Error ? error.message : 'Unexpected error', variant: 'destructive' });
+    }
+  };
+
+  const removeRegistration = async (registrationId: string) => {
+    if (!user) return;
+    await tournamentService.deleteRegistration(registrationId, user);
+    setRefreshKey((value) => value + 1);
+    toast({ title: 'Registration deleted', description: 'The row was removed from the UI and the sheet.' });
   };
 
   const createScheduleVersion = async () => {
@@ -185,7 +315,7 @@ const TournamentsHubPage = () => {
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Competition Ops</p>
             <h1 className="font-display text-3xl font-bold">Tournament Registration</h1>
-            <p className="text-muted-foreground">Registrations now link directly to existing tournament seasons, while brand-new competitions get their own separate registration page.</p>
+            <p className="text-muted-foreground">Link existing tournament seasons or create a brand-new tournament page, then manage registrations and schedules from one cleaner admin workspace.</p>
           </div>
           <div className="flex gap-2 flex-wrap">
             {tournamentService.getTables().map((table) => <Badge key={table} variant="outline">Table: {table}</Badge>)}
@@ -195,40 +325,68 @@ const TournamentsHubPage = () => {
 
         {canManageTournament(user) && (
           <Card>
-            <CardHeader><CardTitle>Create Separate Registration Tournament</CardTitle></CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              {Object.entries(tournamentForm).map(([key, value]) => (
-                <div key={key} className={`space-y-2 ${key === 'notes' ? 'md:col-span-2' : ''}`}>
-                  <Label>{key.replace(/_/g, ' ')}</Label>
-                  {key === 'notes'
-                    ? <Textarea value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />
-                    : <Input type={key.includes('date') ? 'date' : key === 'season_year' ? 'number' : 'text'} value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />}
+            <CardHeader>
+              <CardTitle>Admin setup</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex gap-2 flex-wrap">
+                <Button variant={mode === 'link' ? 'default' : 'outline'} onClick={() => setMode('link')}>Link existing season</Button>
+                <Button variant={mode === 'create' ? 'default' : 'outline'} onClick={() => setMode('create')}>Create new tournament page</Button>
+              </div>
+
+              {mode === 'link' ? (
+                <div className="grid gap-3 md:grid-cols-[1fr_auto] items-end">
+                  <div className="space-y-2">
+                    <Label>Choose an existing tournament season</Label>
+                    <select className="h-10 rounded-md border bg-background px-3 text-sm" value={linkedSeasonKey} onChange={(e) => setLinkedSeasonKey(e.target.value)}>
+                      <option value="">Select a season to link</option>
+                      {linkedSeasonCandidates.map((item) => (
+                        <option key={item.key} value={item.key}>{item.tournament_name} • Season {item.season_year}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button onClick={linkExistingSeason} disabled={!linkedSeasonKey}><Link2 className="h-4 w-4 mr-1" /> Link season</Button>
                 </div>
-              ))}
-              <Button onClick={createTournament} disabled={!tournamentForm.name.trim()}>Create Registration Page</Button>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {Object.entries(tournamentForm).map(([key, value]) => (
+                    <div key={key} className={`space-y-2 ${key === 'notes' ? 'md:col-span-2' : ''}`}>
+                      <Label>{key.replace(/_/g, ' ')}</Label>
+                      {key === 'notes'
+                        ? <Textarea value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />
+                        : <Input type={key.includes('date') ? 'date' : key === 'season_year' ? 'number' : 'text'} value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />}
+                    </div>
+                  ))}
+                  <Button onClick={editingTournament ? saveTournamentEdits : createTournament} disabled={!tournamentForm.name.trim()}>
+                    {editingTournament ? 'Save tournament target' : 'Create registration page'}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[0.95fr,1.05fr]">
+        <div className="grid gap-6 lg:grid-cols-[0.9fr,1.1fr]">
           <Card>
-            <CardHeader><CardTitle>Registration Targets</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Registration targets</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {registrationTargets.length === 0 && <p className="text-sm text-muted-foreground">No tournament seasons are available for registration yet.</p>}
               {registrationTargets.map((item) => {
                 const isActive = activeTarget?.key === item.key;
                 const targetRegistrations = registrations.filter((registration) => normalizeId(registration.tournament_id) === normalizeId(item.tournament_id) && normalizeId(registration.season_id) === normalizeId(item.season_id));
+                const targetSchedules = scheduleService.getApprovedSchedulesForTournament(item.tournament_id);
                 return (
-                  <button key={item.key} className={`w-full rounded-lg border p-4 text-left ${isActive ? 'border-primary bg-primary/5' : ''}`} onClick={() => { setSelectedTournament(item.tournament_id); setSelectedSeason(item.season_id); }}>
+                  <button key={item.key} className={`w-full rounded-lg border p-4 text-left ${isActive ? 'border-primary bg-primary/5' : ''}`} onClick={() => setSelectedTargetKey(item.key)}>
                     <div className="flex items-start justify-between gap-3 flex-wrap">
                       <div>
                         <p className="font-semibold">{item.tournament_name}</p>
                         <p className="text-sm text-muted-foreground">Season {item.season_year || 'Open'} • {item.format}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{item.source_type === 'existing' ? 'Linked to existing tournament page' : 'Separate registration page'}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{item.source_type === 'existing' ? 'Linked to official tournament page' : 'Separate registration-only tournament page'}</p>
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <Badge variant={item.source_type === 'existing' ? 'outline' : 'default'}>{item.source_type}</Badge>
                         <Badge variant="secondary">{targetRegistrations.length} registration(s)</Badge>
+                        <Badge variant="outline">{targetSchedules.length} approved schedule(s)</Badge>
                       </div>
                     </div>
                   </button>
@@ -246,10 +404,17 @@ const TournamentsHubPage = () => {
                     <Badge variant="outline"><Calendar className="h-3 w-3 mr-1" />Season {activeTarget.season_year || 'Open'}</Badge>
                     <Badge variant="outline">Tournament ID: {activeTarget.tournament_id}</Badge>
                     {activeTarget.season_id && <Badge variant="outline">Season ID: {activeTarget.season_id}</Badge>}
+                    <Badge variant={linkedRecord?.status === 'open' ? 'default' : 'secondary'}>{linkedRecord?.status || 'not linked yet'}</Badge>
                   </div>
                   <p><strong>Public page:</strong> <Link className="text-primary inline-flex items-center gap-1" to={activeTarget.publicPath}><Link2 className="h-3.5 w-3.5" /> Open linked page</Link></p>
                   <p><strong>Approved schedule versions:</strong> {approvedSchedules.length}</p>
-                  <p className="text-muted-foreground">Duplicate team registrations for the same tournament season are automatically blocked across the UI and sheet sync.</p>
+                  <p className="text-muted-foreground">Duplicate team registrations for the same tournament season are blocked, and admins can edit or delete registrations directly from this page.</p>
+                  {linkedRecord && canManageTournament(user) && (
+                    <div className="flex gap-2 flex-wrap pt-2">
+                      <Button size="sm" variant="outline" onClick={() => startEditTournament(linkedRecord)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit target</Button>
+                      <Button size="sm" variant="destructive" onClick={() => deleteTournamentTarget(linkedRecord)}><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete target</Button>
+                    </div>
+                  )}
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
@@ -277,27 +442,65 @@ const TournamentsHubPage = () => {
           <Card>
             <CardHeader><CardTitle>Registrations</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              {activeRegistrations.map((registration) => (
-                <div key={registration.registration_id} className="rounded-lg border p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div>
-                      <p className="font-semibold">{registration.team_name}</p>
-                      <p className="text-sm text-muted-foreground">Season {registration.season_year || 'Open'} · Submitted by {registration.submitted_by_name} · {registration.contact_email}</p>
-                    </div>
-                    <Badge variant={registration.status === 'approved' ? 'default' : registration.status === 'rejected' ? 'destructive' : 'secondary'}>{registration.status}</Badge>
-                  </div>
-                  <p className="text-sm">Players: {(JSON.parse(registration.players_json) as string[]).join(', ') || '—'}</p>
-                  {canApproveTournamentRegistration(user) && (
-                    <div className="space-y-2">
-                      <Textarea placeholder="Review note" value={reviewNotes[registration.registration_id] || ''} onChange={(e) => setReviewNotes((prev) => ({ ...prev, [registration.registration_id]: e.target.value }))} />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => reviewRegistration(registration.registration_id, 'approved')}>Approve</Button>
-                        <Button size="sm" variant="destructive" onClick={() => reviewRegistration(registration.registration_id, 'rejected')}>Reject</Button>
+              {activeRegistrations.map((registration) => {
+                const isEditing = editingRegistrationId === registration.registration_id;
+                return (
+                  <div key={registration.registration_id} className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div>
+                        <p className="font-semibold">{registration.team_name}</p>
+                        <p className="text-sm text-muted-foreground">Season {registration.season_year || 'Open'} · Submitted by {registration.submitted_by_name} · {registration.contact_email}</p>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <Badge variant={registration.status === 'approved' ? 'default' : registration.status === 'rejected' ? 'destructive' : 'secondary'}>{registration.status}</Badge>
+                        <Button size="sm" variant="outline" onClick={() => isEditing ? setEditingRegistrationId(null) : startEditRegistration(registration)}>{isEditing ? 'Cancel' : 'Edit'}</Button>
+                        <Button size="sm" variant="destructive" onClick={() => removeRegistration(registration.registration_id)}>Delete</Button>
                       </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {isEditing ? (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Team name</Label>
+                          <Input value={draftRegistration.team_name || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, team_name: e.target.value }))} />
+                          <Label>Contact name</Label>
+                          <Input value={draftRegistration.contact_name || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, contact_name: e.target.value }))} />
+                          <Label>Contact email</Label>
+                          <Input value={draftRegistration.contact_email || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, contact_email: e.target.value }))} />
+                          <Label>Contact phone</Label>
+                          <Input value={draftRegistration.contact_phone || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, contact_phone: e.target.value }))} />
+                          <Label>Status</Label>
+                          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draftRegistration.status || 'pending'} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, status: e.target.value }))}>
+                            <option value="pending">pending</option>
+                            <option value="approved">approved</option>
+                            <option value="rejected">rejected</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Players</Label>
+                          <Textarea className="min-h-[160px]" value={draftRegistration.players || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, players: e.target.value }))} />
+                          <Label>Review notes</Label>
+                          <Textarea value={draftRegistration.review_notes || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, review_notes: e.target.value }))} />
+                          <Button onClick={() => saveRegistrationEdit(registration)}><Plus className="h-4 w-4 mr-1" /> Save changes</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm">Players: {(JSON.parse(registration.players_json) as string[]).join(', ') || '—'}</p>
+                        {!!registration.review_notes && <p className="text-sm text-muted-foreground"><strong>Review note:</strong> {registration.review_notes}</p>}
+                      </>
+                    )}
+                    {canApproveTournamentRegistration(user) && !isEditing && (
+                      <div className="space-y-2">
+                        <Textarea placeholder="Review note" value={reviewNotes[registration.registration_id] || ''} onChange={(e) => setReviewNotes((prev) => ({ ...prev, [registration.registration_id]: e.target.value }))} />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => reviewRegistration(registration.registration_id, 'approved')}>Approve</Button>
+                          <Button size="sm" variant="destructive" onClick={() => reviewRegistration(registration.registration_id, 'rejected')}>Reject</Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               {activeRegistrations.length === 0 && <p className="text-sm text-muted-foreground">No registrations submitted yet.</p>}
             </CardContent>
           </Card>
@@ -368,20 +571,11 @@ const TournamentsHubPage = () => {
         <Card>
           <CardHeader><CardTitle>Quick links</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            {existingSeasonOptions.map((item) => (
+            {registrationTargets.map((item) => (
               <div key={item.key} className="rounded-lg border p-4 flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold">{item.tournament_name}</p>
-                  <p className="text-sm text-muted-foreground">Season {item.season_year} · existing tournament page</p>
-                </div>
-                <Button asChild size="sm" variant="outline"><Link to={item.publicPath}>Open <ExternalLink className="h-3.5 w-3.5 ml-1" /></Link></Button>
-              </div>
-            ))}
-            {customTournamentOptions.map((item) => (
-              <div key={item.key} className="rounded-lg border p-4 flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{item.tournament_name}</p>
-                  <p className="text-sm text-muted-foreground">Season {item.season_year || 'Open'} · separate registration page</p>
+                  <p className="text-sm text-muted-foreground">Season {item.season_year || 'Open'} · {item.source_type === 'existing' ? 'official tournament page' : 'separate registration page'}</p>
                 </div>
                 <Button asChild size="sm" variant="outline"><Link to={item.publicPath}>Open <ExternalLink className="h-3.5 w-3.5 ml-1" /></Link></Button>
               </div>
