@@ -22,12 +22,13 @@ export interface SecurePatternLayer {
   microtext: string;
   backgroundImage: string;
   style: string;
+  visibleLabel: string;
 }
 
 export function buildSecurePatternLayer(options: SecurePatternOptions): SecurePatternLayer {
   const microtext = `MATCH-${options.matchId || 'NA'}-${options.checksum}-${options.timestamp}`;
   if (!options.enableSecurePattern) {
-    return { enabled: false, microtext, backgroundImage: '', style: '' };
+    return { enabled: false, microtext, backgroundImage: '', style: '', visibleLabel: microtext };
   }
 
   const seed = hashString(microtext);
@@ -54,22 +55,34 @@ export function buildSecurePatternLayer(options: SecurePatternOptions): SecurePa
     lines.push(`<path d="M -20 ${y.toFixed(2)} C ${width * 0.3} ${c1.toFixed(2)}, ${width * 0.7} ${c2.toFixed(2)}, ${width + 20} ${end.toFixed(2)}" class="alt" />`);
   }
 
-  const hiddenText = Array.from({ length: 8 }, (_, index) => {
-    const x = 36 + (index % 2) * (width / 2);
-    const y = 90 + index * 120;
+  const hiddenText = Array.from({ length: 12 }, (_, index) => {
+    const x = 42 + (index % 3) * (width / 3.15);
+    const y = 96 + index * 86;
     return `<text x="${x}" y="${y}" class="micro">${microtext}</text>`;
+  }).join('');
+
+  const visibleLabel = `SECURE PATTERN • ${microtext}`;
+  const visibleBands = Array.from({ length: 4 }, (_, index) => {
+    const y = 170 + index * 230;
+    return `<g transform="translate(${width / 2}, ${y}) rotate(-24)">
+      <rect x="-260" y="-18" width="520" height="36" rx="18" class="label-band" />
+      <text text-anchor="middle" dominant-baseline="middle" class="visible-label">${visibleLabel}</text>
+    </g>`;
   }).join('');
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <defs>
       <style>
-        .wave { fill: none; stroke: rgba(22, 101, 52, 0.20); stroke-width: 0.7; }
-        .alt { fill: none; stroke: rgba(14, 116, 144, 0.14); stroke-width: 0.5; }
-        .micro { fill: rgba(22, 101, 52, 0.12); font-size: 5px; letter-spacing: 0.9px; font-family: Arial, sans-serif; }
+        .wave { fill: none; stroke: rgba(22, 101, 52, 0.24); stroke-width: 0.9; }
+        .alt { fill: none; stroke: rgba(14, 116, 144, 0.18); stroke-width: 0.65; }
+        .micro { fill: rgba(22, 101, 52, 0.22); font-size: 7px; letter-spacing: 1.05px; font-family: Arial, sans-serif; }
+        .label-band { fill: rgba(255, 255, 255, 0.58); stroke: rgba(22, 101, 52, 0.24); stroke-width: 1; }
+        .visible-label { fill: rgba(11, 89, 53, 0.34); font-size: 18px; font-weight: 700; letter-spacing: 1.8px; font-family: Arial, sans-serif; }
       </style>
     </defs>
     <rect width="100%" height="100%" fill="white" fill-opacity="0" />
     <g class="wave">${lines.join('')}</g>
+    ${visibleBands}
     ${hiddenText}
   </svg>`;
 
@@ -77,6 +90,7 @@ export function buildSecurePatternLayer(options: SecurePatternOptions): SecurePa
     enabled: true,
     microtext,
     backgroundImage: encodeSvg(svg),
-    style: `background-image:url("${encodeSvg(svg)}");background-repeat:repeat;background-size:680px 920px;opacity:0.16;`,
+    visibleLabel,
+    style: `background-image:url("${encodeSvg(svg)}");background-repeat:repeat;background-size:680px 920px;opacity:0.32;`,
   };
 }
