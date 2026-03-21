@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatInIST } from '@/lib/time';
+import { PdfScorecardImportWizard } from '@/components/admin/PdfScorecardImportWizard';
 
 const stageLabels: Record<string, string> = scorelistStageLabels;
 const stageOrder = [...scorelistStageOrder];
@@ -400,6 +401,8 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
       <Navbar />
       <div className="container mx-auto px-4 py-6 md:py-8 space-y-6">
         <h1 className="font-display text-2xl md:text-3xl font-bold">🛡️ Digital Scorelists</h1>
+
+        {isAdmin && <PdfScorecardImportWizard />}
 
         {/* Generate - Admin Only */}
         {isAdmin && (
