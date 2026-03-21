@@ -366,7 +366,7 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
       locked,
     });
     logAudit(userId, 'certify_scorelist', 'scorelist', sl.scorelist_id, stage);
-    const nextStage = stageOrder[stageOrder.indexOf(stage) + 1];
+    const nextStage = stageOrder[stageOrder.indexOf(stage as CertificationStage) + 1];
     if (nextStage && !locked) {
       await notifyStageApprovers(sl.scorelist_id, nextStage);
     }

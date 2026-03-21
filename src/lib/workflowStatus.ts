@@ -68,7 +68,7 @@ export function readScorelistCertifications(scorelist: DigitalScorelist): Certif
 }
 
 function readScorelistStatus(scorelist: DigitalScorelist, certifications: CertificationApproval[]): CertificationStage {
-  if (scorelist.certification_status) return scorelist.certification_status;
+  if (scorelist.certification_status) return scorelist.certification_status as CertificationStage;
   return certifications.reduce<CertificationStage>((current, approval) => {
     const approvalStage = approval.stage as CertificationStage;
     return scorelistStageOrder.indexOf(approvalStage) > scorelistStageOrder.indexOf(current)
