@@ -14,6 +14,7 @@ import { v2api, logAudit } from '@/lib/v2api';
 import { DigitalScorelist, CertificationApproval, ManagementUser } from '@/lib/v2types';
 import { getScorelistDetailedStatus, getScorelistRoadmap, readScorelistCertifications, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
+import { buildSecurePatternLayer } from '@/lib/scorelistSecurePattern';
 import { sendScorelistApprovalRequestBulk, getAdminNotificationRecipient, explainMailFailure } from '@/lib/mailer';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
@@ -274,11 +275,18 @@ const AdminScorelistsPage = () => {
       </div>`;
     }).join('');
 
+    const securePattern = buildSecurePatternLayer({
+      matchId: sl.match_id || payloadMatches[0]?.match_id || 'TOURNAMENT',
+      checksum: sl.hash_digest.substring(0, 12),
+      timestamp: String(sl.generated_at || '').replace(/[^0-9A-Za-z]/g, ''),
+      enableSecurePattern: true,
+    });
+
     const html = `<!DOCTYPE html><html><head><title>Scorelist ${sl.scorelist_id}</title>
 <style>body{font-family:Arial,sans-serif;margin:40px;color:#1a1a1a;position:relative;background:#fff}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
 table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f0f7f0;text-align:left}
 .scoreboard{display:flex;justify-content:space-around;text-align:center;background:#f0f7f0;padding:20px;border-radius:8px;margin:20px 0}
-.team-score{font-size:28px;font-weight:bold;color:#1e6b3a}.watermark{position:fixed;top:40%;left:10%;transform:rotate(-30deg);font-size:80px;color:rgba(30,107,58,0.04);white-space:nowrap;pointer-events:none;z-index:-1}
+.team-score{font-size:28px;font-weight:bold;color:#1e6b3a}.watermark{position:fixed;top:40%;left:10%;transform:rotate(-30deg);font-size:80px;color:rgba(30,107,58,0.04);white-space:nowrap;pointer-events:none;z-index:-1}.secure-pattern{position:fixed;inset:0;pointer-events:none;z-index:-3}
 .footer{text-align:center;font-size:9px;color:#999;margin-top:30px;border-top:1px solid #ddd;padding-top:10px}
 .certified{background:#e8f5e9;border:2px solid #1e6b3a;text-align:center;padding:12px;border-radius:8px;font-weight:bold;color:#1e6b3a;margin:20px 0}
 .match-book-page{page-break-before:always}
@@ -290,10 +298,11 @@ table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #
 .cert-grid{border:1px solid #b7d5c0;background-image:linear-gradient(rgba(30,107,58,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(30,107,58,0.08) 1px, transparent 1px);background-size:18px 18px;padding:8px;border-radius:8px}
 .status-chip{display:inline-block;margin:8px auto 0;padding:4px 10px;border-radius:999px;background:#e8f5e9;border:1px solid #8ac8a1;color:#145c36;font-weight:bold;font-size:11px}.verification-panel{display:flex;gap:18px;align-items:center;justify-content:space-between;margin:18px 0 24px;padding:16px 18px;border:1px solid #b7d5c0;border-radius:12px;background:linear-gradient(135deg, rgba(232,245,233,0.9), rgba(244,250,246,0.98))}.verification-copy{flex:1}.verification-copy p{margin:4px 0}.verification-url{font-family:monospace;font-size:11px;word-break:break-all;color:#145c36}.verification-qr{display:flex;align-items:center;justify-content:center;padding:10px;border-radius:12px;border:1px solid #9cc8ab;background:#fff;box-shadow:inset 0 0 0 4px rgba(30,107,58,0.06)}.security-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 22px}.security-feature-card{border:1px solid #b7d5c0;border-radius:10px;background:#fcfefd;padding:12px 14px}.security-feature-card p{margin:6px 0 0;font-size:11px;line-height:1.45;color:#355244}.security-feature-title{font-weight:700;color:#124928}.security-seal{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid #7ab28d;background:#fff;color:#145c36;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
 @media print{.watermark{display:block}}</style></head><body>
+${securePattern.enabled ? `<div class="secure-pattern" style="${securePattern.style}"></div>` : ''}
 <div class="security-grid"></div>
 <div class="security-thread left"></div>
 <div class="security-thread right"></div>
-<div class="microtext">MICROTEXT • ${sl.scorelist_id} • ${verifyUrl} • DIGITAL CERTIFIED RECORD • MICROTEXT</div>
+<div class="microtext">MICROTEXT • ${sl.scorelist_id} • ${verifyUrl} • DIGITAL CERTIFIED RECORD • MICROTEXT${securePattern.enabled ? ` • ${securePattern.microtext}` : ''}</div>
 <div class="watermark">VERIFIED MATCH RECORD</div>
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
 <h1 class="intaglio">Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>

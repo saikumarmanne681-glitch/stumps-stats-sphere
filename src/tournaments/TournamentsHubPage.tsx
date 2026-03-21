@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { Calendar, ExternalLink, Link2, ShieldCheck } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,17 +14,23 @@ import { useToast } from '@/hooks/use-toast';
 import { tournamentService } from './tournamentService';
 import { scheduleService } from '@/schedules/scheduleService';
 import { ScheduleMatch } from '@/schedules/types';
+import { useData } from '@/lib/DataContext';
+import { normalizeId } from '@/lib/dataUtils';
+
+const emptyScheduleRow: ScheduleMatch = { match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' };
 
 const TournamentsHubPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { tournaments: catalogTournaments, seasons } = useData();
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedTournament, setSelectedTournament] = useState('');
-  const [tournamentForm, setTournamentForm] = useState({ name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '' });
+  const [selectedSeason, setSelectedSeason] = useState('');
+  const [tournamentForm, setTournamentForm] = useState({ name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '', season_year: String(new Date().getFullYear()) });
   const [registrationForm, setRegistrationForm] = useState({ team_name: '', contact_name: '', contact_email: '', contact_phone: '', players: '' });
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [approvalComments, setApprovalComments] = useState<Record<string, string>>({});
-  const [scheduleDraft, setScheduleDraft] = useState<ScheduleMatch[]>([{ match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' }]);
+  const [scheduleDraft, setScheduleDraft] = useState<ScheduleMatch[]>([emptyScheduleRow]);
   const [changeLog, setChangeLog] = useState('');
 
   useEffect(() => {
@@ -32,48 +39,109 @@ const TournamentsHubPage = () => {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const tournaments = useMemo(() => tournamentService.getTournaments(), [refreshKey]);
+  const registryTournaments = useMemo(() => tournamentService.getTournaments(), [refreshKey]);
   const registrations = useMemo(() => tournamentService.getRegistrations(), [refreshKey]);
-  const activeTournament = tournaments.find((item) => item.tournament_id === selectedTournament) || tournaments[0];
-  const activeRegistrations = registrations.filter((item) => item.tournament_id === activeTournament?.tournament_id);
-  const approvedSchedules = activeTournament ? scheduleService.getApprovedSchedulesForTournament(activeTournament.tournament_id) : [];
+
+  const existingSeasonOptions = useMemo(() =>
+    seasons
+      .map((season) => {
+        const tournament = catalogTournaments.find((item) => normalizeId(item.tournament_id) === normalizeId(season.tournament_id));
+        return tournament ? {
+          key: `${tournament.tournament_id}::${season.season_id}`,
+          tournament_id: tournament.tournament_id,
+          season_id: season.season_id,
+          season_year: season.year,
+          tournament_name: tournament.name,
+          format: tournament.format,
+          venue: tournament.description || 'Existing tournament season',
+          publicPath: `/tournament/${tournament.tournament_id}#season-${season.season_id}`,
+          source_type: 'existing' as const,
+        } : null;
+      })
+      .filter(Boolean),
+  [catalogTournaments, seasons]);
+
+  const customTournamentOptions = useMemo(() => registryTournaments.map((item) => ({
+    key: `${item.tournament_id}::${item.season_id || 'NA'}`,
+    tournament_id: item.tournament_id,
+    season_id: item.season_id || '',
+    season_year: item.season_year || '',
+    tournament_name: item.name,
+    format: item.format,
+    venue: item.venue,
+    publicPath: item.public_page_path || `/tournaments/registration/${item.tournament_id}`,
+    source_type: (item.source_type || 'custom') as 'custom',
+  })), [registryTournaments]);
+
+  const registrationTargets = [...existingSeasonOptions, ...customTournamentOptions];
+  const activeTarget = registrationTargets.find((item) => item.key === `${selectedTournament}::${selectedSeason}`) || registrationTargets[0];
+
+  useEffect(() => {
+    if (!activeTarget) return;
+    setSelectedTournament(activeTarget.tournament_id);
+    setSelectedSeason(activeTarget.season_id);
+  }, [activeTarget?.key]);
+
+  const activeRegistrations = registrations.filter((item) => normalizeId(item.tournament_id) === normalizeId(activeTarget?.tournament_id) && normalizeId(item.season_id) === normalizeId(activeTarget?.season_id));
+  const approvedSchedules = activeTarget ? scheduleService.getApprovedSchedulesForTournament(activeTarget.tournament_id) : [];
 
   const createTournament = async () => {
     if (!user || !canManageTournament(user)) return;
-    const record = await tournamentService.createTournament({ ...tournamentForm, created_by: getActorId(user), status: 'open' }, user);
+    const year = Number(tournamentForm.season_year) || tournamentForm.season_year;
+    const record = await tournamentService.createTournament({
+      name: tournamentForm.name,
+      format: tournamentForm.format,
+      venue: tournamentForm.venue,
+      start_date: tournamentForm.start_date,
+      end_date: tournamentForm.end_date,
+      registration_deadline: tournamentForm.registration_deadline,
+      notes: tournamentForm.notes,
+      created_by: getActorId(user),
+      status: 'open',
+      season_year: year,
+      source_type: 'custom',
+      public_page_path: '',
+    }, user);
     setSelectedTournament(record.tournament_id);
-    setTournamentForm({ name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '' });
+    setSelectedSeason('');
+    setTournamentForm({ name: '', format: 'T20', venue: '', start_date: '', end_date: '', registration_deadline: '', notes: '', season_year: String(new Date().getFullYear()) });
     setRefreshKey((value) => value + 1);
-    toast({ title: 'Tournament created', description: 'Registration is now open for members.' });
+    toast({ title: 'Tournament registration page created', description: 'This new competition now has its own dedicated registration page.' });
   };
 
   const submitRegistration = async () => {
-    if (!activeTournament || !user) return;
-    await tournamentService.submitRegistration({
-      tournament_id: activeTournament.tournament_id,
-      team_name: registrationForm.team_name,
-      contact_name: registrationForm.contact_name,
-      contact_email: registrationForm.contact_email,
-      contact_phone: registrationForm.contact_phone,
-      players_json: JSON.stringify(registrationForm.players.split('\n').map((item) => item.trim()).filter(Boolean)),
-      submitted_by: getActorId(user),
-      submitted_by_name: getActorName(user),
-    }, user);
-    setRegistrationForm({ team_name: '', contact_name: '', contact_email: '', contact_phone: '', players: '' });
-    setRefreshKey((value) => value + 1);
-    toast({ title: 'Registration submitted', description: 'Your team registration is pending Tournament Director approval.' });
+    if (!activeTarget || !user) return;
+    try {
+      await tournamentService.submitRegistration({
+        tournament_id: activeTarget.tournament_id,
+        tournament_name: activeTarget.tournament_name,
+        season_id: activeTarget.season_id,
+        season_year: activeTarget.season_year,
+        team_name: registrationForm.team_name,
+        contact_name: registrationForm.contact_name,
+        contact_email: registrationForm.contact_email,
+        contact_phone: registrationForm.contact_phone,
+        players_json: JSON.stringify(registrationForm.players.split('\n').map((item) => item.trim()).filter(Boolean)),
+        submitted_by: getActorId(user),
+        submitted_by_name: getActorName(user),
+      }, user);
+      setRegistrationForm({ team_name: '', contact_name: '', contact_email: '', contact_phone: '', players: '' });
+      setRefreshKey((value) => value + 1);
+      toast({ title: 'Registration submitted', description: 'Your team registration is pending Tournament Director approval.' });
+    } catch (error) {
+      toast({ title: 'Registration blocked', description: error instanceof Error ? error.message : 'Duplicate registration detected.', variant: 'destructive' });
+    }
   };
 
-
   const createScheduleVersion = async () => {
-    if (!activeTournament || !user || !canManageTournament(user)) return;
+    if (!activeTarget || !user || !canManageTournament(user)) return;
     await scheduleService.createVersion({
-      tournament_id: activeTournament.tournament_id,
-      tournament_name: activeTournament.name,
+      tournament_id: activeTarget.tournament_id,
+      tournament_name: activeTarget.tournament_name,
       matches: scheduleDraft.filter((item) => item.match_id && item.team_a && item.team_b),
       change_log: changeLog,
     }, user);
-    setScheduleDraft([{ match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' }]);
+    setScheduleDraft([emptyScheduleRow]);
     setChangeLog('');
     setRefreshKey((value) => value + 1);
     toast({ title: 'Schedule draft saved', description: 'A new version has been created and previous versions remain archived.' });
@@ -117,7 +185,7 @@ const TournamentsHubPage = () => {
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Competition Ops</p>
             <h1 className="font-display text-3xl font-bold">Tournament Registration</h1>
-            <p className="text-muted-foreground">Create tournaments, register teams, review approvals, and monitor approved schedule versions.</p>
+            <p className="text-muted-foreground">Registrations now link directly to existing tournament seasons, while brand-new competitions get their own separate registration page.</p>
           </div>
           <div className="flex gap-2 flex-wrap">
             {tournamentService.getTables().map((table) => <Badge key={table} variant="outline">Table: {table}</Badge>)}
@@ -127,49 +195,61 @@ const TournamentsHubPage = () => {
 
         {canManageTournament(user) && (
           <Card>
-            <CardHeader><CardTitle>Create Tournament</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Create Separate Registration Tournament</CardTitle></CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               {Object.entries(tournamentForm).map(([key, value]) => (
                 <div key={key} className={`space-y-2 ${key === 'notes' ? 'md:col-span-2' : ''}`}>
                   <Label>{key.replace(/_/g, ' ')}</Label>
                   {key === 'notes'
                     ? <Textarea value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />
-                    : <Input type={key.includes('date') ? 'date' : 'text'} value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />}
+                    : <Input type={key.includes('date') ? 'date' : key === 'season_year' ? 'number' : 'text'} value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />}
                 </div>
               ))}
-              <Button onClick={createTournament} disabled={!tournamentForm.name.trim()}>Create Tournament</Button>
+              <Button onClick={createTournament} disabled={!tournamentForm.name.trim()}>Create Registration Page</Button>
             </CardContent>
           </Card>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[0.9fr,1.1fr]">
+        <div className="grid gap-6 lg:grid-cols-[0.95fr,1.05fr]">
           <Card>
-            <CardHeader><CardTitle>Available Tournaments</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Registration Targets</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              {tournaments.length === 0 && <p className="text-sm text-muted-foreground">No tournament registry records yet.</p>}
-              {tournaments.map((item) => (
-                <button key={item.tournament_id} className={`w-full rounded-lg border p-4 text-left ${activeTournament?.tournament_id === item.tournament_id ? 'border-primary bg-primary/5' : ''}`} onClick={() => setSelectedTournament(item.tournament_id)}>
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div>
-                      <p className="font-semibold">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.format} · {item.venue}</p>
+              {registrationTargets.length === 0 && <p className="text-sm text-muted-foreground">No tournament seasons are available for registration yet.</p>}
+              {registrationTargets.map((item) => {
+                const isActive = activeTarget?.key === item.key;
+                const targetRegistrations = registrations.filter((registration) => normalizeId(registration.tournament_id) === normalizeId(item.tournament_id) && normalizeId(registration.season_id) === normalizeId(item.season_id));
+                return (
+                  <button key={item.key} className={`w-full rounded-lg border p-4 text-left ${isActive ? 'border-primary bg-primary/5' : ''}`} onClick={() => { setSelectedTournament(item.tournament_id); setSelectedSeason(item.season_id); }}>
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="font-semibold">{item.tournament_name}</p>
+                        <p className="text-sm text-muted-foreground">Season {item.season_year || 'Open'} • {item.format}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{item.source_type === 'existing' ? 'Linked to existing tournament page' : 'Separate registration page'}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge variant={item.source_type === 'existing' ? 'outline' : 'default'}>{item.source_type}</Badge>
+                        <Badge variant="secondary">{targetRegistrations.length} registration(s)</Badge>
+                      </div>
                     </div>
-                    <Badge variant={item.status === 'open' ? 'default' : 'secondary'}>{item.status}</Badge>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </CardContent>
           </Card>
 
-          {activeTournament && (
+          {activeTarget && (
             <Card>
-              <CardHeader><CardTitle>{activeTournament.name}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{activeTarget.tournament_name}</CardTitle></CardHeader>
               <CardContent className="space-y-5">
-                <div className="rounded-lg border p-4 text-sm space-y-1">
-                  <p><strong>Dates:</strong> {activeTournament.start_date} → {activeTournament.end_date}</p>
-                  <p><strong>Registration deadline:</strong> {activeTournament.registration_deadline || 'Not set'}</p>
-                  <p><strong>Notes:</strong> {activeTournament.notes || '—'}</p>
+                <div className="rounded-lg border p-4 text-sm space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline"><Calendar className="h-3 w-3 mr-1" />Season {activeTarget.season_year || 'Open'}</Badge>
+                    <Badge variant="outline">Tournament ID: {activeTarget.tournament_id}</Badge>
+                    {activeTarget.season_id && <Badge variant="outline">Season ID: {activeTarget.season_id}</Badge>}
+                  </div>
+                  <p><strong>Public page:</strong> <Link className="text-primary inline-flex items-center gap-1" to={activeTarget.publicPath}><Link2 className="h-3.5 w-3.5" /> Open linked page</Link></p>
                   <p><strong>Approved schedule versions:</strong> {approvedSchedules.length}</p>
+                  <p className="text-muted-foreground">Duplicate team registrations for the same tournament season are automatically blocked across the UI and sheet sync.</p>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
@@ -187,13 +267,13 @@ const TournamentsHubPage = () => {
                     <Textarea className="min-h-[220px]" value={registrationForm.players} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, players: e.target.value }))} />
                   </div>
                 </div>
-                <Button onClick={submitRegistration} disabled={!registrationForm.team_name.trim()}>Submit Registration</Button>
+                <Button onClick={submitRegistration} disabled={!registrationForm.team_name.trim()}><ShieldCheck className="h-4 w-4 mr-1" /> Submit Registration</Button>
               </CardContent>
             </Card>
           )}
         </div>
 
-        {activeTournament && (
+        {activeTarget && (
           <Card>
             <CardHeader><CardTitle>Registrations</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -202,7 +282,7 @@ const TournamentsHubPage = () => {
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div>
                       <p className="font-semibold">{registration.team_name}</p>
-                      <p className="text-sm text-muted-foreground">Submitted by {registration.submitted_by_name} · {registration.contact_email}</p>
+                      <p className="text-sm text-muted-foreground">Season {registration.season_year || 'Open'} · Submitted by {registration.submitted_by_name} · {registration.contact_email}</p>
                     </div>
                     <Badge variant={registration.status === 'approved' ? 'default' : registration.status === 'rejected' ? 'destructive' : 'secondary'}>{registration.status}</Badge>
                   </div>
@@ -223,8 +303,7 @@ const TournamentsHubPage = () => {
           </Card>
         )}
 
-
-        {activeTournament && (
+        {activeTarget && (
           <Card>
             <CardHeader><CardTitle>Schedule Versions & Workflow</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -240,13 +319,13 @@ const TournamentsHubPage = () => {
                     </div>
                   ))}
                   <div className="flex gap-2 flex-wrap">
-                    <Button variant="outline" onClick={() => setScheduleDraft((prev) => [...prev, { match_id: '', date: '', time: '', venue: '', team_a: '', team_b: '', stage: 'League', notes: '' }])}>Add Match</Button>
+                    <Button variant="outline" onClick={() => setScheduleDraft((prev) => [...prev, emptyScheduleRow])}>Add Match</Button>
                     <Button onClick={createScheduleVersion}>Save Version</Button>
                   </div>
                 </div>
               )}
 
-              {[...scheduleService.getSchedules().filter((item) => item.tournament_id === activeTournament.tournament_id)].sort((a, b) => b.version_number - a.version_number).map((schedule) => {
+              {[...scheduleService.getSchedules().filter((item) => item.tournament_id === activeTarget.tournament_id)].sort((a, b) => b.version_number - a.version_number).map((schedule) => {
                 const previous = scheduleService.getSchedules().find((item) => item.schedule_id === schedule.parent_schedule_id);
                 const diff = scheduleService.diffVersions(previous, schedule);
                 const approvals = scheduleService.getApprovals().filter((item) => item.schedule_id === schedule.schedule_id);
@@ -286,6 +365,29 @@ const TournamentsHubPage = () => {
           </Card>
         )}
 
+        <Card>
+          <CardHeader><CardTitle>Quick links</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            {existingSeasonOptions.map((item) => (
+              <div key={item.key} className="rounded-lg border p-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{item.tournament_name}</p>
+                  <p className="text-sm text-muted-foreground">Season {item.season_year} · existing tournament page</p>
+                </div>
+                <Button asChild size="sm" variant="outline"><Link to={item.publicPath}>Open <ExternalLink className="h-3.5 w-3.5 ml-1" /></Link></Button>
+              </div>
+            ))}
+            {customTournamentOptions.map((item) => (
+              <div key={item.key} className="rounded-lg border p-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{item.tournament_name}</p>
+                  <p className="text-sm text-muted-foreground">Season {item.season_year || 'Open'} · separate registration page</p>
+                </div>
+                <Button asChild size="sm" variant="outline"><Link to={item.publicPath}>Open <ExternalLink className="h-3.5 w-3.5 ml-1" /></Link></Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
