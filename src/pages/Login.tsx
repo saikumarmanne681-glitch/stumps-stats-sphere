@@ -53,11 +53,11 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="flex items-center justify-center py-16 px-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader className="text-center pb-2">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl shadow-md">🏏</div>
-            <CardTitle className="font-display text-2xl">Welcome Back</CardTitle>
+      <div className="center-page min-h-[calc(100vh-5rem)] justify-center">
+        <Card className="w-full max-w-lg text-center">
+          <CardHeader className="text-center pb-3">
+            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-[1.35rem] bg-primary text-3xl text-primary-foreground shadow-[0_18px_34px_-18px_rgba(22,101,52,0.55)]">🏏</div>
+            <CardTitle className="font-display text-3xl">Welcome Back</CardTitle>
             <CardDescription>Sign in to your cricket portal account</CardDescription>
           </CardHeader>
           <CardContent>
