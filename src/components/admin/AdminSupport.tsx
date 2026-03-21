@@ -15,8 +15,9 @@ import { v2api, istNow, logAudit } from '@/lib/v2api';
 import { SupportTicket, SupportMessage, SupportCSAT, ManagementUser } from '@/lib/v2types';
 import { notifyTicketOwner, resolveSupportActor } from '@/lib/supportNotifications';
 import { generateId } from '@/lib/utils';
-import { Loader2, Search, MessageSquare, Clock, AlertTriangle, CheckCircle2, Send, StickyNote, UserRoundCheck, CalendarClock } from 'lucide-react';
+import { Loader2, Search, MessageSquare, Clock, AlertTriangle, Send, StickyNote, UserRoundCheck, CalendarClock } from 'lucide-react';
 import { getAdminNotificationRecipient, sendAdminCommunicationEmail } from '@/lib/mailer';
+import { compareTimestampsAsc, compareTimestampsDesc, formatInIST } from '@/lib/time';
 
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-primary/10 text-primary border-primary/30',
@@ -34,13 +35,6 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 const CATEGORIES = ['Account', 'Technical', 'Scorecard', 'Tournament', 'General', 'Bug Report'];
-
-const toIST = (value?: string) => {
-  if (!value) return '—';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
-};
 
 export function AdminSupportDashboard() {
   const { user } = useAuth();
@@ -101,14 +95,14 @@ export function AdminSupportDashboard() {
       const q = searchQuery.toLowerCase();
       result = result.filter((t) => t.subject.toLowerCase().includes(q) || t.ticket_id.toLowerCase().includes(q) || getPlayerName(t.created_by_user_id).toLowerCase().includes(q));
     }
-    return result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return result.sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at));
   }, [tickets, filterStatus, filterCategory, filterPriority, searchQuery, players]);
 
   const ticketMessages = useMemo(() => selectedTicket
-    ? messages.filter((m) => m.ticket_id === selectedTicket.ticket_id).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    ? messages.filter((m) => m.ticket_id === selectedTicket.ticket_id).sort((a, b) => compareTimestampsAsc(a.created_at, b.created_at))
     : [], [messages, selectedTicket]);
 
-  const latestCSAT = selectedTicket ? csatData.filter((c) => c.ticket_id === selectedTicket.ticket_id).sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())[0] : null;
+  const latestCSAT = selectedTicket ? csatData.filter((c) => c.ticket_id === selectedTicket.ticket_id).sort((a, b) => compareTimestampsDesc(a.submitted_at, b.submitted_at))[0] : null;
 
   const handleReply = async () => {
     if (!replyText.trim() || !selectedTicket) return;
@@ -278,7 +272,7 @@ export function AdminSupportDashboard() {
               <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
                 <span>{getPlayerName(ticket.created_by_user_id)}</span>
                 <span>•</span>
-                <span>{toIST(ticket.created_at)} IST</span>
+                <span>{formatInIST(ticket.created_at)} IST</span>
                 {isSLABreached(ticket, 'resolution_due') ? <AlertTriangle className="h-4 w-4 text-destructive" /> : <Clock className="h-4 w-4" />}
               </div>
             </CardContent>
@@ -298,14 +292,14 @@ export function AdminSupportDashboard() {
                   <CardHeader className="pb-2"><CardTitle className="text-base">Conversation Timeline (IST)</CardTitle></CardHeader>
                   <CardContent className="space-y-3 max-h-[58vh] overflow-y-auto">
                     <div className="rounded-lg border p-3 bg-muted/30">
-                      <p className="text-xs text-muted-foreground">Ticket created • {toIST(selectedTicket.created_at)} IST</p>
+                      <p className="text-xs text-muted-foreground">Ticket created • {formatInIST(selectedTicket.created_at)} IST</p>
                       <p className="text-sm mt-1 whitespace-pre-wrap">{selectedTicket.description}</p>
                     </div>
                     {ticketMessages.map((msg) => (
                       <div key={msg.message_id} className={`rounded-lg border p-3 ${msg.is_internal_note ? 'bg-yellow-50 border-yellow-200' : msg.sender_role === 'admin' ? 'bg-primary/5 border-primary/20' : 'bg-background'}`}>
                         <div className="flex justify-between gap-2 text-xs mb-1">
                           <span className="font-semibold">{msg.sender_role === 'admin' ? getAssigneeName(msg.sender_id) : getPlayerName(msg.sender_id)}</span>
-                          <span className="text-muted-foreground">{toIST(msg.created_at)} IST</span>
+                          <span className="text-muted-foreground">{formatInIST(msg.created_at)} IST</span>
                         </div>
                         {msg.is_internal_note && <Badge variant="outline" className="mb-2">Internal Note</Badge>}
                         <p className="text-sm whitespace-pre-wrap">{msg.message_body}</p>
@@ -324,10 +318,10 @@ export function AdminSupportDashboard() {
                       </div>
                       <p><span className="text-muted-foreground">Raised by:</span> {getPlayerName(selectedTicket.created_by_user_id)}</p>
                       <p><span className="text-muted-foreground">Assigned:</span> {getAssigneeName(selectedTicket.assigned_admin_id)}</p>
-                      <p><span className="text-muted-foreground">First response due:</span> {toIST(selectedTicket.first_response_due)} IST</p>
-                      <p><span className="text-muted-foreground">Resolution due:</span> {toIST(selectedTicket.resolution_due)} IST</p>
-                      {selectedTicket.resolved_at && <p><span className="text-muted-foreground">Resolved:</span> {toIST(selectedTicket.resolved_at)} IST</p>}
-                      {selectedTicket.closed_at && <p><span className="text-muted-foreground">Closed:</span> {toIST(selectedTicket.closed_at)} IST</p>}
+                      <p><span className="text-muted-foreground">First response due:</span> {formatInIST(selectedTicket.first_response_due)} IST</p>
+                      <p><span className="text-muted-foreground">Resolution due:</span> {formatInIST(selectedTicket.resolution_due)} IST</p>
+                      {selectedTicket.resolved_at && <p><span className="text-muted-foreground">Resolved:</span> {formatInIST(selectedTicket.resolved_at)} IST</p>}
+                      {selectedTicket.closed_at && <p><span className="text-muted-foreground">Closed:</span> {formatInIST(selectedTicket.closed_at)} IST</p>}
                       <div className="pt-2 grid grid-cols-1 gap-2">
                         <Select value={selectedTicket.status} onValueChange={(v) => handleStatusChange(v as SupportTicket['status'])}>
                           <SelectTrigger><SelectValue /></SelectTrigger>

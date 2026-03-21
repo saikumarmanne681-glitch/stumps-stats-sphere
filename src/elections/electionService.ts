@@ -3,7 +3,7 @@ import { getActorId, getActorName } from '@/lib/accessControl';
 import { AuthUser } from '@/lib/types';
 import { logAudit, v2api } from '@/lib/v2api';
 import { ElectionAuditLog, ElectionRecord, ElectionResultSummary, ElectionTermRecord, NominationRecord, VoteRecord } from './types';
-import { nowIso } from '@/lib/time';
+import { compareTimestampsDesc, nowIso } from '@/lib/time';
 
 const STORAGE = {
   elections: 'club:elections',
@@ -90,19 +90,19 @@ export const electionService = {
   },
 
   getElections() {
-    return read<ElectionRecord>(STORAGE.elections).sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return read<ElectionRecord>(STORAGE.elections).sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at));
   },
 
   getNominations() {
-    return read<NominationRecord>(STORAGE.nominations).sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return read<NominationRecord>(STORAGE.nominations).sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at));
   },
 
   getVotes() {
-    return read<VoteRecord>(STORAGE.votes).sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
+    return read<VoteRecord>(STORAGE.votes).sort((a, b) => compareTimestampsDesc(a.submitted_at, b.submitted_at));
   },
 
   getTerms() {
-    return read<ElectionTermRecord>(STORAGE.terms).sort((a, b) => b.assigned_at.localeCompare(a.assigned_at));
+    return read<ElectionTermRecord>(STORAGE.terms).sort((a, b) => compareTimestampsDesc(a.assigned_at, b.assigned_at));
   },
 
   getAuditLogs() {

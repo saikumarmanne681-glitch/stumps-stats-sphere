@@ -4,7 +4,7 @@ import { generateId } from '@/lib/utils';
 import { logAudit, v2api } from '@/lib/v2api';
 import { ScheduleApprovalRecord, ScheduleAuditLog, ScheduleDiffEntry, ScheduleMatch, ScheduleRecord } from './types';
 import { getScheduleDetailedStatus } from '@/lib/workflowStatus';
-import { formatInIST, formatScheduleSlotInIST, nowIso } from '@/lib/time';
+import { compareTimestampsDesc, formatInIST, formatScheduleSlotInIST, nowIso } from '@/lib/time';
 
 const STORAGE = {
   schedules: 'club:schedules',
@@ -113,10 +113,10 @@ export const scheduleService = {
     }
   },
   getSchedules() {
-    return read<ScheduleRecord>(STORAGE.schedules).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    return read<ScheduleRecord>(STORAGE.schedules).sort((a, b) => compareTimestampsDesc(a.timestamp, b.timestamp));
   },
   getApprovals() {
-    return read<ScheduleApprovalRecord>(STORAGE.approvals).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    return read<ScheduleApprovalRecord>(STORAGE.approvals).sort((a, b) => compareTimestampsDesc(a.timestamp, b.timestamp));
   },
   getAuditLogs() {
     return read<ScheduleAuditLog>(STORAGE.audit);

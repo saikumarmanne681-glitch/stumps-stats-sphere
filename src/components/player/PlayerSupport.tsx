@@ -11,9 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
 import { SupportTicket, SupportMessage, SupportCSAT, SLA_CONFIG, ManagementUser } from '@/lib/v2types';
 import { generateId } from '@/lib/utils';
-import { Loader2, Plus, Send, Star, CalendarClock } from 'lucide-react';
+import { Loader2, Plus, Send, Star, CalendarClock, AlertTriangle, BadgeCheck, Clock3, LifeBuoy } from 'lucide-react';
 import { resolveSupportActor } from '@/lib/supportNotifications';
 import { getAdminNotificationRecipient, sendAdminCommunicationEmail, sendSupportTicketCreatedEmail } from '@/lib/mailer';
+import { compareTimestampsAsc, compareTimestampsDesc, formatInIST } from '@/lib/time';
 
 const CATEGORIES = ['Account', 'Technical', 'Scorecard', 'Tournament', 'General', 'Bug Report'];
 
@@ -25,11 +26,11 @@ const STATUS_COLORS: Record<string, string> = {
   closed: 'bg-muted text-muted-foreground',
 };
 
-const toIST = (value?: string) => {
-  if (!value) return '—';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+const PRIORITY_STYLES: Record<SupportTicket['priority'], string> = {
+  low: 'bg-muted text-muted-foreground border-border',
+  medium: 'bg-blue-100 text-blue-800 border-blue-200',
+  high: 'bg-orange-100 text-orange-800 border-orange-200',
+  critical: 'bg-destructive/10 text-destructive border-destructive/20',
 };
 
 interface PlayerSupportProps {
@@ -57,7 +58,7 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
 
   const refresh = async (ticketToKeepOpen?: string) => {
     const [t, m, mgmt] = await Promise.all([v2api.getTickets(), v2api.getTicketMessages(), v2api.getManagementUsers()]);
-    const myTickets = t.filter((ticket) => ticket.created_by_user_id === playerId).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const myTickets = t.filter((ticket) => ticket.created_by_user_id === playerId).sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at));
     setTickets(myTickets);
     setMessages(m);
     setManagementUsers(mgmt);
@@ -164,8 +165,12 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
   };
 
   const ticketMessages = useMemo(() => selectedTicket
-    ? messages.filter((m) => m.ticket_id === selectedTicket.ticket_id && !m.is_internal_note).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    ? messages.filter((m) => m.ticket_id === selectedTicket.ticket_id && !m.is_internal_note).sort((a, b) => compareTimestampsAsc(a.created_at, b.created_at))
     : [], [messages, selectedTicket]);
+
+  const openCount = tickets.filter((ticket) => ['open', 'in_progress', 'waiting_for_user'].includes(ticket.status)).length;
+  const resolvedCount = tickets.filter((ticket) => ['resolved', 'closed'].includes(ticket.status)).length;
+  const criticalCount = tickets.filter((ticket) => ticket.priority === 'critical').length;
 
   const getAssigneeLabel = (id: string) => {
     if (!id) return 'Unassigned';
@@ -213,7 +218,15 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <h2 className="font-display text-xl font-bold">Support Center</h2>
+        <div className="space-y-1">
+          <h2 className="font-display text-xl font-bold">Support Center</h2>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline" className="gap-1"><LifeBuoy className="h-3.5 w-3.5" />{tickets.length} total</Badge>
+            <Badge variant="outline" className="gap-1"><Clock3 className="h-3.5 w-3.5" />{openCount} active</Badge>
+            <Badge variant="outline" className="gap-1"><BadgeCheck className="h-3.5 w-3.5" />{resolvedCount} resolved</Badge>
+            <Badge variant="outline" className="gap-1"><AlertTriangle className="h-3.5 w-3.5" />{criticalCount} critical</Badge>
+          </div>
+        </div>
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Raise New Ticket</Button>
@@ -253,18 +266,21 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {tickets.map((ticket) => (
-          <Card key={ticket.ticket_id} className="cursor-pointer hover:border-primary/40" onClick={() => setSelectedTicket(ticket)}>
+          <Card key={ticket.ticket_id} className="cursor-pointer hover:border-primary/40 transition-all hover:shadow-sm" onClick={() => setSelectedTicket(ticket)}>
             <CardContent className="p-4 space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold">{ticket.subject}</p>
+                <div>
+                  <p className="font-semibold">{ticket.subject}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{ticket.ticket_id}</p>
+                </div>
                 <Badge className={STATUS_COLORS[ticket.status]}>{ticket.status.replace('_', ' ')}</Badge>
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
                 <Badge variant="outline">{ticket.category}</Badge>
-                <Badge variant="outline">{ticket.priority}</Badge>
+                <Badge className={PRIORITY_STYLES[ticket.priority]}>{ticket.priority}</Badge>
                 <Badge variant="outline">Assigned: {getAssigneeLabel(ticket.assigned_admin_id)}</Badge>
               </div>
-              <p className="text-xs text-muted-foreground">Created: {toIST(ticket.created_at)} IST</p>
+              <p className="text-xs text-muted-foreground">Created: {formatInIST(ticket.created_at)} IST</p>
             </CardContent>
           </Card>
         ))}
@@ -286,16 +302,16 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
                 <CardHeader className="pb-2"><CardTitle className="text-base">Detailed Timeline (IST)</CardTitle></CardHeader>
                 <CardContent className="space-y-3 max-h-[48vh] overflow-y-auto">
                   <div className="rounded-lg border p-3 bg-muted/30">
-                    <p className="text-xs text-muted-foreground">Ticket raised • {toIST(selectedTicket.created_at)} IST</p>
+                    <p className="text-xs text-muted-foreground">Ticket raised • {formatInIST(selectedTicket.created_at)} IST</p>
                     <p className="text-sm mt-1 whitespace-pre-wrap">{selectedTicket.description}</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">First response due • {toIST(selectedTicket.first_response_due)} IST</p>
-                    <p className="text-xs text-muted-foreground">Resolution due • {toIST(selectedTicket.resolution_due)} IST</p>
+                    <p className="text-xs text-muted-foreground">First response due • {formatInIST(selectedTicket.first_response_due)} IST</p>
+                    <p className="text-xs text-muted-foreground">Resolution due • {formatInIST(selectedTicket.resolution_due)} IST</p>
                   </div>
                   {ticketMessages.map((msg) => (
                     <div key={msg.message_id} className={`rounded-lg border p-3 ${msg.sender_id === playerId ? 'bg-primary/5 border-primary/20' : ''}`}>
-                      <p className="text-xs text-muted-foreground">{msg.sender_id === playerId ? 'You' : getAssigneeLabel(msg.sender_id)} • {toIST(msg.created_at)} IST</p>
+                      <p className="text-xs text-muted-foreground">{msg.sender_id === playerId ? 'You' : getAssigneeLabel(msg.sender_id)} • {formatInIST(msg.created_at)} IST</p>
                       <p className="text-sm mt-1 whitespace-pre-wrap">{msg.message_body}</p>
                     </div>
                   ))}

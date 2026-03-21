@@ -38,6 +38,14 @@ type RegistrationTarget = {
 };
 
 const parsePlayers = (value: string) => value.split('\n').map((item) => item.trim()).filter(Boolean);
+const readPlayers = (value: string) => {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item).trim()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+};
 
 const TournamentsHubPage = () => {
   const { user } = useAuth();
@@ -232,7 +240,7 @@ const TournamentsHubPage = () => {
       contact_name: registration.contact_name,
       contact_email: registration.contact_email,
       contact_phone: registration.contact_phone,
-      players: (JSON.parse(registration.players_json) as string[]).join('\n'),
+      players: readPlayers(registration.players_json).join('\n'),
       status: registration.status,
       review_notes: registration.review_notes,
     });
@@ -499,7 +507,7 @@ const TournamentsHubPage = () => {
                       </div>
                     ) : (
                       <>
-                        <p className="text-sm">Players: {(JSON.parse(registration.players_json) as string[]).join(', ') || '—'}</p>
+                        <p className="text-sm">Players: {readPlayers(registration.players_json).join(', ') || '—'}</p>
                         {!!registration.review_notes && <p className="text-sm text-muted-foreground"><strong>Review note:</strong> {registration.review_notes}</p>}
                       </>
                     )}

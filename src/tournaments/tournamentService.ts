@@ -1,4 +1,5 @@
 import { getActorId, getActorName } from '@/lib/accessControl';
+import { compareTimestampsDesc } from '@/lib/time';
 import { AuthUser } from '@/lib/types';
 import { generateId } from '@/lib/utils';
 import { logAudit, v2api } from '@/lib/v2api';
@@ -70,12 +71,12 @@ export const tournamentService = {
     }
   },
   getTournaments() {
-    return read<TournamentRegistryRecord>(STORAGE.tournaments).sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return read<TournamentRegistryRecord>(STORAGE.tournaments).sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at));
   },
   getRegistrations() {
     return read<RegistrationRecord>(STORAGE.registrations)
       .map((item) => ({ ...item, registration_key: item.registration_key || buildRegistrationKey(item) }))
-      .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
+      .sort((a, b) => compareTimestampsDesc(a.submitted_at, b.submitted_at));
   },
   getAuditLogs() {
     return read<TournamentAuditLog>(STORAGE.audit);
