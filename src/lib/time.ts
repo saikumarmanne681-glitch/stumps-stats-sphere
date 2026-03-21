@@ -29,6 +29,16 @@ export function nowIso() {
   return new Date().toISOString();
 }
 
+export function compareTimestampsDesc(left: unknown, right: unknown) {
+  const leftTime = parseTimestamp(String(left ?? ''))?.getTime() ?? Number.NEGATIVE_INFINITY;
+  const rightTime = parseTimestamp(String(right ?? ''))?.getTime() ?? Number.NEGATIVE_INFINITY;
+  return rightTime - leftTime;
+}
+
+export function compareTimestampsAsc(left: unknown, right: unknown) {
+  return compareTimestampsDesc(right, left);
+}
+
 export function formatInIST(value?: string | Date | null, options?: Intl.DateTimeFormatOptions) {
   const parsed = value instanceof Date ? value : parseTimestamp(value ?? '');
   if (!parsed) return '—';
