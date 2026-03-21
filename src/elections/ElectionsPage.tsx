@@ -46,8 +46,6 @@ const ElectionsPage = () => {
     electionService.syncFromBackend().finally(() => setRefreshKey((value) => value + 1));
   }, []);
 
-  if (!user) return <Navigate to="/login" replace />;
-
   const elections = useMemo(() => electionService.getElections(), [refreshKey]);
   const nominations = useMemo(() => electionService.getNominations(), [refreshKey]);
   const terms = useMemo(() => electionService.getTerms(), [refreshKey]);
@@ -137,11 +135,14 @@ const ElectionsPage = () => {
     }
   };
 
-  const participationNotice = user.type === 'player'
+  const participationNotice = user?.type === 'player'
     ? 'Players can submit nominations, wait for admin approval, and vote in open elections.'
-    : user.type === 'admin'
+    : user?.type === 'admin'
       ? 'Admin can create elections, approve or reject nominations, view vote results, and publish final results.'
       : 'Management accounts cannot submit nominations or participate in player-only elections.';
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.type === 'management') return <Navigate to="/management" replace />;
 
   return (
     <div className="min-h-screen bg-background">

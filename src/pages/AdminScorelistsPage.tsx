@@ -362,16 +362,8 @@ ${effectiveLocked ? '<div class="certified">✔ OFFICIALLY CERTIFIED MATCH RESUL
       stage,
     });
     const locked = stage === 'official_certified';
-    const payload = safeParsePayload(sl) || {};
-    payload.__certification = {
-      status: stage,
-      locked,
-      approvals: certs,
-      lastUpdatedAt: new Date().toISOString(),
-    };
     await v2api.updateScorelist({
       ...sl,
-      payload_json: JSON.stringify(payload),
       certification_status: stage,
       certifications_json: JSON.stringify(certs),
       locked,
