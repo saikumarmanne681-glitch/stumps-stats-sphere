@@ -225,16 +225,70 @@ const AdminScorelistsPage = () => {
 
   const getVerifyUrl = (scorelistId: string) => `${window.location.origin}/verify-scorelist/${encodeURIComponent(scorelistId)}`;
 
-  const renderVerificationQrMarkup = (verifyUrl: string, size = 108) => renderToStaticMarkup(
-    <QRCodeSVG
-      value={verifyUrl}
-      size={size}
-      level="H"
-      includeMargin
-      bgColor="#ffffff"
-      fgColor="#0f5132"
-    />
-  );
+  const hashSeed = (input: string) => {
+    let hash = 0;
+    for (let index = 0; index < input.length; index += 1) {
+      hash = (hash * 33 + input.charCodeAt(index)) >>> 0;
+    }
+    return hash;
+  };
+
+  const renderVerificationQrMarkup = (verifyUrl: string, scorelistId: string, hashDigest: string, size = 140) => {
+    const qrSize = Math.round(size * 0.62);
+    const qrOffset = Math.round((size - qrSize) / 2);
+    const qrMarkup = renderToStaticMarkup(
+      <QRCodeSVG
+        value={verifyUrl}
+        size={qrSize}
+        level="H"
+        includeMargin
+        bgColor="#ffffff"
+        fgColor="#0f5132"
+      />,
+    ).replace('<svg ', `<svg x="${qrOffset}" y="${qrOffset}" `);
+
+    const seed = hashSeed(`${scorelistId}-${hashDigest}`);
+    const shortHash = hashDigest.slice(0, 16).toUpperCase();
+    const label = scorelistId.toUpperCase();
+    const patternText = `${label} • ${shortHash} • `;
+    const rotation = -18 + (seed % 9);
+    const lineGap = 18 + (seed % 5);
+    const stripeGap = 20 + (seed % 7);
+    const bandHeight = Math.max(28, Math.round(size * 0.14));
+    const whitePad = Math.round(size * 0.19);
+    const whiteBox = size - whitePad * 2;
+    const safeLabel = label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const safePatternText = patternText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Verification QR for ${safeLabel}">
+        <defs>
+          <clipPath id="qr-card-clip-${seed}">
+            <rect x="0" y="0" width="${size}" height="${size}" rx="18" ry="18" />
+          </clipPath>
+        </defs>
+        <g clip-path="url(#qr-card-clip-${seed})">
+          <rect width="${size}" height="${size}" rx="18" ry="18" fill="#166534" />
+          <g transform="rotate(${rotation} ${size / 2} ${size / 2})">
+            ${Array.from({ length: 9 }, (_, row) => {
+              const y = -26 + row * lineGap;
+              return `<text x="-${size * 0.35}" y="${y}" fill="rgba(255,255,255,0.18)" font-family="Arial, sans-serif" font-weight="700" font-size="10" letter-spacing="1.4">${safePatternText.repeat(4)}</text>`;
+            }).join('')}
+          </g>
+          ${Array.from({ length: Math.ceil(size / stripeGap) + 2 }, (_, index) => {
+            const x = -10 + index * stripeGap;
+            return `<rect x="${x}" y="0" width="5" height="${size}" fill="rgba(255,255,255,0.06)" />`;
+          }).join('')}
+          <rect x="0" y="0" width="${size}" height="${bandHeight}" fill="rgba(6, 78, 59, 0.82)" />
+          <rect x="0" y="${size - bandHeight}" width="${size}" height="${bandHeight}" fill="rgba(6, 78, 59, 0.82)" />
+          <text x="${size / 2}" y="${Math.round(bandHeight * 0.66)}" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="0.8">${safeLabel}</text>
+          <text x="${size / 2}" y="${size - Math.round(bandHeight * 0.34)}" text-anchor="middle" fill="rgba(255,255,255,0.94)" font-family="Courier New, monospace" font-size="8.5" font-weight="700" letter-spacing="1">${shortHash}</text>
+          <rect x="${whitePad}" y="${whitePad}" width="${whiteBox}" height="${whiteBox}" rx="14" ry="14" fill="#ffffff" stroke="rgba(22,101,52,0.28)" stroke-width="3" />
+          ${qrMarkup}
+        </g>
+      </svg>
+    `.trim();
+  };
 
   const securityFeatureItems = [
     {
@@ -278,7 +332,7 @@ const AdminScorelistsPage = () => {
     const draftTimestamp = sl.generated_at || new Date().toISOString();
     const draftBy = sl.generated_by || 'System';
     const verifyUrl = getVerifyUrl(sl.scorelist_id);
-    const qrMarkup = renderVerificationQrMarkup(verifyUrl, 112);
+    const qrMarkup = renderVerificationQrMarkup(verifyUrl, sl.scorelist_id, sl.hash_digest, 160);
     const securityFeaturesMarkup = securityFeatureItems.map((feature) => `
       <div class="security-feature-card">
         <div class="security-feature-title">${feature.title}</div>
@@ -772,9 +826,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                     {/* QR + Security */}
                     <div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5">
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6">
-                        <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm">
-                          <QRCodeSVG value={getVerifyUrl(viewScorelist.scorelist_id)} size={100} level="H" includeMargin />
-                        </div>
+                        <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm" dangerouslySetInnerHTML={{ __html: renderVerificationQrMarkup(getVerifyUrl(viewScorelist.scorelist_id), viewScorelist.scorelist_id, viewScorelist.hash_digest, 148) }} />
                         <div className="text-sm text-center sm:text-left">
                           <p className="font-semibold">Scan to Verify</p>
                           <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{getVerifyUrl(viewScorelist.scorelist_id)}</p>
