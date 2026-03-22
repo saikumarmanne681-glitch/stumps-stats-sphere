@@ -47,13 +47,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const handleClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
       if (!onClick) return;
 
-      const result = onClick(event);
+      const result = onClick(event) as unknown;
       if (event.defaultPrevented) return;
 
-      if (result && typeof result === "object" && "then" in result && typeof result.then === "function") {
+      if (result && typeof result === "object" && result !== null && "then" in result && typeof (result as any).then === "function") {
         try {
           setInternalLoading(true);
-          await result;
+          await (result as Promise<unknown>);
         } finally {
           setInternalLoading(false);
         }

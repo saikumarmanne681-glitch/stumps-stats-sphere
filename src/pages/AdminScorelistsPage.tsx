@@ -23,7 +23,7 @@ import { formatInIST } from '@/lib/time';
 import { PdfScorecardImportWizard } from '@/components/admin/PdfScorecardImportWizard';
 
 const stageLabels: Record<string, string> = scorelistStageLabels;
-const stageOrder = [...scorelistStageOrder];
+const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 
 const AdminScorelistsPage = () => {
   const { isAdmin, isManagement, user } = useAuth();
