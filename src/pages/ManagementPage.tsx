@@ -78,7 +78,7 @@ const ManagementPage = () => {
     const userStage = resolveStageFromDesignation(user.designation || '');
     if (!userStage) return false;
     if (userStage === 'official_certified' && certs.some(c => c.stage === 'official_certified')) return false;
-    const currentIdx = stageOrder.indexOf(s.certification_status || 'draft');
+    const currentIdx = stageOrder.indexOf((s.certification_status || 'draft') as (typeof scorelistStageOrder)[number]);
     const nextStage = currentIdx < stageOrder.length - 1 ? stageOrder[currentIdx + 1] : null;
     return nextStage === userStage;
   }), [isManagement, scorelists, user?.designation, user?.management_id]);

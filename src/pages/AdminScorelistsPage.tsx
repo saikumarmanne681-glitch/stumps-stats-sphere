@@ -384,7 +384,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
 
   const getNextStage = (sl: DigitalScorelist): string | null => {
     const current = sl.certification_status || 'draft';
-    const idx = stageOrder.indexOf(current);
+    const idx = stageOrder.indexOf(current as (typeof scorelistStageOrder)[number]);
     if (idx < stageOrder.length - 1) return stageOrder[idx + 1];
     return null;
   };
