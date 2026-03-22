@@ -22,6 +22,26 @@ import { QRCodeSVG } from 'qrcode.react';
 import { formatInIST } from '@/lib/time';
 import { getPublicVerifyScorelistUrl } from '@/lib/publicUrl';
 
+
+const registrationBandRows = 16;
+
+function buildRegistrationBandMarkup(scorelistId: string) {
+  const registrationText = scorelistId.toUpperCase();
+  const rows = Array.from({ length: registrationBandRows }, (_, index) => {
+    const rotation = index % 2 === 0 ? '-90deg' : '90deg';
+    return `<div class="registration-row" style="--row-index:${index};--row-rotation:${rotation}">
+      <span class="registration-half registration-half-front">${registrationText}</span>
+      <span class="registration-window">${registrationText}</span>
+      <span class="registration-half registration-half-back">${registrationText}</span>
+    </div>`;
+  }).join('');
+
+  return `<div class="registration-band">
+    <div class="registration-band-label">Registered denomination • Scorelist ID</div>
+    <div class="registration-band-rows">${rows}</div>
+  </div>`;
+}
+
 const stageLabels: Record<string, string> = scorelistStageLabels;
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 
@@ -339,6 +359,7 @@ const AdminScorelistsPage = () => {
         <div class="security-feature-title">${feature.title}</div>
         <p>${feature.description}</p>
       </div>`).join('');
+    const registrationBandMarkup = buildRegistrationBandMarkup(sl.scorelist_id);
     const draftRow = `<tr><td>${draftBy}</td><td>Scorelist Engine</td><td>${stageLabels.draft}</td><td>${formatInIST(draftTimestamp)}</td><td style="font-family:monospace;font-size:10px">DRAFT</td></tr>`;
     const certTimelineRows = `${draftRow}${certRows}`;
     const pendingRows = pendingApprovals.map((p) => `<tr><td>${p.name}</td><td>${p.designation}</td><td>${stageLabels[p.stage] || p.stage}</td><td>Pending with ${p.designation}</td></tr>`).join('');
@@ -396,6 +417,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,
 .intaglio{letter-spacing:0.12em;text-transform:uppercase;font-weight:900;text-shadow:0.8px 0.8px 0 rgba(255,255,255,0.92), -0.8px -0.8px 0 rgba(0,0,0,0.42), 0 0 1px rgba(10,70,35,0.55), 0 0 2px rgba(10,70,35,0.35);color:#0d4b27;-webkit-text-stroke:0.35px rgba(7,55,28,0.75);filter:contrast(1.12) saturate(1.08)}
 .security-grid{position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03)), repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03));background-size:20px 20px;background-position:0 0,10px 10px}
 .security-thread{position:fixed;top:0;bottom:0;left:14px;width:15px;pointer-events:none;z-index:-1;background:repeating-linear-gradient(180deg, rgba(11,89,53,0.3) 0px, rgba(255,255,255,0.4) 4px, rgba(194,160,63,0.3) 8px);box-shadow:inset 0 0 4px rgba(0,0,0,0.1)}
+.registration-band{position:fixed;top:92px;bottom:96px;left:34px;width:44px;pointer-events:none;z-index:0;border-radius:18px;border:1px solid rgba(20,92,54,0.34);background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(232,245,233,0.96) 34%, rgba(255,255,255,0.98));box-shadow:inset 0 0 0 1px rgba(255,255,255,0.88), inset 0 0 18px rgba(20,92,54,0.08), 0 0 0 1px rgba(20,92,54,0.04)}.registration-band::before{content:'';position:absolute;inset:14px 8px;border-radius:14px;background:linear-gradient(180deg, rgba(196,223,204,0.36), rgba(255,255,255,0.06) 22%, rgba(255,255,255,0.06) 78%, rgba(196,223,204,0.36));box-shadow:inset 0 0 0 1px rgba(20,92,54,0.08)}.registration-band-label{position:absolute;left:50%;bottom:-72px;width:150px;transform:translateX(-50%) rotate(-90deg);transform-origin:center;white-space:nowrap;font-size:8px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(20,92,54,0.72)}.registration-band-rows{position:absolute;inset:18px 8px;display:grid;grid-template-rows:repeat(16,minmax(0,1fr));gap:4px}.registration-row{position:relative;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden;border-radius:999px;background:linear-gradient(90deg, rgba(20,92,54,0.06), rgba(255,255,255,0.96) 28%, rgba(255,255,255,0.96) 72%, rgba(20,92,54,0.06));box-shadow:inset 0 0 0 1px rgba(20,92,54,0.05)}.registration-half,.registration-window{position:absolute;left:50%;top:50%;font-family:'Arial Black',Arial,sans-serif;font-size:9px;font-weight:900;letter-spacing:0.08em;white-space:nowrap;transform:translate(-50%,-50%) rotate(var(--row-rotation));transform-origin:center center}.registration-half-front{color:transparent;-webkit-text-stroke:0.75px rgba(20,92,54,0.92);clip-path:inset(0 50% 0 0)}.registration-window{color:rgba(255,255,255,0.98);text-shadow:0 0 1px rgba(255,255,255,0.98), 0 0 6px rgba(255,255,255,0.95);font-size:8px;letter-spacing:0.14em}.registration-half-back{color:rgba(20,92,54,0.78);clip-path:inset(0 0 0 50%);text-shadow:0.25px 0.25px 0 rgba(255,255,255,0.72)}
 .microtext{position:fixed;left:36px;right:18px;bottom:10px;overflow:hidden;white-space:nowrap;text-align:left;font-size:6px;letter-spacing:2px;color:rgba(10,89,52,0.6);opacity:0.6;pointer-events:none;z-index:-1;text-transform:uppercase}
 .cert-grid{border:1px solid #b7d5c0;background-image:linear-gradient(rgba(30,107,58,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(30,107,58,0.08) 1px, transparent 1px);background-size:18px 18px;padding:8px;border-radius:8px;background-color:rgba(255,255,255,0.9)}
 .status-chip{display:inline-block;margin:8px auto 0;padding:4px 10px;border-radius:999px;background:#e8f5e9;border:1px solid #8ac8a1;color:#145c36;font-weight:bold;font-size:11px;text-shadow:0.5px 0.5px 0px rgba(255,255,255,0.8), -0.5px -0.5px 0px rgba(0,0,0,0.3)}.verification-panel{position:relative;display:flex;gap:18px;align-items:center;justify-content:space-between;margin:18px 0 24px;padding:18px 18px 20px;border:1px solid #b7d5c0;border-radius:12px;background:linear-gradient(135deg, rgba(232,245,233,0.94), rgba(244,250,246,0.99));overflow:hidden;isolation:isolate}.verification-panel::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg, rgba(255,255,255,0.34), rgba(30,107,58,0.03));z-index:0}.verification-panel::after{content:'';position:absolute;inset:12px;border:1px solid rgba(20,92,54,0.14);border-radius:10px;z-index:0}.verification-copy,.verification-qr{position:relative;z-index:2}.verification-copy{flex:1}.verification-copy p{margin:4px 0}.verification-url{font-family:monospace;font-size:11px;word-break:break-all;color:#145c36}.verification-qr{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:12px;border:1px solid #9cc8ab;background:#fff;box-shadow:inset 0 0 0 4px rgba(30,107,58,0.06)}.verification-qr-id{font-family:'Courier New',monospace;font-size:9px;line-height:1.2;letter-spacing:1.6px;text-transform:uppercase;color:#0f5132;font-weight:700;text-align:center;word-break:break-word;max-width:164px}.verification-intaglio-field{position:absolute;inset:10px 10px 10px 10px;pointer-events:none;z-index:1;overflow:hidden}.verification-intaglio-field .band{display:block;white-space:nowrap;font-family:'Courier New',monospace;font-size:12px;line-height:1.9;letter-spacing:2.8px;text-transform:uppercase;color:rgba(11,89,53,0.17);text-shadow:0.45px 0.45px 0 rgba(255,255,255,0.75), -0.45px -0.45px 0 rgba(8,56,29,0.18);transform:rotate(-12deg) translateX(-40px);transform-origin:left center}.verification-intaglio-badge{display:inline-flex;align-items:center;gap:8px;margin:8px 0 6px;padding:6px 12px;border-radius:999px;border:1px solid rgba(20,92,54,0.26);background:rgba(255,255,255,0.72);color:#145c36;font-size:10px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase}.verification-intaglio-meta{margin-top:8px;font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#145c36;font-weight:700}.security-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 22px}.security-feature-card{border:1px solid #b7d5c0;border-radius:10px;background:rgba(252,254,253,0.94);padding:12px 14px}.security-feature-card p{margin:6px 0 0;font-size:11px;line-height:1.45;color:#355244}.security-feature-title{font-weight:700;color:#124928}.security-seal{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid #7ab28d;background:#fff;color:#145c36;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
@@ -404,6 +426,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,
 ${securePattern.enabled ? `<div class="secure-pattern" style="${securePattern.style}"></div>` : ''}
 <div class="security-grid"></div>
 <div class="security-thread"></div>
+${registrationBandMarkup}
 <div class="microtext">${`${sl.scorelist_id} • ${sl.hash_digest} • `.repeat(18)}${securePattern.enabled ? `${securePattern.microtext} • ` : ''}</div>
 <div class="watermark">VERIFIED MATCH RECORD</div>
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
@@ -672,6 +695,30 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                     {`${`${viewScorelist.scorelist_id} • ${viewScorelist.hash_digest} • `.repeat(10)}`}
                   </div>
                   <div className="pointer-events-none absolute inset-y-0 left-3 w-[15px] rounded-sm bg-[repeating-linear-gradient(180deg,rgba(11,89,53,0.3)_0px,rgba(255,255,255,0.4)_4px,rgba(194,160,63,0.3)_8px)] shadow-[inset_0_0_4px_rgba(0,0,0,0.1)]"></div>
+                  <div className="pointer-events-none absolute bottom-24 left-[1.55rem] top-20 z-[1] w-11 rounded-[18px] border border-primary/30 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(232,245,233,0.96)_34%,rgba(255,255,255,0.98))] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.88),inset_0_0_18px_rgba(20,92,54,0.08),0_0_0_1px_rgba(20,92,54,0.04)]">
+                    <div className="absolute inset-[14px_8px] rounded-[14px] bg-[linear-gradient(180deg,rgba(196,223,204,0.36),rgba(255,255,255,0.06)_22%,rgba(255,255,255,0.06)_78%,rgba(196,223,204,0.36))] shadow-[inset_0_0_0_1px_rgba(20,92,54,0.08)]" />
+                    <div className="absolute inset-[18px_8px] grid gap-1" style={{ gridTemplateRows: `repeat(${registrationBandRows}, minmax(0, 1fr))` }}>
+                      {Array.from({ length: registrationBandRows }, (_, index) => {
+                        const rotation = index % 2 === 0 ? '-90deg' : '90deg';
+                        return (
+                          <div key={index} className="relative overflow-hidden rounded-full bg-[linear-gradient(90deg,rgba(20,92,54,0.06),rgba(255,255,255,0.96)_28%,rgba(255,255,255,0.96)_72%,rgba(20,92,54,0.06))] shadow-[inset_0_0_0_1px_rgba(20,92,54,0.05)]">
+                            <span className="absolute left-1/2 top-1/2 whitespace-nowrap font-black tracking-[0.08em] text-transparent [-webkit-text-stroke:0.75px_rgba(20,92,54,0.92)]" style={{ transform: `translate(-50%, -50%) rotate(${rotation})`, clipPath: 'inset(0 50% 0 0)', fontSize: '9px' }}>
+                              {viewScorelist.scorelist_id.toUpperCase()}
+                            </span>
+                            <span className="absolute left-1/2 top-1/2 whitespace-nowrap font-black tracking-[0.14em] text-white" style={{ transform: `translate(-50%, -50%) rotate(${rotation})`, textShadow: '0 0 1px rgba(255,255,255,0.98), 0 0 6px rgba(255,255,255,0.95)', fontSize: '8px' }}>
+                              {viewScorelist.scorelist_id.toUpperCase()}
+                            </span>
+                            <span className="absolute left-1/2 top-1/2 whitespace-nowrap font-black tracking-[0.08em] text-primary/80" style={{ transform: `translate(-50%, -50%) rotate(${rotation})`, clipPath: 'inset(0 0 0 50%)', textShadow: '0.25px 0.25px 0 rgba(255,255,255,0.72)', fontSize: '9px' }}>
+                              {viewScorelist.scorelist_id.toUpperCase()}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="absolute -bottom-16 left-1/2 w-36 -translate-x-1/2 -rotate-90 whitespace-nowrap text-center text-[8px] font-bold uppercase tracking-[0.22em] text-primary/70">
+                      Registered denomination • Scorelist ID
+                    </div>
+                  </div>
 
                   {/* Watermark */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
