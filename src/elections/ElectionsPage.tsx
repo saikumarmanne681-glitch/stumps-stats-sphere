@@ -38,6 +38,11 @@ const ElectionsPage = () => {
   const [termStart, setTermStart] = useState('');
   const [termEnd, setTermEnd] = useState('');
   const [selectedElectionId, setSelectedElectionId] = useState('');
+  const [notificationDate, setNotificationDate] = useState('');
+  const [nominationClosingDate, setNominationClosingDate] = useState('');
+  const [withdrawalDeadline, setWithdrawalDeadline] = useState('');
+  const [pollingDay, setPollingDay] = useState('');
+  const [resultsDay, setResultsDay] = useState('');
   const [nominationRole, setNominationRole] = useState('');
   const [manifesto, setManifesto] = useState('');
   const [voteSelections, setVoteSelections] = useState<Record<string, string>>({});
@@ -71,10 +76,13 @@ const ElectionsPage = () => {
         roles_json: roles.split(',').map((item) => item.trim()).filter(Boolean).join('|'),
         eligible_roles_json: 'player',
         status: 'open',
-        nomination_start: new Date().toISOString(),
-        nomination_end: '',
-        voting_start: new Date().toISOString(),
-        voting_end: '',
+        notification_date: notificationDate || new Date().toISOString(),
+        nomination_start: notificationDate || new Date().toISOString(),
+        nomination_end: nominationClosingDate || '',
+        withdrawal_deadline: withdrawalDeadline || '',
+        voting_start: pollingDay || '',
+        voting_end: pollingDay || '',
+        results_day: resultsDay || '',
         created_by: getActorId(user),
       }, user);
       toast({ title: 'Election created', description: 'The election is now open for player nominations. Only admin can publish results.' });
@@ -88,7 +96,7 @@ const ElectionsPage = () => {
   };
 
   const handleNominate = async () => {
-    if (!activeElection || !user || !canContestElection(user) || !nominationRole) return;
+    if (!activeElection || !user || !canContestElection(user) || !nominationRole || !nominationOpen) return;
     try {
       await electionService.submitNomination({
         election_id: activeElection.election_id,
@@ -109,7 +117,7 @@ const ElectionsPage = () => {
   };
 
   const handleVote = async () => {
-    if (!activeElection || !user || !canVoteInElection(user)) return;
+    if (!activeElection || !user || !canVoteInElection(user) || !pollingOpen) return;
     try {
       const selections = Object.fromEntries(Object.entries(voteSelections).filter(([, value]) => !!value).map(([role, nominee]) => {
         const nomination = approvedNominations.find((item) => item.nominee_user_id === nominee && item.role_name === role);
@@ -135,6 +143,10 @@ const ElectionsPage = () => {
     }
   };
 
+  const now = new Date();
+  const nominationOpen = !!activeElection && (!activeElection.nomination_start || new Date(activeElection.nomination_start) <= now) && (!activeElection.nomination_end || new Date(activeElection.nomination_end) >= now);
+  const withdrawalOpen = !!activeElection && (!activeElection.withdrawal_deadline || new Date(activeElection.withdrawal_deadline) >= now);
+  const pollingOpen = !!activeElection && (!!activeElection.voting_start || !!activeElection.voting_end) && (!activeElection.voting_start || new Date(activeElection.voting_start) <= now) && (!activeElection.voting_end || new Date(activeElection.voting_end) >= now);
   const participationNotice = user?.type === 'player'
     ? 'Players can submit nominations, wait for admin approval, and vote in open elections.'
     : user?.type === 'admin'
@@ -210,6 +222,11 @@ const ElectionsPage = () => {
                 <Label>Roles</Label>
                 <Input value={roles} onChange={(e) => setRoles(e.target.value)} placeholder="President, Vice President, Secretary, Treasurer" />
               </div>
+              <div className='space-y-2'><Label>Notification date</Label><Input type='date' value={notificationDate} onChange={(e) => setNotificationDate(e.target.value)} /></div>
+              <div className='space-y-2'><Label>Nomination closing date</Label><Input type='date' value={nominationClosingDate} onChange={(e) => setNominationClosingDate(e.target.value)} /></div>
+              <div className='space-y-2'><Label>Withdrawal deadline</Label><Input type='date' value={withdrawalDeadline} onChange={(e) => setWithdrawalDeadline(e.target.value)} /></div>
+              <div className='space-y-2'><Label>Polling day</Label><Input type='date' value={pollingDay} onChange={(e) => setPollingDay(e.target.value)} /></div>
+              <div className='space-y-2'><Label>Results day</Label><Input type='date' value={resultsDay} onChange={(e) => setResultsDay(e.target.value)} /></div>
               <Button onClick={handleCreateElection} disabled={!title.trim()}>Create Election</Button>
             </CardContent>
           </Card>
@@ -227,7 +244,12 @@ const ElectionsPage = () => {
                       <p className="font-semibold">{item.title}</p>
                       <p className="text-sm text-muted-foreground">{item.description || 'No description provided.'}</p>
                     </div>
-                    <Badge variant={item.status === 'open' ? 'default' : 'secondary'}>{electionStatusLabels[item.status]}</Badge>
+                    <div className='flex flex-wrap gap-2 justify-end'>
+                      <Badge variant={item.status === 'open' ? 'default' : 'secondary'}>{electionStatusLabels[item.status]}</Badge>
+                      {item.notification_date && <Badge variant='outline'>Notification: {item.notification_date}</Badge>}
+                      {item.nomination_end && <Badge variant='outline'>Close nominations: {item.nomination_end}</Badge>}
+                      {item.voting_start && <Badge variant='outline'>Polling: {item.voting_start}</Badge>}
+                    </div>
                   </div>
                 </button>
               ))}
@@ -251,8 +273,13 @@ const ElectionsPage = () => {
 
         <Card>
           <CardHeader><CardTitle>Participation guidance</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent className='space-y-2'>
             <p className="text-sm text-muted-foreground">{participationNotice}</p>
+            {activeElection && <div className='flex flex-wrap gap-2 text-xs'>
+              <Badge variant={nominationOpen ? 'default' : 'outline'}>Nominations {nominationOpen ? 'Open' : 'Closed'}</Badge>
+              <Badge variant={withdrawalOpen ? 'secondary' : 'outline'}>Withdrawals {withdrawalOpen ? 'Open' : 'Closed'}</Badge>
+              <Badge variant={pollingOpen ? 'default' : 'outline'}>Polling {pollingOpen ? 'Live' : 'Awaiting polling day'}</Badge>
+            </div>}
           </CardContent>
         </Card>
 

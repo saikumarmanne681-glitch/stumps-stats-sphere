@@ -8,10 +8,13 @@ export interface ElectionRecord {
   roles_json: string;
   eligible_roles_json: string;
   status: ElectionStatus;
+  notification_date: string;
   nomination_start: string;
   nomination_end: string;
+  withdrawal_deadline: string;
   voting_start: string;
   voting_end: string;
+  results_day: string;
   created_by: string;
   created_at: string;
   results_published_at: string;

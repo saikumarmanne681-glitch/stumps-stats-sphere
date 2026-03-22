@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { v2api } from '@/lib/v2api';
 import { MatchTimeline } from '@/lib/v2types';
-import { Radio, Calendar, MapPin, Share2 } from 'lucide-react';
+import { Radio, Calendar, MapPin, Share2, User2, Activity, ShieldAlert } from 'lucide-react';
 import { compareSheetDatesDesc, formatSheetDate } from '@/lib/dataUtils';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -105,6 +105,9 @@ const LiveMatchPage = () => {
 
     const teamABatting = matchBatting.filter((b) => b.team === match.team_a);
     const teamBBatting = matchBatting.filter((b) => b.team === match.team_b);
+    const activeInningsTeam = matchTimeline.find((evt) => evt.team === match.team_a || evt.team === match.team_b)?.team || (teamABatting.length >= teamBBatting.length ? match.team_a : match.team_b);
+    const strikerRows = matchBatting.filter((b) => b.team === activeInningsTeam).sort((a, b) => (b.balls || 0) - (a.balls || 0) || (b.runs || 0) - (a.runs || 0)).slice(0, 2);
+    const bowlerRows = matchBowling.filter((b) => b.team !== activeInningsTeam).sort((a, b) => Number(b.overs || 0) - Number(a.overs || 0) || (b.wickets || 0) - (a.wickets || 0)).slice(0, 1);
     const liveAScore = getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score).display || '0/0 (0.0)';
     const liveBScore = getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score).display || '0/0 (0.0)';
     const aScore = isLive
@@ -140,6 +143,33 @@ const LiveMatchPage = () => {
 
           {match.result && <p className="text-center font-semibold text-primary">{match.result}</p>}
 
+          {isLive && (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-white p-4">
+                <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary"><User2 className="h-3.5 w-3.5" /> Batters Live</div>
+                <div className="space-y-2">
+                  {strikerRows.length > 0 ? strikerRows.map((entry) => (
+                    <div key={entry.id} className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2 text-sm">
+                      <span>{entry.player_id}</span>
+                      <span className="font-semibold text-primary">{entry.runs} ({entry.balls})</span>
+                    </div>
+                  )) : <div className="rounded-xl bg-white/70 px-3 py-2 text-sm text-muted-foreground">Waiting for batting updates from score input.</div>}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-accent/30 bg-gradient-to-br from-accent/10 to-white p-4">
+                <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary"><Activity className="h-3.5 w-3.5" /> Current Bowler</div>
+                <div className="space-y-2">
+                  {bowlerRows.length > 0 ? bowlerRows.map((entry) => (
+                    <div key={entry.id} className="rounded-xl bg-white/80 px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between"><span>{entry.player_id}</span><span className="font-semibold text-primary">{entry.wickets}/{entry.runs_conceded}</span></div>
+                      <div className="mt-1 text-xs text-muted-foreground">Overs: {entry.overs} • Economy: {entry.economy || 0} • Extras: {entry.extras || 0}</div>
+                    </div>
+                  )) : <div className="rounded-xl bg-white/70 px-3 py-2 text-sm text-muted-foreground">Bowling figures will appear after the first scoring sync.</div>}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{matchDateLabel}</span>
             {match.venue && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{match.venue}</span>}
@@ -157,6 +187,12 @@ const LiveMatchPage = () => {
               <Link to={`/match/${match.match_id}`}>View Full Scorecard →</Link>
             </Button>
           </div>
+
+          {isLive && strikerRows.length === 0 && bowlerRows.length === 0 && (
+            <div className="rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <span className="inline-flex items-center gap-1"><ShieldAlert className="h-3.5 w-3.5" /> Live panel is waiting for saved scorecard rows. Team totals still fall back to the saved match score when available.</span>
+            </div>
+          )}
 
           {/* Timeline */}
           {matchTimeline.length > 0 && (

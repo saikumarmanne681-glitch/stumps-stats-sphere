@@ -25,6 +25,7 @@ import LiveMatchPage from "./pages/LiveMatchPage";
 import ElectionsPage from '@/elections/ElectionsPage';
 import TournamentsHubPage from '@/tournaments/TournamentsHubPage';
 import RegistrationTournamentPage from '@/tournaments/RegistrationTournamentPage';
+import SeasonsOverviewPage from './pages/SeasonsOverviewPage';
 import { RequireAuth } from '@/components/RequireAuth';
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
             <Route path="/tournaments" element={<RequireAuth><TournamentsHubPage /></RequireAuth>} />
             <Route path="/tournaments/registration/:id" element={<RequireAuth><RegistrationTournamentPage /></RequireAuth>} />
             <Route path="/live" element={<LiveMatchPage />} />
+            <Route path="/seasons" element={<SeasonsOverviewPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
