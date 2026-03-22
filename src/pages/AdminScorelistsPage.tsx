@@ -369,7 +369,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
       locked,
     });
     logAudit(userId, 'certify_scorelist', 'scorelist', sl.scorelist_id, stage);
-    const nextStage = stageOrder[stageOrder.indexOf(stage) + 1];
+    const nextStage = stageOrder[stageOrder.indexOf(stage as (typeof scorelistStageOrder)[number]) + 1];
     if (nextStage && !locked) {
       await notifyStageApprovers(sl.scorelist_id, nextStage);
     }
