@@ -23,7 +23,7 @@ import { formatInIST } from '@/lib/time';
 import { PdfScorecardImportWizard } from '@/components/admin/PdfScorecardImportWizard';
 
 const stageLabels: Record<string, string> = scorelistStageLabels;
-const stageOrder = [...scorelistStageOrder];
+const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 
 const AdminScorelistsPage = () => {
   const { isAdmin, isManagement, user } = useAuth();
@@ -115,9 +115,9 @@ const AdminScorelistsPage = () => {
   };
   const readStatus = (sl: DigitalScorelist, certs: CertificationApproval[]): string => {
     if (sl.certification_status) return sl.certification_status;
-    const latest = certs.reduce((best, c) => {
-      return stageOrder.indexOf(c.stage) > stageOrder.indexOf(best) ? c.stage : best;
-    }, 'draft');
+    const latest = certs.reduce<string>((best, c) => {
+      return stageOrder.indexOf(c.stage as (typeof scorelistStageOrder)[number]) > stageOrder.indexOf(best as (typeof scorelistStageOrder)[number]) ? c.stage : best;
+    }, 'draft' as string);
     return latest || 'draft';
   };
   const readLocked = (sl: DigitalScorelist): boolean => {
@@ -369,7 +369,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
       locked,
     });
     logAudit(userId, 'certify_scorelist', 'scorelist', sl.scorelist_id, stage);
-    const nextStage = stageOrder[stageOrder.indexOf(stage) + 1];
+    const nextStage = stageOrder[stageOrder.indexOf(stage as (typeof scorelistStageOrder)[number]) + 1];
     if (nextStage && !locked) {
       await notifyStageApprovers(sl.scorelist_id, nextStage);
     }
@@ -384,7 +384,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
 
   const getNextStage = (sl: DigitalScorelist): string | null => {
     const current = sl.certification_status || 'draft';
-    const idx = stageOrder.indexOf(current);
+    const idx = stageOrder.indexOf(current as (typeof scorelistStageOrder)[number]);
     if (idx < stageOrder.length - 1) return stageOrder[idx + 1];
     return null;
   };
