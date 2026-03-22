@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatInIST } from '@/lib/time';
+import { getPublicVerifyScorelistUrl } from '@/lib/publicUrl';
 
 const stageLabels: Record<string, string> = scorelistStageLabels;
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
@@ -223,8 +224,6 @@ const AdminScorelistsPage = () => {
     toast({ title: `Approval emails delivered to ${attempts.length} recipient(s)` });
   };
 
-  const getVerifyUrl = (scorelistId: string) => `${window.location.origin}/verify-scorelist/${encodeURIComponent(scorelistId)}`;
-
   const hashSeed = (input: string) => {
     let hash = 0;
     for (let index = 0; index < input.length; index += 1) {
@@ -331,7 +330,7 @@ const AdminScorelistsPage = () => {
     const certRows = certs.map(c => `<tr><td>${c.approver_name}</td><td>${c.designation}</td><td>${stageLabels[c.stage] || c.stage.replace(/_/g, ' ')}</td><td>${formatInIST(c.timestamp)}</td><td style="font-family:monospace;font-size:10px">${c.token.substring(0,12)}</td></tr>`).join('');
     const draftTimestamp = sl.generated_at || new Date().toISOString();
     const draftBy = sl.generated_by || 'System';
-    const verifyUrl = getVerifyUrl(sl.scorelist_id);
+    const verifyUrl = getPublicVerifyScorelistUrl(sl.scorelist_id);
     const qrMarkup = renderVerificationQrMarkup(verifyUrl, sl.scorelist_id, sl.hash_digest, 160);
     const verificationIntaglioId = `${sl.scorelist_id} • ${sl.hash_digest.slice(0, 16).toUpperCase()}`;
     const verificationIntaglioBands = Array.from({ length: 8 }, (_, index) => `${verificationIntaglioId} • INTAGLIO VERIFIED • `).join('');
@@ -833,10 +832,10 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                     {/* QR + Security */}
                     <div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5">
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6">
-                        <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm" dangerouslySetInnerHTML={{ __html: renderVerificationQrMarkup(getVerifyUrl(viewScorelist.scorelist_id), viewScorelist.scorelist_id, viewScorelist.hash_digest, 148) }} />
+                        <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm" dangerouslySetInnerHTML={{ __html: renderVerificationQrMarkup(getPublicVerifyScorelistUrl(viewScorelist.scorelist_id), viewScorelist.scorelist_id, viewScorelist.hash_digest, 148) }} />
                         <div className="text-sm text-center sm:text-left">
                           <p className="font-semibold">Scan to Verify</p>
-                          <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{getVerifyUrl(viewScorelist.scorelist_id)}</p>
+                          <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{getPublicVerifyScorelistUrl(viewScorelist.scorelist_id)}</p>
                           <p className="text-xs text-muted-foreground mt-2">This same QR code is embedded in the exported PDF for fast verification.</p>
                         </div>
                       </div>
