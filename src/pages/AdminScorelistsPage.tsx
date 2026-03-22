@@ -20,7 +20,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatInIST } from '@/lib/time';
-import { PdfScorecardImportWizard } from '@/components/admin/PdfScorecardImportWizard';
 
 const stageLabels: Record<string, string> = scorelistStageLabels;
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
@@ -42,7 +41,8 @@ const AdminScorelistsPage = () => {
 
   const refresh = async () => {
     const [data, mgmt] = await Promise.all([v2api.getScorelists(), v2api.getManagementUsers()]);
-    setScorelists(data);
+    const sortedScorelists = [...data].sort((a, b) => new Date(b.generated_at || 0).getTime() - new Date(a.generated_at || 0).getTime());
+    setScorelists(sortedScorelists);
     setManagementUsers(mgmt.filter((m) => String(m.status || '').toLowerCase() === 'active' || !m.status));
     setLoading(false);
   };
@@ -60,34 +60,55 @@ const AdminScorelistsPage = () => {
   if (!isAdmin && !isManagement) return <Navigate to="/login" />;
 
   const handleGenerateMatch = async () => {
-    if (!selectedMatch) return;
+    if (!selectedMatch) {
+      toast({ title: 'Select a match first', variant: 'destructive' });
+      return;
+    }
     setGenerating(true);
     try {
       const match = matches.find(m => m.match_id === selectedMatch);
-      if (!match) return;
+      if (!match) {
+        toast({ title: 'Selected match could not be found', variant: 'destructive' });
+        return;
+      }
       const tournament = tournaments.find(t => t.tournament_id === match.tournament_id);
       const season = seasons.find(s => s.season_id === match.season_id);
       const scorelist = await generateMatchScorelist(match, batting, bowling, players, tournament, season, user?.username || 'admin');
       await notifyStageApprovers(scorelist.scorelist_id, 'scoring_completed');
       toast({ title: '✅ Match scorelist generated' });
-      refresh();
-    } catch { toast({ title: 'Error', variant: 'destructive' }); }
-    setGenerating(false);
+      await refresh();
+    } catch (error) {
+      console.error('Match scorelist generation failed:', error);
+      toast({ title: 'Could not generate match scorelist', variant: 'destructive' });
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleGenerateTournament = async () => {
-    if (!selectedTournament || !selectedSeason) return;
+    if (!selectedTournament || !selectedSeason) {
+      toast({ title: 'Select both tournament and season first', variant: 'destructive' });
+      return;
+    }
     setGenerating(true);
     try {
-      const tournament = tournaments.find(t => t.tournament_id === selectedTournament)!;
-      const season = seasons.find(s => s.season_id === selectedSeason)!;
+      const tournament = tournaments.find(t => t.tournament_id === selectedTournament);
+      const season = seasons.find(s => s.season_id === selectedSeason);
+      if (!tournament || !season) {
+        toast({ title: 'Tournament or season no longer exists', variant: 'destructive' });
+        return;
+      }
       const seasonMatches = matches.filter(m => m.season_id === selectedSeason && m.tournament_id === selectedTournament);
       const scorelist = await generateTournamentScorelist(tournament, season, seasonMatches, batting, bowling, players, user?.username || 'admin');
       await notifyStageApprovers(scorelist.scorelist_id, 'scoring_completed');
       toast({ title: '✅ Tournament scorebook generated' });
-      refresh();
-    } catch { toast({ title: 'Error', variant: 'destructive' }); }
-    setGenerating(false);
+      await refresh();
+    } catch (error) {
+      console.error('Tournament scorelist generation failed:', error);
+      toast({ title: 'Could not generate tournament scorebook', variant: 'destructive' });
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleVerify = async (sl: DigitalScorelist) => {
@@ -151,6 +172,15 @@ const AdminScorelistsPage = () => {
         password: '',
       });
     }
+    if (recipients.length === 0) {
+      toast({
+        title: 'No approver emails configured',
+        description: 'Add management or admin mailbox emails before sending stage notifications.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const attempts = await sendScorelistApprovalRequestBulk({
       recipients: recipients.map((m) => ({ to: m.email, approverName: m.name || m.designation || 'Approver' })),
       scorelistId,
@@ -402,8 +432,6 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
       <div className="container mx-auto px-4 py-6 md:py-8 space-y-6">
         <h1 className="font-display text-2xl md:text-3xl font-bold">🛡️ Digital Scorelists</h1>
 
-        {isAdmin && <PdfScorecardImportWizard />}
-
         {/* Generate - Admin Only */}
         {isAdmin && (
           <Card>
@@ -427,7 +455,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                 </Button>
               </div>
               <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-                <Select value={selectedTournament} onValueChange={setSelectedTournament}>
+                <Select value={selectedTournament} onValueChange={(value) => { setSelectedTournament(value); setSelectedSeason(''); }}>
                   <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="Tournament" /></SelectTrigger>
                   <SelectContent>
                     {tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}
