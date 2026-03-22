@@ -91,6 +91,7 @@ const MatchCenter = () => {
 
   const teamAScore = match ? calcTeamScore(match.team_a) : { runs: 0, wkts: 0, overs: '0.0', balls: 0 };
   const teamBScore = match ? calcTeamScore(match.team_b) : { runs: 0, wkts: 0, overs: '0.0', balls: 0 };
+  const formatLiveScore = (score: { runs: number; wkts: number; overs: string }) => `${score.runs}/${score.wkts} (${score.overs} ov)`;
 
   const runRate = (runs: number, balls: number) => balls > 0 ? ((runs / balls) * 6).toFixed(2) : '0.00';
   const isLiveMatch = match?.status === 'live';
@@ -234,6 +235,15 @@ const MatchCenter = () => {
     setCurrentBatsman('');
     toast({ title: 'Wicket!', description: `${wicketType} - Over ${currentOver}`, variant: 'destructive' });
   };
+
+  useEffect(() => {
+    if (!match) return;
+    const nextTeamAScore = formatLiveScore(teamAScore);
+    const nextTeamBScore = formatLiveScore(teamBScore);
+    if (match.team_a_score !== nextTeamAScore || match.team_b_score !== nextTeamBScore) {
+      updateMatch({ ...match, team_a_score: nextTeamAScore, team_b_score: nextTeamBScore });
+    }
+  }, [match?.match_id, teamAScore.runs, teamAScore.wkts, teamAScore.overs, teamBScore.runs, teamBScore.wkts, teamBScore.overs]);
 
   const handleAddNote = async () => {
     if (!quickNote.trim()) return;

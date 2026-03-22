@@ -11,9 +11,10 @@ export interface TeamScoreSummary {
 
 function normalizeFallbackScore(score?: string): TeamScoreSummary | null {
   if (!score) return null;
-  const match = score.match(/(\d+)\/(\d+)\s*\(([\d.]+)\)/);
+  const compact = String(score).replace(/ov(?:ers?)?/gi, '').replace(/\s+/g, ' ').trim();
+  const match = compact.match(/(\d+)\/(\d+)(?:\s*\(?([\d.]+)\)?)?/);
   if (!match) return null;
-  const [, runs, wickets, overs] = match;
+  const [, runs, wickets, overs = '0.0'] = match;
   const [completedOvers, ballsPart = '0'] = overs.split('.');
   const balls = Number(completedOvers) * 6 + Number(ballsPart);
   return {
@@ -34,7 +35,7 @@ export function getTeamScoreSummary(batting: BattingScorecard[], team: string, f
       wickets: 0,
       balls: 0,
       overs: '0.0',
-      display: fallbackScore || '',
+      display: normalizeFallbackScore(fallbackScore)?.display || fallbackScore || '0/0 (0.0)',
       hasEntries: false,
     };
   }

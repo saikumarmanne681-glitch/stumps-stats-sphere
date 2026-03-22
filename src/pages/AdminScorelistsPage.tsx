@@ -85,6 +85,22 @@ const AdminScorelistsPage = () => {
     }
   };
 
+
+  const formatMatchOptionLabel = (matchId: string) => {
+    const match = matches.find((item) => item.match_id === matchId);
+    if (!match) return matchId;
+    const tournament = tournaments.find((item) => item.tournament_id === match.tournament_id);
+    const season = seasons.find((item) => item.season_id === match.season_id);
+    const parts = [
+      `${match.team_a} vs ${match.team_b}`,
+      tournament?.name,
+      season ? `Season ${season.year}` : undefined,
+      match.match_stage || undefined,
+      `Match ID: ${match.match_id}`,
+    ].filter(Boolean);
+    return parts.join(' • ');
+  };
+
   const handleGenerateTournament = async () => {
     if (!selectedTournament || !selectedSeason) {
       toast({ title: 'Select both tournament and season first', variant: 'destructive' });
@@ -322,7 +338,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,
 .footer{text-align:center;font-size:9px;color:#999;margin-top:30px;border-top:1px solid #ddd;padding-top:10px;position:relative;z-index:1;background:rgba(255,255,255,0.78)}
 .certified{background:#e8f5e9;border:2px solid #1e6b3a;text-align:center;padding:12px;border-radius:8px;font-weight:bold;color:#1e6b3a;margin:20px 0;text-shadow:0.5px 0.5px 0px rgba(255,255,255,0.8), -0.5px -0.5px 0px rgba(0,0,0,0.3)}
 .match-book-page{page-break-before:always}
-.intaglio{letter-spacing:0.08em;text-transform:uppercase;text-shadow:0.5px 0.5px 0px rgba(255,255,255,0.8), -0.5px -0.5px 0px rgba(0,0,0,0.3);color:#124928}
+.intaglio{letter-spacing:0.12em;text-transform:uppercase;font-weight:900;text-shadow:0.8px 0.8px 0 rgba(255,255,255,0.92), -0.8px -0.8px 0 rgba(0,0,0,0.42), 0 0 1px rgba(10,70,35,0.55), 0 0 2px rgba(10,70,35,0.35);color:#0d4b27;-webkit-text-stroke:0.35px rgba(7,55,28,0.75);filter:contrast(1.12) saturate(1.08)}
 .security-grid{position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03)), repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03));background-size:20px 20px;background-position:0 0,10px 10px}
 .security-thread{position:fixed;top:0;bottom:0;left:14px;width:15px;pointer-events:none;z-index:-1;background:repeating-linear-gradient(180deg, rgba(11,89,53,0.3) 0px, rgba(255,255,255,0.4) 4px, rgba(194,160,63,0.3) 8px);box-shadow:inset 0 0 4px rgba(0,0,0,0.1)}
 .microtext{position:fixed;left:36px;right:18px;bottom:10px;overflow:hidden;white-space:nowrap;text-align:left;font-size:6px;letter-spacing:2px;color:rgba(10,89,52,0.6);opacity:0.6;pointer-events:none;z-index:-1;text-transform:uppercase}
@@ -441,7 +457,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                 <Select value={selectedMatch} onValueChange={setSelectedMatch}>
                   <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Select Match" /></SelectTrigger>
                   <SelectContent>
-                    {matches.map(m => <SelectItem key={m.match_id} value={m.match_id}>{m.team_a} vs {m.team_b}</SelectItem>)}
+                    {matches.map(m => <SelectItem key={m.match_id} value={m.match_id}>{formatMatchOptionLabel(m.match_id)}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Button
