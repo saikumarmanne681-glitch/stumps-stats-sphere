@@ -115,9 +115,9 @@ const AdminScorelistsPage = () => {
   };
   const readStatus = (sl: DigitalScorelist, certs: CertificationApproval[]): string => {
     if (sl.certification_status) return sl.certification_status;
-    const latest = certs.reduce((best, c) => {
-      return stageOrder.indexOf(c.stage) > stageOrder.indexOf(best) ? c.stage : best;
-    }, 'draft');
+    const latest = certs.reduce<string>((best, c) => {
+      return stageOrder.indexOf(c.stage as (typeof scorelistStageOrder)[number]) > stageOrder.indexOf(best as (typeof scorelistStageOrder)[number]) ? c.stage : best;
+    }, 'draft' as string);
     return latest || 'draft';
   };
   const readLocked = (sl: DigitalScorelist): boolean => {
