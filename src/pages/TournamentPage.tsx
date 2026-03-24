@@ -230,6 +230,12 @@ const TournamentPage = () => {
                             ? `${formatSheetDate(s.start_date, 'dd MMM')} – ${formatSheetDate(s.end_date, 'dd MMM yyyy')}`
                             : 'Dates unavailable'}
                         </p>
+                        {(s.winner_team || s.runner_up_team) && (
+                          <div className="rounded-md border bg-muted/30 p-2 text-xs">
+                            {s.winner_team && <p className="font-semibold text-primary">🏆 Winner: {s.winner_team}</p>}
+                            {s.runner_up_team && <p className="text-muted-foreground">🥈 Runner-up: {s.runner_up_team}</p>}
+                          </div>
+                        )}
                         <div className="flex gap-2 text-center">
                           <div className="flex-1 bg-muted/50 rounded p-2">
                             <p className="font-bold">{sMatches.length}</p>

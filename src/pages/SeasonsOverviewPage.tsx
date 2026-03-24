@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ExternalLink, Shield, Trophy } from 'lucide-react';
+import { Calendar, ExternalLink, Medal, Shield, Trophy } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,13 +62,19 @@ export default function SeasonsOverviewPage() {
             </div>
             {liveMatches > 0 && <Badge className='bg-rose-500 text-white'>{liveMatches} Live</Badge>}
             {hasSheetDate(season.start_date) && hasSheetDate(season.end_date) && <p className='text-xs text-muted-foreground'>{formatSheetDate(season.start_date, 'dd MMM')} – {formatSheetDate(season.end_date, 'dd MMM yyyy')}</p>}
+            {(season.winner_team || season.runner_up_team) && (
+              <div className='rounded-lg border bg-background/70 p-3 text-sm'>
+                {season.winner_team && <p className='flex items-center gap-2 font-semibold text-primary'><Trophy className='h-4 w-4' /> Winner: {season.winner_team}</p>}
+                {season.runner_up_team && <p className='mt-1 flex items-center gap-2 text-muted-foreground'><Medal className='h-4 w-4' /> Runner-up: {season.runner_up_team}</p>}
+              </div>
+            )}
             <div className='rounded-xl border bg-white/70 p-3'>
               <div className='flex items-center justify-between gap-2'>
                 <div><p className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>Quick access</p><p className='text-sm font-medium'>Standings, tournament page and season anchor</p></div>
                 <Shield className='h-4 w-4 text-primary' />
               </div>
               <div className='mt-2 flex items-center justify-between gap-2'>
-                <DataIntegrityBadge data={`${season.season_id}:${season.tournament_id}:${season.year}:${totalMatches}`} label='Season view hash' />
+                <DataIntegrityBadge data={`${season.season_id}:${season.tournament_id}:${season.year}:${totalMatches}:${season.winner_team || ''}:${season.runner_up_team || ''}`} label='Season view hash' />
                 <Badge variant='outline' className='text-[10px]'>{tournament?.format || 'League'}</Badge>
               </div>
             </div>
