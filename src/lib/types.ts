@@ -23,6 +23,8 @@ export interface Season {
   start_date: string;
   end_date: string;
   status: 'upcoming' | 'ongoing' | 'completed';
+  winner_team?: string;
+  runner_up_team?: string;
 }
 
 export interface Match {
