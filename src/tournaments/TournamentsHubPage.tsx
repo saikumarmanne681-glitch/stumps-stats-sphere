@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { Calendar, ExternalLink, Link2, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { Calendar, ExternalLink, Gauge, Link2, Pencil, Plus, ShieldCheck, Sparkles, Trash2, Users } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/lib/auth';
 import { canApproveSchedule, canApproveTournamentRegistration, canManageTournament, getActorId, getActorName } from '@/lib/accessControl';
@@ -64,6 +65,7 @@ const TournamentsHubPage = () => {
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleMatch[]>([emptyScheduleRow]);
   const [changeLog, setChangeLog] = useState('');
   const [linkedSeasonKey, setLinkedSeasonKey] = useState('');
+  const [searchTeam, setSearchTeam] = useState('');
 
   useEffect(() => {
     Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
@@ -121,8 +123,39 @@ const TournamentsHubPage = () => {
   const currentActorId = getActorId(user);
   const activeRegistrations = registrations.filter((item) => normalizeId(item.tournament_id) === normalizeId(activeTarget?.tournament_id) && normalizeId(item.season_id) === normalizeId(activeTarget?.season_id));
   const visibleRegistrations = isPlayerView ? activeRegistrations.filter((item) => item.submitted_by === currentActorId) : activeRegistrations;
+  const filteredRegistrations = visibleRegistrations.filter((item) => item.team_name.toLowerCase().includes(searchTeam.toLowerCase()));
   const approvedSchedules = activeTarget ? scheduleService.getApprovedSchedulesForTournament(activeTarget.tournament_id) : [];
   const linkedRecord = activeTarget?.registryRecord;
+
+  const generateScheduleTemplateFromApprovals = () => {
+    const teams = activeRegistrations.filter((item) => item.status === 'approved').map((item) => item.team_name);
+    if (teams.length < 2) {
+      toast({ title: 'Need approved teams', description: 'Approve at least two registrations before generating template fixtures.', variant: 'destructive' });
+      return;
+    }
+
+    const fixtures: ScheduleMatch[] = [];
+    let counter = 1;
+    for (let i = 0; i < teams.length; i += 1) {
+      for (let j = i + 1; j < teams.length; j += 1) {
+        fixtures.push({
+          match_id: `M${String(counter).padStart(3, '0')}`,
+          date: '',
+          time: '',
+          venue: activeTarget?.venue || '',
+          team_a: teams[i],
+          team_b: teams[j],
+          stage: 'League',
+          notes: 'Auto-generated template fixture',
+        });
+        counter += 1;
+      }
+    }
+
+    setScheduleDraft(fixtures.slice(0, 30));
+    setChangeLog(`Auto-generated round-robin template from ${teams.length} approved registrations.`);
+    toast({ title: 'Template generated', description: 'Fixture skeleton created from approved teams. Add dates/venues and save as new version.' });
+  };
 
   const createTournament = async () => {
     if (!user || !canManageTournament(user)) return;
@@ -321,15 +354,22 @@ const TournamentsHubPage = () => {
 
   if (!user) return <Navigate to="/login" replace />;
 
+  const moduleMetrics = [
+    { label: 'Registration targets', value: registrationTargets.length, icon: Gauge },
+    { label: 'Registrations (current)', value: activeRegistrations.length, icon: Users },
+    { label: 'Approved schedules', value: approvedSchedules.length, icon: Calendar },
+    { label: 'Pending approvals', value: activeRegistrations.filter((item) => item.status === 'pending').length, icon: ShieldCheck },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Competition Ops</p>
-            <h1 className="font-display text-3xl font-bold">Tournament Registration</h1>
-            <p className="text-muted-foreground">Link existing tournament seasons or create a brand-new tournament page, then manage registrations and schedules from one cleaner admin workspace.</p>
+            <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Competition Ops Suite</p>
+            <h1 className="font-display text-3xl font-bold">Tournament Registration & Scheduling Redesign</h1>
+            <p className="text-muted-foreground">Unified command center for registration intake, approval governance, template generation, secure schedule approvals, and publication.</p>
           </div>
           <div className="flex gap-2 flex-wrap">
             {tournamentService.getTables().map((table) => <Badge key={table} variant="outline">Table: {table}</Badge>)}
@@ -337,48 +377,21 @@ const TournamentsHubPage = () => {
           </div>
         </div>
 
-        {canManageTournament(user) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Admin setup</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="flex gap-2 flex-wrap">
-                <Button variant={mode === 'link' ? 'default' : 'outline'} onClick={() => setMode('link')}>Link existing season</Button>
-                <Button variant={mode === 'create' ? 'default' : 'outline'} onClick={() => setMode('create')}>Create new tournament page</Button>
-              </div>
-
-              {mode === 'link' ? (
-                <div className="grid gap-3 md:grid-cols-[1fr_auto] items-end">
-                  <div className="space-y-2">
-                    <Label>Choose an existing tournament season</Label>
-                    <select className="h-10 rounded-md border bg-background px-3 text-sm" value={linkedSeasonKey} onChange={(e) => setLinkedSeasonKey(e.target.value)}>
-                      <option value="">Select a season to link</option>
-                      {linkedSeasonCandidates.map((item) => (
-                        <option key={item.key} value={item.key}>{item.tournament_name} • Season {item.season_year}</option>
-                      ))}
-                    </select>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {moduleMetrics.map((item) => (
+            <Card key={item.label}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">{item.label}</p>
+                    <p className="text-3xl font-bold mt-2">{item.value}</p>
                   </div>
-                  <Button onClick={linkExistingSeason} disabled={!linkedSeasonKey}><Link2 className="h-4 w-4 mr-1" /> Link season</Button>
+                  <item.icon className="h-6 w-6 text-primary" />
                 </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {Object.entries(tournamentForm).map(([key, value]) => (
-                    <div key={key} className={`space-y-2 ${key === 'notes' ? 'md:col-span-2' : ''}`}>
-                      <Label>{key.replace(/_/g, ' ')}</Label>
-                      {key === 'notes'
-                        ? <Textarea value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />
-                        : <Input type={key.includes('date') ? 'date' : key === 'season_year' ? 'number' : 'text'} value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />}
-                    </div>
-                  ))}
-                  <Button onClick={editingTournament ? saveTournamentEdits : createTournament} disabled={!tournamentForm.name.trim()}>
-                    {editingTournament ? 'Save tournament target' : 'Create registration page'}
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[0.9fr,1.1fr]">
           <Card>
@@ -395,12 +408,11 @@ const TournamentsHubPage = () => {
                       <div>
                         <p className="font-semibold">{item.tournament_name}</p>
                         <p className="text-sm text-muted-foreground">Season {item.season_year || 'Open'} • {item.format}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{item.source_type === 'existing' ? 'Linked to official tournament page' : 'Separate registration-only tournament page'}</p>
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <Badge variant={item.source_type === 'existing' ? 'outline' : 'default'}>{item.source_type}</Badge>
-                        <Badge variant="secondary">{targetRegistrations.length} registration(s)</Badge>
-                        <Badge variant="outline">{targetSchedules.length} approved schedule(s)</Badge>
+                        <Badge variant="secondary">{targetRegistrations.length} reg</Badge>
+                        <Badge variant="outline">{targetSchedules.length} schedules</Badge>
                       </div>
                     </div>
                   </button>
@@ -411,48 +423,19 @@ const TournamentsHubPage = () => {
 
           {activeTarget && (
             <Card>
-              <CardHeader><CardTitle>{activeTarget.tournament_name}</CardTitle></CardHeader>
-              <CardContent className="space-y-5">
-                <div className="rounded-lg border p-4 text-sm space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline"><Calendar className="h-3 w-3 mr-1" />Season {activeTarget.season_year || 'Open'}</Badge>
-                    <Badge variant="outline">Tournament ID: {activeTarget.tournament_id}</Badge>
-                    {activeTarget.season_id && <Badge variant="outline">Season ID: {activeTarget.season_id}</Badge>}
-                    <Badge variant={linkedRecord?.status === 'open' ? 'default' : 'secondary'}>{linkedRecord?.status || 'not linked yet'}</Badge>
-                  </div>
-                  <p><strong>Public page:</strong> <Link className="text-primary inline-flex items-center gap-1" to={activeTarget.publicPath}><Link2 className="h-3.5 w-3.5" /> Open linked page</Link></p>
-                  <p><strong>Approved schedule versions:</strong> {approvedSchedules.length}</p>
-                  <p className="text-muted-foreground">Duplicate team registrations for the same tournament season are blocked, and admins can edit or delete registrations directly from this page.</p>
-                  {linkedRecord && canManageTournament(user) && (
-                    <div className="flex gap-2 flex-wrap pt-2">
-                      <Button size="sm" variant="outline" onClick={() => startEditTournament(linkedRecord)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit target</Button>
-                      <Button size="sm" variant="destructive" onClick={() => deleteTournamentTarget(linkedRecord)}><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete target</Button>
-                    </div>
-                  )}
+              <CardHeader><CardTitle>{activeTarget.tournament_name} control panel</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline"><Calendar className="h-3 w-3 mr-1" />Season {activeTarget.season_year || 'Open'}</Badge>
+                  <Badge variant="outline">Tournament ID: {activeTarget.tournament_id}</Badge>
+                  <Badge variant={linkedRecord?.status === 'open' ? 'default' : 'secondary'}>{linkedRecord?.status || 'not linked yet'}</Badge>
                 </div>
-                {isPlayerView ? (
-                  <>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Team name</Label>
-                        <Input value={registrationForm.team_name} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, team_name: e.target.value }))} />
-                        <Label>Contact name</Label>
-                        <Input value={registrationForm.contact_name} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_name: e.target.value }))} />
-                        <Label>Contact email</Label>
-                        <Input value={registrationForm.contact_email} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_email: e.target.value }))} />
-                        <Label>Contact phone</Label>
-                        <Input value={registrationForm.contact_phone} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_phone: e.target.value }))} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Players (one per line)</Label>
-                        <Textarea className="min-h-[220px]" value={registrationForm.players} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, players: e.target.value }))} />
-                      </div>
-                    </div>
-                    <Button onClick={submitRegistration} disabled={!registrationForm.team_name.trim()}><ShieldCheck className="h-4 w-4 mr-1" /> Submit Registration</Button>
-                  </>
-                ) : (
-                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    Players can register their teams here and track only their own registration status. Admins and tournament directors can review submissions below.
+                <p><strong>Public page:</strong> <Link className="text-primary inline-flex items-center gap-1" to={activeTarget.publicPath}><Link2 className="h-3.5 w-3.5" /> Open linked page</Link></p>
+                <p><strong>Secure publication count:</strong> {approvedSchedules.length}</p>
+                {linkedRecord && canManageTournament(user) && (
+                  <div className="flex gap-2 flex-wrap pt-2">
+                    <Button size="sm" variant="outline" onClick={() => startEditTournament(linkedRecord)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit target</Button>
+                    <Button size="sm" variant="destructive" onClick={() => deleteTournamentTarget(linkedRecord)}><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete target</Button>
                   </div>
                 )}
               </CardContent>
@@ -460,191 +443,243 @@ const TournamentsHubPage = () => {
           )}
         </div>
 
-        {activeTarget && (
-          <Card>
-            <CardHeader><CardTitle>{isPlayerView ? 'My registrations' : 'Registrations'}</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {visibleRegistrations.map((registration) => {
-                const isEditing = editingRegistrationId === registration.registration_id;
-                return (
-                  <div key={registration.registration_id} className="rounded-lg border p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div>
-                        <p className="font-semibold">{registration.team_name}</p>
-                        <p className="text-sm text-muted-foreground">Season {registration.season_year || 'Open'} · Submitted by {registration.submitted_by_name} · {registration.contact_email}</p>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        <Badge variant={registration.status === 'approved' ? 'default' : registration.status === 'rejected' ? 'destructive' : 'secondary'}>{registration.status}</Badge>
-                        {!isPlayerView && <Button size="sm" variant="outline" onClick={() => isEditing ? setEditingRegistrationId(null) : startEditRegistration(registration)}>{isEditing ? 'Cancel' : 'Edit'}</Button>}
-                        {!isPlayerView && <Button size="sm" variant="destructive" onClick={() => removeRegistration(registration.registration_id)}>Delete</Button>}
-                      </div>
-                    </div>
-                    {!isPlayerView && isEditing ? (
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>Team name</Label>
-                          <Input value={draftRegistration.team_name || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, team_name: e.target.value }))} />
-                          <Label>Contact name</Label>
-                          <Input value={draftRegistration.contact_name || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, contact_name: e.target.value }))} />
-                          <Label>Contact email</Label>
-                          <Input value={draftRegistration.contact_email || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, contact_email: e.target.value }))} />
-                          <Label>Contact phone</Label>
-                          <Input value={draftRegistration.contact_phone || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, contact_phone: e.target.value }))} />
-                          <Label>Status</Label>
-                          <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draftRegistration.status || 'pending'} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, status: e.target.value }))}>
-                            <option value="pending">pending</option>
-                            <option value="approved">approved</option>
-                            <option value="rejected">rejected</option>
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Players</Label>
-                          <Textarea className="min-h-[160px]" value={draftRegistration.players || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, players: e.target.value }))} />
-                          <Label>Review notes</Label>
-                          <Textarea value={draftRegistration.review_notes || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, review_notes: e.target.value }))} />
-                          <Button onClick={() => saveRegistrationEdit(registration)}><Plus className="h-4 w-4 mr-1" /> Save changes</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-sm">Players: {readPlayers(registration.players_json).join(', ') || '—'}</p>
-                        {!!registration.review_notes && <p className="text-sm text-muted-foreground"><strong>Review note:</strong> {registration.review_notes}</p>}
-                      </>
-                    )}
-                    {canCurrentUserApproveRegistrations && !isPlayerView && !isEditing && (
-                      <div className="space-y-2">
-                        <Textarea placeholder="Review note" value={reviewNotes[registration.registration_id] || ''} onChange={(e) => setReviewNotes((prev) => ({ ...prev, [registration.registration_id]: e.target.value }))} />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => reviewRegistration(registration.registration_id, 'approved')}>Approve</Button>
-                          <Button size="sm" variant="destructive" onClick={() => reviewRegistration(registration.registration_id, 'rejected')}>Reject</Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {visibleRegistrations.length === 0 && <p className="text-sm text-muted-foreground">{isPlayerView ? 'You have not submitted any registrations for this tournament yet.' : 'No registrations submitted yet.'}</p>}
-            </CardContent>
-          </Card>
-        )}
+        <Tabs defaultValue="registrations" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-1 md:grid-cols-4 h-auto gap-2 bg-transparent p-0">
+            <TabsTrigger value="registrations">Registration Operations</TabsTrigger>
+            <TabsTrigger value="setup">Tournament Setup</TabsTrigger>
+            <TabsTrigger value="schedule">Schedule Factory</TabsTrigger>
+            <TabsTrigger value="publish">Secure Publish</TabsTrigger>
+          </TabsList>
 
-        {activeTarget && !isPlayerView && (
-          <Card>
-            <CardHeader><CardTitle>Schedule Versions & Workflow</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {canManageTournament(user) && (
-                <div className="rounded-lg border p-4 space-y-3">
-                  <p className="font-semibold">Create new schedule version</p>
-                  <Textarea placeholder="Change log" value={changeLog} onChange={(e) => setChangeLog(e.target.value)} />
-                  {scheduleDraft.map((match, index) => (
-                    <div key={index} className="grid gap-2 md:grid-cols-4">
-                      {(['match_id', 'date', 'time', 'venue', 'team_a', 'team_b', 'stage', 'notes'] as Array<keyof ScheduleMatch>).map((field) => (
-                        <Input key={field} placeholder={field.replace(/_/g, ' ')} value={match[field]} onChange={(e) => updateScheduleDraft(index, field, e.target.value)} />
-                      ))}
-                    </div>
-                  ))}
-                  <div className="flex gap-2 flex-wrap">
-                    <Button variant="outline" onClick={() => setScheduleDraft((prev) => [...prev, emptyScheduleRow])}>Add Match</Button>
-                    <Button onClick={createScheduleVersion}>Save Version</Button>
+          <TabsContent value="registrations" className="space-y-4">
+            {activeTarget && isPlayerView && (
+              <Card>
+                <CardHeader><CardTitle>Submit team registration</CardTitle></CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Team name</Label><Input value={registrationForm.team_name} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, team_name: e.target.value }))} />
+                    <Label>Contact name</Label><Input value={registrationForm.contact_name} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_name: e.target.value }))} />
+                    <Label>Contact email</Label><Input value={registrationForm.contact_email} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_email: e.target.value }))} />
+                    <Label>Contact phone</Label><Input value={registrationForm.contact_phone} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, contact_phone: e.target.value }))} />
                   </div>
-                </div>
-              )}
+                  <div className="space-y-2">
+                    <Label>Players (one per line)</Label>
+                    <Textarea className="min-h-[220px]" value={registrationForm.players} onChange={(e) => setRegistrationForm((prev) => ({ ...prev, players: e.target.value }))} />
+                    <Button onClick={submitRegistration} disabled={!registrationForm.team_name.trim()}><ShieldCheck className="h-4 w-4 mr-1" /> Submit Registration</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-              {[...scheduleService.getSchedules().filter((item) => item.tournament_id === activeTarget.tournament_id)].sort((a, b) => b.version_number - a.version_number).map((schedule) => {
-                const previous = scheduleService.getSchedules().find((item) => item.schedule_id === schedule.parent_schedule_id);
-                const diff = scheduleService.diffVersions(previous, schedule);
-                const approvals = scheduleService.getApprovals().filter((item) => item.schedule_id === schedule.schedule_id);
-                const roadmap = getScheduleApprovalRoadmap(schedule, approvals);
-                const hasCurrentUserDecision = approvals.some((item) => item.approver_id === getActorId(user));
-                const canReviewSchedule = canCurrentUserApproveSchedules && schedule.status === 'pending_approval' && !hasCurrentUserDecision;
-                return (
-                  <div key={schedule.schedule_id} className="rounded-lg border p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div>
-                        <p className="font-semibold">Version {schedule.version_number}</p>
-                        <p className="text-sm text-muted-foreground">{formatInIST(schedule.timestamp)}</p>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        <Badge variant={schedule.status === 'approved' ? 'default' : schedule.status === 'rejected' ? 'destructive' : 'secondary'}>{schedule.status}</Badge>
-                        <Badge variant="outline">Hash {schedule.hash.slice(0, 12)}…</Badge>
-                      </div>
-                    </div>
-                    <p className="text-sm"><strong>Change log:</strong> {schedule.change_log || '—'}</p>
-                    <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-                      <p className="text-sm"><strong>Status:</strong> {getScheduleDetailedStatus(schedule, approvals)}</p>
-                      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                        {roadmap.map((step) => (
-                          <div key={step.role} className={`rounded border p-2 text-sm ${step.approval?.decision === 'rejected' ? 'border-destructive/30 bg-destructive/5' : step.completed ? 'border-primary/20 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium">{step.role}</p>
-                              <Badge variant={step.approval?.decision === 'rejected' ? 'destructive' : step.completed ? 'default' : 'secondary'}>
-                                {step.approval?.decision === 'rejected' ? 'Rejected' : step.completed ? 'Approved' : 'Pending'}
-                              </Badge>
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {step.approval ? `${step.approval.approver_name} • ${formatInIST(step.approval.timestamp)}` : 'Awaiting action from this approver.'}
-                            </p>
+            {activeTarget && (
+              <Card>
+                <CardHeader><CardTitle>{isPlayerView ? 'My registrations' : 'Registration governance desk'}</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                    <Input placeholder="Search by team name" value={searchTeam} onChange={(e) => setSearchTeam(e.target.value)} />
+                    <Badge variant="outline" className="h-10 px-4 flex items-center">{filteredRegistrations.length} visible</Badge>
+                  </div>
+                  {filteredRegistrations.map((registration) => {
+                    const isEditing = editingRegistrationId === registration.registration_id;
+                    return (
+                      <div key={registration.registration_id} className="rounded-lg border p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div>
+                            <p className="font-semibold">{registration.team_name}</p>
+                            <p className="text-sm text-muted-foreground">Submitted by {registration.submitted_by_name} · {registration.contact_email}</p>
                           </div>
-                        ))}
+                          <div className="flex gap-2 flex-wrap">
+                            <Badge variant={registration.status === 'approved' ? 'default' : registration.status === 'rejected' ? 'destructive' : 'secondary'}>{registration.status}</Badge>
+                            {!isPlayerView && <Button size="sm" variant="outline" onClick={() => isEditing ? setEditingRegistrationId(null) : startEditRegistration(registration)}>{isEditing ? 'Cancel' : 'Edit'}</Button>}
+                            {!isPlayerView && <Button size="sm" variant="destructive" onClick={() => removeRegistration(registration.registration_id)}>Delete</Button>}
+                          </div>
+                        </div>
+                        {!isPlayerView && isEditing ? (
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Team name</Label><Input value={draftRegistration.team_name || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, team_name: e.target.value }))} />
+                              <Label>Contact name</Label><Input value={draftRegistration.contact_name || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, contact_name: e.target.value }))} />
+                              <Label>Contact email</Label><Input value={draftRegistration.contact_email || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, contact_email: e.target.value }))} />
+                              <Label>Status</Label>
+                              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draftRegistration.status || 'pending'} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, status: e.target.value }))}>
+                                <option value="pending">pending</option><option value="approved">approved</option><option value="rejected">rejected</option>
+                              </select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Players</Label><Textarea className="min-h-[160px]" value={draftRegistration.players || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, players: e.target.value }))} />
+                              <Label>Review notes</Label><Textarea value={draftRegistration.review_notes || ''} onChange={(e) => setDraftRegistration((prev) => ({ ...prev, review_notes: e.target.value }))} />
+                              <Button onClick={() => saveRegistrationEdit(registration)}><Plus className="h-4 w-4 mr-1" /> Save changes</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm">Players: {readPlayers(registration.players_json).join(', ') || '—'}</p>
+                            {!!registration.review_notes && <p className="text-sm text-muted-foreground"><strong>Review note:</strong> {registration.review_notes}</p>}
+                          </>
+                        )}
+                        {canCurrentUserApproveRegistrations && !isPlayerView && !isEditing && (
+                          <div className="space-y-2">
+                            <Textarea placeholder="Review note" value={reviewNotes[registration.registration_id] || ''} onChange={(e) => setReviewNotes((prev) => ({ ...prev, [registration.registration_id]: e.target.value }))} />
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => reviewRegistration(registration.registration_id, 'approved')}>Approve</Button>
+                              <Button size="sm" variant="destructive" onClick={() => reviewRegistration(registration.registration_id, 'rejected')}>Reject</Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
+                    );
+                  })}
+                  {filteredRegistrations.length === 0 && <p className="text-sm text-muted-foreground">No registrations match this filter.</p>}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="setup">
+            {canManageTournament(user) && (
+              <Card>
+                <CardHeader><CardTitle>Tournament source setup</CardTitle></CardHeader>
+                <CardContent className="space-y-5">
+                  <div className="flex gap-2 flex-wrap">
+                    <Button variant={mode === 'link' ? 'default' : 'outline'} onClick={() => setMode('link')}>Link existing season</Button>
+                    <Button variant={mode === 'create' ? 'default' : 'outline'} onClick={() => setMode('create')}>Create new tournament page</Button>
+                  </div>
+
+                  {mode === 'link' ? (
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto] items-end">
+                      <div className="space-y-2">
+                        <Label>Choose an existing tournament season</Label>
+                        <select className="h-10 rounded-md border bg-background px-3 text-sm" value={linkedSeasonKey} onChange={(e) => setLinkedSeasonKey(e.target.value)}>
+                          <option value="">Select a season to link</option>
+                          {linkedSeasonCandidates.map((item) => (
+                            <option key={item.key} value={item.key}>{item.tournament_name} • Season {item.season_year}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <Button onClick={linkExistingSeason} disabled={!linkedSeasonKey}><Link2 className="h-4 w-4 mr-1" /> Link season</Button>
                     </div>
-                    <div className="space-y-2">
-                      {diff.map((entry) => (
-                        <div key={entry.match_id} className={`rounded border p-2 text-sm ${entry.kind === 'added' ? 'bg-green-500/10 border-green-500/30' : entry.kind === 'updated' ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                          {entry.kind.toUpperCase()} · {entry.current?.team_a || entry.previous?.team_a} vs {entry.current?.team_b || entry.previous?.team_b}
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {Object.entries(tournamentForm).map(([key, value]) => (
+                        <div key={key} className={`space-y-2 ${key === 'notes' ? 'md:col-span-2' : ''}`}>
+                          <Label>{key.replace(/_/g, ' ')}</Label>
+                          {key === 'notes'
+                            ? <Textarea value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />
+                            : <Input type={key.includes('date') ? 'date' : key === 'season_year' ? 'number' : 'text'} value={value} onChange={(e) => setTournamentForm((prev) => ({ ...prev, [key]: e.target.value }))} />}
                         </div>
                       ))}
-                      {diff.length === 0 && <p className="text-sm text-muted-foreground">Baseline version.</p>}
+                      <Button onClick={editingTournament ? saveTournamentEdits : createTournament} disabled={!tournamentForm.name.trim()}>
+                        {editingTournament ? 'Save tournament target' : 'Create registration page'}
+                      </Button>
                     </div>
-                    <p className="text-sm text-muted-foreground">Approvals: {approvals.filter((item) => item.decision === 'approved').map((item) => `${item.approver_name} (${item.approver_role})`).join(', ') || 'Pending'}</p>
-                    {canReviewSchedule && (
-                      <Textarea placeholder="Approval or rejection note" value={approvalComments[schedule.schedule_id] || ''} onChange={(e) => setApprovalComments((prev) => ({ ...prev, [schedule.schedule_id]: e.target.value }))} />
-                    )}
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="schedule" className="space-y-4">
+            {activeTarget && !isPlayerView && (
+              <Card>
+                <CardHeader><CardTitle>Schedule template and approval workflow</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  {canManageTournament(user) && (
+                    <div className="rounded-lg border p-4 space-y-3">
+                      <div className="flex flex-wrap gap-2 justify-between items-center">
+                        <p className="font-semibold">Create secure schedule version</p>
+                        <Button variant="outline" onClick={generateScheduleTemplateFromApprovals}><Sparkles className="h-4 w-4 mr-1" />Generate template from approved teams</Button>
+                      </div>
+                      <Textarea placeholder="Change log" value={changeLog} onChange={(e) => setChangeLog(e.target.value)} />
+                      {scheduleDraft.map((match, index) => (
+                        <div key={index} className="grid gap-2 md:grid-cols-4">
+                          {(['match_id', 'date', 'time', 'venue', 'team_a', 'team_b', 'stage', 'notes'] as Array<keyof ScheduleMatch>).map((field) => (
+                            <Input key={field} placeholder={field.replace(/_/g, ' ')} value={match[field]} onChange={(e) => updateScheduleDraft(index, field, e.target.value)} />
+                          ))}
+                        </div>
+                      ))}
+                      <div className="flex gap-2 flex-wrap">
+                        <Button variant="outline" onClick={() => setScheduleDraft((prev) => [...prev, emptyScheduleRow])}>Add Match</Button>
+                        <Button onClick={createScheduleVersion}>Save Version</Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {[...scheduleService.getSchedules().filter((item) => item.tournament_id === activeTarget.tournament_id)].sort((a, b) => b.version_number - a.version_number).map((schedule) => {
+                    const previous = scheduleService.getSchedules().find((item) => item.schedule_id === schedule.parent_schedule_id);
+                    const diff = scheduleService.diffVersions(previous, schedule);
+                    const approvals = scheduleService.getApprovals().filter((item) => item.schedule_id === schedule.schedule_id);
+                    const roadmap = getScheduleApprovalRoadmap(schedule, approvals);
+                    const hasCurrentUserDecision = approvals.some((item) => item.approver_id === getActorId(user));
+                    const canReviewSchedule = canCurrentUserApproveSchedules && schedule.status === 'pending_approval' && !hasCurrentUserDecision;
+                    return (
+                      <div key={schedule.schedule_id} className="rounded-lg border p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div>
+                            <p className="font-semibold">Version {schedule.version_number}</p>
+                            <p className="text-sm text-muted-foreground">{formatInIST(schedule.timestamp)}</p>
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <Badge variant={schedule.status === 'approved' ? 'default' : schedule.status === 'rejected' ? 'destructive' : 'secondary'}>{schedule.status}</Badge>
+                            <Badge variant="outline">Hash {schedule.hash.slice(0, 12)}…</Badge>
+                          </div>
+                        </div>
+                        <p className="text-sm"><strong>Change log:</strong> {schedule.change_log || '—'}</p>
+                        <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                          <p className="text-sm"><strong>Status:</strong> {getScheduleDetailedStatus(schedule, approvals)}</p>
+                          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                            {roadmap.map((step) => (
+                              <div key={step.role} className={`rounded border p-2 text-sm ${step.approval?.decision === 'rejected' ? 'border-destructive/30 bg-destructive/5' : step.completed ? 'border-primary/20 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                                <div className="flex items-center justify-between gap-2"><p className="font-medium">{step.role}</p><Badge variant={step.approval?.decision === 'rejected' ? 'destructive' : step.completed ? 'default' : 'secondary'}>{step.approval?.decision === 'rejected' ? 'Rejected' : step.completed ? 'Approved' : 'Pending'}</Badge></div>
+                                <p className="mt-1 text-xs text-muted-foreground">{step.approval ? `${step.approval.approver_name} • ${formatInIST(step.approval.timestamp)}` : 'Awaiting action from this approver.'}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {diff.map((entry) => (
+                            <div key={entry.match_id} className={`rounded border p-2 text-sm ${entry.kind === 'added' ? 'bg-green-500/10 border-green-500/30' : entry.kind === 'updated' ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                              {entry.kind.toUpperCase()} · {entry.current?.team_a || entry.previous?.team_a} vs {entry.current?.team_b || entry.previous?.team_b}
+                            </div>
+                          ))}
+                          {diff.length === 0 && <p className="text-sm text-muted-foreground">Baseline version.</p>}
+                        </div>
+                        {canReviewSchedule && <Textarea placeholder="Approval or rejection note" value={approvalComments[schedule.schedule_id] || ''} onChange={(e) => setApprovalComments((prev) => ({ ...prev, [schedule.schedule_id]: e.target.value }))} />}
+                        <div className="flex gap-2 flex-wrap">
+                          {canManageTournament(user) && schedule.status === 'draft' && <Button variant="outline" onClick={() => submitScheduleForApproval(schedule.schedule_id)}>Send for Approval</Button>}
+                          <Button variant="outline" onClick={() => scheduleService.downloadPdf(schedule.schedule_id)} disabled={schedule.status !== 'approved'}>Download Secure PDF</Button>
+                          {canReviewSchedule && <Button onClick={() => decideSchedule(schedule.schedule_id, 'approved')}>Approve</Button>}
+                          {canReviewSchedule && <Button variant="destructive" onClick={() => decideSchedule(schedule.schedule_id, 'rejected')}>Reject</Button>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="publish">
+            <Card>
+              <CardHeader><CardTitle>Publication center</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {approvedSchedules.map((schedule) => (
+                  <div key={schedule.schedule_id} className="rounded-lg border p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="font-semibold">Version {schedule.version_number}</p>
+                      <Badge>{formatInIST(schedule.timestamp)}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{schedule.change_log || 'Published tournament schedule.'}</p>
                     <div className="flex gap-2 flex-wrap">
-                      {canManageTournament(user) && schedule.status === 'draft' && <Button variant="outline" onClick={() => submitScheduleForApproval(schedule.schedule_id)}>Send for Approval</Button>}
-                      <Button variant="outline" onClick={() => scheduleService.downloadPdf(schedule.schedule_id)} disabled={schedule.status !== 'approved'}>PDF</Button>
-                      {canReviewSchedule && <Button onClick={() => decideSchedule(schedule.schedule_id, 'approved')}>Approve</Button>}
-                      {canReviewSchedule && <Button variant="destructive" onClick={() => decideSchedule(schedule.schedule_id, 'rejected')}>Reject</Button>}
+                      <Button variant="outline" onClick={() => scheduleService.downloadPdf(schedule.schedule_id)}>Download digital secured schedule</Button>
+                      <Button size="sm" asChild variant="secondary"><Link to={activeTarget?.publicPath || '/tournaments'}>Open linked page <ExternalLink className="h-3.5 w-3.5 ml-1" /></Link></Button>
                     </div>
                   </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
-
-        {activeTarget && isPlayerView && approvedSchedules.length > 0 && (
-          <Card>
-            <CardHeader><CardTitle>Published schedule</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              {approvedSchedules.map((schedule) => (
-                <div key={schedule.schedule_id} className="rounded-lg border p-4 space-y-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <p className="font-semibold">Version {schedule.version_number}</p>
-                    <Badge>{formatInIST(schedule.timestamp)}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{schedule.change_log || 'Published tournament schedule.'}</p>
-                  <Button variant="outline" onClick={() => scheduleService.downloadPdf(schedule.schedule_id)}>Download published schedule</Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader><CardTitle>Quick links</CardTitle></CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            {registrationTargets.map((item) => (
-              <div key={item.key} className="rounded-lg border p-4 flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{item.tournament_name}</p>
-                  <p className="text-sm text-muted-foreground">Season {item.season_year || 'Open'} · {item.source_type === 'existing' ? 'official tournament page' : 'separate registration page'}</p>
-                </div>
-                <Button asChild size="sm" variant="outline"><Link to={item.publicPath}>Open <ExternalLink className="h-3.5 w-3.5 ml-1" /></Link></Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+                ))}
+                {approvedSchedules.length === 0 && <p className="text-sm text-muted-foreground">No approved schedules to publish yet.</p>}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
