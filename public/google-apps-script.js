@@ -27,7 +27,7 @@ const SHEET_NAME = "CricketClubPortal-lovable";
 const TABS = {
   Players: ["player_id", "name", "username", "password", "phone", "role", "status"],
   Tournaments: ["tournament_id", "name", "format", "overs", "description"],
-  Seasons: ["season_id", "tournament_id", "year", "start_date", "end_date", "status"],
+  Seasons: ["season_id", "tournament_id", "year", "start_date", "end_date", "status", "winner_team", "runner_up_team"],
   Matches: [
     "match_id",
     "season_id",

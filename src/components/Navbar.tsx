@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Vote, ClipboardList, Layers3 } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Vote, ClipboardList, Layers3, Crown } from 'lucide-react';
 
 export function Navbar() {
   const { user, logout, isAdmin, isPlayer, isManagement } = useAuth();
@@ -25,6 +25,9 @@ export function Navbar() {
         </Button>
         <Button variant="ghost" size="sm" asChild onClick={close}>
           <Link to="/seasons"><Layers3 className="h-4 w-4 mr-1" /> Seasons</Link>
+        </Button>
+        <Button variant="ghost" size="sm" asChild onClick={close}>
+          <Link to="/hall-of-glory"><Crown className="h-4 w-4 mr-1" /> Hall of Glory</Link>
         </Button>
 
         {user && (
