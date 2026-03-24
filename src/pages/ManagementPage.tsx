@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, Star, FileText, Users, AlertTriangle } from 'lucide-react';
+import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, FileText, Users, AlertTriangle, BriefcaseBusiness, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { v2api, logAudit, istNow } from '@/lib/v2api';
 import { ManagementUser, DigitalScorelist, CertificationApproval, BoardConfiguration } from '@/lib/v2types';
@@ -69,7 +69,20 @@ const ManagementPage = () => {
   }, [boardConfig?.administration_team_ids, mgmtUsers]);
 
   const leadership = mgmtUsers.filter(m => ['President', 'Vice President', 'Secretary', 'Treasurer'].includes(m.designation));
-  const committee = mgmtUsers.filter(m => !['President', 'Vice President', 'Secretary', 'Treasurer'].includes(m.designation));
+  const administrationTeamIds = useMemo(() => String(boardConfig?.administration_team_ids || '').split(',').map((id) => id.trim()).filter(Boolean), [boardConfig?.administration_team_ids]);
+  const boardMembers = useMemo(() => {
+    const roleOrder = ['President', 'Vice President', 'Secretary', 'Treasurer'];
+    return [...mgmtUsers].sort((a, b) => {
+      const roleA = roleOrder.indexOf(a.designation);
+      const roleB = roleOrder.indexOf(b.designation);
+      const normalizedRoleA = roleA === -1 ? Number.MAX_SAFE_INTEGER : roleA;
+      const normalizedRoleB = roleB === -1 ? Number.MAX_SAFE_INTEGER : roleB;
+      if (normalizedRoleA !== normalizedRoleB) return normalizedRoleA - normalizedRoleB;
+      return a.name.localeCompare(b.name);
+    });
+  }, [mgmtUsers]);
+  const configuredBoardTeam = useMemo(() => boardMembers.filter((member) => administrationTeamIds.includes(member.management_id)), [administrationTeamIds, boardMembers]);
+  const otherBoardMembers = useMemo(() => boardMembers.filter((member) => !administrationTeamIds.includes(member.management_id)), [administrationTeamIds, boardMembers]);
   const resolveMessageIdentity = (id: string) => {
     if (id === 'admin') return '🛡️ Admin';
     if (id === 'all') return '📢 All';
@@ -602,63 +615,98 @@ const ManagementPage = () => {
           </>
         )}
 
-        {/* Leadership Section */}
-        {leadership.length > 0 && (
-          <section>
-            <h2 className="font-display text-xl md:text-2xl font-bold mb-4 flex items-center gap-2">
-              <Crown className="h-5 w-5 md:h-6 md:w-6 text-accent" /> Club Leadership
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {leadership.map(m => (
-                <Card key={m.management_id} className="border-l-4 border-l-accent hover:shadow-lg transition-all overflow-hidden group">
-                  <CardContent className="p-5 flex items-center gap-4">
-                    <div className="h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center shrink-0">
-                      {m.signature_image ? (
-                        <img src={m.signature_image} alt={m.name} className="h-14 w-14 md:h-16 md:w-16 rounded-2xl object-cover" />
-                      ) : (
-                        <Star className="h-6 w-6 md:h-8 md:w-8 text-accent" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-display text-base md:text-lg font-bold truncate">{m.name}</h3>
-                      <Badge className="bg-accent/10 text-accent border-accent/20 text-xs">{m.designation}</Badge>
-                      {m.email && <p className="text-xs text-muted-foreground mt-1 truncate">{m.email}</p>}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+        <section className="space-y-4">
+          <div className="rounded-2xl border bg-gradient-to-r from-primary/10 via-accent/5 to-background p-5 md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Board Directory</p>
+                <h2 className="font-display text-2xl md:text-3xl font-bold mt-1 flex items-center gap-2">
+                  <Crown className="h-6 w-6 text-primary" /> Management Board Members
+                </h2>
+                <p className="text-sm text-muted-foreground mt-2">Complete governance roster, including the admin-selected Management Board Configuration team.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-primary text-primary-foreground">Total Board Members: {boardMembers.length}</Badge>
+                <Badge variant="outline">Configured Team: {configuredBoardTeam.length}</Badge>
+                <Badge variant="outline">Period: {boardConfig?.current_period || 'Not set'}</Badge>
+              </div>
             </div>
-          </section>
-        )}
+          </div>
 
-        {/* Committee */}
-        {committee.length > 0 && (
-          <section>
-            <h2 className="font-display text-xl md:text-2xl font-bold mb-4 flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" /> Tournament Committee
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {committee.map(m => (
-                <Card key={m.management_id} className="hover:shadow-lg transition-all group">
-                  <CardContent className="p-4 md:p-5 flex items-center gap-4">
-                    <div className="h-12 w-12 md:h-14 md:w-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                      {m.signature_image ? (
-                        <img src={m.signature_image} alt={m.name} className="h-12 w-12 md:h-14 md:w-14 rounded-xl object-cover" />
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <Card className="border-primary/30 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" /> Management Board Configuration Team
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">This list is loaded from admin board settings.</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {configuredBoardTeam.length === 0 && (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    Admin has not selected and saved the management board configuration team yet.
+                  </div>
+                )}
+                {configuredBoardTeam.map((member) => (
+                  <div key={member.management_id} className="rounded-xl border bg-primary/5 p-3 flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                      {member.signature_image ? (
+                        <img src={member.signature_image} alt={member.name} className="h-12 w-12 rounded-xl object-cover" />
                       ) : (
-                        <User className="h-5 w-5 md:h-7 md:w-7 text-primary" />
+                        <Crown className="h-5 w-5 text-primary" />
                       )}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-display font-bold truncate">{m.name}</h3>
-                      <Badge variant="outline" className="text-xs">{m.designation}</Badge>
-                      <p className="text-xs text-muted-foreground mt-1">{m.role}</p>
+                      <p className="font-display font-bold truncate">{member.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{member.email || 'No email configured'}</p>
+                      <div className="mt-1 flex items-center gap-2 flex-wrap">
+                        <Badge className="bg-primary text-primary-foreground text-[10px]">{member.designation}</Badge>
+                        {member.role && <Badge variant="outline" className="text-[10px]">{member.role}</Badge>}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </section>
-        )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="font-display text-lg flex items-center gap-2">
+                  <BriefcaseBusiness className="h-5 w-5 text-accent" /> Full Board Roster
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">All active management members are shown below.</p>
+              </CardHeader>
+              <CardContent className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                {boardMembers.map((member) => {
+                  const highlighted = administrationTeamIds.includes(member.management_id);
+                  return (
+                    <div key={member.management_id} className={`rounded-xl border p-3 flex items-center gap-3 ${highlighted ? 'border-primary/40 bg-primary/5' : 'bg-background'}`}>
+                      <div className="h-11 w-11 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        {member.signature_image ? (
+                          <img src={member.signature_image} alt={member.name} className="h-11 w-11 rounded-lg object-cover" />
+                        ) : (
+                          <User className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold truncate">{member.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{member.email || 'No email configured'}</p>
+                        <div className="mt-1 flex items-center gap-2 flex-wrap">
+                          <Badge variant={highlighted ? 'default' : 'outline'} className="text-[10px]">{member.designation}</Badge>
+                          {member.role && <Badge variant="outline" className="text-[10px]">{member.role}</Badge>}
+                          {highlighted && <Badge className="bg-accent/20 text-accent-foreground text-[10px]">Configured Team</Badge>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {otherBoardMembers.length === 0 && boardMembers.length > 0 && (
+                  <p className="text-xs text-muted-foreground">All board members are currently part of the configured team.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
 
         {mgmtUsers.length === 0 && <p className="text-center text-muted-foreground py-8">No management users configured yet.</p>}
       </div>
