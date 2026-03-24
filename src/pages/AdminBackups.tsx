@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useData } from '@/lib/DataContext';
 import { Download, Database, FileJson, Loader2 } from 'lucide-react';
-import { v2api } from '@/lib/v2api';
+import { v2api, logAudit } from '@/lib/v2api';
 import { useToast } from '@/hooks/use-toast';
 
 const AdminBackups = () => {
@@ -15,6 +15,7 @@ const AdminBackups = () => {
   const { players, tournaments, seasons, matches, batting, bowling, announcements, messages } = useData();
   const { toast } = useToast();
   const [exporting, setExporting] = useState('');
+  const [exportingText, setExportingText] = useState('');
 
   if (!isAdmin) return <Navigate to="/login" />;
 
@@ -47,15 +48,19 @@ const AdminBackups = () => {
 
   const exportData = async (name: string, data: any, format: 'json' | 'csv') => {
     setExporting(name);
+    setExportingText(`Preparing ${name} ${format.toUpperCase()} export...`);
     await new Promise(r => setTimeout(r, 300));
     downloadFile(data, `cricket_${name}_${new Date().toISOString().split('T')[0]}`, format);
+    logAudit('admin', 'export_module_backup', 'backup', name, JSON.stringify({ format, records: Array.isArray(data) ? data.length : 0 }));
     toast({ title: `Exported ${name}` });
     setExporting('');
+    setExportingText('');
   };
 
   const exportFullBackup = async (format: 'json' | 'csv') => {
     setExporting('full');
-    const [scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs, presence, managementUsers, matchTimeline] = await Promise.all([
+    setExportingText(`Preparing full ${format.toUpperCase()} backup for all modules...`);
+    const [scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs, presence, managementUsers, matchTimeline, boardConfiguration, newsRoomPosts] = await Promise.all([
       v2api.getScorelists(),
       v2api.getAuditEvents(),
       v2api.getTickets(),
@@ -66,13 +71,15 @@ const AdminBackups = () => {
       v2api.getPresence(),
       v2api.getManagementUsers(),
       v2api.getMatchTimeline(),
+      v2api.getBoardConfiguration(),
+      v2api.getNewsRoomPosts(),
     ]);
     
     if (format === 'json') {
       const backup = {
         players, tournaments, seasons, matches, batting, bowling, announcements, messages,
         scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs,
-        presence, managementUsers, matchTimeline,
+        presence, managementUsers, matchTimeline, boardConfiguration, newsRoomPosts,
         exportDate: new Date().toISOString(),
       };
       downloadFile(backup, `cricket_full_backup_${new Date().toISOString().split('T')[0]}`, 'json');
@@ -80,7 +87,7 @@ const AdminBackups = () => {
       const datasets: Record<string, any[]> = {
         players, tournaments, seasons, matches, batting, bowling, announcements, messages,
         scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs,
-        presence, managementUsers, matchTimeline,
+        presence, managementUsers, matchTimeline, boardConfiguration, newsRoomPosts,
       };
       Object.entries(datasets).forEach(([name, data]) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -88,8 +95,10 @@ const AdminBackups = () => {
         }
       });
     }
+    logAudit('admin', 'export_full_backup', 'backup', 'full', JSON.stringify({ format }));
     toast({ title: 'Full backup exported (all modules included)' });
     setExporting('');
+    setExportingText('');
   };
 
   const exports = [
@@ -101,6 +110,10 @@ const AdminBackups = () => {
     { name: 'Seasons', data: seasons, icon: '📅' },
     { name: 'Announcements', data: announcements, icon: '📢' },
     { name: 'Messages', data: messages, icon: '💬' },
+    { name: 'Scorelists', data: [], icon: '🧾', onDemand: true },
+    { name: 'AuditEvents', data: [], icon: '🛡️', onDemand: true },
+    { name: 'SupportTickets', data: [], icon: '🎫', onDemand: true },
+    { name: 'NewsRoom', data: [], icon: '🗞️', onDemand: true },
   ];
 
   return (
@@ -108,7 +121,8 @@ const AdminBackups = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <h1 className="font-display text-3xl font-bold">💾 Backup & Export</h1>
-        <p className="text-sm text-muted-foreground">Full backup includes all v2 modules: Support tickets, CSAT, Email links, Presence, Management users, Scorelists, Audit events, Timeline.</p>
+        <p className="text-sm text-muted-foreground">Full backup includes all v2 modules: Support tickets, CSAT, Email links, Presence, Management users, Scorelists, Audit events, Timeline, board configuration, and news room posts.</p>
+        {exportingText && <p className="text-sm text-primary animate-pulse">{exportingText}</p>}
 
         <Card className="border-2 border-primary/20">
           <CardHeader>
@@ -134,13 +148,25 @@ const AdminBackups = () => {
                     <span className="text-xl">{e.icon}</span>
                     <h3 className="font-display font-semibold">{e.name}</h3>
                   </div>
-                  <Badge variant="outline">{e.data.length} records</Badge>
+                  <Badge variant="outline">{e.onDemand ? 'On demand' : e.data.length} records</Badge>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => exportData(e.name.toLowerCase(), e.data, 'json')} disabled={!!exporting} className="flex-1 gap-1">
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    if (e.name === 'Scorelists') return exportData('scorelists', await v2api.getScorelists(), 'json');
+                    if (e.name === 'AuditEvents') return exportData('audit_events', await v2api.getAuditEvents(), 'json');
+                    if (e.name === 'SupportTickets') return exportData('support_tickets', await v2api.getTickets(), 'json');
+                    if (e.name === 'NewsRoom') return exportData('news_room_posts', await v2api.getNewsRoomPosts(), 'json');
+                    return exportData(e.name.toLowerCase(), e.data, 'json');
+                  }} disabled={!!exporting} className="flex-1 gap-1">
                     <FileJson className="h-3 w-3" /> JSON
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => exportData(e.name.toLowerCase(), e.data, 'csv')} disabled={!!exporting} className="flex-1 gap-1">
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    if (e.name === 'Scorelists') return exportData('scorelists', await v2api.getScorelists(), 'csv');
+                    if (e.name === 'AuditEvents') return exportData('audit_events', await v2api.getAuditEvents(), 'csv');
+                    if (e.name === 'SupportTickets') return exportData('support_tickets', await v2api.getTickets(), 'csv');
+                    if (e.name === 'NewsRoom') return exportData('news_room_posts', await v2api.getNewsRoomPosts(), 'csv');
+                    return exportData(e.name.toLowerCase(), e.data, 'csv');
+                  }} disabled={!!exporting} className="flex-1 gap-1">
                     <Download className="h-3 w-3" /> CSV
                   </Button>
                 </div>
