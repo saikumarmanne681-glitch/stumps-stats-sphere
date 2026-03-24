@@ -18,9 +18,9 @@ export const mockTournaments: Tournament[] = [
 ];
 
 export const mockSeasons: Season[] = [
-  { season_id: 'S001', tournament_id: 'T001', year: 2024, start_date: '2024-03-01', end_date: '2024-05-31', status: 'completed' },
+  { season_id: 'S001', tournament_id: 'T001', year: 2024, start_date: '2024-03-01', end_date: '2024-05-31', status: 'completed', winner_team: 'Thunder XI', runner_up_team: 'Royal Stars' },
   { season_id: 'S002', tournament_id: 'T001', year: 2025, start_date: '2025-03-01', end_date: '2025-05-31', status: 'ongoing' },
-  { season_id: 'S003', tournament_id: 'T002', year: 2024, start_date: '2024-06-01', end_date: '2024-08-31', status: 'completed' },
+  { season_id: 'S003', tournament_id: 'T002', year: 2024, start_date: '2024-06-01', end_date: '2024-08-31', status: 'completed', winner_team: 'Storm Kings', runner_up_team: 'Royal Stars' },
   { season_id: 'S004', tournament_id: 'T003', year: 2025, start_date: '2025-01-01', end_date: '2025-12-31', status: 'ongoing' },
 ];
 
