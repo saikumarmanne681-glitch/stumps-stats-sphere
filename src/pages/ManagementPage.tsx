@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, Star, FileText, Users, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { v2api, logAudit, istNow } from '@/lib/v2api';
-import { ManagementUser, DigitalScorelist, CertificationApproval } from '@/lib/v2types';
+import { ManagementUser, DigitalScorelist, CertificationApproval, BoardConfiguration } from '@/lib/v2types';
 import { getScheduleApprovalRoadmap, getScheduleDetailedStatus, getScorelistDetailedStatus, getScorelistRoadmap, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
@@ -50,15 +50,23 @@ const ManagementPage = () => {
   const [scorelistActionLoading, setScorelistActionLoading] = useState(false);
   const [scheduleActionLoadingId, setScheduleActionLoadingId] = useState<string | null>(null);
   const [scheduleComments, setScheduleComments] = useState<Record<string, string>>({});
+  const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
 
   const refresh = async () => {
-    const [users, scorelistData] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), scheduleService.syncFromBackend()]);
+    const [users, scorelistData, boardRows] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), v2api.getBoardConfiguration(), scheduleService.syncFromBackend()]);
     setMgmtUsers(users.filter(m => String(m.status || '').trim().toLowerCase() !== 'inactive'));
     setScorelists(scorelistData);
+    setBoardConfig(boardRows[0] || null);
     setLoading(false);
   };
 
   useEffect(() => { refresh(); }, []);
+
+
+  const administrationTeam = useMemo(() => {
+    const ids = String(boardConfig?.administration_team_ids || '').split(',').map((id) => id.trim()).filter(Boolean);
+    return mgmtUsers.filter((member) => ids.includes(member.management_id));
+  }, [boardConfig?.administration_team_ids, mgmtUsers]);
 
   const leadership = mgmtUsers.filter(m => ['President', 'Vice President', 'Secretary', 'Treasurer'].includes(m.designation));
   const committee = mgmtUsers.filter(m => !['President', 'Vice President', 'Secretary', 'Treasurer'].includes(m.designation));
@@ -340,7 +348,29 @@ const ManagementPage = () => {
         </div>
 
         {isManagement && (
-          <Tabs defaultValue="pending">
+  
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="font-display text-xl flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> Board Snapshot</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="bg-primary text-primary-foreground">Current Period: {boardConfig?.current_period || 'Not set by admin'}</Badge>
+              <Badge variant="outline">Administration Team: {administrationTeam.length}</Badge>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+              {administrationTeam.map((member) => (
+                <div key={member.management_id} className="rounded-md border bg-background p-3">
+                  <p className="font-semibold">{member.name}</p>
+                  <p className="text-xs text-muted-foreground">{member.designation}</p>
+                </div>
+              ))}
+              {administrationTeam.length === 0 && <p className="text-sm text-muted-foreground">Admin has not selected the administration team yet.</p>}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue="pending">
             <TabsList className="flex flex-wrap h-auto gap-1">
               <TabsTrigger value="pending" className="text-xs md:text-sm gap-1">
                 <FileText className="h-3 w-3" /> Pending

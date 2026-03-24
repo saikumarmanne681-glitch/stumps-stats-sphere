@@ -29,23 +29,28 @@ function normalizeFallbackScore(score?: string): TeamScoreSummary | null {
 
 export function getTeamScoreSummary(batting: BattingScorecard[], team: string, fallbackScore?: string): TeamScoreSummary {
   const rows = batting.filter((entry) => entry.team === team);
+  const fallback = normalizeFallbackScore(fallbackScore);
   if (rows.length === 0) {
-    return normalizeFallbackScore(fallbackScore) || {
+    return fallback || {
       runs: 0,
       wickets: 0,
       balls: 0,
       overs: '0.0',
-      display: normalizeFallbackScore(fallbackScore)?.display || fallbackScore || '0/0 (0.0)',
+      display: fallback?.display || fallbackScore || '0/0 (0.0)',
       hasEntries: false,
     };
   }
 
-  const runs = rows.reduce((sum, entry) => sum + (entry.runs || 0), 0);
-  const wickets = rows.filter((entry) => {
+  const runsFromBatting = rows.reduce((sum, entry) => sum + (entry.runs || 0), 0);
+  const wicketsFromDismissals = rows.filter((entry) => {
     const dismissal = String(entry.how_out || '').trim().toLowerCase();
     return dismissal && dismissal !== 'not out';
   }).length;
-  const balls = rows.reduce((sum, entry) => sum + (entry.balls || 0), 0);
+  const ballsFromBatting = rows.reduce((sum, entry) => sum + (entry.balls || 0), 0);
+
+  const runs = Math.max(runsFromBatting, fallback?.runs || 0);
+  const wickets = Math.max(wicketsFromDismissals, fallback?.wickets || 0);
+  const balls = Math.max(ballsFromBatting, fallback?.balls || 0);
   const overs = `${Math.floor(balls / 6)}.${balls % 6}`;
 
   return {

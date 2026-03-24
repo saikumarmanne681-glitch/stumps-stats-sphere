@@ -123,6 +123,28 @@ export interface CertificationApproval {
   stage: string;
 }
 
+
+export interface BoardConfiguration {
+  config_id: string;
+  current_period: string;
+  administration_team_ids: string;
+  updated_at: string;
+  updated_by: string;
+}
+
+export interface NewsRoomPost {
+  post_id: string;
+  title: string;
+  body: string;
+  audience: "all" | "players" | "management";
+  status: "published" | "draft";
+  posted_by_id: string;
+  posted_by_name: string;
+  posted_by_role: string;
+  published_at: string;
+  updated_at: string;
+}
+
 // SLA config
 export const SLA_CONFIG = {
   low: { firstResponse: 24, resolution: 72 },

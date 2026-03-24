@@ -1,4 +1,4 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, ManagementUser, MatchTimeline } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 
@@ -100,6 +100,16 @@ export const v2api = {
   getMatchTimeline: () => fetchV2Sheet<MatchTimeline>('MATCH_TIMELINE'),
   addTimelineEvent: (e: MatchTimeline) => writeV2Sheet('MATCH_TIMELINE', 'add', e),
   deleteTimelineEvent: (id: string) => writeV2Sheet('MATCH_TIMELINE', 'delete', { event_id: id }),
+
+  // Board configuration
+  getBoardConfiguration: () => fetchV2Sheet<BoardConfiguration>('BOARD_CONFIGURATION'),
+  addBoardConfiguration: (c: BoardConfiguration) => writeV2Sheet('BOARD_CONFIGURATION', 'add', c),
+  updateBoardConfiguration: (c: BoardConfiguration) => writeV2Sheet('BOARD_CONFIGURATION', 'update', c),
+
+  // News room
+  getNewsRoomPosts: () => fetchV2Sheet<NewsRoomPost>('NEWS_ROOM_POSTS'),
+  addNewsRoomPost: (post: NewsRoomPost) => writeV2Sheet('NEWS_ROOM_POSTS', 'add', post),
+  updateNewsRoomPost: (post: NewsRoomPost) => writeV2Sheet('NEWS_ROOM_POSTS', 'update', post),
 };
 
 // Helper to create IST timestamp
