@@ -27,6 +27,7 @@ import TournamentsHubPage from '@/tournaments/TournamentsHubPage';
 import RegistrationTournamentPage from '@/tournaments/RegistrationTournamentPage';
 import SeasonsOverviewPage from './pages/SeasonsOverviewPage';
 import TournamentHonorsPage from './pages/TournamentHonorsPage';
+import NewsRoomPage from './pages/NewsRoomPage';
 import { RequireAuth } from '@/components/RequireAuth';
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/live" element={<LiveMatchPage />} />
             <Route path="/seasons" element={<SeasonsOverviewPage />} />
             <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
+            <Route path="/news-room" element={<RequireAuth><NewsRoomPage /></RequireAuth>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

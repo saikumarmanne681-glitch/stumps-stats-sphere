@@ -4,6 +4,7 @@ import { Match, Tournament, Player, BattingScorecard, Season } from "@/lib/types
 import { Calendar, MapPin, Award } from "lucide-react";
 import { formatSheetDate } from "@/lib/dataUtils";
 import { getTeamScoreSummary } from "@/lib/liveScoring";
+import { getMatchStageChipClass, getStableChipClass } from "@/lib/chipColors";
 
 interface MatchCardProps {
   match: Match;
@@ -38,7 +39,7 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
           <span className="text-xs text-muted-foreground font-mono">{match.match_id}</span>
           <div className="flex items-center gap-1">
             {match.match_stage && (
-              <Badge className="bg-blue-100 text-blue-800 border border-blue-300 text-[10px] font-display">
+              <Badge className={`border text-[10px] font-display ${getMatchStageChipClass(match.match_stage)}`}>
                 {match.match_stage}
               </Badge>
             )}
@@ -50,10 +51,12 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
         </div>
 
         {tournament && (
-          <p className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wide">
-            {tournament.name} • {tournament.format}
-            {season ? ` • ${season.year}` : ""}
-          </p>
+          <div className="mb-2 flex flex-wrap gap-1">
+            <Badge className={`border text-[10px] ${getStableChipClass(tournament.name)}`}>{tournament.name}</Badge>
+            <Badge className={`border text-[10px] ${getStableChipClass(`${tournament.name}-${season?.year || tournament.format}`)}`}>
+              {season ? `Season ${season.year}` : tournament.format}
+            </Badge>
+          </div>
         )}
 
         <div className="flex items-center justify-between my-3">

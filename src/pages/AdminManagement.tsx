@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { v2api, logAudit } from '@/lib/v2api';
-import { ManagementUser, MANAGEMENT_ROLES } from '@/lib/v2types';
+import { BoardConfiguration, ManagementUser, MANAGEMENT_ROLES } from '@/lib/v2types';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
@@ -23,10 +23,12 @@ const AdminManagement = () => {
   const [loading, setLoading] = useState(true);
   const [editUser, setEditUser] = useState<ManagementUser | null>(null);
   const [open, setOpen] = useState(false);
+  const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
 
   const refresh = async () => {
-    const data = await v2api.getManagementUsers();
+    const [data, config] = await Promise.all([v2api.getManagementUsers(), v2api.getBoardConfiguration()]);
     setUsers(data);
+    setBoardConfig(config[0] || null);
     setLoading(false);
   };
 
@@ -59,6 +61,30 @@ const AdminManagement = () => {
     setOpen(false);
     refresh();
   };
+
+
+
+  const saveBoardConfig = async () => {
+    const payload: BoardConfiguration = boardConfig || {
+      config_id: generateId('BRCFG'),
+      current_period: '',
+      administration_team_ids: '',
+      updated_at: new Date().toISOString(),
+      updated_by: 'admin',
+    };
+    payload.updated_at = new Date().toISOString();
+    payload.updated_by = 'admin';
+    const ok = boardConfig?.config_id ? await v2api.updateBoardConfiguration(payload) : await v2api.addBoardConfiguration(payload);
+    if (!ok) {
+      toast({ title: 'Save failed', description: 'Unable to save board configuration.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Board configuration updated' });
+    logAudit('admin', 'update_board_configuration', 'board', payload.config_id, JSON.stringify({ current_period: payload.current_period, administration_team_ids: payload.administration_team_ids }));
+    await refresh();
+  };
+
+  const selectedAdminTeamIds = String(boardConfig?.administration_team_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
 
   if (loading) return (
     <div className="min-h-screen bg-background">
@@ -125,6 +151,58 @@ const AdminManagement = () => {
           <Card><CardContent className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Signing roles</p><p className="mt-1 text-3xl font-bold">{users.filter((entry) => ['President', 'Vice President', 'Tournament Director', 'Match Referee', 'Scoring Official'].includes(entry.designation)).length}</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Avg authority</p><p className="mt-1 text-3xl font-bold">{users.length ? (users.reduce((sum, entry) => sum + Number(entry.authority_level || 0), 0) / users.length).toFixed(1) : '0.0'}</p></CardContent></Card>
         </div>
+
+        <Card>
+          <CardHeader><CardTitle>Management Board Configuration</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Current Period</Label>
+              <Input
+                placeholder="e.g. 2026-2028 Executive Committee"
+                value={boardConfig?.current_period || ''}
+                onChange={(e) => setBoardConfig((prev) => ({
+                  config_id: prev?.config_id || generateId('BRCFG'),
+                  current_period: e.target.value,
+                  administration_team_ids: prev?.administration_team_ids || '',
+                  updated_at: prev?.updated_at || new Date().toISOString(),
+                  updated_by: 'admin',
+                }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Administration Team (select from board users)</Label>
+              <div className="grid gap-2 md:grid-cols-2">
+                {users.filter((u) => u.status === 'active').map((u) => {
+                  const isSelected = selectedAdminTeamIds.includes(u.management_id);
+                  return (
+                    <Button
+                      key={u.management_id}
+                      type="button"
+                      variant={isSelected ? 'default' : 'outline'}
+                      className="justify-between"
+                      onClick={() => {
+                        const next = isSelected
+                          ? selectedAdminTeamIds.filter((id) => id !== u.management_id)
+                          : [...selectedAdminTeamIds, u.management_id];
+                        setBoardConfig((prev) => ({
+                          config_id: prev?.config_id || generateId('BRCFG'),
+                          current_period: prev?.current_period || '',
+                          administration_team_ids: next.join(','),
+                          updated_at: prev?.updated_at || new Date().toISOString(),
+                          updated_by: 'admin',
+                        }));
+                      }}
+                    >
+                      <span>{u.name}</span>
+                      <span className="text-xs opacity-80">{u.designation}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+            <Button onClick={saveBoardConfig}>Save Board Settings</Button>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardContent className="p-0">
