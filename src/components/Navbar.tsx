@@ -12,85 +12,86 @@ export function Navbar() {
 
   const NavItems = ({ mobile = false }: { mobile?: boolean }) => {
     const close = () => mobile && setOpen(false);
+    const navBtnClass = mobile ? 'w-full justify-start' : '';
     return (
-      <div className={mobile ? 'flex flex-col gap-2' : 'flex items-center gap-1'}>
-        <Button variant="ghost" size="sm" asChild onClick={close}>
+      <div className={mobile ? 'flex max-h-[80vh] flex-col gap-2 overflow-y-auto pr-1' : 'flex items-center gap-1'}>
+        <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
           <Link to="/"><Home className="h-4 w-4 mr-1" /> Home</Link>
         </Button>
-        <Button variant="ghost" size="sm" asChild onClick={close}>
+        <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
           <Link to="/leaderboards"><Trophy className="h-4 w-4 mr-1" /> Leaderboards</Link>
         </Button>
-        <Button variant="ghost" size="sm" asChild onClick={close}>
+        <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
           <Link to="/live"><Radio className="h-4 w-4 mr-1" /> Live</Link>
         </Button>
-        <Button variant="ghost" size="sm" asChild onClick={close}>
+        <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
           <Link to="/seasons"><Layers3 className="h-4 w-4 mr-1" /> Seasons</Link>
         </Button>
-        <Button variant="ghost" size="sm" asChild onClick={close}>
+        <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
           <Link to="/hall-of-glory"><Crown className="h-4 w-4 mr-1" /> Hall of Glory</Link>
         </Button>
 
-        {user && (
-          <Button variant="ghost" size="sm" asChild onClick={close}>
+        {(isManagement || isAdmin) && (
+          <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
             <Link to="/management"><Users className="h-4 w-4 mr-1" /> Board</Link>
           </Button>
         )}
 
         {(isPlayer || isManagement) && (
-          <Button variant="ghost" size="sm" asChild onClick={close}>
+          <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
             <Link to="/news-room"><Newspaper className="h-4 w-4 mr-1" /> News Room</Link>
           </Button>
         )}
 
         {user && user.type !== 'management' && (
           <>
-            <Button variant="ghost" size="sm" asChild onClick={close}>
+            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
               <Link to="/elections"><Vote className="h-4 w-4 mr-1" /> Elections</Link>
             </Button>
-            <Button variant="ghost" size="sm" asChild onClick={close}>
+            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
               <Link to="/tournaments"><ClipboardList className="h-4 w-4 mr-1" /> Tournaments</Link>
             </Button>
           </>
         )}
 
         {!user && (
-          <Button size="sm" asChild onClick={close}>
+          <Button size="sm" className={navBtnClass} asChild onClick={close}>
             <Link to="/login"><LogIn className="h-4 w-4 mr-1" /> Login</Link>
           </Button>
         )}
 
         {isAdmin && (
           <>
-            <Button variant="outline" size="sm" asChild onClick={close}>
+            <Button variant="outline" size="sm" className={navBtnClass} asChild onClick={close}>
               <Link to="/admin"><LayoutDashboard className="h-4 w-4 mr-1" /> Admin</Link>
             </Button>
-            <Button variant="ghost" size="sm" asChild onClick={close}>
+            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
               <Link to="/admin/match-center"><Zap className="h-4 w-4 mr-1" /> Scoring</Link>
             </Button>
-            <Button variant="ghost" size="sm" asChild onClick={close}>
+            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
               <Link to="/admin/scorelists"><Shield className="h-4 w-4 mr-1" /> Scorelists</Link>
             </Button>
-            <Button variant="ghost" size="sm" asChild onClick={close}>
+            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
               <Link to="/admin/management"><Users className="h-4 w-4 mr-1" /> Mgmt</Link>
             </Button>
-            <Button variant="ghost" size="sm" asChild onClick={close}>
+            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
               <Link to="/admin/backups"><Database className="h-4 w-4 mr-1" /> Backup</Link>
             </Button>
           </>
         )}
 
         {isPlayer && (
-          <Button variant="outline" size="sm" asChild onClick={close}>
+          <Button variant="outline" size="sm" className={navBtnClass} asChild onClick={close}>
             <Link to="/player"><LayoutDashboard className="h-4 w-4 mr-1" /> Dashboard</Link>
           </Button>
         )}
 
         {isManagement && (
           <>
-            <Button variant="outline" size="sm" asChild onClick={close}>
+            <Button variant="outline" size="sm" className={navBtnClass} asChild onClick={close}>
               <Link to="/management"><LayoutDashboard className="h-4 w-4 mr-1" /> Management</Link>
             </Button>
-            <Button variant="ghost" size="sm" asChild onClick={close}>
+            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
               <Link to="/admin/scorelists"><Shield className="h-4 w-4 mr-1" /> Scorelists</Link>
             </Button>
           </>

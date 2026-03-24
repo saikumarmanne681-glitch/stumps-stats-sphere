@@ -86,6 +86,7 @@ export function AdminMatches() {
   const [performances, setPerformances] = useState<PlayerPerformance[]>([]);
   const [scorecardTeamTab, setScorecardTeamTab] = useState<"teamA" | "teamB">("teamA");
   const [isSavingScorecard, setIsSavingScorecard] = useState(false);
+  const [scorecardEntryMode, setScorecardEntryMode] = useState<"detailed" | "quick">("detailed");
 
   const { toast } = useToast();
 
@@ -176,6 +177,7 @@ export function AdminMatches() {
 
     setPerformances(perfs);
     setScorecardTeamTab("teamA");
+    setScorecardEntryMode("detailed");
     setScorecardPlayerSearch("");
     setScorecardOpen(true);
     logAudit("admin", "open_scorecard_entry", "match", matchId, JSON.stringify({ teamAPlayers: allTeamAIds.length, teamBPlayers: allTeamBIds.length }));
@@ -399,6 +401,7 @@ export function AdminMatches() {
                   onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_runs", Number(e.target.value))}
                 />
               </div>
+              {scorecardEntryMode === "detailed" && (
               <div>
                 <Label className="text-xs">Balls</Label>
                 <Input
@@ -408,6 +411,8 @@ export function AdminMatches() {
                   onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_balls", Number(e.target.value))}
                 />
               </div>
+              )}
+              {scorecardEntryMode === "detailed" && (
               <div>
                 <Label className="text-xs">4s</Label>
                 <Input
@@ -417,6 +422,8 @@ export function AdminMatches() {
                   onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_fours", Number(e.target.value))}
                 />
               </div>
+              )}
+              {scorecardEntryMode === "detailed" && (
               <div>
                 <Label className="text-xs">6s</Label>
                 <Input
@@ -426,6 +433,8 @@ export function AdminMatches() {
                   onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_sixes", Number(e.target.value))}
                 />
               </div>
+              )}
+              {scorecardEntryMode === "detailed" && (
               <div>
                 <Label className="text-xs">How Out</Label>
                 <Input
@@ -435,6 +444,8 @@ export function AdminMatches() {
                   placeholder="caught, not out..."
                 />
               </div>
+              )}
+              {scorecardEntryMode === "detailed" && (
               <div>
                 <Label className="text-xs">Bowler</Label>
                 <Select
@@ -454,6 +465,7 @@ export function AdminMatches() {
                   </SelectContent>
                 </Select>
               </div>
+              )}
             </div>
           )}
         </div>
@@ -467,6 +479,7 @@ export function AdminMatches() {
           </div>
           {perf.did_bowl && (
             <div className="grid grid-cols-3 gap-2 pl-6">
+              {scorecardEntryMode === "detailed" && (
               <div>
                 <Label className="text-xs">Overs</Label>
                 <Input
@@ -477,6 +490,8 @@ export function AdminMatches() {
                   onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_overs", Number(e.target.value))}
                 />
               </div>
+              )}
+              {scorecardEntryMode === "detailed" && (
               <div>
                 <Label className="text-xs">Maidens</Label>
                 <Input
@@ -486,6 +501,8 @@ export function AdminMatches() {
                   onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_maidens", Number(e.target.value))}
                 />
               </div>
+              )}
+              {scorecardEntryMode === "detailed" && (
               <div>
                 <Label className="text-xs">Runs</Label>
                 <Input
@@ -495,6 +512,7 @@ export function AdminMatches() {
                   onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_runs", Number(e.target.value))}
                 />
               </div>
+              )}
               <div>
                 <Label className="text-xs">Wickets</Label>
                 <Input
@@ -504,6 +522,7 @@ export function AdminMatches() {
                   onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_wickets", Number(e.target.value))}
                 />
               </div>
+              {scorecardEntryMode === "detailed" && (
               <div>
                 <Label className="text-xs">Extras</Label>
                 <Input
@@ -513,6 +532,7 @@ export function AdminMatches() {
                   onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_extras", Number(e.target.value))}
                 />
               </div>
+              )}
             </div>
           )}
         </div>
@@ -896,8 +916,21 @@ export function AdminMatches() {
             <DialogTitle className="font-display">
               📊 Scorecard Entry — {scorecardMatch?.team_a} vs {scorecardMatch?.team_b} ({scorecardMatchId})
             </DialogTitle>
-            <DialogDescription>Use search, recent lineup presets, and live score previews to finish entry faster.</DialogDescription>
-          </DialogHeader>
+          <DialogDescription>Use search, recent lineup presets, and live score previews to finish entry faster.</DialogDescription>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Entry mode</Label>
+            <Select value={scorecardEntryMode} onValueChange={(v) => setScorecardEntryMode(v as "detailed" | "quick")}>
+              <SelectTrigger className="h-8 w-[220px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="detailed">Detailed (all scorecard fields)</SelectItem>
+                <SelectItem value="quick">Quick (bat runs + bowl wickets only)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{scorecardEntryMode === "quick" ? "Quick mode keeps existing full flow and lets you enter only batting runs and bowling wickets for faster admin updates." : "Detailed mode includes full batting and bowling scorecard fields."}</p>
+          </div>
+        </DialogHeader>
 
           <Tabs
             value={scorecardTeamTab}

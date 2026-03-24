@@ -24,6 +24,8 @@ const AdminManagement = () => {
   const [editUser, setEditUser] = useState<ManagementUser | null>(null);
   const [open, setOpen] = useState(false);
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
+  const [savingBoardConfig, setSavingBoardConfig] = useState(false);
+  const [savingUser, setSavingUser] = useState(false);
 
   const refresh = async () => {
     const [data, config] = await Promise.all([v2api.getManagementUsers(), v2api.getBoardConfiguration()]);
@@ -51,37 +53,53 @@ const AdminManagement = () => {
       toast({ title: 'Error', description: 'Username and password are required for management login', variant: 'destructive' });
       return;
     }
-    if (editUser.management_id) {
-      await v2api.updateManagementUser(editUser);
-    } else {
-      await v2api.addManagementUser({ ...editUser, management_id: generateId('MGT'), created_at: new Date().toISOString() });
+    setSavingUser(true);
+    try {
+      if (editUser.management_id) {
+        await v2api.updateManagementUser(editUser);
+      } else {
+        await v2api.addManagementUser({ ...editUser, management_id: generateId('MGT'), created_at: new Date().toISOString() });
+      }
+      logAudit('admin', editUser.management_id ? 'update_management_user' : 'add_management_user', 'management', editUser.management_id || 'new');
+      toast({ title: 'Saved', description: 'Management user details updated.' });
+      setOpen(false);
+      await refresh();
+    } finally {
+      setSavingUser(false);
     }
-    logAudit('admin', editUser.management_id ? 'update_management_user' : 'add_management_user', 'management', editUser.management_id || 'new');
-    toast({ title: 'Saved' });
-    setOpen(false);
-    refresh();
   };
 
 
 
   const saveBoardConfig = async () => {
-    const payload: BoardConfiguration = boardConfig || {
-      config_id: generateId('BRCFG'),
+    const existingConfigId = boardConfig?.config_id || generateId('BRCFG');
+    const payload: BoardConfiguration = {
+      ...(boardConfig || {}),
+      config_id: existingConfigId,
       current_period: '',
       administration_team_ids: '',
       updated_at: new Date().toISOString(),
       updated_by: 'admin',
     };
-    payload.updated_at = new Date().toISOString();
-    payload.updated_by = 'admin';
-    const ok = boardConfig?.config_id ? await v2api.updateBoardConfiguration(payload) : await v2api.addBoardConfiguration(payload);
-    if (!ok) {
-      toast({ title: 'Save failed', description: 'Unable to save board configuration.', variant: 'destructive' });
-      return;
+    payload.current_period = boardConfig?.current_period || '';
+    payload.administration_team_ids = boardConfig?.administration_team_ids || '';
+
+    setSavingBoardConfig(true);
+    try {
+      let ok = boardConfig?.config_id ? await v2api.updateBoardConfiguration(payload) : await v2api.addBoardConfiguration(payload);
+      if (!ok && boardConfig?.config_id) {
+        ok = await v2api.addBoardConfiguration(payload);
+      }
+      if (!ok) {
+        toast({ title: 'Save failed', description: 'Unable to save board configuration.', variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Board configuration updated', description: 'Management board settings saved successfully.' });
+      logAudit('admin', 'update_board_configuration', 'board', payload.config_id, JSON.stringify({ current_period: payload.current_period, administration_team_ids: payload.administration_team_ids }));
+      await refresh();
+    } finally {
+      setSavingBoardConfig(false);
     }
-    toast({ title: 'Board configuration updated' });
-    logAudit('admin', 'update_board_configuration', 'board', payload.config_id, JSON.stringify({ current_period: payload.current_period, administration_team_ids: payload.administration_team_ids }));
-    await refresh();
   };
 
   const selectedAdminTeamIds = String(boardConfig?.administration_team_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
@@ -139,7 +157,9 @@ const AdminManagement = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={handleSave} className="w-full">Save</Button>
+                <Button onClick={handleSave} className="w-full" disabled={savingUser}>
+                  {savingUser ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving management user...</> : 'Save'}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -200,7 +220,9 @@ const AdminManagement = () => {
                 })}
               </div>
             </div>
-            <Button onClick={saveBoardConfig}>Save Board Settings</Button>
+            <Button onClick={saveBoardConfig} disabled={savingBoardConfig}>
+              {savingBoardConfig ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving board configuration...</> : 'Save Board Settings'}
+            </Button>
           </CardContent>
         </Card>
 
@@ -221,7 +243,7 @@ const AdminManagement = () => {
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" onClick={() => { setEditUser(u); setOpen(true); }}><Pencil className="h-3 w-3" /></Button>
-                        <Button size="icon" variant="ghost" onClick={async () => { await v2api.deleteManagementUser(u.management_id); toast({ title: 'Deleted' }); refresh(); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                        <Button size="icon" variant="ghost" onClick={async () => { await v2api.deleteManagementUser(u.management_id); logAudit('admin', 'delete_management_user', 'management', u.management_id); toast({ title: 'Deleted', description: `Removed ${u.name} from management users.` }); refresh(); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
