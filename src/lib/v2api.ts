@@ -110,6 +110,7 @@ export const v2api = {
   getNewsRoomPosts: () => fetchV2Sheet<NewsRoomPost>('NEWS_ROOM_POSTS'),
   addNewsRoomPost: (post: NewsRoomPost) => writeV2Sheet('NEWS_ROOM_POSTS', 'add', post),
   updateNewsRoomPost: (post: NewsRoomPost) => writeV2Sheet('NEWS_ROOM_POSTS', 'update', post),
+  deleteNewsRoomPost: (postId: string) => writeV2Sheet('NEWS_ROOM_POSTS', 'delete', { post_id: postId }),
 };
 
 // Helper to create IST timestamp

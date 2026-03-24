@@ -16,15 +16,16 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 const NewsRoomPage = () => {
-  const { user, isManagement, isPlayer } = useAuth();
+  const { user, isManagement, isPlayer, isAdmin } = useAuth();
   const { toast } = useToast();
   const [posts, setPosts] = useState<NewsRoomPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [audience, setAudience] = useState<'all' | 'players' | 'management'>('all');
+  const [search, setSearch] = useState('');
 
-  const canView = isManagement || isPlayer;
+  const canView = isManagement || isPlayer || isAdmin;
 
   const refresh = async () => {
     const data = await v2api.getNewsRoomPosts();
@@ -36,12 +37,19 @@ const NewsRoomPage = () => {
     if (canView) refresh();
   }, [canView]);
 
-  const visiblePosts = useMemo(() => posts.filter((post) => {
-    if (post.audience === 'all') return true;
-    if (post.audience === 'players') return isPlayer;
-    if (post.audience === 'management') return isManagement;
-    return false;
-  }), [isManagement, isPlayer, posts]);
+  const visiblePosts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return posts.filter((post) => {
+      const canSee = post.audience === 'all'
+        || (post.audience === 'players' && isPlayer)
+        || (post.audience === 'management' && (isManagement || isAdmin));
+      if (!canSee) return false;
+      if (!query) return true;
+      return post.title.toLowerCase().includes(query)
+        || post.body.toLowerCase().includes(query)
+        || post.posted_by_name.toLowerCase().includes(query);
+    });
+  }, [isAdmin, isManagement, isPlayer, posts, search]);
 
   const createPost = async () => {
     if (!user || !title.trim() || !body.trim()) {
@@ -83,11 +91,11 @@ const NewsRoomPage = () => {
         <Card>
           <CardHeader><CardTitle className="font-display text-3xl">News Room</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">Official updates from administration team. Only players and management users can access this page.</p>
+            <p className="text-sm text-muted-foreground">Official updates from administration team in a Yammer-style feed. Search, read, and follow role-based updates.</p>
           </CardContent>
         </Card>
 
-        {isManagement && (
+        {(isManagement || isAdmin) && (
           <Card>
             <CardHeader><CardTitle>Post a news update</CardTitle></CardHeader>
             <CardContent className="space-y-3">
@@ -111,6 +119,7 @@ const NewsRoomPage = () => {
         <Card>
           <CardHeader><CardTitle>Latest updates</CardTitle></CardHeader>
           <CardContent className="space-y-3">
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search this feed" />
             {loading && <p className="text-sm text-muted-foreground">Loading posts...</p>}
             {!loading && visiblePosts.length === 0 && <p className="text-sm text-muted-foreground">No updates yet.</p>}
             {visiblePosts.map((post) => (
