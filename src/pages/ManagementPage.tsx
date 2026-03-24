@@ -571,14 +571,22 @@ const ManagementPage = () => {
                   const isFromMe = msg.from_id === (user.management_id || user.username);
                   const senderName = isFromMe ? `You (${user.designation || 'Management'})` : resolveMessageIdentity(msg.from_id);
                   return (
-                    <Card key={msg.id} className={`transition-all ${isFromMe ? 'border-l-4 border-l-primary' : ''}`}>
+                    <Card
+                      key={msg.id}
+                      className={`relative overflow-hidden transition-all duration-300 hover:shadow-md ${
+                        isFromMe
+                          ? 'border border-primary/35 bg-gradient-to-r from-primary/10 via-background to-accent/10'
+                          : 'border border-slate-200/70 bg-gradient-to-r from-slate-100/75 via-background to-primary/5'
+                      }`}
+                    >
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.35)_0%,transparent_40%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.25)_0%,transparent_45%)]" />
                       <CardContent className="p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-sm">{msg.subject}</span>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <span className="font-semibold text-sm text-foreground">{msg.subject}</span>
                           <span className="text-xs text-muted-foreground">{formatInIST(msg.timestamp || msg.date)}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-1">{senderName} → {resolveMessageIdentity(msg.to_id)}</p>
-                        <p className="text-sm leading-relaxed">{msg.body}</p>
+                        <p className="text-xs text-muted-foreground mb-2">{senderName} → {resolveMessageIdentity(msg.to_id)}</p>
+                        <p className="text-sm leading-relaxed text-foreground/90">{msg.body}</p>
                       </CardContent>
                     </Card>
                   );
@@ -587,25 +595,36 @@ const ManagementPage = () => {
             </TabsContent>
 
             <TabsContent value="compose" className="mt-4">
-              <Card className="border-l-4 border-l-accent">
-                <CardHeader><CardTitle className="font-display text-sm flex items-center gap-2"><Send className="h-4 w-4 text-accent" /> Send Official Notice</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-xs text-muted-foreground">
-                    Sent as: <strong>{user.name}</strong> – <Badge variant="outline" className="text-xs">{user.designation}</Badge>
+              <Card className="relative overflow-hidden border border-amber-300/45 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 shadow-[0_20px_45px_-28px_rgba(15,23,42,0.95)]">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_15%,rgba(251,191,36,0.2)_0%,transparent_35%),radial-gradient(circle_at_90%_85%,rgba(168,85,247,0.16)_0%,transparent_35%)]" />
+                <CardHeader className="relative z-10">
+                  <CardTitle className="font-display text-sm flex items-center gap-2 text-amber-100">
+                    <Send className="h-4 w-4 text-amber-300" /> Send Official Notice
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="relative z-10 space-y-3">
+                  <p className="text-xs text-slate-200/85">
+                    Sent as: <strong className="text-slate-50">{user.name}</strong> – <Badge variant="outline" className="text-xs border-amber-300/50 bg-amber-400/10 text-amber-100">{user.designation}</Badge>
                   </p>
                   <div>
-                    <Label>To</Label>
+                    <Label className="text-slate-100">To</Label>
                     <Select value={msgTo} onValueChange={setMsgTo}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="border-slate-400/35 bg-white/10 text-slate-50 placeholder:text-slate-300/70"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all"><span className="flex items-center gap-1"><Users className="h-3 w-3" /> All Members</span></SelectItem>
                         {players.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div><Label>Subject</Label><Input value={msgSubject} onChange={e => setMsgSubject(e.target.value)} placeholder="Notice subject..." /></div>
-                  <div><Label>Message</Label><Textarea value={msgBody} onChange={e => setMsgBody(e.target.value)} placeholder="Write your message..." className="min-h-[100px]" /></div>
-                  <Button onClick={handleSendMessage} loading={sending} loadingText="Sending notice..." disabled={!msgSubject.trim() || !msgBody.trim()} className="gap-1">
+                  <div>
+                    <Label className="text-slate-100">Subject</Label>
+                    <Input value={msgSubject} onChange={e => setMsgSubject(e.target.value)} placeholder="Notice subject..." className="border-slate-400/35 bg-white/10 text-slate-50 placeholder:text-slate-300/70" />
+                  </div>
+                  <div>
+                    <Label className="text-slate-100">Message</Label>
+                    <Textarea value={msgBody} onChange={e => setMsgBody(e.target.value)} placeholder="Write your message..." className="min-h-[100px] border-slate-400/35 bg-white/10 text-slate-50 placeholder:text-slate-300/70" />
+                  </div>
+                  <Button onClick={handleSendMessage} loading={sending} loadingText="Sending notice..." disabled={!msgSubject.trim() || !msgBody.trim()} className="gap-1 bg-amber-500 text-amber-950 hover:bg-amber-400">
                     <Send className="h-3 w-3" /> Send Notice
                   </Button>
                 </CardContent>
