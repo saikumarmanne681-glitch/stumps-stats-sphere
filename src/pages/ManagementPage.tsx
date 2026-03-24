@@ -348,29 +348,29 @@ const ManagementPage = () => {
         </div>
 
         {isManagement && (
-  
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="font-display text-xl flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> Board Snapshot</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-primary text-primary-foreground">Current Period: {boardConfig?.current_period || 'Not set by admin'}</Badge>
-              <Badge variant="outline">Administration Team: {administrationTeam.length}</Badge>
-            </div>
-            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-              {administrationTeam.map((member) => (
-                <div key={member.management_id} className="rounded-md border bg-background p-3">
-                  <p className="font-semibold">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.designation}</p>
+          <>
+            <Card className="border-primary/30 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="font-display text-xl flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> Board Snapshot</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-primary text-primary-foreground">Current Period: {boardConfig?.current_period || 'Not set by admin'}</Badge>
+                  <Badge variant="outline">Administration Team: {administrationTeam.length}</Badge>
                 </div>
-              ))}
-              {administrationTeam.length === 0 && <p className="text-sm text-muted-foreground">Admin has not selected the administration team yet.</p>}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                  {administrationTeam.map((member) => (
+                    <div key={member.management_id} className="rounded-md border bg-background p-3">
+                      <p className="font-semibold">{member.name}</p>
+                      <p className="text-xs text-muted-foreground">{member.designation}</p>
+                    </div>
+                  ))}
+                  {administrationTeam.length === 0 && <p className="text-sm text-muted-foreground">Admin has not selected the administration team yet.</p>}
+                </div>
+              </CardContent>
+            </Card>
 
-        <Tabs defaultValue="pending">
+            <Tabs defaultValue="pending">
             <TabsList className="flex flex-wrap h-auto gap-1">
               <TabsTrigger value="pending" className="text-xs md:text-sm gap-1">
                 <FileText className="h-3 w-3" /> Pending
@@ -598,7 +598,8 @@ const ManagementPage = () => {
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
+            </Tabs>
+          </>
         )}
 
         {/* Leadership Section */}
