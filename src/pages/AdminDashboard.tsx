@@ -14,8 +14,9 @@ import { AdminSupportDashboard } from '@/components/admin/AdminSupport';
 import { AdminPresence } from '@/components/admin/AdminPresence';
 import { AdminScorelists } from '@/components/admin/AdminScorelists';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
-import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Vote } from 'lucide-react';
+import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Vote, Newspaper } from 'lucide-react';
 import { AdminGovernance } from '@/components/admin/AdminGovernance';
+import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -79,6 +80,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="governance" className="flex items-center gap-1 text-xs">
               <Vote className="h-3 w-3" /> Governance
             </TabsTrigger>
+            <TabsTrigger value="newsroom" className="flex items-center gap-1 text-xs">
+              <Newspaper className="h-3 w-3" /> News Room
+            </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-1 text-xs">
               <Settings className="h-3 w-3" /> Settings
             </TabsTrigger>
@@ -95,6 +99,7 @@ const AdminDashboard = () => {
           <TabsContent value="scorelists"><AdminScorelists /></TabsContent>
           <TabsContent value="audit"><AdminAuditLog /></TabsContent>
           <TabsContent value="governance"><AdminGovernance /></TabsContent>
+          <TabsContent value="newsroom"><AdminNewsRoom /></TabsContent>
           <TabsContent value="settings"><AdminSettings /></TabsContent>
         </Tabs>
       </div>
