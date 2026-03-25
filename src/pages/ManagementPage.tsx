@@ -10,10 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, FileText, Users, AlertTriangle, BriefcaseBusiness, Sparkles } from 'lucide-react';
+import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, FileText, Users, AlertTriangle, BriefcaseBusiness, Sparkles, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { v2api, logAudit, istNow } from '@/lib/v2api';
-import { ManagementUser, DigitalScorelist, CertificationApproval, BoardConfiguration } from '@/lib/v2types';
+import { ManagementUser, DigitalScorelist, CertificationApproval, BoardConfiguration, CertificateRecord } from '@/lib/v2types';
 import { getScheduleApprovalRoadmap, getScheduleDetailedStatus, getScorelistDetailedStatus, getScorelistRoadmap, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
@@ -31,7 +31,7 @@ const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistSta
 const stageLabels: Record<string, string> = scorelistStageLabels;
 
 const ManagementPage = () => {
-  const { user, isManagement, isAdmin } = useAuth();
+  const { user, isManagement } = useAuth();
   const { players, messages, addMessage } = useData();
   const { toast } = useToast();
   const [mgmtUsers, setMgmtUsers] = useState<ManagementUser[]>([]);
@@ -51,12 +51,14 @@ const ManagementPage = () => {
   const [scheduleActionLoadingId, setScheduleActionLoadingId] = useState<string | null>(null);
   const [scheduleComments, setScheduleComments] = useState<Record<string, string>>({});
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
+  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
 
   const refresh = async () => {
-    const [users, scorelistData, boardRows] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), v2api.getBoardConfiguration(), scheduleService.syncFromBackend()]);
+    const [users, scorelistData, boardRows, certificateRows] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), v2api.getBoardConfiguration(), v2api.getCertificates(), scheduleService.syncFromBackend()]);
     setMgmtUsers(users.filter(m => String(m.status || '').trim().toLowerCase() !== 'inactive'));
     setScorelists(scorelistData);
     setBoardConfig(boardRows[0] || null);
+    setCertificates(certificateRows.sort((a, b) => (b.generated_at || '').localeCompare(a.generated_at || '')));
     setLoading(false);
   };
 
@@ -104,6 +106,15 @@ const ManagementPage = () => {
     return nextStage === userStage;
   }), [isManagement, scorelists, user?.designation, user?.management_id]);
   const scheduleApprover = isManagement && isScheduleApproverRole(user?.designation);
+  const certificateRole = user?.designation === 'Treasurer' || user?.designation === 'Scoring Official' || user?.designation === 'Match Referee' ? user.designation : null;
+  const pendingCertificates = useMemo(() => {
+    if (!certificateRole || !user) return [] as CertificateRecord[];
+    return certificates.filter((item) => {
+      if (item.approval_status !== 'pending_approval') return false;
+      const approvals = item.approvals_json ? JSON.parse(item.approvals_json) as Record<string, boolean> : {};
+      return !approvals[certificateRole];
+    });
+  }, [certificateRole, certificates, user]);
   const pendingSchedules = useMemo(() => {
     if (!scheduleApprover || !user) return [] as ScheduleRecord[];
     return scheduleService.getSchedules().filter((schedule) => {
@@ -126,6 +137,24 @@ const ManagementPage = () => {
     } finally {
       setScheduleActionLoadingId(null);
     }
+  };
+
+  const signCertificate = async (certificate: CertificateRecord) => {
+    if (!certificateRole || !user) return;
+    const approvals = certificate.approvals_json ? JSON.parse(certificate.approvals_json) as Record<string, boolean> : {};
+    const nextApprovals = { ...approvals, [certificateRole]: true };
+    const full = ['Treasurer', 'Scoring Official', 'Match Referee'].every((role) => !!nextApprovals[role]);
+    const payload: CertificateRecord = {
+      ...certificate,
+      approvals_json: JSON.stringify(nextApprovals),
+      approval_status: full ? 'approved' : 'pending_approval',
+      approved_at: full ? new Date().toISOString() : certificate.approved_at,
+      delivery_status: full ? 'sent_to_player' : certificate.delivery_status,
+    };
+    await v2api.updateCertificate(payload);
+    logAudit(user.management_id || user.username, 'management_sign_certificate', 'certificate', certificate.certificate_id, JSON.stringify({ designation: certificateRole, fullyApproved: full }));
+    toast({ title: full ? 'Certificate fully approved' : 'Certificate signature recorded', description: `${certificateRole} signature has been saved.` });
+    await refresh();
   };
 
   useEffect(() => {
@@ -391,6 +420,7 @@ const ManagementPage = () => {
               </TabsTrigger>
               <TabsTrigger value="all" className="text-xs md:text-sm gap-1"><Shield className="h-3 w-3" /> All Scorelists</TabsTrigger>
               {scheduleApprover && <TabsTrigger value="schedule-approvals" className="text-xs md:text-sm gap-1"><Clock className="h-3 w-3" /> Schedule Approvals {pendingSchedules.length > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1">{pendingSchedules.length}</Badge>}</TabsTrigger>}
+              {certificateRole && <TabsTrigger value="certificates" className="text-xs md:text-sm gap-1"><ShieldCheck className="h-3 w-3" /> Certificates {pendingCertificates.length > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1">{pendingCertificates.length}</Badge>}</TabsTrigger>}
               <TabsTrigger value="messages" className="text-xs md:text-sm gap-1"><MessageSquare className="h-3 w-3" /> Messages</TabsTrigger>
               <TabsTrigger value="compose" className="text-xs md:text-sm gap-1"><Send className="h-3 w-3" /> Send Notice</TabsTrigger>
             </TabsList>
@@ -555,7 +585,41 @@ const ManagementPage = () => {
                           <Button variant="destructive" loading={scheduleActionLoadingId === schedule.schedule_id} loadingText="Rejecting..." onClick={() => reviewSchedule(schedule.schedule_id, 'rejected')}>
                             Reject
                           </Button>
+                          <Button variant="outline" onClick={() => scheduleService.downloadPdf(schedule.schedule_id)}>
+                            <Download className="mr-1 h-3 w-3" /> PDF
+                          </Button>
                         </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </TabsContent>
+            )}
+
+            {certificateRole && (
+              <TabsContent value="certificates" className="mt-4 space-y-3">
+                {pendingCertificates.length === 0 && <Card><CardContent className="p-6 text-center text-muted-foreground">No certificates are waiting for your signature right now.</CardContent></Card>}
+                {pendingCertificates.map((certificate) => {
+                  const approvals = certificate.approvals_json ? JSON.parse(certificate.approvals_json) as Record<string, boolean> : {};
+                  return (
+                    <Card key={certificate.certificate_id} className="border-l-4 border-l-primary/50">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="font-display font-bold">{certificate.title}</p>
+                            <p className="text-sm text-muted-foreground">{certificate.recipient_name} • {certificate.certificate_id}</p>
+                          </div>
+                          <Badge variant="secondary">{certificate.approval_status}</Badge>
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-3">
+                          {['Treasurer', 'Scoring Official', 'Match Referee'].map((role) => (
+                            <div key={role} className={`rounded-md border p-2 text-xs ${approvals[role] ? 'border-primary/30 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                              <p className="font-semibold">{role}</p>
+                              <p className="text-muted-foreground">{approvals[role] ? 'Signed' : 'Pending signature'}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <Button onClick={() => signCertificate(certificate)}><ShieldCheck className="mr-1 h-3 w-3" /> Sign as {certificateRole}</Button>
                       </CardContent>
                     </Card>
                   );

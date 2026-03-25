@@ -173,6 +173,22 @@ export interface CertificateRecord {
   delivery_status: 'not_sent' | 'sent_to_player';
 }
 
+export interface OfficialDocumentRecord {
+  document_id: string;
+  title: string;
+  category: string;
+  department: string;
+  source_url: string;
+  source_type: 'url';
+  status: 'published' | 'hidden';
+  allowed_management_ids: string;
+  allow_preview: boolean;
+  allow_download: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // SLA config
 export const SLA_CONFIG = {
   low: { firstResponse: 24, resolution: 72 },
