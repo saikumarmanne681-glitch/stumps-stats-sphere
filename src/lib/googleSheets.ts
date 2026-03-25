@@ -1,6 +1,6 @@
 import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message } from "./types";
 import { normalizeSheetRows } from "./dataUtils";
-import { getEnvAppsScriptUrl } from "./environment";
+import { getEnvStorageKey } from "./environment";
 import {
   mockPlayers,
   mockTournaments,
@@ -12,11 +12,11 @@ import {
   mockMessages,
 } from "./mockData";
 
-// Apps Script Web App URL — per-environment override takes priority
-const envUrl = getEnvAppsScriptUrl();
+// Each environment stores its own Apps Script URL automatically
+const STORAGE_KEY = getEnvStorageKey("appsScriptUrl");
+
 let APPS_SCRIPT_URL =
-  envUrl ||
-  localStorage.getItem("appsScriptUrl") ||
+  localStorage.getItem(STORAGE_KEY) ||
   "https://script.google.com/macros/s/AKfycbyIp1oKPtFoOJ_3DmnjQ2Ksa2tzQRvG45hjBeuNK6rSc6-bxRaYyuY2qbR08amD3jva8Q/exec";
 
 export function getAppsScriptUrl() {
@@ -138,6 +138,6 @@ export const api = {
 };
 
 export function setAppsScriptUrl(url: string) {
-  localStorage.setItem("appsScriptUrl", url);
+  localStorage.setItem(STORAGE_KEY, url);
   APPS_SCRIPT_URL = url;
 }
