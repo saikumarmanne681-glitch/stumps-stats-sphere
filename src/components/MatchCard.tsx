@@ -48,43 +48,42 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
     <Card
       className={`group relative overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98] ${
         isPremiumKnockout
-          ? "border border-amber-200/40 bg-[#262626] text-slate-100 shadow-[0_12px_30px_-18px_rgba(0,0,0,0.85)] hover:shadow-[0_24px_45px_-20px_rgba(0,0,0,0.9)]"
+          ? "border border-amber-300/70 bg-gradient-to-br from-amber-100/80 via-orange-50 to-rose-100/70 shadow-[0_8px_30px_-20px_rgba(194,65,12,0.6)] hover:shadow-[0_18px_40px_-24px_rgba(194,65,12,0.7)]"
           : "border-l-4 border-l-primary hover:border-l-accent hover:shadow-lg"
       }`}
       onClick={onClick}
     >
       {isPremiumKnockout && (
         <>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#262626] via-[#2f2832] to-[#1f1f1f]" />
-          <div className="pointer-events-none absolute inset-0 opacity-15 [background-image:radial-gradient(circle_at_20px_20px,rgba(255,255,255,0.85)_2px,transparent_2.5px),radial-gradient(circle_at_60px_60px,rgba(255,255,255,0.75)_2px,transparent_2.5px),conic-gradient(from_0deg_at_50%_50%,transparent_0_60deg,rgba(255,255,255,0.45)_60deg_80deg,transparent_80deg_140deg,rgba(255,255,255,0.45)_140deg_160deg,transparent_160deg_220deg,rgba(255,255,255,0.45)_220deg_240deg,transparent_240deg_300deg,rgba(255,255,255,0.45)_300deg_320deg,transparent_320deg_360deg)] [background-size:80px_80px,80px_80px,220px_220px] [background-position:0_0,40px_40px,center]" />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-52 w-52 rounded-full opacity-80 [background:radial-gradient(circle,rgba(255,229,130,0.55)_0%,rgba(255,188,80,0.2)_35%,rgba(255,188,80,0.04)_55%,transparent_75%),conic-gradient(from_0deg,rgba(255,212,112,0.55),rgba(255,244,190,0.05),rgba(255,194,64,0.55),rgba(255,242,191,0.05),rgba(255,212,112,0.55))] blur-[0.5px]" />
+          <div className="pointer-events-none absolute inset-0 opacity-80">
+            <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-gradient-to-br from-amber-300/35 to-transparent blur-sm" />
+            <div className="absolute -left-12 bottom-2 h-36 w-36 rounded-full bg-gradient-to-tr from-rose-300/30 to-transparent blur-sm" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.45)_0%,transparent_35%),radial-gradient(circle_at_10%_85%,rgba(255,255,255,0.35)_0%,transparent_40%)]" />
           </div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#171717]/80 to-transparent" />
-          <div className="pointer-events-none absolute right-3 top-3 hidden rounded-full border border-amber-200/35 bg-[#2d2d2d]/55 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-100 backdrop-blur-md sm:flex sm:items-center sm:gap-1">
-            <Sparkles className="h-3 w-3 text-amber-300" /> Heritage Spotlight
+          <div className="pointer-events-none absolute right-3 top-3 hidden rounded-full border border-amber-400/40 bg-white/65 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-800 backdrop-blur sm:flex sm:items-center sm:gap-1">
+            <Sparkles className="h-3 w-3" /> Premium Fixture
           </div>
         </>
       )}
-      <CardContent className={`relative p-4 ${isPremiumKnockout ? "backdrop-blur-[1px]" : ""}`}>
+      <CardContent className="p-4">
         {isPremiumKnockout && (
-          <div className="relative z-10 mb-3 rounded-xl border border-slate-200/15 bg-[#373737]/45 px-3 py-2 backdrop-blur-md">
+          <div className="relative z-10 mb-3 rounded-xl border border-amber-300/70 bg-white/75 px-3 py-2 backdrop-blur">
             <div className="flex items-center justify-between gap-2">
-              <p className="font-display text-xs uppercase tracking-[0.2em] text-amber-100/90">{marqueeTitle}</p>
-              <Trophy className="h-3.5 w-3.5 text-amber-300" />
+              <p className="font-display text-xs uppercase tracking-[0.2em] text-amber-900/80">{marqueeTitle}</p>
+              <Trophy className="h-3.5 w-3.5 text-amber-700" />
             </div>
-            <p className="mt-1 text-[11px] text-slate-200/85">Mandala + Kolam treatment for title-stage fixtures.</p>
+            <p className="mt-1 text-[11px] text-amber-900/75">Special presentation card for high-stakes matches.</p>
           </div>
         )}
-        <div className={`mb-2 flex items-center justify-between ${isPremiumKnockout ? "rounded-lg border border-slate-200/10 bg-[#373737]/40 px-2 py-1.5 backdrop-blur-md" : ""}`}>
-          <span className={`text-xs font-mono ${isPremiumKnockout ? "text-slate-200/80" : "text-muted-foreground"}`}>{match.match_id}</span>
+        <div className="flex items-center justify-between mb-2">
+          <span className={`text-xs font-mono ${isPremiumKnockout ? "text-amber-950/70" : "text-muted-foreground"}`}>{match.match_id}</span>
           <div className="flex items-center gap-1">
             {match.match_stage && (
               <Badge className={`border text-[10px] font-display ${getMatchStageChipClass(match.match_stage)}`}>
                 {match.match_stage}
               </Badge>
             )}
-            <Badge className={`${statusColors[match.status] || "bg-muted"} ${isPremiumKnockout ? "border border-slate-100/30 bg-[#2f2f2f] text-slate-100" : ""}`}>
+            <Badge className={statusColors[match.status] || "bg-muted"}>
               {match.status === "live" && "🔴 "}
               {match.status.toUpperCase()}
             </Badge>
@@ -100,29 +99,25 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
           </div>
         )}
 
-        <div className={`my-3 flex items-center justify-between ${isPremiumKnockout ? "rounded-xl border border-slate-100/10 bg-[#403940]/45 px-3 py-2 backdrop-blur-md" : ""}`}>
+        <div className="flex items-center justify-between my-3">
           <div className="text-center flex-1">
-            <span className={`font-display text-lg font-semibold block ${isPremiumKnockout ? "text-[#F2F2F2]" : ""}`}>{match.team_a}</span>
+            <span className={`font-display text-lg font-semibold block ${isPremiumKnockout ? "text-amber-950" : ""}`}>{match.team_a}</span>
             {(teamAScore.display || match.status === "live") && (
-              <span className={`font-bold text-sm ${isPremiumKnockout ? "text-[#6dc1ff]" : "text-primary"}`}>{teamAScore.display || "0/0 (0.0)"}</span>
+              <span className="text-primary font-bold text-sm">{teamAScore.display || "0/0 (0.0)"}</span>
             )}
           </div>
-          <span className={`text-sm font-bold px-2 ${isPremiumKnockout ? "text-amber-200/90" : "text-muted-foreground"}`}>vs</span>
+          <span className="text-muted-foreground text-sm font-bold px-2">vs</span>
           <div className="text-center flex-1">
-            <span className={`font-display text-lg font-semibold block ${isPremiumKnockout ? "text-[#F2F2F2]" : ""}`}>{match.team_b}</span>
+            <span className={`font-display text-lg font-semibold block ${isPremiumKnockout ? "text-amber-950" : ""}`}>{match.team_b}</span>
             {(teamBScore.display || match.status === "live") && (
-              <span className={`font-bold text-sm ${isPremiumKnockout ? "text-[#6dc1ff]" : "text-primary"}`}>{teamBScore.display || "0/0 (0.0)"}</span>
+              <span className="text-primary font-bold text-sm">{teamBScore.display || "0/0 (0.0)"}</span>
             )}
           </div>
         </div>
 
-        {match.result && (
-          <p className={`mb-2 text-center text-sm font-medium ${isPremiumKnockout ? "rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-2 py-1 text-emerald-200" : "text-primary"}`}>
-            {match.result}
-          </p>
-        )}
+        {match.result && <p className="text-sm text-primary font-medium mb-2 text-center">{match.result}</p>}
 
-        <div className={`flex items-center gap-4 text-xs ${isPremiumKnockout ? "text-slate-300/85" : "text-muted-foreground"}`}>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {matchDateLabel}
@@ -136,7 +131,7 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
         </div>
 
         {mom && (
-          <div className={`mt-2 flex items-center gap-1 text-xs ${isPremiumKnockout ? "text-amber-200" : "text-accent"}`}>
+          <div className="flex items-center gap-1 mt-2 text-xs text-accent">
             <Award className="h-3 w-3" />
             <span className="font-medium">MOM: {mom.name}</span>
           </div>
