@@ -47,7 +47,7 @@ export default function DocumentsPortalPage() {
     const designation = String(user.designation || '').toLowerCase();
     const username = String(user.username || '').toLowerCase();
     const managementId = String(user.management_id || '').toLowerCase();
-    const authorityLevel = Number(user.authority_level || 0);
+    const authorityLevel = Number((user as any).authority_level || 0);
 
     return allowlist.some((entry) =>
       entry === managementId ||
