@@ -85,6 +85,7 @@ const TABS = {
   MATCH_TIMELINE: ["event_id","match_id","over","event_type","description","player_id","team","timestamp"],
   BOARD_CONFIGURATION: ["config_id","current_period","administration_team_ids","updated_at","updated_by"],
   NEWS_ROOM_POSTS: ["post_id","title","body","audience","status","posted_by_id","posted_by_name","posted_by_role","published_at","updated_at"],
+  CERTIFICATES: ["certificate_id","certificate_type","title","season_id","tournament_id","match_id","recipient_type","recipient_id","recipient_name","metadata_json","certificate_html","qr_payload","security_hash","approval_status","approvals_json","generated_by","generated_at","approved_at","delivery_status"],
   // Governance & competition workflow modules
   elections: ["election_id","title","description","roles_json","eligible_roles_json","status","nomination_start","nomination_end","voting_start","voting_end","created_by","created_at","results_published_at"],
   votes: ["vote_id","election_id","role_name","voter_user_id","voter_name","nominee_user_id","nominee_name","submitted_at","immutable_hash"],
@@ -162,6 +163,7 @@ function getKeyColumn(tabName) {
     MATCH_TIMELINE: "event_id",
     BOARD_CONFIGURATION: "config_id",
     NEWS_ROOM_POSTS: "post_id",
+    CERTIFICATES: "certificate_id",
     elections: "election_id",
     votes: "vote_id",
     nominations: "nomination_id",
@@ -411,6 +413,23 @@ function doPost(e) {
   const headers = TABS[tabName];
   const keyCol = getKeyColumn(tabName);
 
+  function normalizeSheetValue(header, value) {
+    if (value === null || value === undefined) return "";
+    if (value instanceof Date) {
+      if (["date", "start_date", "end_date"].indexOf(header) !== -1) {
+        return Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      }
+      return value.toISOString();
+    }
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    if (["date", "start_date", "end_date"].indexOf(header) !== -1) {
+      const dateOnly = trimmed.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+      if (dateOnly) return trimmed;
+    }
+    return value;
+  }
+
   if (action === "add") {
     if (tabName === "registrations") {
       const existing = sheetToJson(sheet);
@@ -428,7 +447,7 @@ function doPost(e) {
         return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Duplicate registration" })).setMimeType(ContentService.MimeType.JSON);
       }
     }
-    const row = headers.map((h) => (data[h] !== undefined ? data[h] : ""));
+    const row = headers.map((h) => normalizeSheetValue(h, data[h]));
     sheet.appendRow(row);
     return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
   }
@@ -441,7 +460,7 @@ function doPost(e) {
         ContentService.MimeType.JSON,
       );
     }
-    const row = headers.map((h) => (data[h] !== undefined ? data[h] : ""));
+    const row = headers.map((h) => normalizeSheetValue(h, data[h]));
     sheet.getRange(rowIdx, 1, 1, headers.length).setValues([row]);
     return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
   }

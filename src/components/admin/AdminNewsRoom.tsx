@@ -44,9 +44,9 @@ export function AdminNewsRoom() {
     const q = search.trim().toLowerCase();
     if (!q) return posts;
     return posts.filter((item) =>
-      item.title.toLowerCase().includes(q)
-      || item.body.toLowerCase().includes(q)
-      || item.posted_by_name.toLowerCase().includes(q),
+      (item.title || '').toLowerCase().includes(q)
+      || (item.body || '').toLowerCase().includes(q)
+      || (item.posted_by_name || '').toLowerCase().includes(q),
     );
   }, [posts, search]);
 

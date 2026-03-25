@@ -29,7 +29,11 @@ const NewsRoomPage = () => {
 
   const refresh = async () => {
     const data = await v2api.getNewsRoomPosts();
-    setPosts(data.filter((item) => item.status !== 'draft').sort((a, b) => (b.published_at || '').localeCompare(a.published_at || '')));
+    setPosts(
+      data
+        .filter((item) => (item.status || 'published') !== 'draft')
+        .sort((a, b) => (b.published_at || '').localeCompare(a.published_at || '')),
+    );
     setLoading(false);
   };
 
@@ -45,9 +49,9 @@ const NewsRoomPage = () => {
         || (post.audience === 'management' && (isManagement || isAdmin));
       if (!canSee) return false;
       if (!query) return true;
-      return post.title.toLowerCase().includes(query)
-        || post.body.toLowerCase().includes(query)
-        || post.posted_by_name.toLowerCase().includes(query);
+      return (post.title || '').toLowerCase().includes(query)
+        || (post.body || '').toLowerCase().includes(query)
+        || (post.posted_by_name || '').toLowerCase().includes(query);
     });
   }, [isAdmin, isManagement, isPlayer, posts, search]);
 

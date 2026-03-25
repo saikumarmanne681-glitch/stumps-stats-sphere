@@ -1,4 +1,4 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, CertificateRecord } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 
@@ -13,13 +13,26 @@ async function fetchV2Sheet<T>(sheet: string): Promise<T[]> {
 async function writeV2Sheet<T>(sheet: string, action: 'add' | 'update' | 'delete', payload: T): Promise<boolean> {
   const url = getAppsScriptUrl();
   if (!url) return false;
+  const normalizedPayload = normalizeV2Payload(payload as Record<string, unknown>);
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action, sheet, data: payload }),
+    body: JSON.stringify({ action, sheet, data: normalizedPayload }),
   });
   const result = await res.json();
   return result.success;
+}
+
+function normalizeV2Payload(payload: Record<string, unknown>) {
+  const dateKeys = new Set(['date', 'start_date', 'end_date', 'term_start', 'term_end', 'registration_deadline']);
+  return Object.fromEntries(
+    Object.entries(payload).map(([key, value]) => {
+      if (!dateKeys.has(key) || typeof value !== 'string') return [key, value];
+      const trimmed = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return [key, trimmed];
+      return [key, value];
+    }),
+  );
 }
 
 export const v2api = {
@@ -111,6 +124,12 @@ export const v2api = {
   addNewsRoomPost: (post: NewsRoomPost) => writeV2Sheet('NEWS_ROOM_POSTS', 'add', post),
   updateNewsRoomPost: (post: NewsRoomPost) => writeV2Sheet('NEWS_ROOM_POSTS', 'update', post),
   deleteNewsRoomPost: (postId: string) => writeV2Sheet('NEWS_ROOM_POSTS', 'delete', { post_id: postId }),
+
+  // Certificates
+  getCertificates: () => fetchV2Sheet<CertificateRecord>('CERTIFICATES'),
+  addCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'add', certificate),
+  updateCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'update', certificate),
+  deleteCertificate: (certificateId: string) => writeV2Sheet('CERTIFICATES', 'delete', { certificate_id: certificateId }),
 };
 
 // Helper to create IST timestamp

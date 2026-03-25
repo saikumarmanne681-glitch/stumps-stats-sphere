@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SessionFingerprint, SecurityShieldBadge } from "@/components/SecurityBadge";
+import { VerticalAnnouncementsBox } from "@/components/VerticalAnnouncementsBox";
 
 const Home = () => {
   const { players, tournaments, seasons, matches, batting, bowling, announcements, loading } = useData();
@@ -127,6 +128,8 @@ const Home = () => {
             </SelectContent>
           </Select>
         </div>
+
+        <VerticalAnnouncementsBox />
 
         {/* Leaderboards */}
         <section>

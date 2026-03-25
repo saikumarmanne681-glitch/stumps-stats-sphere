@@ -145,6 +145,34 @@ export interface NewsRoomPost {
   updated_at: string;
 }
 
+export interface CertificateRecord {
+  certificate_id: string;
+  certificate_type:
+    | 'winner_team'
+    | 'runner_up_team'
+    | 'man_of_tournament_runs'
+    | 'man_of_tournament_wickets'
+    | 'man_of_tournament_all_round'
+    | 'man_of_match';
+  title: string;
+  season_id: string;
+  tournament_id: string;
+  match_id: string;
+  recipient_type: 'player' | 'team';
+  recipient_id: string;
+  recipient_name: string;
+  metadata_json: string;
+  certificate_html: string;
+  qr_payload: string;
+  security_hash: string;
+  approval_status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+  approvals_json: string;
+  generated_by: string;
+  generated_at: string;
+  approved_at: string;
+  delivery_status: 'not_sent' | 'sent_to_player';
+}
+
 // SLA config
 export const SLA_CONFIG = {
   low: { firstResponse: 24, resolution: 72 },
