@@ -29,6 +29,7 @@ import SeasonsOverviewPage from './pages/SeasonsOverviewPage';
 import TournamentHonorsPage from './pages/TournamentHonorsPage';
 import NewsRoomPage from './pages/NewsRoomPage';
 import { RequireAuth } from '@/components/RequireAuth';
+import DocumentsPortalPage from './pages/DocumentsPortalPage';
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/seasons" element={<SeasonsOverviewPage />} />
             <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
             <Route path="/news-room" element={<RequireAuth><NewsRoomPage /></RequireAuth>} />
+            <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
