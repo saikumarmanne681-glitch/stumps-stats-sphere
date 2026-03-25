@@ -19,9 +19,10 @@ import {
   sendWelcomeSubscriptionEmail,
   explainMailFailure,
 } from '@/lib/mailer';
-import { Database, Link, Unlink, Sprout, ExternalLink, Mail, ShieldCheck, Send } from 'lucide-react';
+import { Database, Link, Unlink, Sprout, ExternalLink, Mail, ShieldCheck, Send, Server } from 'lucide-react';
 import { UserEmailLink } from '@/lib/v2types';
 import { Switch } from '@/components/ui/switch';
+import { getAppEnvironment, ENV_LABELS } from '@/lib/environment';
 
 export function AdminSettings() {
   const { updateAdminProfile, getAdminAlias } = useAuth();
