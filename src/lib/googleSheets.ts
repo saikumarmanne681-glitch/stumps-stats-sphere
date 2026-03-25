@@ -138,6 +138,6 @@ export const api = {
 };
 
 export function setAppsScriptUrl(url: string) {
-  localStorage.setItem("appsScriptUrl", url);
+  localStorage.setItem(STORAGE_KEY, url);
   APPS_SCRIPT_URL = url;
 }
