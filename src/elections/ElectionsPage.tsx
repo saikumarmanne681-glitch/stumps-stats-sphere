@@ -367,9 +367,9 @@ const ElectionsPage = () => {
                       <div key={entry.role_name} className="rounded-lg border p-3">
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-semibold">{entry.role_name}</p>
-                          <Badge>{entry.votes} votes</Badge>
+                          <Badge>{entry.total_votes} votes</Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">Leader: {entry.nominee_name}</p>
+                        <p className="text-sm text-muted-foreground">Leader: {entry.winner_name}</p>
                       </div>
                     ))}
                     {results.length === 0 && <p className="text-sm text-muted-foreground">No approved votes available yet.</p>}

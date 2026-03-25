@@ -19,9 +19,10 @@ import {
   sendWelcomeSubscriptionEmail,
   explainMailFailure,
 } from '@/lib/mailer';
-import { Database, Link, Unlink, Sprout, ExternalLink, Mail, ShieldCheck, Send } from 'lucide-react';
+import { Database, Link, Unlink, Sprout, ExternalLink, Mail, ShieldCheck, Send, Server } from 'lucide-react';
 import { UserEmailLink } from '@/lib/v2types';
 import { Switch } from '@/components/ui/switch';
+import { getAppEnvironment, ENV_LABELS } from '@/lib/environment';
 
 export function AdminSettings() {
   const { updateAdminProfile, getAdminAlias } = useAuth();
@@ -183,8 +184,35 @@ export function AdminSettings() {
     });
   };
 
+  const currentEnv = getAppEnvironment();
+
   return (
     <div className="space-y-6">
+      {/* Environment Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display flex items-center gap-2">
+            <Server className="h-5 w-5" /> Environment
+          </CardTitle>
+          <CardDescription>Current deployment environment and configuration.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <Badge className={currentEnv === 'dev' ? 'bg-blue-600 text-white' : currentEnv === 'qa' ? 'bg-amber-500 text-black' : 'bg-primary text-primary-foreground'}>
+              {ENV_LABELS[currentEnv]}
+            </Badge>
+            <span className="text-sm text-muted-foreground">
+              {currentEnv === 'production'
+                ? 'Live production environment'
+                : `This is the ${ENV_LABELS[currentEnv]} environment. Set VITE_APP_ENV at build time to switch.`}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Use <code className="bg-muted px-1 rounded">VITE_APP_ENV=dev</code> or <code className="bg-muted px-1 rounded">VITE_APP_ENV=qa</code> to target different environments with separate Google Sheets.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="font-display">👤 Admin Profile & Security</CardTitle>
