@@ -46,13 +46,25 @@ async function fetchSheet<T>(sheet: string): Promise<T[]> {
 
 async function writeSheet<T>(sheet: string, action: "add" | "update" | "delete", payload: T): Promise<boolean> {
   if (USE_MOCK()) return true;
+  const normalizedPayload = normalizePayload(payload as Record<string, unknown>);
   const res = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action, sheet, data: payload }),
+    body: JSON.stringify({ action, sheet, data: normalizedPayload }),
   });
   const result = await res.json();
   return result.success;
+}
+
+function normalizePayload(payload: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(payload).map(([key, value]) => {
+      if (!["date", "start_date", "end_date"].includes(key) || typeof value !== "string") return [key, value];
+      const trimmed = value.trim();
+      if (/^\\d{4}-\\d{2}-\\d{2}$/.test(trimmed)) return [key, trimmed];
+      return [key, value];
+    }),
+  );
 }
 
 export async function seedGoogleSheet(): Promise<{ success: boolean; message: string }> {

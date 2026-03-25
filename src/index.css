@@ -124,6 +124,15 @@ button:active, [role="button"]:active {
   animation: ticker 20s linear infinite;
 }
 
+@keyframes vertical-news {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+.animate-vertical-news {
+  animation: vertical-news 22s linear infinite;
+}
+
 @layer components {
   .glass-panel {
     @apply border border-white/50 bg-white/70 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] backdrop-blur-xl;
@@ -144,6 +153,13 @@ button:active, [role="button"]:active {
   .soft-dot-grid {
     background-image: radial-gradient(circle at 1px 1px, hsl(var(--primary) / 0.12) 1px, transparent 0);
     background-size: 20px 20px;
+  }
+
+  .mandala-sports-bg {
+    background:
+      radial-gradient(circle at 50% 50%, hsl(var(--accent) / 0.18) 0, transparent 45%),
+      repeating-radial-gradient(circle at 50% 50%, hsl(var(--primary) / 0.15) 0 2px, transparent 2px 16px),
+      conic-gradient(from 0deg at 50% 50%, hsl(var(--primary) / 0.14), hsl(var(--accent) / 0.14), hsl(var(--primary) / 0.14));
   }
 }
 

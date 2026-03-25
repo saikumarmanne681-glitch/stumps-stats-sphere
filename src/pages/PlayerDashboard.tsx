@@ -18,7 +18,10 @@ import { PlayerSupport } from '@/components/player/PlayerSupport';
 import { PlayerEmailSettings } from '@/components/player/PlayerEmailSettings';
 import { SessionFingerprint, SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
 import { logAudit } from '@/lib/v2api';
+import { CertificateRecord } from '@/lib/v2types';
+import { v2api } from '@/lib/v2api';
 import { formatDateInIST, formatInIST } from '@/lib/time';
+import { useEffect } from 'react';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -29,6 +32,7 @@ const PlayerDashboard = () => {
   const [replyBody, setReplyBody] = useState<Record<string, string>>({});
   const [expandedThread, setExpandedThread] = useState<string>('');
   const [replySending, setReplySending] = useState<string | null>(null);
+  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
 
   const player = useMemo(() => {
     if (!user?.player_id) return null;
@@ -104,6 +108,17 @@ const PlayerDashboard = () => {
   };
 
   const unreadCount = playerMessages.filter(m => !m.read && m.from_id !== user.player_id).length;
+
+  useEffect(() => {
+    const loadCertificates = async () => {
+      if (!user?.player_id) return;
+      const data = await v2api.getCertificates();
+      setCertificates(
+        data.filter((item) => item.approval_status === 'approved' && (item.recipient_id === user.player_id || item.recipient_name === player?.name)),
+      );
+    };
+    loadCertificates();
+  }, [player?.name, user?.player_id]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -194,6 +209,7 @@ const PlayerDashboard = () => {
               )}
             </TabsTrigger>
             <TabsTrigger value="support" className="flex items-center gap-1"><Headphones className="h-4 w-4" /> Support</TabsTrigger>
+            <TabsTrigger value="certificates" className="flex items-center gap-1"><Award className="h-4 w-4" /> Certificates</TabsTrigger>
             <TabsTrigger value="account" className="flex items-center gap-1"><Settings className="h-4 w-4" /> Account</TabsTrigger>
           </TabsList>
 
@@ -285,6 +301,37 @@ const PlayerDashboard = () => {
                     </TableBody>
                   </Table>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="certificates" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader><CardTitle className="font-display">My Approved Certificates</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {certificates.map((item) => (
+                  <div key={item.certificate_id} className="rounded-xl border p-3">
+                    <p className="font-semibold">{item.title}</p>
+                    <p className="text-sm text-muted-foreground">{item.certificate_id} • {formatInIST(item.approved_at || item.generated_at)}</p>
+                    <Button
+                      className="mt-2"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const blob = new Blob([`<!doctype html><html><body>${item.certificate_html || `<h2>${item.title}</h2><p>${item.recipient_name}</p>`}</body></html>`], { type: 'text/html' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${item.certificate_id}.html`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      Download certificate
+                    </Button>
+                  </div>
+                ))}
+                {certificates.length === 0 && <p className="text-sm text-muted-foreground">No approved certificates yet.</p>}
               </CardContent>
             </Card>
           </TabsContent>

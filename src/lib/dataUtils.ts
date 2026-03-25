@@ -73,6 +73,14 @@ function parseSlashDate(value: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseIsoDateOnly(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function parseSheetDate(value: unknown) {
   if (value == null || value === "") return null;
 
@@ -97,6 +105,9 @@ export function parseSheetDate(value: unknown) {
 
   const slashDate = parseSlashDate(trimmed);
   if (slashDate) return slashDate;
+
+  const isoDateOnly = parseIsoDateOnly(trimmed);
+  if (isoDateOnly) return isoDateOnly;
 
   const parsed = new Date(trimmed);
   return Number.isNaN(parsed.getTime()) ? null : parsed;

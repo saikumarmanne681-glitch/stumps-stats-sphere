@@ -17,6 +17,7 @@ import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
 import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Vote, Newspaper } from 'lucide-react';
 import { AdminGovernance } from '@/components/admin/AdminGovernance';
 import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
+import { AdminCertificates } from '@/components/admin/AdminCertificates';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -83,6 +84,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="newsroom" className="flex items-center gap-1 text-xs">
               <Newspaper className="h-3 w-3" /> News Room
             </TabsTrigger>
+            <TabsTrigger value="certificates" className="flex items-center gap-1 text-xs">
+              <Trophy className="h-3 w-3" /> Certificates
+            </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-1 text-xs">
               <Settings className="h-3 w-3" /> Settings
             </TabsTrigger>
@@ -100,6 +104,7 @@ const AdminDashboard = () => {
           <TabsContent value="audit"><AdminAuditLog /></TabsContent>
           <TabsContent value="governance"><AdminGovernance /></TabsContent>
           <TabsContent value="newsroom"><AdminNewsRoom /></TabsContent>
+          <TabsContent value="certificates"><AdminCertificates /></TabsContent>
           <TabsContent value="settings"><AdminSettings /></TabsContent>
         </Tabs>
       </div>
