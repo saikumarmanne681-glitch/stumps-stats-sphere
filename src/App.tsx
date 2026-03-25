@@ -68,6 +68,7 @@ const App = () => (
             <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <EnvironmentBadge />
         </BrowserRouter>
       </TooltipProvider>
       </DataProvider>

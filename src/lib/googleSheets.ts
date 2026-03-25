@@ -1,5 +1,6 @@
 import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message } from "./types";
 import { normalizeSheetRows } from "./dataUtils";
+import { getEnvAppsScriptUrl } from "./environment";
 import {
   mockPlayers,
   mockTournaments,
@@ -11,8 +12,10 @@ import {
   mockMessages,
 } from "./mockData";
 
-// Apps Script Web App URL
+// Apps Script Web App URL — per-environment override takes priority
+const envUrl = getEnvAppsScriptUrl();
 let APPS_SCRIPT_URL =
+  envUrl ||
   localStorage.getItem("appsScriptUrl") ||
   "https://script.google.com/macros/s/AKfycbyIp1oKPtFoOJ_3DmnjQ2Ksa2tzQRvG45hjBeuNK6rSc6-bxRaYyuY2qbR08amD3jva8Q/exec";
 
