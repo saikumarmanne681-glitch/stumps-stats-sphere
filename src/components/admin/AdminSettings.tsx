@@ -204,12 +204,18 @@ export function AdminSettings() {
             <span className="text-sm text-muted-foreground">
               {currentEnv === 'production'
                 ? 'Live production environment'
-                : `This is the ${ENV_LABELS[currentEnv]} environment. Set VITE_APP_ENV at build time to switch.`}
+                : `This is the ${ENV_LABELS[currentEnv]} environment`}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Use <code className="bg-muted px-1 rounded">VITE_APP_ENV=dev</code> or <code className="bg-muted px-1 rounded">VITE_APP_ENV=qa</code> to target different environments with separate Google Sheets.
-          </p>
+          <div className="mt-3 text-xs text-muted-foreground space-y-1">
+            <p><strong>How it works:</strong> The app auto-detects the environment from your URL:</p>
+            <ul className="list-disc list-inside ml-2 space-y-0.5">
+              <li>URL contains <code className="bg-muted px-1 rounded">dev</code> or <code className="bg-muted px-1 rounded">localhost</code> → <span className="text-blue-600 font-semibold">DEV</span></li>
+              <li>URL contains <code className="bg-muted px-1 rounded">qa</code>, <code className="bg-muted px-1 rounded">staging</code>, or <code className="bg-muted px-1 rounded">test</code> → <span className="text-amber-600 font-semibold">QA</span></li>
+              <li>Everything else → <span className="font-semibold">PRODUCTION</span></li>
+            </ul>
+            <p className="mt-1">Each environment saves its own Google Sheets URL separately, so they never interfere.</p>
+          </div>
         </CardContent>
       </Card>
 
