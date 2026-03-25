@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, FileText, Eye, Download } from 'lucide-react';
+import { Shield, FileText, Eye, Download, Sparkles, LockKeyhole } from 'lucide-react';
 
 const categories = ['Governance', 'Tournament', 'Finance', 'Legal', 'Operations'] as const;
 
@@ -33,16 +33,34 @@ export default function DocumentsPortalPage() {
 
   useEffect(() => { refresh(); }, []);
 
+  const hasDocumentAccess = (doc: OfficialDocumentRecord) => {
+    if (isAdmin) return true;
+    if (!isManagement || !user) return false;
+    if (doc.status === 'hidden') return false;
+
+    const allowlist = String(doc.allowed_management_ids || '')
+      .split(',')
+      .map((v) => v.trim().toLowerCase())
+      .filter(Boolean);
+    if (allowlist.length === 0 || allowlist.includes('all_management')) return true;
+
+    const designation = String(user.designation || '').toLowerCase();
+    const username = String(user.username || '').toLowerCase();
+    const managementId = String(user.management_id || '').toLowerCase();
+    const authorityLevel = Number(user.authority_level || 0);
+
+    return allowlist.some((entry) =>
+      entry === managementId ||
+      entry === username ||
+      entry === designation ||
+      (entry.startsWith('designation:') && entry.slice(12) === designation) ||
+      (entry.startsWith('authority>=') && authorityLevel >= Number(entry.replace('authority>=', ''))),
+    );
+  };
+
   const visibleDocs = useMemo(() => {
-    if (isAdmin) return docs;
-    if (!isManagement || !user?.management_id) return [];
-    return docs.filter((doc) => {
-      if (doc.status === 'hidden') return false;
-      if (doc.allowed_management_ids === 'all_management') return true;
-      const allowed = String(doc.allowed_management_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
-      return allowed.includes(user.management_id || '');
-    });
-  }, [docs, isAdmin, isManagement, user?.management_id]);
+    return docs.filter(hasDocumentAccess);
+  }, [docs, isAdmin, isManagement, user]);
 
   const addDocument = async () => {
     if (!isAdmin) return;
@@ -108,7 +126,7 @@ export default function DocumentsPortalPage() {
               <div><Label>Category</Label><Select value={category} onValueChange={(v) => setCategory(v as (typeof categories)[number])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></div>
               <div className="md:col-span-2"><Label>Document URL</Label><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Drive/Sharepoint URL (pdf, docx, png, jpeg...)" /></div>
               <div><Label>Department</Label><Input value={department} onChange={(e) => setDepartment(e.target.value)} /></div>
-              <div className="md:col-span-2"><Label>Access</Label><Input value={accessList} onChange={(e) => setAccessList(e.target.value)} placeholder="all_management or comma separated management IDs" /></div>
+              <div className="md:col-span-2"><Label>Access</Label><Input value={accessList} onChange={(e) => setAccessList(e.target.value)} placeholder="all_management, management_id, username, designation:treasurer, authority>=7" /></div>
               <div className="md:col-span-1 flex items-end"><Button onClick={addDocument} className="w-full">Publish to Library</Button></div>
             </CardContent>
           </Card>
@@ -120,15 +138,20 @@ export default function DocumentsPortalPage() {
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <p className="font-semibold">{doc.title}</p>
+                    <p className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> {doc.title}</p>
                     <p className="text-xs text-muted-foreground">{doc.department}</p>
                   </div>
                   <Badge variant={doc.status === 'published' ? 'default' : 'secondary'}>{doc.status}</Badge>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="outline">{doc.category}</Badge>
-                  <Badge variant="outline">Access: {doc.allowed_management_ids}</Badge>
+                  <Badge variant="outline"><LockKeyhole className="mr-1 h-3 w-3" />Access: {doc.allowed_management_ids}</Badge>
                 </div>
+                {doc.source_url.toLowerCase().includes('.pdf') && (
+                  <div className="overflow-hidden rounded-xl border bg-muted/20">
+                    <iframe title={`${doc.title} preview`} src={doc.source_url} className="h-56 w-full" />
+                  </div>
+                )}
                 <div className="flex gap-2 flex-wrap">
                   {doc.allow_preview && <Button size="sm" variant="outline" onClick={() => window.open(doc.source_url, '_blank', 'noopener,noreferrer')}><Eye className="mr-1 h-3 w-3" /> Preview</Button>}
                   {doc.allow_download && <Button size="sm" variant="outline" asChild><a href={doc.source_url} target="_blank" rel="noreferrer"><Download className="mr-1 h-3 w-3" /> Download</a></Button>}

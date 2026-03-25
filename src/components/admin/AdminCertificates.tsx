@@ -7,11 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { useData } from '@/lib/DataContext';
 import { CertificateRecord } from '@/lib/v2types';
-import { logAudit, v2api } from '@/lib/v2api';
+import { istNow, logAudit, v2api } from '@/lib/v2api';
 import { generateId } from '@/lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import { ShieldCheck, Trophy, Medal, Award, Download, Eye, FileText } from 'lucide-react';
+import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 
 type CertType = CertificateRecord['certificate_type'];
 type ApprovalMap = Record<'Treasurer' | 'Scoring Official' | 'Match Referee', boolean>;
@@ -27,32 +28,6 @@ const certCatalog: Array<{ value: CertType; label: string; icon: string }> = [
 
 function hashValue(value: string) {
   return btoa(unescape(encodeURIComponent(value))).slice(0, 60);
-}
-
-function escapePdfText(value: string) {
-  return String(value || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-}
-
-function buildSimplePdf(lines: string[]) {
-  const textStream = `BT /F1 11 Tf 40 760 Td 14 TL ${lines.map((line) => `(${escapePdfText(line)}) Tj T*`).join(' ')} ET`;
-  const objects = [
-    '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
-    '2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj',
-    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >> endobj',
-    `4 0 obj << /Length ${textStream.length} >> stream\n${textStream}\nendstream endobj`,
-    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
-  ];
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  for (const object of objects) {
-    offsets.push(pdf.length);
-    pdf += `${object}\n`;
-  }
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, '0')} 00000 n \n`; });
-  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return pdf;
 }
 
 export function AdminCertificates() {
@@ -122,7 +97,7 @@ export function AdminCertificates() {
       approval_status: 'pending_approval',
       approvals_json: JSON.stringify(approvals),
       generated_by: 'admin',
-      generated_at: new Date().toISOString(),
+      generated_at: istNow(),
       approved_at: '',
       delivery_status: 'not_sent',
     };
@@ -145,46 +120,11 @@ export function AdminCertificates() {
       ...item,
       approvals_json: JSON.stringify(updated),
       approval_status: fullyApproved ? 'approved' : 'pending_approval',
-      approved_at: fullyApproved ? new Date().toISOString() : '',
+      approved_at: fullyApproved ? istNow() : '',
     };
     await v2api.updateCertificate(payload);
     logAudit('admin', 'certificate_signature_update', 'certificate', item.certificate_id, JSON.stringify({ role, approved: updated[role] }));
     refresh();
-  };
-
-  const getCertificatePdfBlob = (item: CertificateRecord) => {
-    const lines = [
-      'OFFICIAL SPORTS CERTIFICATE',
-      item.title,
-      `Recipient: ${item.recipient_name}`,
-      `Tournament ID: ${item.tournament_id}`,
-      `Season ID: ${item.season_id}`,
-      `Certificate ID: ${item.certificate_id}`,
-      `Approval Status: ${item.approval_status}`,
-      `Security Hash: ${item.security_hash}`,
-      `Verification QR Payload: ${item.qr_payload}`,
-      'Signatories: Treasurer | Scoring Official | Match Referee',
-      `Issued UTC: ${item.generated_at}`,
-      'This digital certificate is tamper-evident and part of secured scorelist governance.',
-    ];
-    return new Blob([buildSimplePdf(lines)], { type: 'application/pdf' });
-  };
-
-  const previewCertificatePdf = (item: CertificateRecord) => {
-    const blob = getCertificatePdfBlob(item);
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank', 'noopener,noreferrer');
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  };
-
-  const downloadCertificate = (item: CertificateRecord) => {
-    const blob = getCertificatePdfBlob(item);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${item.certificate_id}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -205,7 +145,7 @@ export function AdminCertificates() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={generateCertificate}><Medal className="mr-1 h-4 w-4" /> Generate & Send for Approval</Button>
-            {preview && <Button variant="secondary" onClick={() => downloadCertificate(preview)}><Download className="mr-1 h-4 w-4" /> Download Preview</Button>}
+            {preview && <Button variant="secondary" onClick={() => downloadCertificatePdf(preview)}><Download className="mr-1 h-4 w-4" /> Download Preview</Button>}
           </div>
         </CardContent>
       </Card>
@@ -225,7 +165,7 @@ export function AdminCertificates() {
               </div>
               <div className="mt-4 flex items-center justify-center gap-2">
                 <Button size="sm" variant="outline" onClick={() => previewCertificatePdf(preview)}><FileText className="mr-1 h-3 w-3" /> Preview PDF</Button>
-                <Button size="sm" onClick={() => downloadCertificate(preview)}><Download className="mr-1 h-3 w-3" /> Download PDF</Button>
+                <Button size="sm" onClick={() => downloadCertificatePdf(preview)}><Download className="mr-1 h-3 w-3" /> Download PDF</Button>
               </div>
             </div>
           </CardContent>
@@ -251,7 +191,7 @@ export function AdminCertificates() {
                   ))}
                   <Button size="sm" variant="outline" onClick={() => { setPreview(item); }}>{'Preview'}</Button>
                   <Button size="sm" variant="outline" onClick={() => previewCertificatePdf(item)}>Preview PDF</Button>
-                  <Button size="sm" variant="outline" onClick={() => downloadCertificate(item)}>Download PDF</Button>
+                  <Button size="sm" variant="outline" onClick={() => downloadCertificatePdf(item)}>Download PDF</Button>
                 </div>
               </div>
             );

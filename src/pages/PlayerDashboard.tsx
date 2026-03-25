@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/lib/DataContext';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount } from '@/lib/calculations';
 import { generateId } from '@/lib/utils';
-import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity } from 'lucide-react';
+import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity, Eye, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +22,7 @@ import { CertificateRecord } from '@/lib/v2types';
 import { v2api } from '@/lib/v2api';
 import { formatDateInIST, formatInIST } from '@/lib/time';
 import { useEffect } from 'react';
+import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -310,25 +311,17 @@ const PlayerDashboard = () => {
               <CardHeader><CardTitle className="font-display">My Approved Certificates</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {certificates.map((item) => (
-                  <div key={item.certificate_id} className="rounded-xl border p-3">
+                  <div key={item.certificate_id} className="rounded-xl border bg-gradient-to-r from-primary/5 via-background to-accent/5 p-3">
                     <p className="font-semibold">{item.title}</p>
                     <p className="text-sm text-muted-foreground">{item.certificate_id} • {formatInIST(item.approved_at || item.generated_at)}</p>
-                    <Button
-                      className="mt-2"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const blob = new Blob([`<!doctype html><html><body>${item.certificate_html || `<h2>${item.title}</h2><p>${item.recipient_name}</p>`}</body></html>`], { type: 'text/html' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${item.certificate_id}.html`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }}
-                    >
-                      Download certificate
-                    </Button>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" onClick={() => previewCertificatePdf(item)}>
+                        <Eye className="mr-1 h-3 w-3" /> Preview PDF
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => downloadCertificatePdf(item)}>
+                        <Download className="mr-1 h-3 w-3" /> Download PDF
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 {certificates.length === 0 && <p className="text-sm text-muted-foreground">No approved certificates yet.</p>}
