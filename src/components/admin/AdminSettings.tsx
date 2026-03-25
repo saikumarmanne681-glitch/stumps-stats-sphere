@@ -213,6 +213,7 @@ export function AdminSettings() {
         </CardContent>
       </Card>
 
+      <Card>
         <CardHeader>
           <CardTitle className="font-display">👤 Admin Profile & Security</CardTitle>
           <CardDescription>Update admin alias (UI display name) and reset admin password.</CardDescription>
