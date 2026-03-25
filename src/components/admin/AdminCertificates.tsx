@@ -11,7 +11,7 @@ import { logAudit, v2api } from '@/lib/v2api';
 import { generateId } from '@/lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
-import { ShieldCheck, Trophy, Medal, Award, Download, Eye } from 'lucide-react';
+import { ShieldCheck, Trophy, Medal, Award, Download, Eye, FileText } from 'lucide-react';
 
 type CertType = CertificateRecord['certificate_type'];
 type ApprovalMap = Record<'Treasurer' | 'Scoring Official' | 'Match Referee', boolean>;
@@ -27,6 +27,32 @@ const certCatalog: Array<{ value: CertType; label: string; icon: string }> = [
 
 function hashValue(value: string) {
   return btoa(unescape(encodeURIComponent(value))).slice(0, 60);
+}
+
+function escapePdfText(value: string) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+function buildSimplePdf(lines: string[]) {
+  const textStream = `BT /F1 11 Tf 40 760 Td 14 TL ${lines.map((line) => `(${escapePdfText(line)}) Tj T*`).join(' ')} ET`;
+  const objects = [
+    '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+    '2 0 obj << /Type /Pages /Count 1 /Kids [3 0 R] >> endobj',
+    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >> endobj',
+    `4 0 obj << /Length ${textStream.length} >> stream\n${textStream}\nendstream endobj`,
+    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(pdf.length);
+    pdf += `${object}\n`;
+  }
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, '0')} 00000 n \n`; });
+  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return pdf;
 }
 
 export function AdminCertificates() {
@@ -126,23 +152,40 @@ export function AdminCertificates() {
     refresh();
   };
 
+  const getCertificatePdfBlob = (item: CertificateRecord) => {
+    const lines = [
+      'OFFICIAL SPORTS CERTIFICATE',
+      item.title,
+      `Recipient: ${item.recipient_name}`,
+      `Tournament ID: ${item.tournament_id}`,
+      `Season ID: ${item.season_id}`,
+      `Certificate ID: ${item.certificate_id}`,
+      `Approval Status: ${item.approval_status}`,
+      `Security Hash: ${item.security_hash}`,
+      `Verification QR Payload: ${item.qr_payload}`,
+      'Signatories: Treasurer | Scoring Official | Match Referee',
+      `Issued UTC: ${item.generated_at}`,
+      'This digital certificate is tamper-evident and part of secured scorelist governance.',
+    ];
+    return new Blob([buildSimplePdf(lines)], { type: 'application/pdf' });
+  };
+
+  const previewCertificatePdf = (item: CertificateRecord) => {
+    const blob = getCertificatePdfBlob(item);
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
   const downloadCertificate = (item: CertificateRecord) => {
-    const content = `<!doctype html><html><body>${renderCertificateMarkup(item)}</body></html>`;
-    const blob = new Blob([content], { type: 'text/html' });
+    const blob = getCertificatePdfBlob(item);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${item.certificate_id}.html`;
+    a.download = `${item.certificate_id}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   };
-
-  const renderCertificateMarkup = (item: CertificateRecord) => `
-  <section style="font-family:Inter,Arial,sans-serif;border:8px double #14532d;padding:24px;border-radius:20px;background:radial-gradient(circle,#d9f99d 0,#ecfccb 35%,#f0fdf4 100%);">
-    <div style="text-align:center"><h2>${item.title}</h2><p><strong>${item.recipient_name}</strong></p><p>Season ${item.season_id} • Tournament ${item.tournament_id}</p></div>
-    <p style="text-align:center">Secure Hash: ${item.security_hash}</p>
-    <p style="text-align:center">Approvals shown by designation only: Treasurer, Scoring Official, Match Referee</p>
-  </section>`;
 
   return (
     <div className="space-y-4">
@@ -173,12 +216,16 @@ export function AdminCertificates() {
           <CardContent className="space-y-3">
             <div className="mandala-sports-bg rounded-2xl border border-primary/20 p-6 text-center">
               <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-white/80 px-4 py-1 text-xs font-semibold">{certCatalog.find((c) => c.value === preview.certificate_type)?.icon} Verified Presentation Card</div>
-              <h3 className="font-display text-2xl">{preview.title}</h3>
+              <h3 className="font-display text-2xl uppercase tracking-wide">{preview.title}</h3>
               <p className="mt-2 text-lg font-semibold">{preview.recipient_name}</p>
               <p className="text-sm text-muted-foreground">Designation signatures only after approval: Treasurer • Scoring Official • Match Referee</p>
               <div className="mt-4 flex items-center justify-center gap-4">
                 <QRCodeSVG value={preview.qr_payload} size={90} />
                 <p className="max-w-xs text-left text-xs">Scan QR to verify authenticity. Security Hash: <span className="font-mono">{preview.security_hash}</span></p>
+              </div>
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => previewCertificatePdf(preview)}><FileText className="mr-1 h-3 w-3" /> Preview PDF</Button>
+                <Button size="sm" onClick={() => downloadCertificate(preview)}><Download className="mr-1 h-3 w-3" /> Download PDF</Button>
               </div>
             </div>
           </CardContent>
@@ -203,7 +250,8 @@ export function AdminCertificates() {
                     </Button>
                   ))}
                   <Button size="sm" variant="outline" onClick={() => { setPreview(item); }}>{'Preview'}</Button>
-                  <Button size="sm" variant="outline" onClick={() => downloadCertificate(item)}>Download</Button>
+                  <Button size="sm" variant="outline" onClick={() => previewCertificatePdf(item)}>Preview PDF</Button>
+                  <Button size="sm" variant="outline" onClick={() => downloadCertificate(item)}>Download PDF</Button>
                 </div>
               </div>
             );
