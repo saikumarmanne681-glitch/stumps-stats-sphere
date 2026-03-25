@@ -26,6 +26,7 @@ import { scheduleService } from '@/schedules/scheduleService';
 import { getActorId, isScheduleApproverRole } from '@/lib/accessControl';
 import { ScheduleRecord } from '@/schedules/types';
 import { formatInIST } from '@/lib/time';
+import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 const stageLabels: Record<string, string> = scorelistStageLabels;
@@ -108,9 +109,10 @@ const ManagementPage = () => {
   const scheduleApprover = isManagement && isScheduleApproverRole(user?.designation);
   const certificateRole = user?.designation === 'Treasurer' || user?.designation === 'Scoring Official' || user?.designation === 'Match Referee' ? user.designation : null;
   const pendingCertificates = useMemo(() => {
-    if (!certificateRole || !user) return [] as CertificateRecord[];
+    if (!user) return [] as CertificateRecord[];
     return certificates.filter((item) => {
       if (item.approval_status !== 'pending_approval') return false;
+      if (!certificateRole) return true;
       const approvals = item.approvals_json ? JSON.parse(item.approvals_json) as Record<string, boolean> : {};
       return !approvals[certificateRole];
     });
@@ -148,7 +150,7 @@ const ManagementPage = () => {
       ...certificate,
       approvals_json: JSON.stringify(nextApprovals),
       approval_status: full ? 'approved' : 'pending_approval',
-      approved_at: full ? new Date().toISOString() : certificate.approved_at,
+      approved_at: full ? istNow() : certificate.approved_at,
       delivery_status: full ? 'sent_to_player' : certificate.delivery_status,
     };
     await v2api.updateCertificate(payload);
@@ -420,7 +422,7 @@ const ManagementPage = () => {
               </TabsTrigger>
               <TabsTrigger value="all" className="text-xs md:text-sm gap-1"><Shield className="h-3 w-3" /> All Scorelists</TabsTrigger>
               {scheduleApprover && <TabsTrigger value="schedule-approvals" className="text-xs md:text-sm gap-1"><Clock className="h-3 w-3" /> Schedule Approvals {pendingSchedules.length > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1">{pendingSchedules.length}</Badge>}</TabsTrigger>}
-              {certificateRole && <TabsTrigger value="certificates" className="text-xs md:text-sm gap-1"><ShieldCheck className="h-3 w-3" /> Certificates {pendingCertificates.length > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1">{pendingCertificates.length}</Badge>}</TabsTrigger>}
+              <TabsTrigger value="certificates" className="text-xs md:text-sm gap-1"><ShieldCheck className="h-3 w-3" /> Certificates {pendingCertificates.length > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1">{pendingCertificates.length}</Badge>}</TabsTrigger>
               <TabsTrigger value="messages" className="text-xs md:text-sm gap-1"><MessageSquare className="h-3 w-3" /> Messages</TabsTrigger>
               <TabsTrigger value="compose" className="text-xs md:text-sm gap-1"><Send className="h-3 w-3" /> Send Notice</TabsTrigger>
             </TabsList>
@@ -596,11 +598,11 @@ const ManagementPage = () => {
               </TabsContent>
             )}
 
-            {certificateRole && (
               <TabsContent value="certificates" className="mt-4 space-y-3">
                 {pendingCertificates.length === 0 && <Card><CardContent className="p-6 text-center text-muted-foreground">No certificates are waiting for your signature right now.</CardContent></Card>}
                 {pendingCertificates.map((certificate) => {
                   const approvals = certificate.approvals_json ? JSON.parse(certificate.approvals_json) as Record<string, boolean> : {};
+                  const signedByMe = certificateRole ? !!approvals[certificateRole] : false;
                   return (
                     <Card key={certificate.certificate_id} className="border-l-4 border-l-primary/50">
                       <CardContent className="p-4 space-y-3">
@@ -619,13 +621,22 @@ const ManagementPage = () => {
                             </div>
                           ))}
                         </div>
-                        <Button onClick={() => signCertificate(certificate)}><ShieldCheck className="mr-1 h-3 w-3" /> Sign as {certificateRole}</Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={() => previewCertificatePdf(certificate)}><FileText className="mr-1 h-3 w-3" /> Preview PDF</Button>
+                          <Button variant="outline" onClick={() => downloadCertificatePdf(certificate)}><Download className="mr-1 h-3 w-3" /> Download PDF</Button>
+                          {certificateRole ? (
+                            <Button onClick={() => signCertificate(certificate)} disabled={signedByMe}>
+                              <ShieldCheck className="mr-1 h-3 w-3" /> {signedByMe ? `Already signed as ${certificateRole}` : `Sign as ${certificateRole}`}
+                            </Button>
+                          ) : (
+                            <Badge variant="secondary" className="py-2 px-3">View-only: your designation is not an approval signatory.</Badge>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   );
                 })}
               </TabsContent>
-            )}
 
             <TabsContent value="messages" className="mt-4 space-y-3">
               <h3 className="font-display text-lg font-bold flex items-center gap-2"><MessageSquare className="h-5 w-5 text-primary" /> Messages</h3>

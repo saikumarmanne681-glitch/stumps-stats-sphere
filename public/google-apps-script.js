@@ -86,6 +86,7 @@ const TABS = {
   BOARD_CONFIGURATION: ["config_id","current_period","administration_team_ids","updated_at","updated_by"],
   NEWS_ROOM_POSTS: ["post_id","title","body","audience","status","posted_by_id","posted_by_name","posted_by_role","published_at","updated_at"],
   CERTIFICATES: ["certificate_id","certificate_type","title","season_id","tournament_id","match_id","recipient_type","recipient_id","recipient_name","metadata_json","certificate_html","qr_payload","security_hash","approval_status","approvals_json","generated_by","generated_at","approved_at","delivery_status"],
+  OFFICIAL_DOCUMENTS: ["document_id","title","category","department","source_url","source_type","status","allowed_management_ids","allow_preview","allow_download","created_by","created_at","updated_at"],
   // Governance & competition workflow modules
   elections: ["election_id","title","description","roles_json","eligible_roles_json","status","nomination_start","nomination_end","voting_start","voting_end","created_by","created_at","results_published_at"],
   votes: ["vote_id","election_id","role_name","voter_user_id","voter_name","nominee_user_id","nominee_name","submitted_at","immutable_hash"],
@@ -164,6 +165,7 @@ function getKeyColumn(tabName) {
     BOARD_CONFIGURATION: "config_id",
     NEWS_ROOM_POSTS: "post_id",
     CERTIFICATES: "certificate_id",
+    OFFICIAL_DOCUMENTS: "document_id",
     elections: "election_id",
     votes: "vote_id",
     nominations: "nomination_id",
