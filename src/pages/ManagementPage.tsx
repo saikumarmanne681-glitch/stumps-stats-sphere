@@ -107,7 +107,14 @@ const ManagementPage = () => {
     return nextStage === userStage;
   }), [isManagement, scorelists, user?.designation, user?.management_id]);
   const scheduleApprover = isManagement && isScheduleApproverRole(user?.designation);
-  const certificateRole = user?.designation === 'Treasurer' || user?.designation === 'Scoring Official' || user?.designation === 'Match Referee' ? user.designation : null;
+  const normalizeCertificateRole = (designation?: string | null) => {
+    const normalized = String(designation || '').trim().toLowerCase();
+    if (normalized === 'treasurer') return 'Treasurer';
+    if (normalized === 'scoring official' || normalized === 'scorer' || normalized === 'score official') return 'Scoring Official';
+    if (normalized === 'match referee' || normalized === 'referee') return 'Match Referee';
+    return null;
+  };
+  const certificateRole = normalizeCertificateRole(user?.designation);
   const pendingCertificates = useMemo(() => {
     if (!user) return [] as CertificateRecord[];
     return certificates.filter((item) => {
@@ -155,7 +162,7 @@ const ManagementPage = () => {
         signedAt: istNow(),
       },
     ];
-    const full = ['Treasurer', 'Scoring Official', 'Match Referee'].every((role) => !!nextApprovals[role]);
+    const full = (['Treasurer', 'Scoring Official', 'Match Referee'] as const).every((role) => !!nextApprovals[role]);
     const payload: CertificateRecord = {
       ...certificate,
       approvals_json: JSON.stringify(nextApprovals),

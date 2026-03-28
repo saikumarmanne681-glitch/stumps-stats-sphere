@@ -14,6 +14,14 @@ type PdfTextLine = {
   color?: [number, number, number];
 };
 
+function estimateTextWidth(text: string, size = 12) {
+  return Math.max(0, String(text || '').length) * size * 0.52;
+}
+
+function centerTextX(text: string, size: number, canvasWidth: number) {
+  return (canvasWidth - estimateTextWidth(text, size)) / 2;
+}
+
 function drawText(line: PdfTextLine) {
   const [r, g, b] = line.color ?? [0.08, 0.13, 0.2];
   const size = line.size ?? 12;
@@ -35,12 +43,14 @@ function buildCertificatePdf(item: CertificateRecord) {
     gold: { bg: [0.99, 0.97, 0.9], primary: [0.22, 0.17, 0.05], accent: [0.69, 0.53, 0.12] },
   }[theme];
 
+  const recipientFontSize = item.recipient_name.length > 36 ? 20 : item.recipient_name.length > 24 ? 24 : 28;
+
   const certificateLines: PdfTextLine[] = [
-    { text: 'CRICKET CLUB OF EXCELLENCE', x: 267, y: 535, size: 12, color: palette.accent },
-    { text: 'OFFICIAL PRESENTATION CERTIFICATE', x: 205, y: 505, size: 26, font: 'F2', color: palette.primary },
-    { text: 'This certificate is proudly presented to', x: 285, y: 456, size: 13, color: [0.18, 0.18, 0.18] },
-    { text: item.recipient_name, x: 270, y: 414, size: 28, font: 'F2', color: palette.primary },
-    { text: item.title, x: 305, y: 380, size: 15, color: [0.15, 0.15, 0.15] },
+    { text: 'CRICKET CLUB OF EXCELLENCE', x: centerTextX('CRICKET CLUB OF EXCELLENCE', 12, width), y: 535, size: 12, color: palette.accent },
+    { text: 'OFFICIAL PRESENTATION CERTIFICATE', x: centerTextX('OFFICIAL PRESENTATION CERTIFICATE', 26, width), y: 505, size: 26, font: 'F2', color: palette.primary },
+    { text: 'This certificate is proudly presented to', x: centerTextX('This certificate is proudly presented to', 13, width), y: 456, size: 13, color: [0.18, 0.18, 0.18] },
+    { text: item.recipient_name, x: centerTextX(item.recipient_name, recipientFontSize, width), y: 414, size: recipientFontSize, font: 'F2', color: palette.primary },
+    { text: item.title, x: centerTextX(item.title, 15, width), y: 380, size: 15, color: [0.15, 0.15, 0.15] },
     { text: `Tournament: ${metadata.tournament || item.tournament_id || 'N/A'}`, x: 90, y: 300, size: 12 },
     { text: `Season: ${metadata.seasonYear || item.season_id || 'N/A'}`, x: 90, y: 280, size: 12 },
     { text: `Issue Date: ${formatInIST(item.generated_at)}`, x: 90, y: 260, size: 12 },
@@ -89,8 +99,12 @@ function buildCertificatePdf(item: CertificateRecord) {
     `${palette.primary.join(' ')} RG 1.5 w 36 36 ${width - 72} ${height - 72} re S`,
     `${palette.primary.join(' ')} rg 43 508 756 40 re f`,
     `${palette.accent.join(' ')} rg 43 47 756 16 re f`,
-    `${palette.accent.join(' ')} RG 2 w 95 145 190 0 m S 330 145 190 0 m S 595 145 190 0 m S`,
+    `${palette.accent.join(' ')} RG 1.5 w 95 145 190 0 m S 330 145 190 0 m S 595 145 190 0 m S`,
     `${palette.accent.join(' ')} rg 70 320 36 36 re f`,
+    `${palette.primary.join(' ')} RG 0.8 w 72 235 700 80 re S`,
+    `${palette.primary.join(' ')} RG 0.8 w 72 86 220 68 re S`,
+    `${palette.primary.join(' ')} RG 0.8 w 312 86 220 68 re S`,
+    `${palette.primary.join(' ')} RG 0.8 w 552 86 220 68 re S`,
   ];
 
   const watermark = isPending

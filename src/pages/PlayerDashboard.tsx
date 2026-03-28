@@ -169,7 +169,7 @@ const PlayerDashboard = () => {
                 </div>
                 <div className="text-center p-3 rounded-xl bg-amber-500/10">
                   <Trophy className="h-4 w-4 text-amber-600 mx-auto mb-1" />
-                  <p className="text-2xl font-bold text-amber-600">{momWins}</p>
+                  <p className="text-2xl font-bold text-amber-600">{momCount}</p>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">MOM Wins</p>
                 </div>
               </div>
