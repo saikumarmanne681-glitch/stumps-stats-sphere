@@ -128,6 +128,10 @@ export interface BoardConfiguration {
   config_id: string;
   current_period: string;
   administration_team_ids: string;
+  elections_closed: boolean;
+  elections_closed_reason: string;
+  tournament_registration_closed: boolean;
+  tournament_registration_closed_reason: string;
   updated_at: string;
   updated_by: string;
 }

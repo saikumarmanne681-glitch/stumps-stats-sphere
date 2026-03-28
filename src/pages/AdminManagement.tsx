@@ -76,13 +76,15 @@ const AdminManagement = () => {
     const payload: BoardConfiguration = {
       ...(boardConfig || {}),
       config_id: existingConfigId,
-      current_period: '',
-      administration_team_ids: '',
+      current_period: boardConfig?.current_period || '',
+      administration_team_ids: boardConfig?.administration_team_ids || '',
+      elections_closed: !!boardConfig?.elections_closed,
+      elections_closed_reason: boardConfig?.elections_closed_reason || '',
+      tournament_registration_closed: !!boardConfig?.tournament_registration_closed,
+      tournament_registration_closed_reason: boardConfig?.tournament_registration_closed_reason || '',
       updated_at: new Date().toISOString(),
       updated_by: 'admin',
     };
-    payload.current_period = boardConfig?.current_period || '';
-    payload.administration_team_ids = boardConfig?.administration_team_ids || '';
 
     setSavingBoardConfig(true);
     try {
