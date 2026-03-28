@@ -339,14 +339,24 @@ export function AdminMatches() {
         setSavingProgress((prev) => Math.min(prev + 8, 90));
       }, 200);
 
-      await saveScorecardBulk(scorecardMatchId, newBatting, newBowling);
-      await updateMatch({ ...match, team_a_score: teamAScore, team_b_score: teamBScore });
+      const atomicSave = await saveScorecardBulk(scorecardMatchId, newBatting, newBowling, {
+        scorecardVersion: match.scorecard_version,
+        scorecardChecksum: match.scorecard_checksum,
+      });
+      await updateMatch({
+        ...match,
+        team_a_score: teamAScore,
+        team_b_score: teamBScore,
+        scorecard_version: atomicSave.scorecardVersion,
+        scorecard_checksum: atomicSave.scorecardChecksum,
+        scorecard_operation_id: atomicSave.operationId,
+      });
 
       clearInterval(progressInterval);
       setSavingProgress(100);
       setSaveSuccess(true);
 
-      logAudit("admin", "admin_save_scorecard", "match", scorecardMatchId, JSON.stringify({ battingEntries: newBatting.length, bowlingEntries: newBowling.length, teamAScore, teamBScore }));
+      logAudit("admin", "admin_save_scorecard", "match", scorecardMatchId, JSON.stringify({ battingEntries: newBatting.length, bowlingEntries: newBowling.length, teamAScore, teamBScore, atomicOperationId: atomicSave.operationId }));
 
       toast({
         title: "✅ Scorecard Saved Successfully!",
@@ -360,7 +370,11 @@ export function AdminMatches() {
         setSavingProgress(0);
       }, 1500);
     } catch (err) {
-      toast({ title: "Error saving scorecard", description: String(err), variant: "destructive" });
+      toast({
+        title: "Error saving scorecard",
+        description: `${String(err)} Retry after refreshing this match to sync latest scorecard version.`,
+        variant: "destructive",
+      });
     } finally {
       setIsSavingScorecard(false);
     }

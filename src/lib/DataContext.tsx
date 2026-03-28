@@ -328,7 +328,7 @@ export function useData() {
       deleteAnnouncement: async () => {},
       addMessage: async () => {},
       updateMessage: async () => {},
-      saveScorecardBulk: async () => {},
+      saveScorecardBulk: async () => ({ operationId: "", scorecardVersion: 0, scorecardChecksum: "" }),
     } as DataContextType;
   }
 

@@ -316,16 +316,22 @@ const MatchCenter = () => {
     try {
       const aScore = calcTeamScore(match.team_a);
       const bScore = calcTeamScore(match.team_b);
-      await saveScorecardBulk(selectedMatchId, liveBatting, liveBowling);
+      const atomicSave = await saveScorecardBulk(selectedMatchId, liveBatting, liveBowling, {
+        scorecardVersion: match.scorecard_version,
+        scorecardChecksum: match.scorecard_checksum,
+      });
       await updateMatch({
         ...match,
         team_a_score: `${aScore.runs}/${aScore.wkts} (${aScore.overs})`,
         team_b_score: `${bScore.runs}/${bScore.wkts} (${bScore.overs})`,
+        scorecard_version: atomicSave.scorecardVersion,
+        scorecard_checksum: atomicSave.scorecardChecksum,
+        scorecard_operation_id: atomicSave.operationId,
       });
-      logAudit(user?.username || 'admin', 'save_live_scoring', 'match', match.match_id, JSON.stringify({ teamAScore: aScore, teamBScore: bScore, actions: scoringHistory.length }));
+      logAudit(user?.username || 'admin', 'save_live_scoring', 'match', match.match_id, JSON.stringify({ teamAScore: aScore, teamBScore: bScore, actions: scoringHistory.length, atomicOperationId: atomicSave.operationId }));
       toast({ title: '✅ Scoring data saved to database!' });
     } catch (e) {
-      toast({ title: 'Error saving', variant: 'destructive' });
+      toast({ title: 'Error saving', description: String(e), variant: 'destructive' });
     }
     setLoading(false);
   };
@@ -367,7 +373,10 @@ const MatchCenter = () => {
     }
 
     // Save scoring data first
-    await saveScorecardBulk(selectedMatchId, liveBatting, liveBowling);
+    const atomicSave = await saveScorecardBulk(selectedMatchId, liveBatting, liveBowling, {
+      scorecardVersion: match.scorecard_version,
+      scorecardChecksum: match.scorecard_checksum,
+    });
 
     await updateMatch({
       ...match,
@@ -375,6 +384,9 @@ const MatchCenter = () => {
       result,
       team_a_score: `${aScore.runs}/${aScore.wkts} (${aScore.overs})`,
       team_b_score: `${bScore.runs}/${bScore.wkts} (${bScore.overs})`,
+      scorecard_version: atomicSave.scorecardVersion,
+      scorecard_checksum: atomicSave.scorecardChecksum,
+      scorecard_operation_id: atomicSave.operationId,
     });
     await addTimelineEvent('MATCH_END', `Match Finished - ${result}`);
     logAudit(user?.username || 'admin', 'finish_match', 'match', match.match_id, result);
