@@ -1,23 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
-import { useData } from '@/lib/DataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { v2api } from '@/lib/v2api';
-import { MatchTimeline } from '@/lib/v2types';
 import { Radio, Calendar, MapPin, Share2, User2, Activity, ShieldAlert } from 'lucide-react';
 import { compareSheetDatesDesc, formatSheetDate } from '@/lib/dataUtils';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { api } from '@/lib/googleSheets';
 import { getTeamScoreSummary } from '@/lib/liveScoring';
+import { useBattingQuery, useBowlingQuery, useMatchesQuery, useSeasonsQuery, useTimelineQuery, useTournamentsQuery } from '@/lib/dataHooks';
 
 const LiveMatchPage = () => {
-  const { matches, batting, bowling, tournaments, seasons } = useData();
-  const [timeline, setTimeline] = useState<MatchTimeline[]>([]);
-  const [liveBatting, setLiveBatting] = useState(batting);
-  const [liveBowling, setLiveBowling] = useState(bowling);
+  const { data: matches = [] } = useMatchesQuery({ live: true });
+  const { data: tournaments = [] } = useTournamentsQuery();
+  const { data: seasons = [] } = useSeasonsQuery();
+  const { data: timeline = [] } = useTimelineQuery({ live: true });
+  const { data: liveBatting = [] } = useBattingQuery({ live: true });
+  const { data: liveBowling = [] } = useBowlingQuery({ live: true });
   const [shareLoadingMatchId, setShareLoadingMatchId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -26,32 +25,6 @@ const LiveMatchPage = () => {
     .filter(m => m.status === 'completed')
     .sort((a, b) => compareSheetDatesDesc(a.date, b.date))
     .slice(0, 5);
-
-  useEffect(() => {
-    v2api.getMatchTimeline().then(setTimeline);
-    const iv = setInterval(() => v2api.getMatchTimeline().then(setTimeline), 10000);
-    return () => clearInterval(iv);
-  }, []);
-
-  useEffect(() => {
-    setLiveBatting(batting);
-    setLiveBowling(bowling);
-  }, [batting, bowling]);
-
-  useEffect(() => {
-    const pullLiveScorecards = async () => {
-      try {
-        const [latestBatting, latestBowling] = await Promise.all([api.getBattingScorecard(), api.getBowlingScorecard()]);
-        setLiveBatting(latestBatting);
-        setLiveBowling(latestBowling);
-      } catch (error) {
-        console.warn('Unable to refresh live scorecards', error);
-      }
-    };
-    pullLiveScorecards();
-    const interval = setInterval(pullLiveScorecards, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
 
   const handleShare = async (match: typeof matches[0]) => {

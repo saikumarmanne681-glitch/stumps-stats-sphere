@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { AnnouncementTicker } from "@/components/AnnouncementTicker";
 import { Leaderboard } from "@/components/Leaderboard";
 import { MatchCard } from "@/components/MatchCard";
 import { MatchDetailDialog } from "@/components/MatchDetailDialog";
 import { Navbar } from "@/components/Navbar";
 import { useData } from "@/lib/DataContext";
-import { getLatestMatches } from "@/lib/calculations";
+import { useHomePageData } from "@/lib/dataHooks";
 import { Match } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,7 @@ import { SessionFingerprint, SecurityShieldBadge } from "@/components/SecurityBa
 import { VerticalAnnouncementsBox } from "@/components/VerticalAnnouncementsBox";
 
 const Home = () => {
-  const { players, tournaments, seasons, matches, batting, bowling, announcements, loading } = useData();
+  const { players, tournaments, seasons, matches, batting, bowling, loading } = useData();
   const [filterTournament, setFilterTournament] = useState<string>("all");
   const [filterSeason, setFilterSeason] = useState<string>("all");
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -25,36 +25,12 @@ const Home = () => {
   const [showAllMatches, setShowAllMatches] = useState(false);
   const [matchSearch, setMatchSearch] = useState("");
 
-  const latestMatches = useMemo(() => getLatestMatches(matches, 9), [matches]);
-
-  const relevantSeasons = useMemo(() => {
-    if (filterTournament === "all") return seasons;
-    return seasons.filter((s) => s.tournament_id === filterTournament);
-  }, [filterTournament, seasons]);
-
-  const filteredMatchIds = useMemo(() => {
-    let filtered = matches;
-    if (filterTournament !== "all") filtered = filtered.filter((m) => m.tournament_id === filterTournament);
-    if (filterSeason !== "all") filtered = filtered.filter((m) => m.season_id === filterSeason);
-    return filtered.map((m) => m.match_id);
-  }, [filterTournament, filterSeason, matches]);
-
-  const displayMatches = useMemo(() => {
-    const sourceMatches = showAllMatches ? getLatestMatches(matches, matches.length) : latestMatches;
-    let result = sourceMatches;
-    if (filterTournament !== "all") result = result.filter((m) => m.tournament_id === filterTournament);
-    if (filterSeason !== "all") result = result.filter((m) => m.season_id === filterSeason);
-
-    const query = matchSearch.trim().toLowerCase();
-    if (!query) return result;
-
-    return result.filter((m) => {
-      const tName = tournaments.find((t) => t.tournament_id === m.tournament_id)?.name?.toLowerCase() || "";
-      return [m.match_id, m.team_a, m.team_b, m.venue, m.result, tName].some((value) =>
-        value?.toLowerCase().includes(query),
-      );
-    });
-  }, [showAllMatches, matches, latestMatches, filterTournament, filterSeason, matchSearch, tournaments]);
+  const { relevantSeasons, filteredMatchIds, displayMatches } = useHomePageData({
+    filterTournament,
+    filterSeason,
+    showAllMatches,
+    matchSearch,
+  });
 
   const handleMatchClick = (match: Match) => {
     setSelectedMatch(match);

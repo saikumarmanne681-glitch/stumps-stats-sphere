@@ -1,0 +1,15 @@
+export const queryKeys = {
+  players: ['players'] as const,
+  tournaments: ['tournaments'] as const,
+  seasons: ['seasons'] as const,
+  matches: ['matches'] as const,
+  match: (matchId: string) => ['matches', 'match', matchId] as const,
+  batting: ['batting'] as const,
+  battingByMatch: (matchId: string) => ['batting', 'match', matchId] as const,
+  bowling: ['bowling'] as const,
+  bowlingByMatch: (matchId: string) => ['bowling', 'match', matchId] as const,
+  announcements: ['announcements'] as const,
+  messages: ['messages'] as const,
+  timeline: ['timeline'] as const,
+  timelineByMatch: (matchId: string) => ['timeline', 'match', matchId] as const,
+};
