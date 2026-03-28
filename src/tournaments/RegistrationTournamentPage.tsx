@@ -13,6 +13,7 @@ import { normalizeId } from '@/lib/dataUtils';
 import { scheduleService } from '@/schedules/scheduleService';
 import { v2api } from '@/lib/v2api';
 import { ClosedAccessScreen } from '@/components/ClosedAccessScreen';
+import { parseSheetBoolean } from '@/lib/sheetValueParsers';
 
 const RegistrationTournamentPage = () => {
   const { id } = useParams();
@@ -26,7 +27,7 @@ const RegistrationTournamentPage = () => {
     Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend(), v2api.getBoardConfiguration()])
       .then(([, , boardRows]) => {
         const config = boardRows[0];
-        setRegistrationClosed(!!config?.tournament_registration_closed);
+        setRegistrationClosed(parseSheetBoolean(config?.tournament_registration_closed));
         setRegistrationClosedReason(config?.tournament_registration_closed_reason || '');
       })
       .finally(() => {

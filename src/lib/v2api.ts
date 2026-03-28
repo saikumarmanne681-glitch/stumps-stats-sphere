@@ -1,4 +1,4 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, CertificateRecord } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, CertificateRecord } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 
@@ -91,6 +91,8 @@ export const v2api = {
   // Audit
   getAuditEvents: () => fetchV2Sheet<AuditEvent>('AUDIT_EVENTS'),
   addAuditEvent: (e: AuditEvent) => writeV2Sheet('AUDIT_EVENTS', 'add', e),
+  getMailDiagnostics: () => fetchV2Sheet<MailDiagnostic>('MAIL_DIAGNOSTICS'),
+  addMailDiagnostic: (entry: MailDiagnostic) => writeV2Sheet('MAIL_DIAGNOSTICS', 'add', entry),
 
   sendOtpEmail: async (email: string, otp: string) => {
     const url = getAppsScriptUrl();

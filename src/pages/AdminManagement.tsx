@@ -15,6 +15,7 @@ import { BoardConfiguration, ManagementUser, MANAGEMENT_ROLES } from '@/lib/v2ty
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
+import { parseSheetBoolean } from '@/lib/sheetValueParsers';
 
 const AdminManagement = () => {
   const { isAdmin } = useAuth();
@@ -78,9 +79,9 @@ const AdminManagement = () => {
       config_id: existingConfigId,
       current_period: boardConfig?.current_period || '',
       administration_team_ids: boardConfig?.administration_team_ids || '',
-      elections_closed: !!boardConfig?.elections_closed,
+      elections_closed: parseSheetBoolean(boardConfig?.elections_closed),
       elections_closed_reason: boardConfig?.elections_closed_reason || '',
-      tournament_registration_closed: !!boardConfig?.tournament_registration_closed,
+      tournament_registration_closed: parseSheetBoolean(boardConfig?.tournament_registration_closed),
       tournament_registration_closed_reason: boardConfig?.tournament_registration_closed_reason || '',
       updated_at: new Date().toISOString(),
       updated_by: 'admin',

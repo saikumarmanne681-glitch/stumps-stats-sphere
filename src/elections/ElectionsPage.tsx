@@ -17,6 +17,7 @@ import { NominationRecord } from './types';
 import { electionRoleResponsibilities } from '@/lib/workflowStatus';
 import { v2api } from '@/lib/v2api';
 import { ClosedAccessScreen } from '@/components/ClosedAccessScreen';
+import { parseSheetBoolean } from '@/lib/sheetValueParsers';
 
 const DEFAULT_ROLES = ['President', 'Vice President', 'Secretary', 'Treasurer'];
 
@@ -58,7 +59,7 @@ const ElectionsPage = () => {
     Promise.all([electionService.syncFromBackend(), v2api.getBoardConfiguration()])
       .then(([, boardRows]) => {
         const config = boardRows[0];
-        setElectionsClosed(!!config?.elections_closed);
+        setElectionsClosed(parseSheetBoolean(config?.elections_closed));
         setElectionsClosedReason(config?.elections_closed_reason || '');
       })
       .finally(() => {
