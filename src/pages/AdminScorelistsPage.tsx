@@ -21,6 +21,7 @@ import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCirc
 import { QRCodeSVG } from 'qrcode.react';
 import { formatInIST } from '@/lib/time';
 import { getPublicVerifyScorelistUrl } from '@/lib/publicUrl';
+import { normalizeId, resolvePlayerFromIdentity } from '@/lib/dataUtils';
 
 
 const registrationBandRows = 16;
@@ -59,6 +60,10 @@ const AdminScorelistsPage = () => {
   const [selectedSeason, setSelectedSeason] = useState('');
   const [viewScorelist, setViewScorelist] = useState<DigitalScorelist | null>(null);
   const [verifyResult, setVerifyResult] = useState<{ valid: boolean; reason?: string } | null>(null);
+  const getMomDisplayLabel = (identity: unknown) => {
+    const resolved = resolvePlayerFromIdentity(identity, players);
+    return resolved?.name || normalizeId(identity);
+  };
 
   const refresh = async () => {
     const [data, mgmt] = await Promise.all([v2api.getScorelists(), v2api.getManagementUsers()]);
@@ -391,7 +396,7 @@ const AdminScorelistsPage = () => {
         <h2>Match ${idx + 1}: ${m.team_a} vs ${m.team_b}</h2>
         <p><strong>Date:</strong> ${m.date || '-'} | <strong>Venue:</strong> ${m.venue || '-'} | <strong>Stage:</strong> ${m.match_stage || '-'} | <strong>Status:</strong> ${m.status || '-'}</p>
         <p><strong>Score:</strong> ${m.team_a} ${scoreA} vs ${m.team_b} ${scoreB}</p>
-        <p><strong>Result:</strong> ${m.result || '-'} ${m.man_of_match ? `| <strong>Man of the Match:</strong> ${players.find(p => p.player_id === m.man_of_match)?.name || m.man_of_match}` : ''}</p>
+        <p><strong>Result:</strong> ${m.result || '-'} ${m.man_of_match ? `| <strong>Man of the Match:</strong> ${getMomDisplayLabel(m.man_of_match)}` : ''}</p>
         <h3>Batting</h3>
         <table><tr><th>Batter</th><th>Team</th><th style="text-align:right">R</th><th style="text-align:right">B</th><th style="text-align:right">4s</th><th style="text-align:right">6s</th><th>Dismissal</th></tr>${matchBatRows || '<tr><td colspan="7" style="text-align:center;color:#777">No batting entries</td></tr>'}</table>
         <h3>Bowling</h3>
@@ -453,7 +458,7 @@ ${securePattern.enabled ? `<div class="secure-pattern-notice">Visible anti-copy 
 <p style="text-align:center;margin:6px 0"><strong>Season:</strong> ${season?.year || '-'} | <strong>Dates:</strong> ${season?.start_date || '-'} to ${season?.end_date || '-'}</p>
 ${match ? `<div class="scoreboard"><div><h3>${match.team_a}</h3><div class="team-score">${aScore}</div></div><div style="display:flex;align-items:center"><span style="font-size:24px;color:#999">VS</span></div><div><h3>${match.team_b}</h3><div class="team-score">${bScore}</div></div></div>` : ''}
 ${match?.result ? `<p style="text-align:center;font-size:16px;font-weight:bold;color:#1e6b3a">${match.result}</p>` : ''}
-${match?.man_of_match ? `<p style="text-align:center">🏅 Man of the Match: ${players.find(p => p.player_id === match.man_of_match)?.name || ''}</p>` : ''}
+${match?.man_of_match ? `<p style="text-align:center">🏅 Man of the Match: ${getMomDisplayLabel(match.man_of_match)}</p>` : ''}
 ${payloadMatches.length > 0 ? `<p style="text-align:center;font-weight:bold;background:#f9fcf9;padding:10px;border:1px solid #dbe7db;border-radius:6px">Tournament Scorebook: ${payloadMatches.length} matches included with complete match-wise scorecards.</p>` : ''}
 <h2>🏏 Batting Scorecard</h2><table><tr><th>Batter</th><th>Team</th><th style="text-align:right">R</th><th style="text-align:right">B</th><th style="text-align:right">4s</th><th style="text-align:right">6s</th><th>Dismissal</th></tr>${batRows}</table>
 <h2>🎯 Bowling Figures</h2><table><tr><th>Bowler</th><th>Team</th><th style="text-align:right">O</th><th style="text-align:right">M</th><th style="text-align:right">R</th><th style="text-align:right">W</th></tr>${bowlRows}</table>
@@ -825,7 +830,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                       <Card className="border-primary/30 bg-primary/5">
                         <CardContent className="p-4 text-center">
                           <p className="font-display text-base md:text-lg font-bold text-primary">{match.result}</p>
-                          {match.man_of_match && <p className="text-sm text-muted-foreground">🏅 MOM: {players.find(p => p.player_id === match.man_of_match)?.name}</p>}
+                          {match.man_of_match && <p className="text-sm text-muted-foreground">🏅 MOM: {getMomDisplayLabel(match.man_of_match)}</p>}
                         </CardContent>
                       </Card>
                     )}

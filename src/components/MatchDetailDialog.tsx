@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Match, BattingScorecard, BowlingScorecard, Player, Tournament, Season } from '@/lib/types';
 import { Calendar, MapPin, Award, AlertTriangle, Loader2 } from 'lucide-react';
-import { formatSheetDate } from '@/lib/dataUtils';
+import { formatSheetDate, resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
@@ -87,7 +87,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
 
   const matchBatting = batting.filter(b => b.match_id === match.match_id);
   const matchBowling = bowling.filter(b => b.match_id === match.match_id);
-  const mom = players.find(p => p.player_id === match.man_of_match);
+  const mom = resolvePlayerFromIdentity(match.man_of_match, players);
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
   const teamAScore = match.team_a_score || calcTeamScore(matchBatting, match.team_a);
