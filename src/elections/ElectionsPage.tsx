@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { electionService } from './electionService';
 import { NominationRecord } from './types';
 import { electionRoleResponsibilities } from '@/lib/workflowStatus';
+import { v2api } from '@/lib/v2api';
+import { ClosedAccessScreen } from '@/components/ClosedAccessScreen';
 
 const DEFAULT_ROLES = ['President', 'Vice President', 'Secretary', 'Treasurer'];
 
@@ -48,9 +50,21 @@ const ElectionsPage = () => {
   const [nominationRole, setNominationRole] = useState('');
   const [manifesto, setManifesto] = useState('');
   const [voteSelections, setVoteSelections] = useState<Record<string, string>>({});
+  const [electionsClosed, setElectionsClosed] = useState(false);
+  const [electionsClosedReason, setElectionsClosedReason] = useState('');
+  const [accessLoading, setAccessLoading] = useState(true);
 
   useEffect(() => {
-    electionService.syncFromBackend().finally(() => setRefreshKey((value) => value + 1));
+    Promise.all([electionService.syncFromBackend(), v2api.getBoardConfiguration()])
+      .then(([, boardRows]) => {
+        const config = boardRows[0];
+        setElectionsClosed(!!config?.elections_closed);
+        setElectionsClosedReason(config?.elections_closed_reason || '');
+      })
+      .finally(() => {
+        setRefreshKey((value) => value + 1);
+        setAccessLoading(false);
+      });
   }, []);
 
   const elections = useMemo(() => electionService.getElections(), [refreshKey]);
@@ -166,6 +180,21 @@ const ElectionsPage = () => {
 
   if (!user) return <Navigate to="/login" replace />;
   if (user.type === 'management') return <Navigate to="/management" replace />;
+  if (!accessLoading && electionsClosed && !canManageElections(user)) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <ClosedAccessScreen
+            title="Elections are currently closed"
+            reason={electionsClosedReason}
+            backHref="/"
+            homeHref="/"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

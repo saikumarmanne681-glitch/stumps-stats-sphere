@@ -128,6 +128,10 @@ export interface BoardConfiguration {
   config_id: string;
   current_period: string;
   administration_team_ids: string;
+  elections_closed: boolean;
+  elections_closed_reason: string;
+  tournament_registration_closed: boolean;
+  tournament_registration_closed_reason: string;
   updated_at: string;
   updated_by: string;
 }
@@ -147,6 +151,7 @@ export interface NewsRoomPost {
 
 export interface CertificateRecord {
   certificate_id: string;
+  certificate_template: 'classic' | 'premium' | 'gold';
   certificate_type:
     | 'winner_team'
     | 'runner_up_team'
@@ -164,9 +169,13 @@ export interface CertificateRecord {
   metadata_json: string;
   certificate_html: string;
   qr_payload: string;
+  verification_url: string;
+  verification_token: string;
   security_hash: string;
-  approval_status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+  tamper_evident_payload: string;
+  approval_status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'revoked';
   approvals_json: string;
+  signatures_json: string;
   generated_by: string;
   generated_at: string;
   approved_at: string;

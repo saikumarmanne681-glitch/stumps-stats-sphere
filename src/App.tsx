@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import { DataProvider } from "@/lib/DataContext";
+import { useAuth } from "@/lib/auth";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -31,8 +32,61 @@ import TournamentHonorsPage from './pages/TournamentHonorsPage';
 import NewsRoomPage from './pages/NewsRoomPage';
 import { RequireAuth } from '@/components/RequireAuth';
 import DocumentsPortalPage from './pages/DocumentsPortalPage';
+import CertificateVerifyPage from './pages/CertificateVerifyPage';
 
 const queryClient = new QueryClient();
+
+const FeatureAccessRoute = ({
+  feature,
+  title,
+  backHref,
+  children,
+}: {
+  feature: 'elections' | 'tournament_registration';
+  title: string;
+  backHref: string;
+  children: JSX.Element;
+}) => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [closed, setClosed] = useState(false);
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    v2api.getBoardConfiguration()
+      .then((rows) => {
+        if (cancelled) return;
+        const config = rows[0];
+        if (feature === 'elections') {
+          setClosed(!!config?.elections_closed);
+          setReason(config?.elections_closed_reason || '');
+        } else {
+          setClosed(!!config?.tournament_registration_closed);
+          setReason(config?.tournament_registration_closed_reason || '');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [feature]);
+
+  if (loading) return null;
+  if (closed && user?.type !== 'admin') {
+    return (
+      <ClosedAccessScreen
+        title={title}
+        reason={reason}
+        backHref={backHref}
+        homeHref="/"
+      />
+    );
+  }
+  return children;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -58,14 +112,15 @@ const App = () => (
             <Route path="/tournament/:id" element={<TournamentPage />} />
             <Route path="/verify-scorelist/:id" element={<VerifyScorelist />} />
             <Route path="/management" element={<ManagementPage />} />
-            <Route path="/elections" element={<RequireAuth><ElectionsPage /></RequireAuth>} />
+            <Route path="/elections" element={<RequireAuth><FeatureAccessRoute feature="elections" title="Elections are currently closed" backHref="/"><ElectionsPage /></FeatureAccessRoute></RequireAuth>} />
             <Route path="/tournaments" element={<RequireAuth><TournamentsHubPage /></RequireAuth>} />
-            <Route path="/tournaments/registration/:id" element={<RequireAuth><RegistrationTournamentPage /></RequireAuth>} />
+            <Route path="/tournaments/registration/:id" element={<RequireAuth><FeatureAccessRoute feature="tournament_registration" title="Tournament registration is currently closed" backHref="/tournaments"><RegistrationTournamentPage /></FeatureAccessRoute></RequireAuth>} />
             <Route path="/live" element={<LiveMatchPage />} />
             <Route path="/seasons" element={<SeasonsOverviewPage />} />
             <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
             <Route path="/news-room" element={<RequireAuth><NewsRoomPage /></RequireAuth>} />
             <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
+            <Route path="/verify-certificate/:certificateId" element={<CertificateVerifyPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <EnvironmentBadge />
