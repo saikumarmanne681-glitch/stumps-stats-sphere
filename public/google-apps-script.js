@@ -44,6 +44,9 @@ const TABS = {
     "team_a_score",
     "team_b_score",
     "match_stage",
+    "scorecard_version",
+    "scorecard_checksum",
+    "scorecard_operation_id",
   ],
   BattingScorecard: [
     "id",
@@ -198,6 +201,26 @@ function ensureAllTabsAndHeaders(ss) {
     report[tabName] = ensureSheetSchema(sheet, TABS[tabName]);
   });
   return report;
+}
+
+function toSafeNumber(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function scorecardPayloadChecksum(payload) {
+  const serialized = JSON.stringify(payload);
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, serialized, Utilities.Charset.UTF_8);
+  return digest.map((b) => ('0' + (b & 0xff).toString(16)).slice(-2)).join('');
+}
+
+function validateScorecardRows(matchId, battingEntries, bowlingEntries) {
+  if (!Array.isArray(battingEntries) || !Array.isArray(bowlingEntries)) return "Invalid batting/bowling payload arrays.";
+  const hasInvalidBatting = battingEntries.some((row) => !row || String(row.match_id || '') !== String(matchId) || !row.id || !row.player_id);
+  if (hasInvalidBatting) return "Batting payload includes invalid rows (id/player/match mismatch).";
+  const hasInvalidBowling = bowlingEntries.some((row) => !row || String(row.match_id || '') !== String(matchId) || !row.id || !row.player_id);
+  if (hasInvalidBowling) return "Bowling payload includes invalid rows (id/player/match mismatch).";
+  return "";
 }
 
 function sendOtpEmail(email, otp) {
@@ -401,6 +424,147 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
         ContentService.MimeType.JSON,
       );
+    }
+  }
+
+  if (action === "replaceScorecardAtomic") {
+    const operationId = `OP_${new Date().getTime()}_${Math.random().toString(36).substring(2, 8)}`;
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    let partialWrite = false;
+
+    try {
+      const matchId = String((data && data.match_id) || "").trim();
+      const battingEntries = (data && data.batting_entries) || [];
+      const bowlingEntries = (data && data.bowling_entries) || [];
+      const expectedVersion = data && data.expected_scorecard_version;
+      const expectedChecksum = String((data && data.expected_scorecard_checksum) || "").trim();
+
+      if (!matchId) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          operation_id: operationId,
+          error: "match_id is required for atomic scorecard replace.",
+          retry_guidance: "Reload the match context and retry.",
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const validationError = validateScorecardRows(matchId, battingEntries, bowlingEntries);
+      if (validationError) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          operation_id: operationId,
+          error: validationError,
+          retry_guidance: "Correct payload row IDs and ensure all rows target the same match_id, then retry.",
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const matchSheet = getOrCreateSheet(ss, "Matches");
+      const battingSheet = getOrCreateSheet(ss, "BattingScorecard");
+      const bowlingSheet = getOrCreateSheet(ss, "BowlingScorecard");
+      ensureSheetSchema(matchSheet, TABS.Matches);
+
+      const matchRowIdx = findRowIndex(matchSheet, "match_id", matchId);
+      if (matchRowIdx === -1) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          operation_id: operationId,
+          error: "Match not found.",
+          retry_guidance: "Refresh fixtures and retry after ensuring the match exists.",
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const matchHeaders = matchSheet.getRange(1, 1, 1, matchSheet.getLastColumn()).getValues()[0];
+      const matchRow = matchSheet.getRange(matchRowIdx, 1, 1, matchHeaders.length).getValues()[0];
+      const matchObj = {};
+      matchHeaders.forEach((h, i) => {
+        matchObj[h] = matchRow[i];
+      });
+
+      const currentVersion = toSafeNumber(matchObj.scorecard_version, 0);
+      const currentChecksum = String(matchObj.scorecard_checksum || "");
+      if (expectedVersion !== undefined && expectedVersion !== null && Number(expectedVersion) !== currentVersion) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          operation_id: operationId,
+          error: `Concurrent edit conflict: expected version ${expectedVersion}, current version ${currentVersion}.`,
+          retry_guidance: "Reload latest scorecard, reconcile differences, and retry save.",
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      if (expectedChecksum && currentChecksum && expectedChecksum !== currentChecksum) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          operation_id: operationId,
+          error: "Concurrent edit conflict: scorecard checksum mismatch.",
+          retry_guidance: "Refresh the scorecard and retry with the latest checksum.",
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      const originalBatting = sheetToJson(battingSheet).filter((row) => String(row.match_id) === matchId);
+      const originalBowling = sheetToJson(bowlingSheet).filter((row) => String(row.match_id) === matchId);
+
+      const removeRowsForMatch = (sheet, matchIdValue) => {
+        const values = sheet.getDataRange().getValues();
+        if (values.length <= 1) return;
+        const headers = values[0];
+        const matchIdx = headers.indexOf("match_id");
+        if (matchIdx === -1) return;
+        for (let r = values.length - 1; r >= 1; r--) {
+          if (String(values[r][matchIdx]) === String(matchIdValue)) {
+            sheet.deleteRow(r + 1);
+          }
+        }
+      };
+
+      const appendRows = (sheet, headers, rows) => {
+        if (!rows || rows.length === 0) return;
+        const mapped = rows.map((item) => headers.map((h) => normalizeSheetValue(h, item[h])));
+        sheet.getRange(sheet.getLastRow() + 1, 1, mapped.length, headers.length).setValues(mapped);
+      };
+
+      try {
+        removeRowsForMatch(battingSheet, matchId);
+        removeRowsForMatch(bowlingSheet, matchId);
+        partialWrite = true;
+
+        appendRows(battingSheet, TABS.BattingScorecard, battingEntries);
+        appendRows(bowlingSheet, TABS.BowlingScorecard, bowlingEntries);
+
+        const nextVersion = currentVersion + 1;
+        const nextChecksum = scorecardPayloadChecksum({
+          match_id: matchId,
+          batting_entries: battingEntries,
+          bowling_entries: bowlingEntries,
+          version: nextVersion,
+        });
+
+        const updatedMatch = { ...matchObj, scorecard_version: nextVersion, scorecard_checksum: nextChecksum, scorecard_operation_id: operationId };
+        const nextRow = TABS.Matches.map((h) => normalizeSheetValue(h, updatedMatch[h]));
+        matchSheet.getRange(matchRowIdx, 1, 1, TABS.Matches.length).setValues([nextRow]);
+
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          operation_id: operationId,
+          scorecard_version: nextVersion,
+          scorecard_checksum: nextChecksum,
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch (err) {
+        removeRowsForMatch(battingSheet, matchId);
+        removeRowsForMatch(bowlingSheet, matchId);
+        appendRows(battingSheet, TABS.BattingScorecard, originalBatting);
+        appendRows(bowlingSheet, TABS.BowlingScorecard, originalBowling);
+        throw err;
+      }
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        operation_id: operationId,
+        partial_write: partialWrite,
+        error: err && err.message ? err.message : "Atomic replace failed.",
+        retry_guidance: "Server attempted rollback. Refresh match data and retry. If issue persists, report the operation ID to admins.",
+      })).setMimeType(ContentService.MimeType.JSON);
+    } finally {
+      lock.releaseLock();
     }
   }
 
