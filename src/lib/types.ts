@@ -43,6 +43,9 @@ export interface Match {
   team_a_score: string;
   team_b_score: string;
   match_stage?: string;
+  scorecard_version?: number;
+  scorecard_checksum?: string;
+  scorecard_operation_id?: string;
 }
 
 export interface BattingScorecard {
@@ -70,6 +73,24 @@ export interface BowlingScorecard {
   wickets: number;
   economy: number;
   extras: number;
+}
+
+export interface ScorecardReplaceRequest {
+  match_id: string;
+  expected_scorecard_version?: number;
+  expected_scorecard_checksum?: string;
+  batting_entries: BattingScorecard[];
+  bowling_entries: BowlingScorecard[];
+}
+
+export interface ScorecardReplaceResult {
+  success: boolean;
+  operation_id: string;
+  scorecard_version: number;
+  scorecard_checksum: string;
+  partial_write?: boolean;
+  error?: string;
+  retry_guidance?: string;
 }
 
 export interface Announcement {

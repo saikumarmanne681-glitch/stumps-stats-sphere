@@ -114,6 +114,17 @@ export interface MatchTimeline {
   timestamp: string;
 }
 
+export interface ScorecardAtomicAuditDetails {
+  operation_id: string;
+  match_id: string;
+  scorecard_version: number;
+  scorecard_checksum: string;
+  batting_entries: number;
+  bowling_entries: number;
+  partial_write?: boolean;
+  retry_guidance?: string;
+}
+
 export interface CertificationApproval {
   approver_id: string;
   approver_name: string;

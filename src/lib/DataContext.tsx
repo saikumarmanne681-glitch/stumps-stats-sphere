@@ -50,7 +50,12 @@ interface DataContextType extends DataState {
   addMessage: (m: Message) => Promise<void>;
   updateMessage: (m: Message) => Promise<void>;
   // Bulk scorecard save
-  saveScorecardBulk: (matchId: string, newBatting: BattingScorecard[], newBowling: BowlingScorecard[]) => Promise<void>;
+  saveScorecardBulk: (
+    matchId: string,
+    newBatting: BattingScorecard[],
+    newBowling: BowlingScorecard[],
+    expected?: { scorecardVersion?: number; scorecardChecksum?: string },
+  ) => Promise<{ operationId: string; scorecardVersion: number; scorecardChecksum: string }>;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -304,29 +309,52 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ),
 
     // Bulk scorecard
-    saveScorecardBulk: async (matchId, newBatting, newBowling) => {
-      // Delete old entries for this match, then add new ones.
-      // Fetch latest from backend first to avoid duplicates on repeated/rapid saves.
-      const sourceBatting = isConnected() ? await api.getBattingScorecard() : state.batting;
-      const sourceBowling = isConnected() ? await api.getBowlingScorecard() : state.bowling;
+    saveScorecardBulk: async (matchId, newBatting, newBowling, expected) => {
+      const result = await api.replaceScorecardAtomic({
+        match_id: matchId,
+        expected_scorecard_version: expected?.scorecardVersion,
+        expected_scorecard_checksum: expected?.scorecardChecksum,
+        batting_entries: newBatting,
+        bowling_entries: newBowling,
+      });
 
-      const oldBat = sourceBatting.filter((b) => b.match_id === matchId);
-      const oldBowl = sourceBowling.filter((b) => b.match_id === matchId);
-
-      for (const b of oldBat) await api.deleteBattingEntry(b.id);
-      for (const b of oldBowl) await api.deleteBowlingEntry(b.id);
-      for (const b of newBatting) await api.addBattingEntry(b);
-      for (const b of newBowling) await api.addBowlingEntry(b);
+      if (!result.success) {
+        const retryGuidance = result.retry_guidance || "Please refresh the match, review latest scorecard edits, and retry save.";
+        const suffix = result.partial_write ? " Partial write was detected and rolled back by server." : "";
+        throw new Error(`${result.error || "Atomic scorecard save failed."} ${retryGuidance}${suffix}`);
+      }
 
       setState((prev) => ({
         ...prev,
         batting: [...prev.batting.filter((b) => b.match_id !== matchId), ...newBatting],
         bowling: [...prev.bowling.filter((b) => b.match_id !== matchId), ...newBowling],
+        matches: prev.matches.map((m) =>
+          m.match_id === matchId
+            ? { ...m, scorecard_version: result.scorecard_version, scorecard_checksum: result.scorecard_checksum, scorecard_operation_id: result.operation_id }
+            : m,
+        ),
       }));
 
-      logAudit("system", "save_scorecard_bulk", "match", matchId, JSON.stringify({ battingEntries: newBatting.length, bowlingEntries: newBowling.length }));
+      logAudit(
+        "system",
+        "save_scorecard_bulk_atomic",
+        "match",
+        matchId,
+        JSON.stringify({
+          battingEntries: newBatting.length,
+          bowlingEntries: newBowling.length,
+          atomicOperationId: result.operation_id,
+          scorecardVersion: result.scorecard_version,
+          scorecardChecksum: result.scorecard_checksum,
+        }),
+      );
 
       if (isConnected()) setTimeout(refresh, 1000);
+      return {
+        operationId: result.operation_id,
+        scorecardVersion: result.scorecard_version,
+        scorecardChecksum: result.scorecard_checksum,
+      };
     },
   };
 
@@ -373,7 +401,7 @@ export function useData() {
       deleteAnnouncement: async () => {},
       addMessage: async () => {},
       updateMessage: async () => {},
-      saveScorecardBulk: async () => {},
+      saveScorecardBulk: async () => ({ operationId: "", scorecardVersion: 0, scorecardChecksum: "" }),
     } as DataContextType;
   }
 

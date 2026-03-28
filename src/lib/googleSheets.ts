@@ -1,4 +1,4 @@
-import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message } from "./types";
+import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message, ScorecardReplaceRequest, ScorecardReplaceResult } from "./types";
 import { normalizeSheetRows } from "./dataUtils";
 import { getEnvStorageKey } from "./environment";
 import {
@@ -57,6 +57,25 @@ async function writeSheet<T>(sheet: string, action: "add" | "update" | "delete",
   });
   const result = await res.json();
   return result.success;
+}
+
+async function replaceScorecardAtomic(payload: ScorecardReplaceRequest): Promise<ScorecardReplaceResult> {
+  if (USE_MOCK()) {
+    const checksum = btoa(unescape(encodeURIComponent(JSON.stringify(payload)))).slice(0, 16);
+    return {
+      success: true,
+      operation_id: `OP_MOCK_${Date.now()}`,
+      scorecard_version: (payload.expected_scorecard_version || 0) + 1,
+      scorecard_checksum: checksum,
+    };
+  }
+
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "replaceScorecardAtomic", data: payload }),
+  });
+  return res.json() as Promise<ScorecardReplaceResult>;
 }
 
 function normalizePayload(payload: Record<string, unknown>) {
@@ -135,6 +154,8 @@ export const api = {
 
   addMessage: (m: Message) => writeSheet("Messages", "add", m),
   updateMessage: (m: Message) => writeSheet("Messages", "update", m),
+
+  replaceScorecardAtomic: (payload: ScorecardReplaceRequest) => replaceScorecardAtomic(payload),
 };
 
 export function setAppsScriptUrl(url: string) {
