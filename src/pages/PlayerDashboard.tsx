@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/lib/DataContext';
-import { calcBattingStats, calcBowlingStats, getPlayerMatchCount } from '@/lib/calculations';
+import { calcBattingStats, calcBowlingStats, getPlayerMatchCount, getPlayerMomCount } from '@/lib/calculations';
 import { generateId } from '@/lib/utils';
-import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity, Eye, Download } from 'lucide-react';
+import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity, Eye, Download, Trophy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +56,10 @@ const PlayerDashboard = () => {
   const battingStats = useMemo(() => calcBattingStats(playerBatting), [playerBatting]);
   const bowlingStats = useMemo(() => calcBowlingStats(playerBowling), [playerBowling]);
   const totalMatches = useMemo(() => user?.player_id ? getPlayerMatchCount(user.player_id, batting, bowling) : 0, [user?.player_id, batting, bowling]);
+  const momWins = useMemo(() => {
+    if (!user?.player_id) return 0;
+    return getPlayerMomCount(matches, user.player_id, relevantMatchIds, player?.name);
+  }, [matches, player?.name, relevantMatchIds, user?.player_id]);
 
   const playerMessages = useMemo(() => user?.player_id ? messages.filter(m => m.to_id === user.player_id || m.to_id === 'all' || m.from_id === user.player_id) : [], [user?.player_id, messages]);
 
@@ -143,7 +147,7 @@ const PlayerDashboard = () => {
                 <SessionFingerprint />
               </div>
               {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-3 rounded-xl bg-primary/10">
                   <Activity className="h-4 w-4 text-primary mx-auto mb-1" />
                   <p className="text-2xl font-bold text-primary">{totalMatches}</p>
@@ -159,12 +163,27 @@ const PlayerDashboard = () => {
                   <p className="text-2xl font-bold text-destructive">{bowlingStats?.totalWickets || 0}</p>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Wickets</p>
                 </div>
+                <div className="text-center p-3 rounded-xl bg-amber-500/10">
+                  <Trophy className="h-4 w-4 text-amber-600 mx-auto mb-1" />
+                  <p className="text-2xl font-bold text-amber-600">{momWins}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">MOM Wins</p>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">MOM wins</p>
+              <div className="mt-1 flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-600" />
+                <p className="font-display text-3xl font-bold text-amber-600">{momWins}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">Man of the Match awards in selected filters.</p>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="p-4">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Unread messages</p>
