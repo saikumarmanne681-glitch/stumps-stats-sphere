@@ -5,9 +5,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { RouteChangeIndicator } from "@/components/RouteChangeIndicator";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { AuthProvider } from "@/lib/auth";
 import { DataProvider } from "@/lib/DataContext";
 import { useAuth } from "@/lib/auth";
+import { v2api } from "@/lib/v2api";
+import { ClosedAccessScreen } from "@/components/ClosedAccessScreen";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -53,6 +56,13 @@ const FeatureAccessRoute = ({
   const [closed, setClosed] = useState(false);
   const [reason, setReason] = useState('');
 
+  const parseSheetBoolean = (value: unknown) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === 'true' || normalized === 'yes' || normalized === '1' || normalized === 'closed';
+  };
+
   useEffect(() => {
     let cancelled = false;
     v2api.getBoardConfiguration()
@@ -60,10 +70,10 @@ const FeatureAccessRoute = ({
         if (cancelled) return;
         const config = rows[0];
         if (feature === 'elections') {
-          setClosed(!!config?.elections_closed);
+          setClosed(parseSheetBoolean(config?.elections_closed));
           setReason(config?.elections_closed_reason || '');
         } else {
-          setClosed(!!config?.tournament_registration_closed);
+          setClosed(parseSheetBoolean(config?.tournament_registration_closed));
           setReason(config?.tournament_registration_closed_reason || '');
         }
       })
@@ -75,7 +85,9 @@ const FeatureAccessRoute = ({
     };
   }, [feature]);
 
-  if (loading) return null;
+  if (loading) {
+    return <div className="min-h-[30vh] grid place-items-center text-sm text-muted-foreground">Checking access policy…</div>;
+  }
   if (closed && user?.type !== 'admin') {
     return (
       <ClosedAccessScreen
