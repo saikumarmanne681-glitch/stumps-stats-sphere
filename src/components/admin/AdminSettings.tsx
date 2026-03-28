@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
+import { BoardConfiguration, UserEmailLink } from '@/lib/v2types';
 import { setAppsScriptUrl, getAppsScriptUrl, isConnected, seedGoogleSheet } from '@/lib/googleSheets';
 import {
   DEFAULT_FROM_EMAIL,
@@ -20,9 +21,10 @@ import {
   explainMailFailure,
 } from '@/lib/mailer';
 import { Database, Link, Unlink, Sprout, ExternalLink, Mail, ShieldCheck, Send, Server } from 'lucide-react';
-import { UserEmailLink } from '@/lib/v2types';
 import { Switch } from '@/components/ui/switch';
 import { getAppEnvironment, ENV_LABELS } from '@/lib/environment';
+import { Textarea } from '@/components/ui/textarea';
+import { generateId } from '@/lib/utils';
 
 export function AdminSettings() {
   const { updateAdminProfile, getAdminAlias } = useAuth();
@@ -36,6 +38,8 @@ export function AdminSettings() {
   const [showAdminVerify, setShowAdminVerify] = useState(false);
   const [sendingAdminOtp, setSendingAdminOtp] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
+  const [savingAccessSettings, setSavingAccessSettings] = useState(false);
   const { toast } = useToast();
   const ADMIN_USER_ID = 'admin';
 
@@ -54,7 +58,56 @@ export function AdminSettings() {
 
   useEffect(() => {
     refreshAdminEmail().catch(() => undefined);
+    v2api.getBoardConfiguration().then((rows) => {
+      setBoardConfig(rows[0] || null);
+    }).catch(() => undefined);
   }, []);
+
+  const getAccessConfigDraft = () => ({
+    config_id: boardConfig?.config_id || generateId('BRCFG'),
+    current_period: boardConfig?.current_period || '',
+    administration_team_ids: boardConfig?.administration_team_ids || '',
+    elections_closed: !!boardConfig?.elections_closed,
+    elections_closed_reason: boardConfig?.elections_closed_reason || '',
+    tournament_registration_closed: !!boardConfig?.tournament_registration_closed,
+    tournament_registration_closed_reason: boardConfig?.tournament_registration_closed_reason || '',
+    updated_at: boardConfig?.updated_at || '',
+    updated_by: boardConfig?.updated_by || '',
+  });
+
+  const saveAccessControls = async (nextDraft: ReturnType<typeof getAccessConfigDraft>) => {
+    setSavingAccessSettings(true);
+    const payload: BoardConfiguration = {
+      ...nextDraft,
+      updated_at: new Date().toISOString(),
+      updated_by: ADMIN_USER_ID,
+    };
+    try {
+      let ok = boardConfig?.config_id ? await v2api.updateBoardConfiguration(payload) : await v2api.addBoardConfiguration(payload);
+      if (!ok && boardConfig?.config_id) ok = await v2api.addBoardConfiguration(payload);
+      if (!ok) {
+        toast({ title: 'Save failed', description: 'Unable to update access configuration.', variant: 'destructive' });
+        return;
+      }
+
+      const changes: Array<{ field: string; before: unknown; after: unknown }> = [
+        { field: 'elections_closed', before: !!boardConfig?.elections_closed, after: payload.elections_closed },
+        { field: 'elections_closed_reason', before: boardConfig?.elections_closed_reason || '', after: payload.elections_closed_reason },
+        { field: 'tournament_registration_closed', before: !!boardConfig?.tournament_registration_closed, after: payload.tournament_registration_closed },
+        { field: 'tournament_registration_closed_reason', before: boardConfig?.tournament_registration_closed_reason || '', after: payload.tournament_registration_closed_reason },
+      ];
+      changes
+        .filter((change) => change.before !== change.after)
+        .forEach((change) => {
+          logAudit(ADMIN_USER_ID, 'update_feature_access', 'board', payload.config_id, JSON.stringify(change));
+        });
+
+      setBoardConfig(payload);
+      toast({ title: 'Access settings updated', description: 'Feature access controls saved.' });
+    } finally {
+      setSavingAccessSettings(false);
+    }
+  };
 
   const handleConnect = () => {
     if (!url.trim()) {
@@ -216,6 +269,76 @@ export function AdminSettings() {
             </ul>
             <p className="mt-1">Each environment saves its own Google Sheets URL separately, so they never interfere.</p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display">🔐 Feature Access Controls</CardTitle>
+          <CardDescription>Centrally close elections or tournament registration with a user-facing reason.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border p-4 space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium">Close Elections</p>
+                <p className="text-xs text-muted-foreground">Non-admin users will see a closed-access screen on the elections route.</p>
+              </div>
+              <Switch
+                checked={!!boardConfig?.elections_closed}
+                onCheckedChange={(checked) => {
+                  const draft = { ...getAccessConfigDraft(), elections_closed: checked };
+                  setBoardConfig((prev) => ({ ...(prev || draft), elections_closed: checked } as BoardConfiguration));
+                }}
+              />
+            </div>
+            <div>
+              <Label>Elections closed reason</Label>
+              <Textarea
+                className="mt-2"
+                placeholder="Example: Elections are temporarily paused pending committee review."
+                value={boardConfig?.elections_closed_reason || ''}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  const draft = { ...getAccessConfigDraft(), elections_closed_reason: value };
+                  setBoardConfig((prev) => ({ ...(prev || draft), elections_closed_reason: value } as BoardConfiguration));
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-medium">Close Tournament Registration</p>
+                <p className="text-xs text-muted-foreground">Non-admin users will see a closed-access screen on custom registration routes.</p>
+              </div>
+              <Switch
+                checked={!!boardConfig?.tournament_registration_closed}
+                onCheckedChange={(checked) => {
+                  const draft = { ...getAccessConfigDraft(), tournament_registration_closed: checked };
+                  setBoardConfig((prev) => ({ ...(prev || draft), tournament_registration_closed: checked } as BoardConfiguration));
+                }}
+              />
+            </div>
+            <div>
+              <Label>Tournament registration closed reason</Label>
+              <Textarea
+                className="mt-2"
+                placeholder="Example: Registrations are paused while fixtures are revalidated."
+                value={boardConfig?.tournament_registration_closed_reason || ''}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  const draft = { ...getAccessConfigDraft(), tournament_registration_closed_reason: value };
+                  setBoardConfig((prev) => ({ ...(prev || draft), tournament_registration_closed_reason: value } as BoardConfiguration));
+                }}
+              />
+            </div>
+          </div>
+
+          <Button disabled={savingAccessSettings} onClick={() => saveAccessControls(getAccessConfigDraft())}>
+            {savingAccessSettings ? 'Saving access settings...' : 'Save Access Controls'}
+          </Button>
         </CardContent>
       </Card>
 

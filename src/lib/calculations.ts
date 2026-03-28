@@ -45,6 +45,28 @@ export function getPlayerMatchCount(playerId: string, batting: BattingScorecard[
   return matchIds.size;
 }
 
+const normalizeIdentity = (value?: string | null) => String(value || '').toLowerCase().trim();
+
+export function getPlayerMomCount(
+  matches: Match[],
+  playerId: string,
+  relevantMatchIds?: string[],
+  playerName?: string,
+): number {
+  if (!playerId) return 0;
+
+  const relevantSet = relevantMatchIds ? new Set(relevantMatchIds) : null;
+  const normalizedPlayerId = normalizeIdentity(playerId);
+  const normalizedPlayerName = normalizeIdentity(playerName);
+
+  return matches.filter((match) => {
+    if (relevantSet && !relevantSet.has(match.match_id)) return false;
+    const normalizedMom = normalizeIdentity(match.man_of_match);
+    if (!normalizedMom) return false;
+    return normalizedMom === normalizedPlayerId || (!!normalizedPlayerName && normalizedMom === normalizedPlayerName);
+  }).length;
+}
+
 export function getTeamTotal(matchId: string, team: string, batting: BattingScorecard[]): number {
   return batting.filter(b => b.match_id === matchId && b.team === team).reduce((s, b) => s + b.runs, 0);
 }
