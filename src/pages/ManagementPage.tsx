@@ -145,10 +145,21 @@ const ManagementPage = () => {
     if (!certificateRole || !user) return;
     const approvals = certificate.approvals_json ? JSON.parse(certificate.approvals_json) as Record<string, boolean> : {};
     const nextApprovals = { ...approvals, [certificateRole]: true };
+    const signatures = certificate.signatures_json ? JSON.parse(certificate.signatures_json) as Array<{ role: string; signerId: string; signerName: string; signedAt: string }> : [];
+    const nextSignatures = [
+      ...signatures.filter((entry) => entry.role !== certificateRole),
+      {
+        role: certificateRole,
+        signerId: user.management_id || user.username,
+        signerName: user.name,
+        signedAt: istNow(),
+      },
+    ];
     const full = ['Treasurer', 'Scoring Official', 'Match Referee'].every((role) => !!nextApprovals[role]);
     const payload: CertificateRecord = {
       ...certificate,
       approvals_json: JSON.stringify(nextApprovals),
+      signatures_json: JSON.stringify(nextSignatures),
       approval_status: full ? 'approved' : 'pending_approval',
       approved_at: full ? istNow() : certificate.approved_at,
       delivery_status: full ? 'sent_to_player' : certificate.delivery_status,
