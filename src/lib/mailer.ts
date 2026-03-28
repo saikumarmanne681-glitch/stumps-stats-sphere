@@ -14,6 +14,12 @@ interface SendMailPayload {
   fromEmail?: string;
   fromName?: string;
   replyTo?: string;
+  diagnostics?: {
+    triggeredBy?: string;
+    triggerSource?: string;
+    triggerEntityType?: string;
+    triggerEntityId?: string;
+  };
 }
 
 interface MailResult {
@@ -120,6 +126,7 @@ export async function sendSystemEmail(payload: SendMailPayload): Promise<MailRes
           fromEmail: payload.fromEmail || configuredSender,
           fromName: payload.fromName || 'Cricket Club Portal',
           replyTo: payload.replyTo || configuredSender,
+          diagnostics: payload.diagnostics || null,
         },
       }),
     });
@@ -168,7 +175,13 @@ export async function sendOtpEmail(params: { to: string; userName?: string; otp:
     <p style="margin:0;color:#6b7280;font-size:13px;">Valid until: ${formatInIST(params.expiresAt)}</p>
     <p style="margin:10px 0 0;color:#dc2626;font-size:13px;">If you did not request this, please ignore this email.</p>
   `);
-  return sendSystemEmail({ to: params.to, subject: 'Your Cricket Club verification OTP', htmlBody, fromName: 'Cricket Club Security' });
+  return sendSystemEmail({
+    to: params.to,
+    subject: 'Your Cricket Club verification OTP',
+    htmlBody,
+    fromName: 'Cricket Club Security',
+    diagnostics: { triggerSource: 'otp_verification', triggerEntityType: 'email_link' },
+  });
 }
 
 export async function sendWelcomeSubscriptionEmail(params: { to: string; userName?: string; actions: string[] }) {
@@ -182,7 +195,12 @@ export async function sendWelcomeSubscriptionEmail(params: { to: string; userNam
     </div>
     <p style="margin:16px 0 0;line-height:1.6;color:#374151;">You can update notification preferences any time from your dashboard.</p>
   `);
-  return sendSystemEmail({ to: params.to, subject: 'Welcome! Your communication preferences are now active', htmlBody });
+  return sendSystemEmail({
+    to: params.to,
+    subject: 'Welcome! Your communication preferences are now active',
+    htmlBody,
+    diagnostics: { triggerSource: 'welcome_subscription', triggerEntityType: 'email_link' },
+  });
 }
 
 export async function sendScorelistApprovalRequestEmail(params: {
@@ -202,7 +220,18 @@ export async function sendScorelistApprovalRequestEmail(params: {
     </div>
     <p style="margin:16px 0 0;color:#374151;">Please log in to the management dashboard to review and sign.</p>
   `);
-  return sendSystemEmail({ to: params.to, subject: `Approval Required: ${params.scorelistId}`, htmlBody, fromName: 'Cricket Club Approvals' });
+  return sendSystemEmail({
+    to: params.to,
+    subject: `Approval Required: ${params.scorelistId}`,
+    htmlBody,
+    fromName: 'Cricket Club Approvals',
+    diagnostics: {
+      triggerSource: 'scorelist_approval_request',
+      triggerEntityType: 'digital_scorelist',
+      triggerEntityId: params.scorelistId,
+      triggeredBy: params.actorName || 'system',
+    },
+  });
 }
 
 export async function sendSupportUpdateEmail(params: {

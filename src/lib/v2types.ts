@@ -95,6 +95,25 @@ export interface AuditEvent {
   timestamp: string;
 }
 
+export interface MailDiagnostic {
+  mail_log_id: string;
+  triggered_at: string;
+  triggered_by: string;
+  trigger_source: string;
+  trigger_entity_type: string;
+  trigger_entity_id: string;
+  recipient: string;
+  subject: string;
+  body_html: string;
+  body_text: string;
+  from_email: string;
+  reply_to: string;
+  mail_provider: string;
+  status: 'sent' | 'failed';
+  failure_reason: string;
+  raw_response: string;
+}
+
 export interface ManagementUser {
   management_id: string;
   name: string;

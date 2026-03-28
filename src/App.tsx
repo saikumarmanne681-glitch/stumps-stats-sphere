@@ -10,6 +10,7 @@ import { AuthProvider } from "@/lib/auth";
 import { DataProvider } from "@/lib/DataContext";
 import { useAuth } from "@/lib/auth";
 import { v2api } from "@/lib/v2api";
+import { parseSheetBoolean } from "@/lib/sheetValueParsers";
 import { ClosedAccessScreen } from "@/components/ClosedAccessScreen";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -55,13 +56,6 @@ const FeatureAccessRoute = ({
   const [loading, setLoading] = useState(true);
   const [closed, setClosed] = useState(false);
   const [reason, setReason] = useState('');
-
-  const parseSheetBoolean = (value: unknown) => {
-    if (typeof value === 'boolean') return value;
-    if (typeof value === 'number') return value === 1;
-    const normalized = String(value || '').trim().toLowerCase();
-    return normalized === 'true' || normalized === 'yes' || normalized === '1' || normalized === 'closed';
-  };
 
   useEffect(() => {
     let cancelled = false;

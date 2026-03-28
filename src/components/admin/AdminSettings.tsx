@@ -25,6 +25,7 @@ import { Switch } from '@/components/ui/switch';
 import { getAppEnvironment, ENV_LABELS } from '@/lib/environment';
 import { Textarea } from '@/components/ui/textarea';
 import { generateId } from '@/lib/utils';
+import { parseSheetBoolean } from '@/lib/sheetValueParsers';
 
 export function AdminSettings() {
   const { updateAdminProfile, getAdminAlias } = useAuth();
@@ -67,9 +68,9 @@ export function AdminSettings() {
     config_id: boardConfig?.config_id || generateId('BRCFG'),
     current_period: boardConfig?.current_period || '',
     administration_team_ids: boardConfig?.administration_team_ids || '',
-    elections_closed: !!boardConfig?.elections_closed,
+    elections_closed: parseSheetBoolean(boardConfig?.elections_closed),
     elections_closed_reason: boardConfig?.elections_closed_reason || '',
-    tournament_registration_closed: !!boardConfig?.tournament_registration_closed,
+    tournament_registration_closed: parseSheetBoolean(boardConfig?.tournament_registration_closed),
     tournament_registration_closed_reason: boardConfig?.tournament_registration_closed_reason || '',
     updated_at: boardConfig?.updated_at || '',
     updated_by: boardConfig?.updated_by || '',
@@ -91,9 +92,9 @@ export function AdminSettings() {
       }
 
       const changes: Array<{ field: string; before: unknown; after: unknown }> = [
-        { field: 'elections_closed', before: !!boardConfig?.elections_closed, after: payload.elections_closed },
+        { field: 'elections_closed', before: parseSheetBoolean(boardConfig?.elections_closed), after: payload.elections_closed },
         { field: 'elections_closed_reason', before: boardConfig?.elections_closed_reason || '', after: payload.elections_closed_reason },
-        { field: 'tournament_registration_closed', before: !!boardConfig?.tournament_registration_closed, after: payload.tournament_registration_closed },
+        { field: 'tournament_registration_closed', before: parseSheetBoolean(boardConfig?.tournament_registration_closed), after: payload.tournament_registration_closed },
         { field: 'tournament_registration_closed_reason', before: boardConfig?.tournament_registration_closed_reason || '', after: payload.tournament_registration_closed_reason },
       ];
       changes

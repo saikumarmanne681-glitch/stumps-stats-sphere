@@ -60,11 +60,21 @@ const MatchCenter = () => {
   const [battingTeam, setBattingTeam] = useState<'A' | 'B'>('A');
   const [innings, setInnings] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [saveStartedAt, setSaveStartedAt] = useState<number | null>(null);
+  const [saveElapsedSeconds, setSaveElapsedSeconds] = useState(0);
   const [quickNote, setQuickNote] = useState('');
   
   // Local live batting/bowling state that updates in real-time
   const [liveBatting, setLiveBatting] = useState<BattingScorecard[]>([]);
   const [liveBowling, setLiveBowling] = useState<BowlingScorecard[]>([]);
+
+  useEffect(() => {
+    if (!loading || !saveStartedAt) return;
+    const interval = setInterval(() => {
+      setSaveElapsedSeconds(Math.max(0, Math.floor((Date.now() - saveStartedAt) / 1000)));
+    }, 250);
+    return () => clearInterval(interval);
+  }, [loading, saveStartedAt]);
 
   if (!isAdmin) return <Navigate to="/login" />;
 
@@ -313,6 +323,8 @@ const MatchCenter = () => {
   const handleSaveScoring = async () => {
     if (!match) return;
     setLoading(true);
+    setSaveStartedAt(Date.now());
+    setSaveElapsedSeconds(0);
     try {
       const aScore = calcTeamScore(match.team_a);
       const bScore = calcTeamScore(match.team_b);
@@ -334,6 +346,7 @@ const MatchCenter = () => {
       toast({ title: 'Error saving', description: String(e), variant: 'destructive' });
     }
     setLoading(false);
+    setSaveStartedAt(null);
   };
 
   const handleStartMatch = async () => {
@@ -486,7 +499,7 @@ const MatchCenter = () => {
                   {match.status === 'live' && (
                     <>
                       <Button variant="secondary" onClick={handleSaveScoring} disabled={loading} className="gap-1 rounded-full">
-                        <Save className="h-4 w-4" /> Save Scores
+                        <Save className="h-4 w-4" /> {loading ? `Saving... ${saveElapsedSeconds}s elapsed` : 'Save Scores'}
                       </Button>
                       <Button variant="outline" onClick={handleEndInnings} className="gap-1 rounded-full">
                         <RotateCcw className="h-4 w-4" /> End Innings

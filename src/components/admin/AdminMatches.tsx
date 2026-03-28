@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,8 @@ export function AdminMatches() {
   const [scorecardTeamTab, setScorecardTeamTab] = useState<"teamA" | "teamB">("teamA");
   const [isSavingScorecard, setIsSavingScorecard] = useState(false);
   const [scorecardEntryMode, setScorecardEntryMode] = useState<"detailed" | "quick">("detailed");
+  const [saveStartedAt, setSaveStartedAt] = useState<number | null>(null);
+  const [saveElapsedSeconds, setSaveElapsedSeconds] = useState(0);
 
   const { toast } = useToast();
 
@@ -207,6 +209,14 @@ export function AdminMatches() {
 
   const [savingProgress, setSavingProgress] = useState(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!isSavingScorecard || !saveStartedAt) return;
+    const interval = setInterval(() => {
+      setSaveElapsedSeconds(Math.max(0, Math.floor((Date.now() - saveStartedAt) / 1000)));
+    }, 250);
+    return () => clearInterval(interval);
+  }, [isSavingScorecard, saveStartedAt]);
   const [matchSearch, setMatchSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [scorecardPlayerSearch, setScorecardPlayerSearch] = useState("");
@@ -330,6 +340,8 @@ export function AdminMatches() {
     const teamBScore = calcScore(match.team_b);
 
     setIsSavingScorecard(true);
+    setSaveStartedAt(Date.now());
+    setSaveElapsedSeconds(0);
     setSavingProgress(0);
     setSaveSuccess(false);
 
@@ -368,6 +380,8 @@ export function AdminMatches() {
         setScorecardOpen(false);
         setSaveSuccess(false);
         setSavingProgress(0);
+        setSaveStartedAt(null);
+        setSaveElapsedSeconds(0);
       }, 1500);
     } catch (err) {
       toast({
@@ -1053,11 +1067,16 @@ export function AdminMatches() {
             )}
             <div className="flex gap-2 items-center">
               {isSavingScorecard && (
-                <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all duration-300"
-                    style={{ width: `${savingProgress}%` }}
-                  />
+                <div className="space-y-1">
+                  <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300"
+                      style={{ width: `${savingProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Elapsed: {saveElapsedSeconds}s · Est left: {Math.max(0, Math.ceil((100 - savingProgress) / 8) * 0.2).toFixed(1)}s
+                  </p>
                 </div>
               )}
               {saveSuccess && (

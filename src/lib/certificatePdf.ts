@@ -22,6 +22,25 @@ function centerTextX(text: string, size: number, canvasWidth: number) {
   return (canvasWidth - estimateTextWidth(text, size)) / 2;
 }
 
+function splitTextByWidth(text: string, maxWidth: number, size: number) {
+  const safe = String(text || '').trim();
+  if (!safe) return ['N/A'];
+  const words = safe.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+  words.forEach((word) => {
+    const candidate = current ? `${current} ${word}` : word;
+    if (estimateTextWidth(candidate, size) <= maxWidth) {
+      current = candidate;
+      return;
+    }
+    if (current) lines.push(current);
+    current = word;
+  });
+  if (current) lines.push(current);
+  return lines.slice(0, 3);
+}
+
 function drawText(line: PdfTextLine) {
   const [r, g, b] = line.color ?? [0.08, 0.13, 0.2];
   const size = line.size ?? 12;
@@ -44,6 +63,8 @@ function buildCertificatePdf(item: CertificateRecord) {
   }[theme];
 
   const recipientFontSize = item.recipient_name.length > 36 ? 20 : item.recipient_name.length > 24 ? 24 : 28;
+  const verificationTarget = item.verification_url || item.qr_payload || 'N/A';
+  const verificationLines = splitTextByWidth(`Verify URL: ${verificationTarget}`, 625, 9);
 
   const certificateLines: PdfTextLine[] = [
     { text: 'CRICKET CLUB OF EXCELLENCE', x: centerTextX('CRICKET CLUB OF EXCELLENCE', 12, width), y: 535, size: 12, color: palette.accent },
@@ -55,14 +76,18 @@ function buildCertificatePdf(item: CertificateRecord) {
     { text: `Season: ${metadata.seasonYear || item.season_id || 'N/A'}`, x: 90, y: 280, size: 12 },
     { text: `Issue Date: ${formatInIST(item.generated_at)}`, x: 90, y: 260, size: 12 },
     { text: `Certificate ID: ${item.certificate_id}`, x: 520, y: 300, size: 11 },
-    { text: `Verification Token: ${item.verification_token || 'N/A'}`, x: 520, y: 280, size: 11 },
-    { text: `SHA-256 Digest: ${item.security_hash}`, x: 392, y: 260, size: 9, color: [0.2, 0.2, 0.2] },
+    { text: `Verification Token: ${item.verification_token || 'N/A'}`, x: 458, y: 280, size: 10 },
+    { text: `SHA-256 Digest: ${item.security_hash}`, x: 90, y: 244, size: 8, color: [0.2, 0.2, 0.2] },
     { text: 'Authorized Signatories', x: 345, y: 166, size: 12, font: 'F2', color: palette.primary },
     { text: 'Treasurer', x: 130, y: 104, size: 11 },
     { text: 'Scoring Official', x: 365, y: 104, size: 11 },
     { text: 'Match Referee', x: 630, y: 104, size: 11 },
-    { text: `Verify at: ${item.verification_url || item.qr_payload}`, x: 90, y: 64, size: 10, color: [0.2, 0.2, 0.2] },
+    { text: 'Verification Link', x: 110, y: 118, size: 9, font: 'F2', color: palette.primary },
+    { text: 'QR/URL', x: 708, y: 118, size: 9, font: 'F2', color: palette.primary },
   ];
+  verificationLines.forEach((line, index) => {
+    certificateLines.push({ text: line, x: 110, y: 103 - (index * 12), size: 8.5, color: [0.2, 0.2, 0.2] });
+  });
 
   const signatureMetadata = (() => {
     try {
@@ -102,9 +127,11 @@ function buildCertificatePdf(item: CertificateRecord) {
     `${palette.accent.join(' ')} RG 1.5 w 95 145 190 0 m S 330 145 190 0 m S 595 145 190 0 m S`,
     `${palette.accent.join(' ')} rg 70 320 36 36 re f`,
     `${palette.primary.join(' ')} RG 0.8 w 72 235 700 80 re S`,
-    `${palette.primary.join(' ')} RG 0.8 w 72 86 220 68 re S`,
+    `${palette.primary.join(' ')} RG 0.8 w 90 70 620 56 re S`,
     `${palette.primary.join(' ')} RG 0.8 w 312 86 220 68 re S`,
     `${palette.primary.join(' ')} RG 0.8 w 552 86 220 68 re S`,
+    `${palette.primary.join(' ')} RG 0.8 w 675 72 84 52 re S`,
+    `${palette.accent.join(' ')} rg 683 80 14 14 re f 707 80 14 14 re f 731 80 14 14 re f 683 104 14 14 re f 731 104 14 14 re f`,
   ];
 
   const watermark = isPending

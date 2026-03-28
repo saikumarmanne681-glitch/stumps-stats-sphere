@@ -86,8 +86,9 @@ const TABS = {
   AUDIT_EVENTS: ["event_id","actor_user","event_type","entity_type","entity_id","metadata","timestamp"],
   MANAGEMENT_USERS: ["management_id","name","email","phone","designation","role","authority_level","signature_image","status","created_at","username","password"],
   MATCH_TIMELINE: ["event_id","match_id","over","event_type","description","player_id","team","timestamp"],
-  BOARD_CONFIGURATION: ["config_id","current_period","administration_team_ids","updated_at","updated_by"],
+  BOARD_CONFIGURATION: ["config_id","current_period","administration_team_ids","elections_closed","elections_closed_reason","tournament_registration_closed","tournament_registration_closed_reason","updated_at","updated_by"],
   NEWS_ROOM_POSTS: ["post_id","title","body","audience","status","posted_by_id","posted_by_name","posted_by_role","published_at","updated_at"],
+  MAIL_DIAGNOSTICS: ["mail_log_id","triggered_at","triggered_by","trigger_source","trigger_entity_type","trigger_entity_id","recipient","subject","body_html","body_text","from_email","reply_to","mail_provider","status","failure_reason","raw_response"],
   CERTIFICATES: ["certificate_id","certificate_type","title","season_id","tournament_id","match_id","recipient_type","recipient_id","recipient_name","metadata_json","certificate_html","qr_payload","security_hash","approval_status","approvals_json","generated_by","generated_at","approved_at","delivery_status"],
   OFFICIAL_DOCUMENTS: ["document_id","title","category","department","source_url","source_type","status","allowed_management_ids","allow_preview","allow_download","created_by","created_at","updated_at"],
   // Governance & competition workflow modules
@@ -167,6 +168,7 @@ function getKeyColumn(tabName) {
     MATCH_TIMELINE: "event_id",
     BOARD_CONFIGURATION: "config_id",
     NEWS_ROOM_POSTS: "post_id",
+    MAIL_DIAGNOSTICS: "mail_log_id",
     CERTIFICATES: "certificate_id",
     OFFICIAL_DOCUMENTS: "document_id",
     elections: "election_id",
@@ -227,6 +229,19 @@ function sendOtpEmail(email, otp) {
   const subject = "Your Cricket Club OTP";
   const body = "Your verification code is: " + otp + "\n\nThis code expires in 10 minutes.";
   MailApp.sendEmail(email, subject, body);
+}
+
+function appendMailDiagnostic(ss, payload) {
+  const sheet = getOrCreateSheet(ss, "MAIL_DIAGNOSTICS");
+  ensureSheetSchema(sheet, TABS.MAIL_DIAGNOSTICS);
+  const headers = TABS.MAIL_DIAGNOSTICS;
+  const row = headers.map((h) => {
+    const value = payload && payload[h] !== undefined ? payload[h] : "";
+    if (value === null || value === undefined) return "";
+    if (typeof value === "object") return JSON.stringify(value);
+    return value;
+  });
+  sheet.appendRow(row);
 }
 
 // ──────── CORS ────────
@@ -301,6 +316,15 @@ function doPost(e) {
   const { action, sheet: tabName, data } = body;
 
   if (action === "sendMail") {
+    const diagnostics = (data && data.diagnostics) || {};
+    const baseDiagnostic = {
+      mail_log_id: `MAIL_${new Date().getTime()}_${Math.random().toString(36).substring(2, 7)}`,
+      triggered_at: new Date().toISOString(),
+      triggered_by: String(diagnostics.triggeredBy || "system"),
+      trigger_source: String(diagnostics.triggerSource || "sendMail"),
+      trigger_entity_type: String(diagnostics.triggerEntityType || ""),
+      trigger_entity_id: String(diagnostics.triggerEntityId || ""),
+    };
     try {
       const to = String((data && data.to) || "").trim();
       const subject = String((data && data.subject) || "Cricket Club Portal Notification").trim();
@@ -353,6 +377,19 @@ function doPost(e) {
           MailApp.sendEmail(to, subject, fallbackText, mailOptions);
         } catch (mailErr) {
           const message = String(mailErr && mailErr.message ? mailErr.message : gmailErr && gmailErr.message ? gmailErr.message : "Mail send failed");
+          appendMailDiagnostic(ss, {
+            ...baseDiagnostic,
+            recipient: to,
+            subject,
+            body_html: htmlBody,
+            body_text: fallbackText,
+            from_email: fromEmail,
+            reply_to: replyTo,
+            mail_provider: "MailApp",
+            status: "failed",
+            failure_reason: message,
+            raw_response: JSON.stringify({ gmailErr: String(gmailErr && gmailErr.message ? gmailErr.message : ""), mailErr: String(mailErr && mailErr.message ? mailErr.message : "") }),
+          });
           return ContentService.createTextOutput(
             JSON.stringify({
               success: false,
@@ -362,8 +399,34 @@ function doPost(e) {
           ).setMimeType(ContentService.MimeType.JSON);
         }
       }
+      appendMailDiagnostic(ss, {
+        ...baseDiagnostic,
+        recipient: to,
+        subject,
+        body_html: htmlBody,
+        body_text: fallbackText,
+        from_email: fromEmail,
+        reply_to: replyTo,
+        mail_provider: provider,
+        status: "sent",
+        failure_reason: "",
+        raw_response: JSON.stringify({ success: true, provider }),
+      });
       return ContentService.createTextOutput(JSON.stringify({ success: true, provider })).setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
+      appendMailDiagnostic(ss, {
+        ...baseDiagnostic,
+        recipient: String((data && data.to) || ""),
+        subject: String((data && data.subject) || ""),
+        body_html: String((data && data.htmlBody) || ""),
+        body_text: String((data && data.textBody) || ""),
+        from_email: String((data && data.fromEmail) || ""),
+        reply_to: String((data && data.replyTo) || ""),
+        mail_provider: "unknown",
+        status: "failed",
+        failure_reason: String(err && err.message ? err.message : "Unknown sendMail error"),
+        raw_response: JSON.stringify(err),
+      });
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
         ContentService.MimeType.JSON,
       );
@@ -503,32 +566,27 @@ function doPost(e) {
       const originalBatting = sheetToJson(battingSheet).filter((row) => String(row.match_id) === matchId);
       const originalBowling = sheetToJson(bowlingSheet).filter((row) => String(row.match_id) === matchId);
 
-      const removeRowsForMatch = (sheet, matchIdValue) => {
+      const replaceRowsForMatch = (sheet, headers, matchIdValue, incomingRows) => {
         const values = sheet.getDataRange().getValues();
-        if (values.length <= 1) return;
-        const headers = values[0];
-        const matchIdx = headers.indexOf("match_id");
-        if (matchIdx === -1) return;
-        for (let r = values.length - 1; r >= 1; r--) {
-          if (String(values[r][matchIdx]) === String(matchIdValue)) {
-            sheet.deleteRow(r + 1);
-          }
+        const sheetHeaders = values[0] || headers;
+        const matchIdx = sheetHeaders.indexOf("match_id");
+        const retained = values.slice(1).filter((row) => String(row[matchIdx]) !== String(matchIdValue));
+        const mappedIncoming = (incomingRows || []).map((item) => headers.map((h) => normalizeSheetValue(h, item[h])));
+        const next = [sheetHeaders, ...retained, ...mappedIncoming];
+
+        if (sheet.getMaxRows() < next.length) {
+          sheet.insertRowsAfter(sheet.getMaxRows(), next.length - sheet.getMaxRows());
+        }
+        sheet.getRange(1, 1, next.length, headers.length).setValues(next);
+        if (sheet.getLastRow() > next.length) {
+          sheet.deleteRows(next.length + 1, sheet.getLastRow() - next.length);
         }
       };
 
-      const appendRows = (sheet, headers, rows) => {
-        if (!rows || rows.length === 0) return;
-        const mapped = rows.map((item) => headers.map((h) => normalizeSheetValue(h, item[h])));
-        sheet.getRange(sheet.getLastRow() + 1, 1, mapped.length, headers.length).setValues(mapped);
-      };
-
       try {
-        removeRowsForMatch(battingSheet, matchId);
-        removeRowsForMatch(bowlingSheet, matchId);
+        replaceRowsForMatch(battingSheet, TABS.BattingScorecard, matchId, battingEntries);
+        replaceRowsForMatch(bowlingSheet, TABS.BowlingScorecard, matchId, bowlingEntries);
         partialWrite = true;
-
-        appendRows(battingSheet, TABS.BattingScorecard, battingEntries);
-        appendRows(bowlingSheet, TABS.BowlingScorecard, bowlingEntries);
 
         const nextVersion = currentVersion + 1;
         const nextChecksum = scorecardPayloadChecksum({
@@ -549,10 +607,8 @@ function doPost(e) {
           scorecard_checksum: nextChecksum,
         })).setMimeType(ContentService.MimeType.JSON);
       } catch (err) {
-        removeRowsForMatch(battingSheet, matchId);
-        removeRowsForMatch(bowlingSheet, matchId);
-        appendRows(battingSheet, TABS.BattingScorecard, originalBatting);
-        appendRows(bowlingSheet, TABS.BowlingScorecard, originalBowling);
+        replaceRowsForMatch(battingSheet, TABS.BattingScorecard, matchId, originalBatting);
+        replaceRowsForMatch(bowlingSheet, TABS.BowlingScorecard, matchId, originalBowling);
         throw err;
       }
     } catch (err) {
