@@ -11,14 +11,28 @@ import { RegistrationRecord, TournamentRegistryRecord } from './types';
 import { useAuth } from '@/lib/auth';
 import { normalizeId } from '@/lib/dataUtils';
 import { scheduleService } from '@/schedules/scheduleService';
+import { v2api } from '@/lib/v2api';
+import { ClosedAccessScreen } from '@/components/ClosedAccessScreen';
 
 const RegistrationTournamentPage = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [registrationClosed, setRegistrationClosed] = useState(false);
+  const [registrationClosedReason, setRegistrationClosedReason] = useState('');
+  const [accessLoading, setAccessLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
+    Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend(), v2api.getBoardConfiguration()])
+      .then(([, , boardRows]) => {
+        const config = boardRows[0];
+        setRegistrationClosed(!!config?.tournament_registration_closed);
+        setRegistrationClosedReason(config?.tournament_registration_closed_reason || '');
+      })
+      .finally(() => {
+        setRefreshKey((value) => value + 1);
+        setAccessLoading(false);
+      });
   }, []);
 
   const tournamentId = normalizeId(id);
@@ -48,6 +62,21 @@ const RegistrationTournamentPage = () => {
   }, {});
 
   if (!user) return <Navigate to="/login" replace />;
+  if (!accessLoading && registrationClosed && user.type !== 'admin') {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <ClosedAccessScreen
+            title="Tournament registration is currently closed"
+            reason={registrationClosedReason}
+            backHref="/tournaments"
+            homeHref="/"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
