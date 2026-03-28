@@ -23,6 +23,7 @@ import { v2api } from '@/lib/v2api';
 import { formatDateInIST, formatInIST } from '@/lib/time';
 import { useEffect } from 'react';
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
+import { resolvePlayerIdFromIdentity } from '@/lib/dataUtils';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -56,6 +57,13 @@ const PlayerDashboard = () => {
   const battingStats = useMemo(() => calcBattingStats(playerBatting), [playerBatting]);
   const bowlingStats = useMemo(() => calcBowlingStats(playerBowling), [playerBowling]);
   const totalMatches = useMemo(() => user?.player_id ? getPlayerMatchCount(user.player_id, batting, bowling) : 0, [user?.player_id, batting, bowling]);
+  const momCount = useMemo(() => {
+    if (!user?.player_id) return 0;
+    return matches.filter((match) => (
+      relevantMatchIds.includes(match.match_id) &&
+      resolvePlayerIdFromIdentity(match.man_of_match, players) === user.player_id
+    )).length;
+  }, [matches, players, relevantMatchIds, user?.player_id]);
 
   const playerMessages = useMemo(() => user?.player_id ? messages.filter(m => m.to_id === user.player_id || m.to_id === 'all' || m.from_id === user.player_id) : [], [user?.player_id, messages]);
 
@@ -164,7 +172,7 @@ const PlayerDashboard = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-4">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Unread messages</p>
@@ -177,6 +185,13 @@ const PlayerDashboard = () => {
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Current filters</p>
               <p className="mt-1 text-sm font-medium">{filterTournament === 'all' ? 'All tournaments' : tournaments.find((t) => t.tournament_id === filterTournament)?.name || filterTournament}</p>
               <p className="text-xs text-muted-foreground">{filterSeason === 'all' ? 'All seasons' : `Season ${seasons.find((s) => s.season_id === filterSeason)?.year || filterSeason}`}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Man of the Match</p>
+              <p className="mt-1 font-display text-3xl font-bold text-accent">{momCount}</p>
+              <p className="text-xs text-muted-foreground">Resolved from both legacy and current MOM identity formats.</p>
             </CardContent>
           </Card>
           <Card>

@@ -7,6 +7,8 @@ import {
   normalizeId,
   normalizeSheetRows,
   parseSheetDate,
+  resolvePlayerFromIdentity,
+  resolvePlayerIdFromIdentity,
 } from "@/lib/dataUtils";
 
 describe("dataUtils", () => {
@@ -76,5 +78,28 @@ describe("dataUtils", () => {
       name: "Tournament T404",
       format: "League",
     });
+  });
+
+  it("resolves player identity from canonical id and legacy name values", () => {
+    const players = [
+      { player_id: "P001", name: "Jane Batter" },
+      { player_id: "P002", name: "Ravi Kumar" },
+    ];
+
+    expect(resolvePlayerIdFromIdentity("P001", players)).toBe("P001");
+    expect(resolvePlayerIdFromIdentity("Jane Batter", players)).toBe("P001");
+    expect(resolvePlayerIdFromIdentity("  ravi   kumar ", players)).toBe("P002");
+    expect(resolvePlayerIdFromIdentity("Unknown Player", players)).toBeNull();
+  });
+
+  it("resolves full player rows for mixed MOM identity formats", () => {
+    const players = [
+      { player_id: "P001", name: "Jane Batter" },
+      { player_id: "P002", name: "Ravi Kumar" },
+    ];
+
+    expect(resolvePlayerFromIdentity("P002", players)?.name).toBe("Ravi Kumar");
+    expect(resolvePlayerFromIdentity("jane batter", players)?.player_id).toBe("P001");
+    expect(resolvePlayerFromIdentity("", players)).toBeNull();
   });
 });

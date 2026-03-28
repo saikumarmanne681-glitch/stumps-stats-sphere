@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 
-import type { Match, Season, Tournament } from "./types";
+import type { Match, Player, Season, Tournament } from "./types";
 
 const NUMERIC_FIELDS = new Set([
   "overs",
@@ -35,6 +35,49 @@ const GOOGLE_SHEETS_EPOCH_UTC = Date.UTC(1899, 11, 30);
 
 export function normalizeId(value: unknown) {
   return String(value ?? "").trim();
+}
+
+function normalizeComparableName(value: unknown) {
+  return normalizeId(value).toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Resolve a potentially legacy identity field to canonical player_id.
+ *
+ * MOM rows may store:
+ * - canonical `player_id` (current format)
+ * - player name (legacy format)
+ *
+ * This helper first tries an ID match, then exact trimmed name, then normalized
+ * name (case-insensitive with whitespace normalization).
+ */
+export function resolvePlayerIdFromIdentity(
+  identity: unknown,
+  players: Pick<Player, "player_id" | "name">[],
+) {
+  const value = normalizeId(identity);
+  if (!value) return null;
+
+  const byId = players.find((player) => normalizeId(player.player_id) === value);
+  if (byId) return normalizeId(byId.player_id);
+
+  const byExactName = players.find((player) => normalizeId(player.name) === value);
+  if (byExactName) return normalizeId(byExactName.player_id);
+
+  const normalizedValue = normalizeComparableName(value);
+  const byNormalizedName = players.find(
+    (player) => normalizeComparableName(player.name) === normalizedValue,
+  );
+  return byNormalizedName ? normalizeId(byNormalizedName.player_id) : null;
+}
+
+export function resolvePlayerFromIdentity(
+  identity: unknown,
+  players: Pick<Player, "player_id" | "name">[],
+) {
+  const resolvedPlayerId = resolvePlayerIdFromIdentity(identity, players);
+  if (!resolvedPlayerId) return null;
+  return players.find((player) => normalizeId(player.player_id) === resolvedPlayerId) ?? null;
 }
 
 function toGoogleSheetsDate(serial: number) {

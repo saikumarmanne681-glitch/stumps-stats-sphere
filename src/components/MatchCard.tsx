@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Match, Tournament, Player, BattingScorecard, Season } from "@/lib/types";
 import { Calendar, MapPin, Award, Sparkles, Trophy } from "lucide-react";
-import { formatSheetDate } from "@/lib/dataUtils";
+import { formatSheetDate, resolvePlayerFromIdentity } from "@/lib/dataUtils";
 import { getTeamScoreSummary } from "@/lib/liveScoring";
 import { getMatchStageChipClass, getStableChipClass } from "@/lib/chipColors";
 
@@ -16,7 +16,7 @@ interface MatchCardProps {
 }
 
 export function MatchCard({ match, tournament, season, players, batting = [], onClick }: MatchCardProps) {
-  const mom = players.find((p) => p.player_id === match.man_of_match);
+  const mom = resolvePlayerFromIdentity(match.man_of_match, players);
   const statusColors: Record<string, string> = {
     completed: "bg-primary text-primary-foreground",
     live: "bg-destructive text-destructive-foreground",

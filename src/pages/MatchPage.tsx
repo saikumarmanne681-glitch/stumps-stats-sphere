@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Award, Share2, ArrowLeft } from 'lucide-react';
-import { formatSheetDate } from '@/lib/dataUtils';
+import { formatSheetDate, resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { useToast } from '@/hooks/use-toast';
 import { PageLoader } from '@/components/LoadingOverlay';
 import { SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
@@ -61,7 +61,7 @@ const MatchPage = () => {
 
   const matchBatting = liveBatting;
   const matchBowling = liveBowling;
-  const mom = match ? players.find(p => p.player_id === match.man_of_match) : null;
+  const mom = match ? resolvePlayerFromIdentity(match.man_of_match, players) : null;
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
   const teamAScore = match ? getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score) : null;

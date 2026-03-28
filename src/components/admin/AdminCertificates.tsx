@@ -13,6 +13,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useToast } from '@/hooks/use-toast';
 import { ShieldCheck, Trophy, Medal, Award, Download, Eye, FileText } from 'lucide-react';
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
+import { resolvePlayerFromIdentity } from '@/lib/dataUtils';
 
 type CertType = CertificateRecord['certificate_type'];
 type ApprovalMap = Record<'Treasurer' | 'Scoring Official' | 'Match Referee', boolean>;
@@ -56,7 +57,15 @@ export function AdminCertificates() {
     if (!selectedSeason) return [];
     if (type === 'winner_team') return [selectedSeason.winner_team || ''].filter(Boolean);
     if (type === 'runner_up_team') return [selectedSeason.runner_up_team || ''].filter(Boolean);
-    if (type === 'man_of_match') return seasonMatches.map((m) => players.find((p) => p.player_id === m.man_of_match)?.name || '').filter(Boolean);
+    if (type === 'man_of_match') {
+      return Array.from(
+        new Set(
+          seasonMatches
+            .map((m) => resolvePlayerFromIdentity(m.man_of_match, players)?.name || '')
+            .filter(Boolean),
+        ),
+      );
+    }
 
     const runs = new Map<string, number>();
     const wickets = new Map<string, number>();
