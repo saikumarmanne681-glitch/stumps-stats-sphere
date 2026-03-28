@@ -33,6 +33,7 @@ import NewsRoomPage from './pages/NewsRoomPage';
 import { RequireAuth } from '@/components/RequireAuth';
 import DocumentsPortalPage from './pages/DocumentsPortalPage';
 import CertificateVerifyPage from './pages/CertificateVerifyPage';
+import AdminWorkQueuePage from './pages/AdminWorkQueuePage';
 
 const queryClient = new QueryClient();
 
@@ -106,6 +107,7 @@ const App = () => (
             <Route path="/admin/backups" element={<AdminBackups />} />
             <Route path="/admin/scorelists" element={<AdminScorelistsPage />} />
             <Route path="/admin/management" element={<AdminManagement />} />
+            <Route path="/admin/work-queue" element={<AdminWorkQueuePage />} />
             <Route path="/leaderboards" element={<LeaderboardsPage />} />
             <Route path="/match/:match_id" element={<MatchPage />} />
             <Route path="/player/:player_id" element={<PlayerPage />} />

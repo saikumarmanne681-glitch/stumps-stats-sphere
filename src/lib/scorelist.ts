@@ -66,6 +66,10 @@ export async function generateMatchScorelist(
     signature: sig,
     generated_by: generatedBy,
     generated_at: istNow(),
+    assignee_id: '',
+    due_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+    priority: 'medium',
+    escalation_state: 'normal',
   };
 
   await v2api.addScorelist(scorelist);
@@ -125,6 +129,10 @@ export async function generateTournamentScorelist(
     signature: sig,
     generated_by: generatedBy,
     generated_at: istNow(),
+    assignee_id: '',
+    due_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+    priority: 'high',
+    escalation_state: 'normal',
   };
 
   await v2api.addScorelist(scorelist);

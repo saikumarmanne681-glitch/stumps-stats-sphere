@@ -353,3 +353,51 @@ export async function sendAdminCommunicationEmail(params: {
   `);
   return sendSystemEmail({ to: params.to, subject: params.title, htmlBody, fromName: 'Cricket Club Admin Alerts' });
 }
+
+export async function sendTaskAssignmentEmail(params: {
+  to: string;
+  assigneeName?: string;
+  taskType: 'support_ticket' | 'scorelist' | 'governance';
+  taskId: string;
+  taskTitle: string;
+  assignedBy: string;
+  dueAt?: string;
+  priority?: string;
+}) {
+  const htmlBody = cardLayout(`
+    <p style="margin:0 0 8px;font-size:16px;">Hello ${params.assigneeName || 'Team Member'},</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">A new work-queue item has been assigned to you.</p>
+    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 6px;"><strong>Type:</strong> ${params.taskType.replace('_', ' ')}</p>
+      <p style="margin:0 0 6px;"><strong>Task ID:</strong> <span style="font-family:monospace">${params.taskId}</span></p>
+      <p style="margin:0 0 6px;"><strong>Title:</strong> ${params.taskTitle}</p>
+      <p style="margin:0 0 6px;"><strong>Assigned by:</strong> ${params.assignedBy}</p>
+      ${params.priority ? `<p style="margin:0 0 6px;"><strong>Priority:</strong> ${params.priority}</p>` : ''}
+      ${params.dueAt ? `<p style="margin:0;"><strong>Due:</strong> ${formatInIST(params.dueAt)} IST</p>` : ''}
+    </div>
+  `);
+  return sendSystemEmail({ to: params.to, subject: `New assignment • ${params.taskId}`, htmlBody, fromName: 'Cricket Club Work Queue' });
+}
+
+export async function sendSlaBreachAlertEmail(params: {
+  to: string;
+  recipientLabel?: string;
+  taskType: 'support_ticket' | 'scorelist' | 'governance';
+  taskId: string;
+  title: string;
+  dueAt?: string;
+  escalatedAt: string;
+}) {
+  const htmlBody = cardLayout(`
+    <p style="margin:0 0 8px;font-size:16px;">Attention ${params.recipientLabel || 'Team'},</p>
+    <p style="margin:0 0 16px;line-height:1.6;color:#374151;">An SLA breach has been detected for a tracked work-queue item.</p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:14px;padding:16px;">
+      <p style="margin:0 0 6px;"><strong>Type:</strong> ${params.taskType.replace('_', ' ')}</p>
+      <p style="margin:0 0 6px;"><strong>Task ID:</strong> <span style="font-family:monospace">${params.taskId}</span></p>
+      <p style="margin:0 0 6px;"><strong>Title:</strong> ${params.title}</p>
+      ${params.dueAt ? `<p style="margin:0 0 6px;"><strong>Due at:</strong> ${formatInIST(params.dueAt)} IST</p>` : ''}
+      <p style="margin:0;"><strong>Escalated at:</strong> ${formatInIST(params.escalatedAt)} IST</p>
+    </div>
+  `);
+  return sendSystemEmail({ to: params.to, subject: `SLA breached • ${params.taskId}`, htmlBody, fromName: 'Cricket Club SLA Alerts' });
+}

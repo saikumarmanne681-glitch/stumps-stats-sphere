@@ -223,6 +223,24 @@ const AdminScorelistsPage = () => {
       return;
     }
 
+    const primaryAssignee = recipients[0]?.management_id || '';
+    const source = scorelists.find((item) => item.scorelist_id === scorelistId);
+    if (source) {
+      const updatedScorelist: DigitalScorelist = {
+        ...source,
+        assignee_id: primaryAssignee,
+        due_at: source.due_at || new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+        priority: source.priority || 'medium',
+        escalation_state: source.escalation_state || 'normal',
+      };
+      await v2api.updateScorelist(updatedScorelist);
+      logAudit(user?.management_id || user?.username || 'admin', 'scorelist_assignment_changed', 'scorelist', scorelistId, JSON.stringify({
+        stage,
+        assignee_id: primaryAssignee,
+        due_at: updatedScorelist.due_at,
+      }));
+    }
+
     const attempts = await sendScorelistApprovalRequestBulk({
       recipients: recipients.map((m) => ({ to: m.email, approverName: m.name || m.designation || 'Approver' })),
       scorelistId,

@@ -5,6 +5,9 @@ export interface SupportTicket {
   created_by_user_id: string;
   category: string;
   priority: "low" | "medium" | "high" | "critical";
+  assignee_id?: string;
+  due_at?: string;
+  escalation_state?: "normal" | "warning" | "breached" | "breached_notified";
   subject: string;
   description: string;
   attachment_url: string;
@@ -73,6 +76,10 @@ export interface DigitalScorelist {
   signature: string;
   generated_by: string;
   generated_at: string;
+  assignee_id?: string;
+  due_at?: string;
+  priority?: "low" | "medium" | "high" | "critical";
+  escalation_state?: "normal" | "warning" | "breached" | "breached_notified";
   certification_status?: string;
   certifications_json?: string;
   locked?: boolean;
@@ -189,6 +196,10 @@ export interface CertificateRecord {
   signatures_json: string;
   generated_by: string;
   generated_at: string;
+  assignee_id?: string;
+  due_at?: string;
+  priority?: "low" | "medium" | "high" | "critical";
+  escalation_state?: "normal" | "warning" | "breached" | "breached_notified";
   approved_at: string;
   delivery_status: 'not_sent' | 'sent_to_player';
 }

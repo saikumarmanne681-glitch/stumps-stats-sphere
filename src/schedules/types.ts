@@ -14,6 +14,10 @@ export interface ScheduleRecord {
   parent_schedule_id: string;
   hash: string;
   rejection_reason: string;
+  assignee_id?: string;
+  due_at?: string;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  escalation_state?: 'normal' | 'warning' | 'breached' | 'breached_notified';
 }
 
 export interface ScheduleApprovalRecord {
