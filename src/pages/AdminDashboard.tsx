@@ -14,7 +14,7 @@ import { AdminSupportDashboard } from '@/components/admin/AdminSupport';
 import { AdminPresence } from '@/components/admin/AdminPresence';
 import { AdminScorelists } from '@/components/admin/AdminScorelists';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
-import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Vote, Newspaper } from 'lucide-react';
+import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Vote, Newspaper, ListTodo } from 'lucide-react';
 import { AdminGovernance } from '@/components/admin/AdminGovernance';
 import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
 import { AdminCertificates } from '@/components/admin/AdminCertificates';
@@ -41,6 +41,9 @@ const AdminDashboard = () => {
               </Button>
               <Button asChild variant="secondary" size="sm">
                 <Link to="/admin/scorelists"><Shield className="h-4 w-4 mr-1" /> Review Scorelists</Link>
+              </Button>
+              <Button asChild variant="default" size="sm">
+                <Link to="/admin/work-queue"><ListTodo className="h-4 w-4 mr-1" /> Open Work Queue</Link>
               </Button>
             </div>
           </div>

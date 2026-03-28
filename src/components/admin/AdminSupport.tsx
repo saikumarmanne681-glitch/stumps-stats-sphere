@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
 import { SupportTicket, SupportMessage, SupportCSAT, ManagementUser } from '@/lib/v2types';
-import { notifyTicketOwner, resolveSupportActor } from '@/lib/supportNotifications';
+import { notifySupportSlaBreach, notifyTicketOwner, notifyWorkAssignment, resolveSupportActor } from '@/lib/supportNotifications';
 import { generateId } from '@/lib/utils';
 import { Loader2, Search, MessageSquare, Clock, AlertTriangle, Send, StickyNote, UserRoundCheck, CalendarClock } from 'lucide-react';
 import { getAdminNotificationRecipient, sendAdminCommunicationEmail } from '@/lib/mailer';
@@ -53,6 +53,7 @@ export function AdminSupportDashboard() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const runningEscalationSweep = useRef(false);
 
   const refresh = async (ticketToKeepOpen?: string) => {
     const [t, m, c, mgmt] = await Promise.all([v2api.getTickets(), v2api.getTicketMessages(), v2api.getCSAT(), v2api.getManagementUsers()]);
@@ -63,6 +64,27 @@ export function AdminSupportDashboard() {
     if (ticketToKeepOpen) {
       const latest = t.find((tk) => tk.ticket_id === ticketToKeepOpen) || null;
       setSelectedTicket(latest);
+    }
+    if (!runningEscalationSweep.current) {
+      runningEscalationSweep.current = true;
+      try {
+        const overdue = t.filter((ticket) => {
+          if (ticket.status === 'closed' || ticket.status === 'resolved') return false;
+          const due = new Date(ticket.due_at || ticket.resolution_due);
+          return due.getTime() > 0 && due.getTime() < Date.now() && ticket.escalation_state !== 'breached_notified';
+        });
+        for (const breached of overdue) {
+          const updatedTicket: SupportTicket = { ...breached, escalation_state: 'breached_notified' };
+          await v2api.updateTicket(updatedTicket);
+          await notifySupportSlaBreach({ ticket: updatedTicket, managementUsers: mgmt }).catch(console.warn);
+          logAudit('system', 'ticket_escalated_sla_breach', 'support_ticket', breached.ticket_id, JSON.stringify({
+            dueAt: breached.due_at || breached.resolution_due,
+            assignee: breached.assignee_id || breached.assigned_admin_id || 'unassigned',
+          }));
+        }
+      } finally {
+        runningEscalationSweep.current = false;
+      }
     }
     setLoading(false);
   };
@@ -191,7 +213,7 @@ export function AdminSupportDashboard() {
 
   const handleAssign = async (adminId: string) => {
     if (!selectedTicket) return;
-    const updated = { ...selectedTicket, assigned_admin_id: adminId };
+    const updated = { ...selectedTicket, assigned_admin_id: adminId, assignee_id: adminId, escalation_state: selectedTicket.escalation_state || 'normal' };
     await v2api.updateTicket(updated);
     const assignee = resolveSupportActor(adminId, managementUsers);
     await notifyTicketOwner({
@@ -207,6 +229,16 @@ export function AdminSupportDashboard() {
       nextAssignee: adminId,
       subject: selectedTicket.subject,
     }));
+    logAudit('admin', 'support_assignment_changed', 'support_ticket', selectedTicket.ticket_id, JSON.stringify({
+      previousAssignee: selectedTicket.assignee_id || selectedTicket.assigned_admin_id || '',
+      nextAssignee: adminId,
+    }));
+    await notifyWorkAssignment({
+      assigneeId: adminId,
+      assignedBy: user?.name || user?.username || 'Admin',
+      managementUsers,
+      ticket: updated,
+    }).catch(console.warn);
     toast({ title: 'Assignee updated' });
     await refresh(selectedTicket.ticket_id);
   };

@@ -1,5 +1,5 @@
 import { v2api } from './v2api';
-import { sendSupportUpdateEmail } from './mailer';
+import { sendSlaBreachAlertEmail, sendSupportUpdateEmail, sendTaskAssignmentEmail } from './mailer';
 import { ManagementUser, SupportTicket } from './v2types';
 import { Player } from './types';
 
@@ -42,4 +42,46 @@ export function resolveSupportActor(actorId: string, managementUsers: Management
   const mgmt = managementUsers.find((m) => m.management_id === actorId || m.username === actorId);
   if (mgmt) return { name: mgmt.name, designation: mgmt.designation };
   return { name: actorId, designation: '' };
+}
+
+export async function notifyWorkAssignment(params: {
+  assigneeId: string;
+  assignedBy: string;
+  managementUsers: ManagementUser[];
+  ticket: SupportTicket;
+}) {
+  if (!params.assigneeId) return { sent: false, reason: 'no_assignee' as const };
+  const assignee = params.managementUsers.find((m) => m.management_id === params.assigneeId || m.username === params.assigneeId);
+  if (!assignee?.email) return { sent: false, reason: 'no_email' as const };
+  const result = await sendTaskAssignmentEmail({
+    to: assignee.email,
+    assigneeName: assignee.name,
+    taskType: 'support_ticket',
+    taskId: params.ticket.ticket_id,
+    taskTitle: params.ticket.subject,
+    assignedBy: params.assignedBy,
+    dueAt: params.ticket.due_at || params.ticket.resolution_due,
+    priority: params.ticket.priority,
+  });
+  return { sent: result.success, reason: result.reason };
+}
+
+export async function notifySupportSlaBreach(params: {
+  ticket: SupportTicket;
+  managementUsers: ManagementUser[];
+}) {
+  const assigneeId = params.ticket.assignee_id || params.ticket.assigned_admin_id;
+  if (!assigneeId) return { sent: false, reason: 'no_assignee' as const };
+  const assignee = params.managementUsers.find((m) => m.management_id === assigneeId || m.username === assigneeId);
+  if (!assignee?.email) return { sent: false, reason: 'no_email' as const };
+  const result = await sendSlaBreachAlertEmail({
+    to: assignee.email,
+    recipientLabel: assignee.name,
+    taskType: 'support_ticket',
+    taskId: params.ticket.ticket_id,
+    title: params.ticket.subject,
+    dueAt: params.ticket.due_at || params.ticket.resolution_due,
+    escalatedAt: new Date().toISOString(),
+  });
+  return { sent: result.success, reason: result.reason };
 }

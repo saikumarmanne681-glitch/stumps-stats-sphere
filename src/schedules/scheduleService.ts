@@ -139,6 +139,10 @@ export const scheduleService = {
       parent_schedule_id: previousVersions[0]?.schedule_id || '',
       hash,
       rejection_reason: '',
+      assignee_id: getActorId(user),
+      due_at: '',
+      priority: 'medium',
+      escalation_state: 'normal',
     };
     write(STORAGE.schedules, [record, ...this.getSchedules()]);
     await safeSyncRow('add', SHEETS.schedules, record);
@@ -146,7 +150,17 @@ export const scheduleService = {
     return record;
   },
   async submitForApproval(scheduleId: string, user: AuthUser) {
-    const updated = this.getSchedules().map((item) => item.schedule_id === scheduleId ? { ...item, status: 'pending_approval', rejection_reason: '' } : item);
+    const updated = this.getSchedules().map((item) => item.schedule_id === scheduleId
+      ? {
+        ...item,
+        status: 'pending_approval',
+        rejection_reason: '',
+        assignee_id: '',
+        due_at: item.due_at || new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+        priority: item.priority || 'high',
+        escalation_state: item.escalation_state || 'normal',
+      }
+      : item);
     write(STORAGE.schedules, updated);
     const changed = updated.find((item) => item.schedule_id === scheduleId);
     if (changed) await safeSyncRow('update', SHEETS.schedules, changed);
