@@ -5,29 +5,22 @@ import { useData } from '@/lib/DataContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Target, TrendingUp, Medal } from 'lucide-react';
-import { calcBattingStats, calcBowlingStats, getPlayerMatchCounts } from '@/lib/calculations';
+import { useLeaderboardData } from '@/lib/dataHooks';
 
 const LeaderboardsPage = () => {
-  const { matches, batting, bowling, players, tournaments, seasons } = useData();
+  const { players, tournaments, seasons } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
   const filterTournament = searchParams.get('tournament') || 'all';
   const filterSeason = searchParams.get('season') || 'all';
 
   const relevantSeasons = filterTournament === 'all' ? seasons : seasons.filter(s => s.tournament_id === filterTournament);
   
-  const filteredMatches = useMemo(() => {
-    let m = matches;
-    if (filterTournament !== 'all') m = m.filter(x => x.tournament_id === filterTournament);
-    if (filterSeason !== 'all') m = m.filter(x => x.season_id === filterSeason);
-    return m;
-  }, [matches, filterTournament, filterSeason]);
-
-  const matchIds = useMemo(() => new Set(filteredMatches.map(m => m.match_id)), [filteredMatches]);
-  const fBat = useMemo(() => batting.filter(b => matchIds.has(b.match_id)), [batting, matchIds]);
-  const fBowl = useMemo(() => bowling.filter(b => matchIds.has(b.match_id)), [bowling, matchIds]);
+  const { filteredMatches, filteredBatting: fBat, battingLeaderboard, bowlingLeaderboard } = useLeaderboardData({
+    filterTournament,
+    filterSeason,
+  });
 
   // Team Standings
   const teamStandings = useMemo(() => {
@@ -81,34 +74,6 @@ const LeaderboardsPage = () => {
       return { team, ...data, nrr };
     }).sort((a, b) => b.points - a.points || b.nrr - a.nrr);
   }, [filteredMatches, fBat]);
-
-  // Player batting leaderboard
-  const battingLeaderboard = useMemo(() => {
-    const playerMap: Record<string, typeof fBat> = {};
-    fBat.forEach(b => {
-      if (!playerMap[b.player_id]) playerMap[b.player_id] = [];
-      playerMap[b.player_id].push(b);
-    });
-    return Object.entries(playerMap).map(([pid, entries]) => {
-      const stats = calcBattingStats(entries);
-      return { player_id: pid, ...stats };
-    }).filter(s => s.totalRuns !== undefined && s.totalRuns > 0)
-      .sort((a, b) => (b.totalRuns || 0) - (a.totalRuns || 0));
-  }, [fBat]);
-
-  // Player bowling leaderboard
-  const bowlingLeaderboard = useMemo(() => {
-    const playerMap: Record<string, typeof fBowl> = {};
-    fBowl.forEach(b => {
-      if (!playerMap[b.player_id]) playerMap[b.player_id] = [];
-      playerMap[b.player_id].push(b);
-    });
-    return Object.entries(playerMap).map(([pid, entries]) => {
-      const stats = calcBowlingStats(entries);
-      return { player_id: pid, ...stats };
-    }).filter(s => s.totalWickets !== undefined && s.totalWickets > 0)
-      .sort((a, b) => (b.totalWickets || 0) - (a.totalWickets || 0));
-  }, [fBowl]);
 
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
