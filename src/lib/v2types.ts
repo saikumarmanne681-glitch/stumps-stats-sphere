@@ -147,6 +147,7 @@ export interface NewsRoomPost {
 
 export interface CertificateRecord {
   certificate_id: string;
+  certificate_template: 'classic' | 'premium' | 'gold';
   certificate_type:
     | 'winner_team'
     | 'runner_up_team'
@@ -164,9 +165,13 @@ export interface CertificateRecord {
   metadata_json: string;
   certificate_html: string;
   qr_payload: string;
+  verification_url: string;
+  verification_token: string;
   security_hash: string;
-  approval_status: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+  tamper_evident_payload: string;
+  approval_status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'revoked';
   approvals_json: string;
+  signatures_json: string;
   generated_by: string;
   generated_at: string;
   approved_at: string;
