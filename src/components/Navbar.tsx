@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Vote, ClipboardList, Layers3, Crown, Newspaper, FolderLock } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Vote, ClipboardList, Layers3, Crown, Newspaper, FolderLock, Search } from 'lucide-react';
+import { CommandPalette } from '@/components/CommandPalette';
 
 export function Navbar() {
   const { user, logout, isAdmin, isPlayer, isManagement } = useAuth();
@@ -15,6 +16,11 @@ export function Navbar() {
     const navBtnClass = mobile ? 'w-full justify-start' : '';
     return (
       <div className={mobile ? 'flex max-h-[80vh] flex-col gap-2 overflow-y-auto pr-1' : 'flex items-center gap-1'}>
+        {mobile && (
+          <Button variant="outline" size="sm" className={navBtnClass} onClick={() => { close(); window.dispatchEvent(new CustomEvent('open-command-palette')); }}>
+            <Search className="h-4 w-4 mr-1" /> Search / Commands
+          </Button>
+        )}
         <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
           <Link to="/"><Home className="h-4 w-4 mr-1" /> Home</Link>
         </Button>
@@ -123,6 +129,8 @@ export function Navbar() {
           <span className="text-2xl">🏏</span>
           <span className="font-display text-xl font-bold text-primary">CRICKET CLUB</span>
         </Link>
+
+        <CommandPalette />
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-1">
