@@ -38,6 +38,8 @@ function calcTeamScore(batting: BattingScorecard[], team: string): string {
 }
 
 const CATEGORIES = ['Scorecard', 'Technical', 'Bug Report', 'General'];
+const PRIORITIES = ['low', 'medium', 'high'] as const;
+type TicketPriority = (typeof PRIORITIES)[number];
 
 
 function buildMatchIssueTemplate(match: Match, tournament?: Tournament, season?: Season) {
@@ -68,7 +70,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
   const [reportSubject, setReportSubject] = useState('');
   const [reportDesc, setReportDesc] = useState('');
   const [reportCategory, setReportCategory] = useState('Scorecard');
-  const [reportPriority, setReportPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [reportPriority, setReportPriority] = useState<TicketPriority>('medium');
   const [submitting, setSubmitting] = useState(false);
   const issueTemplate = useMemo(
     () => (match ? buildMatchIssueTemplate(match, tournament, season) : null),
@@ -97,34 +99,44 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
   const handleReportIssue = async () => {
     if (!reportSubject.trim() || !reportDesc.trim() || !user) return;
     setSubmitting(true);
-    const sla = SLA_CONFIG[reportPriority];
-    const now = new Date();
-    const ticket: SupportTicket = {
-      ticket_id: generateId('TKT'),
-      created_by_user_id: user.player_id || user.management_id || 'admin',
-      category: reportCategory,
-      priority: reportPriority,
-      assignee_id: '',
-      due_at: new Date(now.getTime() + sla.resolution * 3600000).toISOString(),
-      escalation_state: 'normal',
-      subject: `[Match: ${match.team_a} vs ${match.team_b}] ${reportSubject}`,
-      description: `${reportDesc}\n${reportDesc.includes('Issue details:') ? '' : '\nIssue details:'}\nRaised by: ${user.player_id || user.management_id || user.username}`,
-      attachment_url: '',
-      status: 'open',
-      assigned_admin_id: '',
-      created_at: istNow(),
-      first_response_due: new Date(now.getTime() + sla.firstResponse * 3600000).toISOString(),
-      resolution_due: new Date(now.getTime() + sla.resolution * 3600000).toISOString(),
-      resolved_at: '',
-      closed_at: '',
-    };
-    await v2api.addTicket(ticket);
-    logAudit(user.player_id || user.username, 'create_ticket_from_match', 'support_ticket', ticket.ticket_id, match.match_id);
-    toast({ title: '✅ Issue reported', description: 'Support ticket created for this match' });
-    setShowReport(false);
-    setReportSubject('');
-    setReportDesc('');
-    setSubmitting(false);
+    try {
+      const sla = SLA_CONFIG[reportPriority];
+      const now = new Date();
+      const ticket: SupportTicket = {
+        ticket_id: generateId('TKT'),
+        created_by_user_id: user.player_id || user.management_id || 'admin',
+        category: reportCategory,
+        priority: reportPriority,
+        assignee_id: '',
+        due_at: new Date(now.getTime() + sla.resolution * 3600000).toISOString(),
+        escalation_state: 'normal',
+        subject: `[Match: ${match.team_a} vs ${match.team_b}] ${reportSubject}`,
+        description: `${reportDesc}\n${reportDesc.includes('Issue details:') ? '' : '\nIssue details:'}\nRaised by: ${user.player_id || user.management_id || user.username}`,
+        attachment_url: '',
+        status: 'open',
+        assigned_admin_id: '',
+        created_at: istNow(),
+        first_response_due: new Date(now.getTime() + sla.firstResponse * 3600000).toISOString(),
+        resolution_due: new Date(now.getTime() + sla.resolution * 3600000).toISOString(),
+        resolved_at: '',
+        closed_at: '',
+      };
+      await v2api.addTicket(ticket);
+      logAudit(user.player_id || user.username, 'create_ticket_from_match', 'support_ticket', ticket.ticket_id, match.match_id);
+      toast({ title: '✅ Issue reported', description: 'Support ticket created for this match' });
+      setShowReport(false);
+      setReportSubject('');
+      setReportDesc('');
+    } catch (error) {
+      console.error('Failed to create support ticket from match dialog', error);
+      toast({
+        title: 'Could not submit issue',
+        description: 'Please try again in a moment or contact an administrator.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const renderTeamScorecard = (team: string) => {
@@ -283,7 +295,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
                     <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                     <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                   </Select>
-                  <Select value={reportPriority} onValueChange={v => setReportPriority(v as any)}>
+                  <Select value={reportPriority} onValueChange={v => setReportPriority(v as TicketPriority)}>
                     <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="low">Low</SelectItem>
