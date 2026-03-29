@@ -38,7 +38,7 @@ function splitTextByWidth(text: string, maxWidth: number, size: number) {
     current = word;
   });
   if (current) lines.push(current);
-  return lines.slice(0, 3);
+  return lines.slice(0, 4);
 }
 
 function drawText(line: PdfTextLine) {
@@ -52,42 +52,20 @@ function buildCertificatePdf(item: CertificateRecord) {
   const metadata = (() => {
     try { return item.metadata_json ? JSON.parse(item.metadata_json) : {}; } catch { return {}; }
   })();
-  const width = 842;
+  const width = 842; // A4 landscape
   const height = 595;
   const isPending = item.approval_status !== 'approved';
   const theme = item.certificate_template || 'classic';
   const palette = {
-    classic: { bg: [0.99, 0.98, 0.93], primary: [0.1, 0.23, 0.4], accent: [0.71, 0.52, 0.15] },
-    premium: { bg: [0.95, 0.97, 1], primary: [0.14, 0.2, 0.44], accent: [0.26, 0.47, 0.86] },
-    gold: { bg: [0.99, 0.97, 0.9], primary: [0.22, 0.17, 0.05], accent: [0.69, 0.53, 0.12] },
+    classic: { bg: [0.988, 0.984, 0.965], primary: [0.08, 0.2, 0.38], accent: [0.73, 0.56, 0.2], text: [0.14, 0.14, 0.14] },
+    premium: { bg: [0.962, 0.972, 0.994], primary: [0.1, 0.22, 0.44], accent: [0.31, 0.5, 0.88], text: [0.12, 0.15, 0.22] },
+    gold: { bg: [0.995, 0.976, 0.93], primary: [0.24, 0.17, 0.05], accent: [0.69, 0.53, 0.13], text: [0.2, 0.17, 0.08] },
   }[theme];
 
-  const recipientFontSize = item.recipient_name.length > 36 ? 20 : item.recipient_name.length > 24 ? 24 : 28;
+  const recipientFontSize = item.recipient_name.length > 36 ? 30 : item.recipient_name.length > 24 ? 34 : 38;
+  const titleFontSize = item.title.length > 36 ? 16 : 18;
   const verificationTarget = item.verification_url || item.qr_payload || 'N/A';
-  const verificationLines = splitTextByWidth(`Verify URL: ${verificationTarget}`, 625, 9);
-
-  const certificateLines: PdfTextLine[] = [
-    { text: 'CRICKET CLUB OF EXCELLENCE', x: centerTextX('CRICKET CLUB OF EXCELLENCE', 12, width), y: 535, size: 12, color: palette.accent },
-    { text: 'OFFICIAL PRESENTATION CERTIFICATE', x: centerTextX('OFFICIAL PRESENTATION CERTIFICATE', 26, width), y: 505, size: 26, font: 'F2', color: palette.primary },
-    { text: 'This certificate is proudly presented to', x: centerTextX('This certificate is proudly presented to', 13, width), y: 456, size: 13, color: [0.18, 0.18, 0.18] },
-    { text: item.recipient_name, x: centerTextX(item.recipient_name, recipientFontSize, width), y: 414, size: recipientFontSize, font: 'F2', color: palette.primary },
-    { text: item.title, x: centerTextX(item.title, 15, width), y: 380, size: 15, color: [0.15, 0.15, 0.15] },
-    { text: `Tournament: ${metadata.tournament || item.tournament_id || 'N/A'}`, x: 90, y: 300, size: 12 },
-    { text: `Season: ${metadata.seasonYear || item.season_id || 'N/A'}`, x: 90, y: 280, size: 12 },
-    { text: `Issue Date: ${formatInIST(item.generated_at)}`, x: 90, y: 260, size: 12 },
-    { text: `Certificate ID: ${item.certificate_id}`, x: 520, y: 300, size: 11 },
-    { text: `Verification Token: ${item.verification_token || 'N/A'}`, x: 458, y: 280, size: 10 },
-    { text: `SHA-256 Digest: ${item.security_hash}`, x: 90, y: 244, size: 8, color: [0.2, 0.2, 0.2] },
-    { text: 'Authorized Signatories', x: 345, y: 166, size: 12, font: 'F2', color: palette.primary },
-    { text: 'Treasurer', x: 130, y: 104, size: 11 },
-    { text: 'Scoring Official', x: 365, y: 104, size: 11 },
-    { text: 'Match Referee', x: 630, y: 104, size: 11 },
-    { text: 'Verification Link', x: 110, y: 118, size: 9, font: 'F2', color: palette.primary },
-    { text: 'QR/URL', x: 708, y: 118, size: 9, font: 'F2', color: palette.primary },
-  ];
-  verificationLines.forEach((line, index) => {
-    certificateLines.push({ text: line, x: 110, y: 103 - (index * 12), size: 8.5, color: [0.2, 0.2, 0.2] });
-  });
+  const verificationLines = splitTextByWidth(`Verify: ${verificationTarget}`, 640, 9);
 
   const signatureMetadata = (() => {
     try {
@@ -97,49 +75,60 @@ function buildCertificatePdf(item: CertificateRecord) {
     }
   })();
 
+  const lines: PdfTextLine[] = [
+    { text: 'CRICKET CLUB OF EXCELLENCE', x: centerTextX('CRICKET CLUB OF EXCELLENCE', 14, width), y: 544, size: 14, color: palette.bg },
+    { text: 'CHAMPIONSHIP CERTIFICATE OF RECOGNITION', x: centerTextX('CHAMPIONSHIP CERTIFICATE OF RECOGNITION', 30, width), y: 488, size: 30, font: 'F2', color: palette.primary },
+    { text: 'This certificate is presented with pride to', x: centerTextX('This certificate is presented with pride to', 15, width), y: 446, size: 15, color: palette.text },
+    { text: item.recipient_name, x: centerTextX(item.recipient_name, recipientFontSize, width), y: 388, size: recipientFontSize, font: 'F2', color: palette.primary },
+    { text: item.title, x: centerTextX(item.title, titleFontSize, width), y: 352, size: titleFontSize, color: palette.text },
+
+    { text: `Tournament: ${metadata.tournament || item.tournament_id || 'N/A'}`, x: 82, y: 265, size: 12, color: palette.text },
+    { text: `Season: ${metadata.seasonYear || item.season_id || 'N/A'}`, x: 82, y: 244, size: 12, color: palette.text },
+    { text: `Issue Date: ${formatInIST(item.generated_at)}`, x: 82, y: 223, size: 12, color: palette.text },
+    { text: `Certificate ID: ${item.certificate_id}`, x: 460, y: 265, size: 11, color: palette.text },
+    { text: `Verification Token: ${item.verification_token || 'N/A'}`, x: 460, y: 244, size: 10, color: palette.text },
+    { text: `SHA-256 Digest: ${item.security_hash}`, x: 82, y: 204, size: 8.5, color: [0.22, 0.22, 0.22] },
+
+    { text: 'Verification Link', x: 82, y: 174, size: 9, font: 'F2', color: palette.primary },
+    { text: 'Authorized Signatories', x: centerTextX('Authorized Signatories', 14, width), y: 162, size: 14, font: 'F2', color: palette.primary },
+    { text: 'Treasurer', x: 120, y: 88, size: 11, color: palette.text },
+    { text: 'Scoring Official', x: 355, y: 88, size: 11, color: palette.text },
+    { text: 'Match Referee', x: 615, y: 88, size: 11, color: palette.text },
+  ];
+
+  verificationLines.forEach((line, index) => {
+    lines.push({ text: line, x: 82, y: 158 - (index * 11), size: 8.5, color: [0.24, 0.24, 0.24] });
+  });
+
   signatureMetadata.forEach((entry: { role?: string; signerName?: string; signedAt?: string }, index: number) => {
     if (index > 2 || !entry?.role || !entry?.signerName) return;
-    const x = [90, 325, 590][index];
-    certificateLines.push({
-      text: `${entry.signerName} • ${entry.role}`,
-      x,
-      y: 122,
-      size: 10,
-      color: [0.25, 0.25, 0.25],
-    });
+    const x = [88, 323, 583][index];
+    lines.push({ text: `${entry.signerName}`, x, y: 108, size: 10, color: [0.2, 0.2, 0.2] });
+    lines.push({ text: `${entry.role}`, x, y: 96, size: 9, color: [0.28, 0.28, 0.28] });
     if (entry.signedAt) {
-      certificateLines.push({
-        text: formatInIST(entry.signedAt),
-        x,
-        y: 112,
-        size: 9,
-        color: [0.35, 0.35, 0.35],
-      });
+      lines.push({ text: formatInIST(entry.signedAt), x, y: 84, size: 8.5, color: [0.34, 0.34, 0.34] });
     }
   });
 
   const background = [
     `${palette.bg.join(' ')} rg 0 0 ${width} ${height} re f`,
-    `${palette.accent.join(' ')} RG 5 w 24 24 ${width - 48} ${height - 48} re S`,
-    `${palette.primary.join(' ')} RG 1.5 w 36 36 ${width - 72} ${height - 72} re S`,
-    `${palette.primary.join(' ')} rg 43 508 756 40 re f`,
-    `${palette.accent.join(' ')} rg 43 47 756 16 re f`,
-    `${palette.accent.join(' ')} RG 1.5 w 95 145 190 0 m S 330 145 190 0 m S 595 145 190 0 m S`,
-    `${palette.accent.join(' ')} rg 70 320 36 36 re f`,
-    `${palette.primary.join(' ')} RG 0.8 w 72 235 700 80 re S`,
-    `${palette.primary.join(' ')} RG 0.8 w 90 70 620 56 re S`,
-    `${palette.primary.join(' ')} RG 0.8 w 312 86 220 68 re S`,
-    `${palette.primary.join(' ')} RG 0.8 w 552 86 220 68 re S`,
-    `${palette.primary.join(' ')} RG 0.8 w 675 72 84 52 re S`,
-    `${palette.accent.join(' ')} rg 683 80 14 14 re f 707 80 14 14 re f 731 80 14 14 re f 683 104 14 14 re f 731 104 14 14 re f`,
+    `${palette.accent.join(' ')} RG 5 w 18 18 ${width - 36} ${height - 36} re S`,
+    `${palette.primary.join(' ')} RG 1.25 w 30 30 ${width - 60} ${height - 60} re S`,
+    `${palette.primary.join(' ')} rg 30 520 ${width - 60} 38 re f`,
+    `${palette.accent.join(' ')} rg 30 34 ${width - 60} 14 re f`,
+    `${palette.primary.join(' ')} RG 0.8 w 68 185 706 94 re S`,
+    `${palette.primary.join(' ')} RG 0.8 w 68 56 706 116 re S`,
+    `${palette.accent.join(' ')} RG 1.1 w 88 118 188 0 m S 323 118 188 0 m S 583 118 188 0 m S`,
+    `${palette.primary.join(' ')} RG 0.9 w 78 74 200 58 re S`,
+    `${palette.primary.join(' ')} RG 0.9 w 313 74 200 58 re S`,
+    `${palette.primary.join(' ')} RG 0.9 w 573 74 200 58 re S`,
   ];
 
   const watermark = isPending
     ? [
       'q',
-      '0.88 0.2 0.2 rg',
-      '0.18 0.18 0.18 RG',
-      'BT /F2 52 Tf 1 0 0 1 215 305 Tm (PENDING APPROVAL) Tj ET',
+      '0.86 0.2 0.2 rg',
+      'BT /F2 52 Tf 1 0 0 1 230 304 Tm (PENDING APPROVAL) Tj ET',
       'Q',
     ]
     : [];
@@ -147,7 +136,7 @@ function buildCertificatePdf(item: CertificateRecord) {
   const contentOps = [
     ...background,
     ...watermark,
-    ...certificateLines.map(drawText),
+    ...lines.map(drawText),
   ];
   const textStream = contentOps.join('\n');
   const objects = [

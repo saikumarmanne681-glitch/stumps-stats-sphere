@@ -26,6 +26,14 @@ const AuthContext = createContext<AuthContextType>({
   isManagement: false,
 });
 
+type AdminCredentialRow = {
+  admin_id?: string;
+  username?: string;
+  password?: string;
+  name?: string;
+  status?: string;
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const ADMIN_USERNAME = 'admin';
@@ -34,6 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isActiveStatus = (status?: string) => {
     const normalized = String(status || '').trim().toLowerCase();
     return normalized === '' || normalized === 'active';
+  };
+
+  const createAdminSession = (displayName?: string) => {
+    const u: AuthUser = { type: "admin", username: ADMIN_USERNAME, name: getAdminAlias() || displayName || 'Administrator' };
+    setUser(u);
+    localStorage.setItem("cricketUser", JSON.stringify(u));
+    startHeartbeat("admin");
+    return true;
   };
 
   useEffect(() => {
@@ -52,9 +68,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string, role: "admin" | "player" | "management"): Promise<boolean> => {
     if (role === "admin") {
-      const managementUsers = await v2api.getManagementUsers();
       const normalizedInput = username.toLowerCase().trim();
       const normalizedSecret = password.trim();
+
+      // Primary admin source: dedicated ADMIN_CREDENTIALS sheet.
+      const adminCredentials = await v2api.getAdminCredentials();
+      const adminAccount = adminCredentials.find((row: AdminCredentialRow) => {
+        if (!isActiveStatus(row.status)) return false;
+        const usernameMatch = String(row.username || '').toLowerCase().trim() === normalizedInput;
+        const idMatch = String(row.admin_id || '').toLowerCase().trim() === normalizedInput;
+        return (usernameMatch || idMatch) && String(row.password || '').trim() === normalizedSecret;
+      });
+      if (adminAccount) {
+        return createAdminSession(adminAccount.name);
+      }
+
+      // Backwards compatibility: allow admin users from MANAGEMENT_USERS.
+      const managementUsers = await v2api.getManagementUsers();
       const adminUser = managementUsers.find((m) => {
         if (!isActiveStatus(m.status)) return false;
         const usernameMatch = String(m.username || '').toLowerCase().trim() === normalizedInput;
@@ -63,11 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return (usernameMatch || idMatch) && roleMatch && String(m.password || '').trim() === normalizedSecret;
       });
       if (adminUser) {
-        const u: AuthUser = { type: "admin", username: ADMIN_USERNAME, name: getAdminAlias() || adminUser.name };
-        setUser(u);
-        localStorage.setItem("cricketUser", JSON.stringify(u));
-        startHeartbeat("admin");
-        return true;
+        return createAdminSession(adminUser.name);
       }
       return false;
     }
