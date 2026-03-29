@@ -113,7 +113,13 @@ export function Navbar() {
             <span className="text-sm text-muted-foreground">
               Hi, <strong>{user.name}</strong>
             </span>
-            <Button variant="ghost" size="sm" onClick={() => { logout(); navigate('/'); close(); }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Log out"
+              title="Log out"
+              onClick={() => { logout(); navigate('/'); close(); }}
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -141,7 +147,14 @@ export function Navbar() {
         <div className="md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Open navigation menu"
+                title="Open navigation menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-72 pt-10">
               <NavItems mobile />
