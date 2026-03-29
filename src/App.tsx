@@ -37,6 +37,7 @@ import { RequireAuth } from '@/components/RequireAuth';
 import DocumentsPortalPage from './pages/DocumentsPortalPage';
 import CertificateVerifyPage from './pages/CertificateVerifyPage';
 import AdminWorkQueuePage from './pages/AdminWorkQueuePage';
+import TeamsDashboardPage from './pages/TeamsDashboardPage';
 
 const queryClient = new QueryClient();
 
@@ -119,6 +120,7 @@ const App = () => (
             <Route path="/tournament/:id" element={<TournamentPage />} />
             <Route path="/verify-scorelist/:id" element={<VerifyScorelist />} />
             <Route path="/management" element={<ManagementPage />} />
+            <Route path="/management/teams-dashboard" element={<RequireAuth><TeamsDashboardPage /></RequireAuth>} />
             <Route path="/elections" element={<RequireAuth><FeatureAccessRoute feature="elections" title="Elections are currently closed" backHref="/"><ElectionsPage /></FeatureAccessRoute></RequireAuth>} />
             <Route path="/tournaments" element={<RequireAuth><TournamentsHubPage /></RequireAuth>} />
             <Route path="/tournaments/registration/:id" element={<RequireAuth><FeatureAccessRoute feature="tournament_registration" title="Tournament registration is currently closed" backHref="/tournaments"><RegistrationTournamentPage /></FeatureAccessRoute></RequireAuth>} />

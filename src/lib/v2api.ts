@@ -1,4 +1,4 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, CertificateRecord } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, CertificateRecord, TeamProfile, TeamTitleRecord } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 
@@ -155,6 +155,17 @@ export const v2api = {
   addCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'add', certificate),
   updateCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'update', certificate),
   deleteCertificate: (certificateId: string) => writeV2Sheet('CERTIFICATES', 'delete', { certificate_id: certificateId }),
+
+  // Teams dashboard (optional new sheets; safe to keep empty)
+  getTeamProfiles: () => fetchV2Sheet<TeamProfile>('TEAM_PROFILES'),
+  addTeamProfile: (team: TeamProfile) => writeV2Sheet('TEAM_PROFILES', 'add', team),
+  updateTeamProfile: (team: TeamProfile) => writeV2Sheet('TEAM_PROFILES', 'update', team),
+  deleteTeamProfile: (teamId: string) => writeV2Sheet('TEAM_PROFILES', 'delete', { team_id: teamId }),
+
+  getTeamTitles: () => fetchV2Sheet<TeamTitleRecord>('TEAM_TITLES'),
+  addTeamTitle: (title: TeamTitleRecord) => writeV2Sheet('TEAM_TITLES', 'add', title),
+  updateTeamTitle: (title: TeamTitleRecord) => writeV2Sheet('TEAM_TITLES', 'update', title),
+  deleteTeamTitle: (titleId: string) => writeV2Sheet('TEAM_TITLES', 'delete', { title_id: titleId }),
 };
 
 // Helper to create IST timestamp
