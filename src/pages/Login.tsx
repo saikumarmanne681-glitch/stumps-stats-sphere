@@ -28,7 +28,7 @@ const Login = () => {
     setLoading(false);
     if (success) {
       toast({ title: 'Welcome!', description: `Logged in as ${username}` });
-      navigate(type === 'admin' ? '/admin' : type === 'management' ? '/management' : '/player');
+      navigate(type === 'admin' ? '/admin' : type === 'management' ? '/management/teams-dashboard' : '/player');
     } else {
       toast({ title: 'Login Failed', description: 'Invalid credentials', variant: 'destructive' });
     }

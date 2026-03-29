@@ -223,6 +223,37 @@ export interface CertificateRecord {
   delivery_status: 'not_sent' | 'sent_to_player';
 }
 
+
+
+export interface TeamProfile {
+  team_id: string;
+  team_name: string;
+  short_name: string;
+  captain_name: string;
+  coach_name: string;
+  home_ground: string;
+  founded_year: string;
+  primary_color: string;
+  secondary_color: string;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamTitleRecord {
+  title_id: string;
+  team_id: string;
+  team_name: string;
+  competition_name: string;
+  tournament_id: string;
+  season_id: string;
+  season_label: string;
+  result_type: 'winner' | 'runner_up';
+  won_on: string;
+  notes: string;
+  created_at: string;
+}
+
 export interface OfficialDocumentRecord {
   document_id: string;
   title: string;

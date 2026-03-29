@@ -12,4 +12,7 @@ export const queryKeys = {
   messages: ['messages'] as const,
   timeline: ['timeline'] as const,
   timelineByMatch: (matchId: string) => ['timeline', 'match', matchId] as const,
+  teams: ['teams'] as const,
+  teamTitles: ['teams', 'titles'] as const,
+  teamSupportTickets: ['teams', 'support-tickets'] as const,
 };
