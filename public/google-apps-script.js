@@ -636,12 +636,13 @@ function doPost(e) {
   const sheet = getOrCreateSheet(ss, tabName);
   const headers = TABS[tabName];
   const keyCol = getKeyColumn(tabName);
+  const spreadsheetTimeZone = ss.getSpreadsheetTimeZone ? ss.getSpreadsheetTimeZone() : Session.getScriptTimeZone();
 
   function normalizeSheetValue(header, value) {
     if (value === null || value === undefined) return "";
     if (value instanceof Date) {
       if (["date", "start_date", "end_date"].indexOf(header) !== -1) {
-        return Utilities.formatDate(value, Session.getScriptTimeZone(), "yyyy-MM-dd");
+        return Utilities.formatDate(value, spreadsheetTimeZone, "yyyy-MM-dd");
       }
       return value.toISOString();
     }
