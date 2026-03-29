@@ -60,12 +60,12 @@ const Login = () => {
 
               <TabsContent value="admin" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label>Username</Label>
-                  <Input placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} />
+                  <Label htmlFor="admin-username">Username</Label>
+                  <Input id="admin-username" placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Password</Label>
-                  <Input type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                  <Label htmlFor="admin-password">Password</Label>
+                  <Input id="admin-password" type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
                 <p className="text-xs text-muted-foreground">Admin credentials are read from the <span className="font-semibold">ADMIN_CREDENTIALS</span> sheet (columns: admin_id, username, password, name, status).</p>
                 <Button className="w-full" onClick={() => handleLogin('admin')} disabled={loading}>
@@ -75,12 +75,12 @@ const Login = () => {
 
               <TabsContent value="player" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label>Username</Label>
-                  <Input placeholder="your username" value={username} onChange={e => setUsername(e.target.value)} />
+                  <Label htmlFor="player-username">Username</Label>
+                  <Input id="player-username" placeholder="your username" value={username} onChange={e => setUsername(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Password</Label>
-                  <Input type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                  <Label htmlFor="player-password">Password</Label>
+                  <Input id="player-password" type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
                 <Button className="w-full" onClick={() => handleLogin('player')} disabled={loading}>
                   {loading ? 'Logging in...' : 'Login as Player'}
@@ -89,12 +89,12 @@ const Login = () => {
 
               <TabsContent value="management" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label>Username</Label>
-                  <Input placeholder="management username" value={username} onChange={e => setUsername(e.target.value)} />
+                  <Label htmlFor="management-username">Username</Label>
+                  <Input id="management-username" placeholder="management username" value={username} onChange={e => setUsername(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Password</Label>
-                  <Input type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                  <Label htmlFor="management-password">Password</Label>
+                  <Input id="management-password" type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
                 <Button className="w-full" onClick={() => handleLogin('management')} disabled={loading}>
                   {loading ? 'Logging in...' : 'Login as Management'}
