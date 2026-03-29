@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { v2api } from '@/lib/v2api';
 import { AuditEvent } from '@/lib/v2types';
 import { useData } from '@/lib/DataContext';
-import { Loader2, Search, Shield, Sparkles } from 'lucide-react';
+import { Download, Loader2, Search, Shield, Sparkles } from 'lucide-react';
 import { formatInIST } from '@/lib/time';
 
 export function AdminAuditLog() {
@@ -57,6 +57,38 @@ export function AdminAuditLog() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const todayCount = events.filter((event) => String(event.timestamp).includes(new Date().getFullYear().toString())).length;
 
+  const downloadDetailedReport = (scope: 'filtered' | 'all') => {
+    const rows = scope === 'filtered' ? filtered : events;
+    const report = {
+      generated_at: new Date().toISOString(),
+      scope,
+      total_events: events.length,
+      included_events: rows.length,
+      active_filters: { searchQuery, filterType },
+      event_breakdown: rows.reduce<Record<string, number>>((acc, event) => {
+        acc[event.event_type] = (acc[event.event_type] || 0) + 1;
+        return acc;
+      }, {}),
+      actor_breakdown: rows.reduce<Record<string, number>>((acc, event) => {
+        acc[getActorName(event.actor_user)] = (acc[getActorName(event.actor_user)] || 0) + 1;
+        return acc;
+      }, {}),
+      events: rows.map((event) => ({
+        ...event,
+        actor_name: getActorName(event.actor_user),
+        metadata_parsed: parseMetadata(event.metadata),
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `audit-report-${scope}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     setPage(0);
   }, [filterType, searchQuery]);
@@ -97,6 +129,14 @@ export function AdminAuditLog() {
               <div>
                 <Label className="text-xs">Event Type</Label>
                 <Select value={filterType} onValueChange={setFilterType}><SelectTrigger className="w-48 rounded-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Types</SelectItem>{eventTypes.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select>
+              </div>
+              <div className="flex items-end gap-2">
+                <Button variant="outline" className="rounded-full" onClick={() => downloadDetailedReport('filtered')}>
+                  <Download className="mr-2 h-4 w-4" /> Export filtered report
+                </Button>
+                <Button className="rounded-full" onClick={() => downloadDetailedReport('all')}>
+                  <Download className="mr-2 h-4 w-4" /> Export complete report
+                </Button>
               </div>
             </div>
           </div>

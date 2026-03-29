@@ -63,7 +63,7 @@ const RegistrationTournamentPage = () => {
   }, {});
 
   if (!user) return <Navigate to="/login" replace />;
-  if (!accessLoading && registrationClosed && user.type !== 'admin') {
+  if (!accessLoading && registrationClosed) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />

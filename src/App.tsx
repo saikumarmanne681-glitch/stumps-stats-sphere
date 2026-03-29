@@ -81,7 +81,7 @@ const FeatureAccessRoute = ({
   if (loading) {
     return <div className="min-h-[30vh] grid place-items-center text-sm text-muted-foreground">Checking access policy…</div>;
   }
-  if (closed && user?.type !== 'admin') {
+  if (closed) {
     return (
       <ClosedAccessScreen
         title={title}
