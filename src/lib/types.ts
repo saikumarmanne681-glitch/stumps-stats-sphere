@@ -115,9 +115,11 @@ export interface Message {
 }
 
 export interface AuthUser {
-  type: 'admin' | 'player' | 'management';
+  type: 'admin' | 'player' | 'management' | 'team';
   player_id?: string;
   management_id?: string;
+  team_id?: string;
+  team_name?: string;
   username: string;
   name?: string;
   designation?: string;

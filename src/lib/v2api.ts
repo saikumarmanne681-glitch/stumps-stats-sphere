@@ -1,4 +1,4 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, CertificateRecord, TeamProfile, TeamTitleRecord } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, CertificateRecord, TeamProfile, TeamTitleRecord, TeamAccessUser } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 
@@ -166,6 +166,11 @@ export const v2api = {
   addTeamTitle: (title: TeamTitleRecord) => writeV2Sheet('TEAM_TITLES', 'add', title),
   updateTeamTitle: (title: TeamTitleRecord) => writeV2Sheet('TEAM_TITLES', 'update', title),
   deleteTeamTitle: (titleId: string) => writeV2Sheet('TEAM_TITLES', 'delete', { title_id: titleId }),
+
+  getTeamAccessUsers: () => fetchV2Sheet<TeamAccessUser>('TEAM_ACCESS_USERS'),
+  addTeamAccessUser: (teamUser: TeamAccessUser) => writeV2Sheet('TEAM_ACCESS_USERS', 'add', teamUser),
+  updateTeamAccessUser: (teamUser: TeamAccessUser) => writeV2Sheet('TEAM_ACCESS_USERS', 'update', teamUser),
+  deleteTeamAccessUser: (teamAccessId: string) => writeV2Sheet('TEAM_ACCESS_USERS', 'delete', { team_access_id: teamAccessId }),
 };
 
 // Helper to create IST timestamp

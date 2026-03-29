@@ -7,7 +7,7 @@ import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Datab
 import { CommandPalette } from '@/components/CommandPalette';
 
 export function Navbar() {
-  const { user, logout, isAdmin, isPlayer, isManagement } = useAuth();
+  const { user, logout, isAdmin, isPlayer, isManagement, isTeam } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -43,7 +43,7 @@ export function Navbar() {
           </Button>
         )}
 
-        {(isPlayer || isManagement) && (
+        {(isPlayer || isManagement || isTeam) && (
           <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
             <Link to="/news-room"><Newspaper className="h-4 w-4 mr-1" /> News Room</Link>
           </Button>
@@ -97,14 +97,16 @@ export function Navbar() {
           </Button>
         )}
 
-        {isManagement && (
+        {(isManagement || isTeam) && (
           <>
             <Button variant="outline" size="sm" className={navBtnClass} asChild onClick={close}>
-              <Link to="/management"><LayoutDashboard className="h-4 w-4 mr-1" /> Management</Link>
+              <Link to={isTeam ? "/management/teams-dashboard" : "/management"}><LayoutDashboard className="h-4 w-4 mr-1" /> {isTeam ? 'Team Dashboard' : 'Management'}</Link>
             </Button>
-            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
-              <Link to="/admin/scorelists"><Shield className="h-4 w-4 mr-1" /> Scorelists</Link>
-            </Button>
+            {isManagement && (
+              <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
+                <Link to="/admin/scorelists"><Shield className="h-4 w-4 mr-1" /> Scorelists</Link>
+              </Button>
+            )}
           </>
         )}
 

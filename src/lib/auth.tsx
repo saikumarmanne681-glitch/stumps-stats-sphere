@@ -6,13 +6,14 @@ import { v2api } from "./v2api";
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (username: string, password: string, role: "admin" | "player" | "management") => Promise<boolean>;
+  login: (username: string, password: string, role: "admin" | "player" | "management" | "team") => Promise<boolean>;
   logout: () => void;
   updateAdminProfile: (updates: { aliasName?: string }) => void;
   getAdminAlias: () => string;
   isAdmin: boolean;
   isPlayer: boolean;
   isManagement: boolean;
+  isTeam: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   isPlayer: false,
   isManagement: false,
+  isTeam: false,
 });
 
 type AdminCredentialRow = {
@@ -66,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (username: string, password: string, role: "admin" | "player" | "management"): Promise<boolean> => {
+  const login = async (username: string, password: string, role: "admin" | "player" | "management" | "team"): Promise<boolean> => {
     if (role === "admin") {
       const normalizedInput = username.toLowerCase().trim();
       const normalizedSecret = password.trim();
@@ -114,6 +116,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
       }
       return false;
+    }
+
+    if (role === "team") {
+      const teamUsers = await v2api.getTeamAccessUsers();
+      const teamUser = teamUsers.find((t) => {
+        if (!isActiveStatus(t.status)) return false;
+        const normalizedInput = username.toLowerCase().trim();
+        const usernameMatch = String(t.username || '').toLowerCase().trim() === normalizedInput;
+        const teamNameMatch = String(t.team_name || '').toLowerCase().trim() === normalizedInput;
+        const teamIdMatch = String(t.team_id || '').toLowerCase().trim() === normalizedInput;
+        return (usernameMatch || teamNameMatch || teamIdMatch) && String(t.password || '').trim() === password.trim();
+      });
+      if (!teamUser) return false;
+      const u: AuthUser = {
+        type: "team",
+        username: teamUser.username,
+        team_id: teamUser.team_id,
+        team_name: teamUser.team_name,
+        name: teamUser.team_name,
+      };
+      setUser(u);
+      localStorage.setItem("cricketUser", JSON.stringify(u));
+      startHeartbeat(teamUser.team_id || teamUser.team_access_id);
+      return true;
     }
 
     const managementUsers = await v2api.getManagementUsers();
@@ -188,6 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: user?.type === "admin",
         isPlayer: user?.type === "player",
         isManagement: user?.type === "management",
+        isTeam: user?.type === "team",
       }}
     >
       {children}
