@@ -5,6 +5,7 @@ import { logAudit, v2api } from '@/lib/v2api';
 import { ScheduleApprovalRecord, ScheduleAuditLog, ScheduleDiffEntry, ScheduleMatch, ScheduleRecord } from './types';
 import { getScheduleDetailedStatus } from '@/lib/workflowStatus';
 import { compareTimestampsDesc, formatInIST, formatScheduleSlotInIST, nowIso } from '@/lib/time';
+import { sendSystemEmail } from '@/lib/mailer';
 
 const STORAGE = {
   schedules: 'club:schedules',
@@ -164,6 +165,24 @@ export const scheduleService = {
     write(STORAGE.schedules, updated);
     const changed = updated.find((item) => item.schedule_id === scheduleId);
     if (changed) await safeSyncRow('update', SHEETS.schedules, changed);
+    try {
+      const management = await v2api.getManagementUsers();
+      const firstRole = scheduleApproverRoles[0];
+      const recipients = management.filter((member) => member.designation === firstRole && String(member.status || 'active').toLowerCase() !== 'inactive' && !!String(member.email || '').trim());
+      await Promise.all(recipients.map((recipient) => sendSystemEmail({
+        to: String(recipient.email || ''),
+        subject: `Schedule approval required: ${changed?.tournament_name || scheduleId}`,
+        htmlBody: `<p>Dear ${recipient.name || recipient.designation},</p><p>A schedule version is pending your approval.</p><p><strong>Schedule ID:</strong> ${scheduleId}<br/><strong>Tournament:</strong> ${changed?.tournament_name || ''}</p><p>Please log in to the management portal to review and approve.</p>`,
+        diagnostics: {
+          triggerSource: 'schedule_approval_request',
+          triggerEntityType: 'schedule',
+          triggerEntityId: scheduleId,
+          triggeredBy: getActorName(user),
+        },
+      })));
+    } catch {
+      // Non-blocking mail path.
+    }
     appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: scheduleId, action: 'submit_schedule_for_approval', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: nowIso(), details: JSON.stringify({ status: 'pending_approval' }) });
   },
   async approveSchedule(scheduleId: string, comments: string, user: AuthUser) {

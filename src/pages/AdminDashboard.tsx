@@ -19,6 +19,8 @@ import { AdminGovernance } from '@/components/admin/AdminGovernance';
 import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
 import { AdminCertificates } from '@/components/admin/AdminCertificates';
 import { AdminMailDiagnostics } from '@/components/admin/AdminMailDiagnostics';
+import { AdminSheetsConsole } from '@/components/admin/AdminSheetsConsole';
+import { AdminApprovalsRealtime } from '@/components/admin/AdminApprovalsRealtime';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -88,11 +90,17 @@ const AdminDashboard = () => {
             <TabsTrigger value="governance" className="flex items-center gap-1 text-xs">
               <Vote className="h-3 w-3" /> Governance
             </TabsTrigger>
+            <TabsTrigger value="approvals-live" className="flex items-center gap-1 text-xs">
+              <Shield className="h-3 w-3" /> Approvals Live
+            </TabsTrigger>
             <TabsTrigger value="newsroom" className="flex items-center gap-1 text-xs">
               <Newspaper className="h-3 w-3" /> News Room
             </TabsTrigger>
             <TabsTrigger value="certificates" className="flex items-center gap-1 text-xs">
               <Trophy className="h-3 w-3" /> Certificates
+            </TabsTrigger>
+            <TabsTrigger value="sheets" className="flex items-center gap-1 text-xs">
+              <Settings className="h-3 w-3" /> Sheets Console
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-1 text-xs">
               <Settings className="h-3 w-3" /> Settings
@@ -111,8 +119,10 @@ const AdminDashboard = () => {
           <TabsContent value="audit"><AdminAuditLog /></TabsContent>
           <TabsContent value="mail-diagnostics"><AdminMailDiagnostics /></TabsContent>
           <TabsContent value="governance"><AdminGovernance /></TabsContent>
+          <TabsContent value="approvals-live"><AdminApprovalsRealtime /></TabsContent>
           <TabsContent value="newsroom"><AdminNewsRoom /></TabsContent>
           <TabsContent value="certificates"><AdminCertificates /></TabsContent>
+          <TabsContent value="sheets"><AdminSheetsConsole /></TabsContent>
           <TabsContent value="settings"><AdminSettings /></TabsContent>
         </Tabs>
       </div>

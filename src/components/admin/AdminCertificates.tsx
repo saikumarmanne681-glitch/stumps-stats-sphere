@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ShieldCheck, Trophy, Medal, Award, Download, Eye, FileText, PaintBucket } from 'lucide-react';
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 import { resolvePlayerFromIdentity } from '@/lib/dataUtils';
+import { sendSystemEmail } from '@/lib/mailer';
 
 type CertType = CertificateRecord['certificate_type'];
 type CertTemplate = CertificateRecord['certificate_template'];
@@ -216,6 +217,20 @@ export function AdminCertificates() {
       return;
     }
     logAudit('admin', 'certificate_generate', 'certificate', certificate.certificate_id, JSON.stringify({ type, seasonId, recipient, template }));
+    const management = await v2api.getManagementUsers();
+    const requiredRoles = ['Treasurer', 'Scoring Official', 'Match Referee'];
+    const mailTargets = management.filter((member) => requiredRoles.includes(String(member.designation || '')) && !!String(member.email || '').trim());
+    await Promise.all(mailTargets.map((member) => sendSystemEmail({
+      to: String(member.email || ''),
+      subject: `Certificate approval required: ${certificate.certificate_id}`,
+      htmlBody: `<p>Dear ${member.name || member.designation},</p><p>A certificate is waiting for your approval signature.</p><p><strong>Certificate ID:</strong> ${certificate.certificate_id}<br/><strong>Recipient:</strong> ${certificate.recipient_name}<br/><strong>Type:</strong> ${certificate.title}</p><p>Please sign in to Management and approve it.</p>`,
+      diagnostics: {
+        triggerSource: 'certificate_approval_request',
+        triggerEntityType: 'certificate',
+        triggerEntityId: certificate.certificate_id,
+        triggeredBy: 'admin',
+      },
+    })));
     toast({ title: 'Certificate generated', description: 'Sent to signature approval workflow.' });
     setPreview(certificate);
     refresh();

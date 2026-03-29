@@ -671,9 +671,17 @@ function doPost(e) {
         return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Duplicate registration" })).setMimeType(ContentService.MimeType.JSON);
       }
     }
+    const incomingKey = keyCol ? data[keyCol] : "";
+    const existingRowIdx = incomingKey ? findRowIndex(sheet, keyCol, incomingKey) : -1;
     const row = headers.map((h) => normalizeSheetValue(h, data[h]));
+    if (existingRowIdx !== -1) {
+      // Global upsert behavior:
+      // when same key already exists, overwrite row instead of inserting duplicates.
+      sheet.getRange(existingRowIdx, 1, 1, headers.length).setValues([row]);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, mode: "overwrite" })).setMimeType(ContentService.MimeType.JSON);
+    }
     sheet.appendRow(row);
-    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ success: true, mode: "insert" })).setMimeType(ContentService.MimeType.JSON);
   }
 
   if (action === "update") {
