@@ -1,6 +1,7 @@
 import { Match, BattingScorecard, BowlingScorecard, Player, Tournament, Season } from "./types";
 import { DigitalScorelist } from "./v2types";
 import { v2api, istNow, logAudit } from "./v2api";
+import { getAppsScriptUrl } from "./googleSheets";
 
 async function sha256(text: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -11,6 +12,24 @@ async function sha256(text: string): Promise<string> {
 }
 
 async function sign(payload: string, hash: string): Promise<string> {
+  const url = getAppsScriptUrl();
+  if (url) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "signScorelist", data: { payload_hash: hash, payload_length: payload.length } }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result?.success && typeof result?.signature === "string" && result.signature.trim()) {
+          return result.signature;
+        }
+      }
+    } catch {
+      // fallback retained for compatibility with older Apps Script deployments
+    }
+  }
   const secret = "CRICKET_CLUB_SCORELIST_SECRET_v2";
   return sha256(hash + secret + payload.length.toString());
 }
@@ -147,6 +166,31 @@ export async function verifyScorelist(scorelist: DigitalScorelist): Promise<{ va
 
   if (recomputedHash !== scorelist.hash_digest) {
     return { valid: false, reason: "Hash mismatch — payload has been tampered with" };
+  }
+
+  const url = getAppsScriptUrl();
+  if (url) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          action: "verifyScorelistSignature",
+          data: { payload_hash: recomputedHash, payload_length: scorelist.payload_json.length, signature: scorelist.signature },
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result?.success === true && result?.valid === false) {
+          return { valid: false, reason: "Signature invalid — verification service rejected document" };
+        }
+        if (result?.success === true && result?.valid === true) {
+          return { valid: true };
+        }
+      }
+    } catch {
+      // fallback to local verification below
+    }
   }
 
   const recomputedSig = await sign(scorelist.payload_json, recomputedHash);

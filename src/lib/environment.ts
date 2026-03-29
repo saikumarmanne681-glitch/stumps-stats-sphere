@@ -12,10 +12,20 @@
 
 export type AppEnvironment = 'dev' | 'qa' | 'production';
 
+function readConfiguredEnvironment(): AppEnvironment | null {
+  const fromEnv = String(import.meta.env.VITE_APP_ENV || import.meta.env.MODE || '').toLowerCase().trim();
+  if (fromEnv === 'dev' || fromEnv === 'development') return 'dev';
+  if (fromEnv === 'qa' || fromEnv === 'test' || fromEnv === 'staging') return 'qa';
+  if (fromEnv === 'prod' || fromEnv === 'production') return 'production';
+  return null;
+}
+
 export function getAppEnvironment(): AppEnvironment {
+  const configured = readConfiguredEnvironment();
+  if (configured) return configured;
   const host = window.location.hostname.toLowerCase();
-  if (host.includes('localhost') || host.includes('dev')) return 'dev';
-  if (host.includes('qa') || host.includes('staging') || host.includes('test')) return 'qa';
+  if (host === 'localhost' || host.startsWith('localhost:') || host.startsWith('dev.') || host.includes('.dev.')) return 'dev';
+  if (host.startsWith('qa.') || host.includes('.qa.') || host.startsWith('staging.') || host.includes('.staging.') || host.startsWith('test.') || host.includes('.test.')) return 'qa';
   return 'production';
 }
 

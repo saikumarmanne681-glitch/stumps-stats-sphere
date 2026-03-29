@@ -31,13 +31,15 @@ export function AdminSettings() {
   const { updateAdminProfile, getAdminAlias } = useAuth();
   const [url, setUrl] = useState(getAppsScriptUrl());
   const [aliasName, setAliasName] = useState(getAdminAlias());
-  const [adminPassword, setAdminPassword] = useState('');
   const [adminEmail, setAdminEmail] = useState(getAdminMailboxEmail());
   const [adminEmailOtp, setAdminEmailOtp] = useState('');
   const [adminEmailRecord, setAdminEmailRecord] = useState<UserEmailLink | null>(null);
   const [adminMailEnabled, setAdminMailEnabled] = useState(isAdminMailboxEnabled());
   const [showAdminVerify, setShowAdminVerify] = useState(false);
   const [sendingAdminOtp, setSendingAdminOtp] = useState(false);
+  const [otpAttempts, setOtpAttempts] = useState(0);
+  const [otpLockedUntil, setOtpLockedUntil] = useState<number | null>(null);
+  const [otpCooldownUntil, setOtpCooldownUntil] = useState<number | null>(null);
   const [seeding, setSeeding] = useState(false);
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
   const [savingAccessSettings, setSavingAccessSettings] = useState(false);
@@ -45,6 +47,9 @@ export function AdminSettings() {
   const ADMIN_USER_ID = 'admin';
 
   const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+  const OTP_MAX_ATTEMPTS = 5;
+  const OTP_LOCK_MS = 15 * 60 * 1000;
+  const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 
   const refreshAdminEmail = async () => {
     const links = await v2api.getEmailLinks();
@@ -145,14 +150,17 @@ export function AdminSettings() {
       toast({ title: 'Error', description: 'Alias name cannot be empty', variant: 'destructive' });
       return;
     }
-    updateAdminProfile({ aliasName, password: adminPassword });
-    setAdminPassword('');
-    toast({ title: 'Admin profile updated', description: 'Alias and password were saved successfully.' });
+    updateAdminProfile({ aliasName });
+    toast({ title: 'Admin profile updated', description: 'Alias saved successfully.' });
   };
 
   const handleAdminEmailLink = async () => {
     if (!adminEmail.trim() || !adminEmail.includes('@')) {
       toast({ title: 'Enter a valid admin email', variant: 'destructive' });
+      return;
+    }
+    if (otpCooldownUntil && Date.now() < otpCooldownUntil) {
+      toast({ title: 'Please wait before requesting another OTP', variant: 'destructive' });
       return;
     }
     const cleanEmail = adminEmail.trim().toLowerCase();
@@ -181,6 +189,9 @@ export function AdminSettings() {
     setAdminMailboxStatus(cleanEmail, false);
     setAdminEmailRecord(payload);
     setShowAdminVerify(true);
+    setOtpAttempts(0);
+    setOtpLockedUntil(null);
+    setOtpCooldownUntil(Date.now() + OTP_RESEND_COOLDOWN_MS);
     logAudit(ADMIN_USER_ID, 'link_admin_email', 'user_email', ADMIN_USER_ID, cleanEmail);
     const mailResult = await sendOtpEmail({ to: cleanEmail, otp: token, expiresAt: expiry, userName: getAdminAlias() });
     if (!mailResult.success) {
@@ -193,10 +204,20 @@ export function AdminSettings() {
   };
 
   const handleVerifyAdminEmail = async () => {
+    if (otpLockedUntil && Date.now() < otpLockedUntil) {
+      toast({ title: 'Too many failed attempts. Try again later.', variant: 'destructive' });
+      return;
+    }
     const links = await v2api.getEmailLinks();
     const latest = links.find(l => l.user_id === ADMIN_USER_ID);
     if (!latest) return;
     if (adminEmailOtp.trim() !== String(latest.verification_token || '').trim()) {
+      const nextAttempts = otpAttempts + 1;
+      setOtpAttempts(nextAttempts);
+      if (nextAttempts >= OTP_MAX_ATTEMPTS) {
+        setOtpLockedUntil(Date.now() + OTP_LOCK_MS);
+        logAudit(ADMIN_USER_ID, 'verify_admin_email_locked', 'user_email', ADMIN_USER_ID, `failed_attempts=${nextAttempts}`);
+      }
       toast({ title: 'Invalid verification code', variant: 'destructive' });
       return;
     }
@@ -222,6 +243,8 @@ export function AdminSettings() {
       toast({ title: 'Email verified, but welcome mail failed', description: explainMailFailure(welcomeResult.reason, welcomeResult.raw), variant: 'destructive' });
     }
     setAdminEmailRecord(verifiedLink);
+    setOtpAttempts(0);
+    setOtpLockedUntil(null);
     setShowAdminVerify(false);
     setAdminEmailOtp('');
     toast({ title: 'Admin email verified and active' });
@@ -346,21 +369,12 @@ export function AdminSettings() {
       <Card>
         <CardHeader>
           <CardTitle className="font-display">👤 Admin Profile & Security</CardTitle>
-          <CardDescription>Update admin alias (UI display name) and reset admin password.</CardDescription>
+          <CardDescription>Update admin alias (UI display name).</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
             <Label>Admin Alias Name</Label>
             <Input value={aliasName} onChange={e => setAliasName(e.target.value)} placeholder="Administrator" />
-          </div>
-          <div>
-            <Label>Reset Admin Password</Label>
-            <Input
-              type="password"
-              value={adminPassword}
-              onChange={e => setAdminPassword(e.target.value)}
-              placeholder="Enter new password"
-            />
           </div>
           <Button onClick={handleAdminProfileSave}>Save Admin Profile</Button>
         </CardContent>
@@ -386,9 +400,12 @@ export function AdminSettings() {
             </div>
           </div>
           {showAdminVerify && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <Input value={adminEmailOtp} onChange={e => setAdminEmailOtp(e.target.value)} maxLength={6} placeholder="Enter OTP" className="max-w-[180px]" />
-              <Button variant="outline" onClick={handleVerifyAdminEmail}><ShieldCheck className="h-4 w-4 mr-1" /> Verify</Button>
+              <Button variant="outline" onClick={handleVerifyAdminEmail} disabled={!!otpLockedUntil && Date.now() < otpLockedUntil}><ShieldCheck className="h-4 w-4 mr-1" /> Verify</Button>
+              {otpLockedUntil && Date.now() < otpLockedUntil && (
+                <p className="text-xs text-destructive">Locked for repeated failed attempts</p>
+              )}
             </div>
           )}
           <div className="flex items-center justify-between border rounded-md px-3 py-2">

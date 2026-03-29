@@ -5,22 +5,32 @@ import { nowIso } from './time';
 async function fetchV2Sheet<T>(sheet: string): Promise<T[]> {
   const url = getAppsScriptUrl();
   if (!url) return [];
-  const res = await fetch(`${url}?action=get&sheet=${sheet}`);
-  const data = await res.json();
-  return (Array.isArray(data) ? data : []) as T[];
+  try {
+    const res = await fetch(`${url}?action=get&sheet=${sheet}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (Array.isArray(data) ? data : []) as T[];
+  } catch {
+    return [];
+  }
 }
 
 async function writeV2Sheet<T>(sheet: string, action: 'add' | 'update' | 'delete', payload: T): Promise<boolean> {
   const url = getAppsScriptUrl();
   if (!url) return false;
   const normalizedPayload = normalizeV2Payload(payload as Record<string, unknown>);
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action, sheet, data: normalizedPayload }),
-  });
-  const result = await res.json();
-  return result.success;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, sheet, data: normalizedPayload }),
+    });
+    if (!res.ok) return false;
+    const result = await res.json();
+    return !!result.success;
+  } catch {
+    return false;
+  }
 }
 
 function normalizeV2Payload(payload: Record<string, unknown>) {
@@ -39,13 +49,18 @@ export const v2api = {
   syncHeaders: async () => {
     const url = getAppsScriptUrl();
     if (!url) return false;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'syncHeaders' }),
-    });
-    const result = await res.json();
-    return !!result.success;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'syncHeaders' }),
+      });
+      if (!res.ok) return false;
+      const result = await res.json();
+      return !!result.success;
+    } catch {
+      return false;
+    }
   },
 
   // Generic custom sheet helpers for isolated feature modules
@@ -97,12 +112,17 @@ export const v2api = {
   sendOtpEmail: async (email: string, otp: string) => {
     const url = getAppsScriptUrl();
     if (!url) return { success: false, error: 'Apps Script URL is not configured' };
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'sendOtpEmail', data: { email, otp } }),
-    });
-    return res.json() as Promise<{ success: boolean; error?: string }>;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'sendOtpEmail', data: { email, otp } }),
+      });
+      if (!res.ok) return { success: false, error: `HTTP ${res.status}` };
+      return res.json() as Promise<{ success: boolean; error?: string }>;
+    } catch {
+      return { success: false, error: 'Network error' };
+    }
   },
 
   // Management Users

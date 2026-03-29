@@ -42,6 +42,13 @@ function buildRegistrationBandMarkup(scorelistId: string) {
     <div class="registration-band-rows">${rows}</div>
   </div>`;
 }
+const escapeHtml = (value: unknown) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 const stageLabels: Record<string, string> = scorelistStageLabels;
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
@@ -364,13 +371,13 @@ const AdminScorelistsPage = () => {
     );
 
     // Build HTML content for print-to-PDF
-    const batRows = (payload?.battingData || []).map((b: any) => 
-      `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right;font-weight:bold">${b.runs}</td><td style="text-align:right">${b.balls}</td><td style="text-align:right">${b.fours}</td><td style="text-align:right">${b.sixes}</td><td>${b.how_out || 'not out'}</td></tr>`
+    const batRows = (payload?.battingData || []).map((b: any) =>
+      `<tr><td>${escapeHtml(players.find(p => p.player_id === b.player_id)?.name || b.player_id)}</td><td>${escapeHtml(b.team)}</td><td style="text-align:right;font-weight:bold">${escapeHtml(b.runs)}</td><td style="text-align:right">${escapeHtml(b.balls)}</td><td style="text-align:right">${escapeHtml(b.fours)}</td><td style="text-align:right">${escapeHtml(b.sixes)}</td><td>${escapeHtml(b.how_out || 'not out')}</td></tr>`
     ).join('');
     const bowlRows = (payload?.bowlingData || []).map((b: any) =>
-      `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right">${b.overs}</td><td style="text-align:right">${b.maidens}</td><td style="text-align:right">${b.runs_conceded}</td><td style="text-align:right;font-weight:bold">${b.wickets}</td></tr>`
+      `<tr><td>${escapeHtml(players.find(p => p.player_id === b.player_id)?.name || b.player_id)}</td><td>${escapeHtml(b.team)}</td><td style="text-align:right">${escapeHtml(b.overs)}</td><td style="text-align:right">${escapeHtml(b.maidens)}</td><td style="text-align:right">${escapeHtml(b.runs_conceded)}</td><td style="text-align:right;font-weight:bold">${escapeHtml(b.wickets)}</td></tr>`
     ).join('');
-    const certRows = certs.map(c => `<tr><td>${c.approver_name}</td><td>${c.designation}</td><td>${stageLabels[c.stage] || c.stage.replace(/_/g, ' ')}</td><td>${formatInIST(c.timestamp)}</td><td style="font-family:monospace;font-size:10px">${c.token.substring(0,12)}</td></tr>`).join('');
+    const certRows = certs.map(c => `<tr><td>${escapeHtml(c.approver_name)}</td><td>${escapeHtml(c.designation)}</td><td>${escapeHtml(stageLabels[c.stage] || c.stage.replace(/_/g, ' '))}</td><td>${escapeHtml(formatInIST(c.timestamp))}</td><td style="font-family:monospace;font-size:10px">${escapeHtml(c.token.substring(0,12))}</td></tr>`).join('');
     const draftTimestamp = sl.generated_at || new Date().toISOString();
     const draftBy = sl.generated_by || 'System';
     const verifyUrl = getPublicVerifyScorelistUrl(sl.scorelist_id);
@@ -383,9 +390,9 @@ const AdminScorelistsPage = () => {
         <p>${feature.description}</p>
       </div>`).join('');
     const registrationBandMarkup = buildRegistrationBandMarkup(sl.scorelist_id);
-    const draftRow = `<tr><td>${draftBy}</td><td>Scorelist Engine</td><td>${stageLabels.draft}</td><td>${formatInIST(draftTimestamp)}</td><td style="font-family:monospace;font-size:10px">DRAFT</td></tr>`;
+    const draftRow = `<tr><td>${escapeHtml(draftBy)}</td><td>Scorelist Engine</td><td>${escapeHtml(stageLabels.draft)}</td><td>${escapeHtml(formatInIST(draftTimestamp))}</td><td style="font-family:monospace;font-size:10px">DRAFT</td></tr>`;
     const certTimelineRows = `${draftRow}${certRows}`;
-    const pendingRows = pendingApprovals.map((p) => `<tr><td>${p.name}</td><td>${p.designation}</td><td>${stageLabels[p.stage] || p.stage}</td><td>Pending with ${p.designation}</td></tr>`).join('');
+    const pendingRows = pendingApprovals.map((p) => `<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.designation)}</td><td>${escapeHtml(stageLabels[p.stage] || p.stage)}</td><td>Pending with ${escapeHtml(p.designation)}</td></tr>`).join('');
     
     const aScore = match?.team_a_score || '-';
     const bScore = match?.team_b_score || '-';
@@ -407,14 +414,14 @@ const AdminScorelistsPage = () => {
       const matchBowl = (payload?.bowlingData || []).filter((b: any) => b.match_id === m.match_id);
       const scoreA = m.team_a_score || `${calcScore(m.team_a, m.match_id).runs}/${calcScore(m.team_a, m.match_id).wkts} (${calcScore(m.team_a, m.match_id).overs} ov)`;
       const scoreB = m.team_b_score || `${calcScore(m.team_b, m.match_id).runs}/${calcScore(m.team_b, m.match_id).wkts} (${calcScore(m.team_b, m.match_id).overs} ov)`;
-      const matchBatRows = matchBat.map((b: any) => `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right;font-weight:bold">${b.runs}</td><td style="text-align:right">${b.balls}</td><td style="text-align:right">${b.fours}</td><td style="text-align:right">${b.sixes}</td><td>${b.how_out || 'not out'}</td></tr>`).join('');
-      const matchBowlRows = matchBowl.map((b: any) => `<tr><td>${players.find(p => p.player_id === b.player_id)?.name || b.player_id}</td><td>${b.team}</td><td style="text-align:right">${b.overs}</td><td style="text-align:right">${b.maidens}</td><td style="text-align:right">${b.runs_conceded}</td><td style="text-align:right;font-weight:bold">${b.wickets}</td></tr>`).join('');
+      const matchBatRows = matchBat.map((b: any) => `<tr><td>${escapeHtml(players.find(p => p.player_id === b.player_id)?.name || b.player_id)}</td><td>${escapeHtml(b.team)}</td><td style="text-align:right;font-weight:bold">${escapeHtml(b.runs)}</td><td style="text-align:right">${escapeHtml(b.balls)}</td><td style="text-align:right">${escapeHtml(b.fours)}</td><td style="text-align:right">${escapeHtml(b.sixes)}</td><td>${escapeHtml(b.how_out || 'not out')}</td></tr>`).join('');
+      const matchBowlRows = matchBowl.map((b: any) => `<tr><td>${escapeHtml(players.find(p => p.player_id === b.player_id)?.name || b.player_id)}</td><td>${escapeHtml(b.team)}</td><td style="text-align:right">${escapeHtml(b.overs)}</td><td style="text-align:right">${escapeHtml(b.maidens)}</td><td style="text-align:right">${escapeHtml(b.runs_conceded)}</td><td style="text-align:right;font-weight:bold">${escapeHtml(b.wickets)}</td></tr>`).join('');
       return `
       <div class="match-book-page" style="margin-top:22px;padding-top:12px;border-top:1px solid #ddd;page-break-inside:avoid">
-        <h2>Match ${idx + 1}: ${m.team_a} vs ${m.team_b}</h2>
-        <p><strong>Date:</strong> ${m.date || '-'} | <strong>Venue:</strong> ${m.venue || '-'} | <strong>Stage:</strong> ${m.match_stage || '-'} | <strong>Status:</strong> ${m.status || '-'}</p>
-        <p><strong>Score:</strong> ${m.team_a} ${scoreA} vs ${m.team_b} ${scoreB}</p>
-        <p><strong>Result:</strong> ${m.result || '-'} ${m.man_of_match ? `| <strong>Man of the Match:</strong> ${getMomDisplayLabel(m.man_of_match)}` : ''}</p>
+        <h2>Match ${idx + 1}: ${escapeHtml(m.team_a)} vs ${escapeHtml(m.team_b)}</h2>
+        <p><strong>Date:</strong> ${escapeHtml(m.date || '-')} | <strong>Venue:</strong> ${escapeHtml(m.venue || '-')} | <strong>Stage:</strong> ${escapeHtml(m.match_stage || '-')} | <strong>Status:</strong> ${escapeHtml(m.status || '-')}</p>
+        <p><strong>Score:</strong> ${escapeHtml(m.team_a)} ${escapeHtml(scoreA)} vs ${escapeHtml(m.team_b)} ${escapeHtml(scoreB)}</p>
+        <p><strong>Result:</strong> ${escapeHtml(m.result || '-')} ${m.man_of_match ? `| <strong>Man of the Match:</strong> ${escapeHtml(getMomDisplayLabel(m.man_of_match))}` : ''}</p>
         <h3>Batting</h3>
         <table><tr><th>Batter</th><th>Team</th><th style="text-align:right">R</th><th style="text-align:right">B</th><th style="text-align:right">4s</th><th style="text-align:right">6s</th><th>Dismissal</th></tr>${matchBatRows || '<tr><td colspan="7" style="text-align:center;color:#777">No batting entries</td></tr>'}</table>
         <h3>Bowling</h3>
@@ -454,7 +461,7 @@ ${registrationBandMarkup}
 <div class="watermark">VERIFIED MATCH RECORD</div>
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
 <h1 class="intaglio">Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
-<p style="text-align:center;font-family:monospace;font-size:11px;color:#999">${sl.scorelist_id}</p>
+<p style="text-align:center;font-family:monospace;font-size:11px;color:#999">${escapeHtml(sl.scorelist_id)}</p>
 ${securePattern.enabled ? `<div class="secure-pattern-notice">Visible anti-copy background active • ${securePattern.visibleLabel}</div>` : ''}
 <p style="text-align:center"><span class="status-chip intaglio">${detailedStatus}${effectiveLocked ? ' • LOCKED' : ''}</span></p>
 <div class="verification-panel">
@@ -463,20 +470,20 @@ ${securePattern.enabled ? `<div class="secure-pattern-notice">Visible anti-copy 
   </div>
   <div class="verification-copy">
     <div class="security-seal intaglio">QR Verification Enabled</div>
-    <div class="verification-intaglio-badge intaglio">Visible intaglio print • ${sl.scorelist_id}</div>
+    <div class="verification-intaglio-badge intaglio">Visible intaglio print • ${escapeHtml(sl.scorelist_id)}</div>
     <p><strong>Verify this scorelist instantly:</strong> scan the QR code or open the secure verification URL below.</p>
-    <p class="verification-url">${verifyUrl}</p>
+    <p class="verification-url">${escapeHtml(verifyUrl)}</p>
     <p style="font-size:11px;color:#355244">The QR target is bound to this document ID so reviewers can confirm hash-backed authenticity from the verification page.</p>
     <p class="verification-intaglio-meta intaglio">Intaglio ID: ${verificationIntaglioId}</p>
   </div>
   <div class="verification-qr">${qrMarkup}<div class="verification-qr-id intaglio">${verificationIntaglioId}</div></div>
 </div>
 <div class="security-features">${securityFeaturesMarkup}</div>
-<p style="text-align:center;margin:6px 0"><strong>Tournament:</strong> ${tournament?.name || '-'} | <strong>Format:</strong> ${tournament?.format || '-'} | <strong>Overs:</strong> ${tournament?.overs || '-'}</p>
-<p style="text-align:center;margin:6px 0"><strong>Season:</strong> ${season?.year || '-'} | <strong>Dates:</strong> ${season?.start_date || '-'} to ${season?.end_date || '-'}</p>
-${match ? `<div class="scoreboard"><div><h3>${match.team_a}</h3><div class="team-score">${aScore}</div></div><div style="display:flex;align-items:center"><span style="font-size:24px;color:#999">VS</span></div><div><h3>${match.team_b}</h3><div class="team-score">${bScore}</div></div></div>` : ''}
-${match?.result ? `<p style="text-align:center;font-size:16px;font-weight:bold;color:#1e6b3a">${match.result}</p>` : ''}
-${match?.man_of_match ? `<p style="text-align:center">🏅 Man of the Match: ${getMomDisplayLabel(match.man_of_match)}</p>` : ''}
+<p style="text-align:center;margin:6px 0"><strong>Tournament:</strong> ${escapeHtml(tournament?.name || '-')} | <strong>Format:</strong> ${escapeHtml(tournament?.format || '-')} | <strong>Overs:</strong> ${escapeHtml(tournament?.overs || '-')}</p>
+<p style="text-align:center;margin:6px 0"><strong>Season:</strong> ${escapeHtml(season?.year || '-')} | <strong>Dates:</strong> ${escapeHtml(season?.start_date || '-')} to ${escapeHtml(season?.end_date || '-')}</p>
+${match ? `<div class="scoreboard"><div><h3>${escapeHtml(match.team_a)}</h3><div class="team-score">${escapeHtml(aScore)}</div></div><div style="display:flex;align-items:center"><span style="font-size:24px;color:#999">VS</span></div><div><h3>${escapeHtml(match.team_b)}</h3><div class="team-score">${escapeHtml(bScore)}</div></div></div>` : ''}
+${match?.result ? `<p style="text-align:center;font-size:16px;font-weight:bold;color:#1e6b3a">${escapeHtml(match.result)}</p>` : ''}
+${match?.man_of_match ? `<p style="text-align:center">🏅 Man of the Match: ${escapeHtml(getMomDisplayLabel(match.man_of_match))}</p>` : ''}
 ${payloadMatches.length > 0 ? `<p style="text-align:center;font-weight:bold;background:#f9fcf9;padding:10px;border:1px solid #dbe7db;border-radius:6px">Tournament Scorebook: ${payloadMatches.length} matches included with complete match-wise scorecards.</p>` : ''}
 <h2>🏏 Batting Scorecard</h2><table><tr><th>Batter</th><th>Team</th><th style="text-align:right">R</th><th style="text-align:right">B</th><th style="text-align:right">4s</th><th style="text-align:right">6s</th><th>Dismissal</th></tr>${batRows}</table>
 <h2>🎯 Bowling Figures</h2><table><tr><th>Bowler</th><th>Team</th><th style="text-align:right">O</th><th style="text-align:right">M</th><th style="text-align:right">R</th><th style="text-align:right">W</th></tr>${bowlRows}</table>
@@ -484,7 +491,7 @@ ${tournamentMatchBlocks}
 <h2>🏛️ Certification Timeline</h2><div class="cert-grid"><table><tr><th>Name</th><th>Designation</th><th>Stage</th><th>Timestamp</th><th>Token</th></tr>${certTimelineRows}</table></div>
 <h2>🧾 Pending Approvals</h2><table><tr><th>Name</th><th>Designation</th><th>Required Stage</th><th>Status</th></tr>${pendingRows || '<tr><td colspan="4" style="text-align:center;color:#1e6b3a;font-weight:bold">All required approvals completed</td></tr>'}</table>
 ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MATCH RESULT</div>' : ''}
-<div class="footer"><p>Document ID: ${sl.scorelist_id} | Hash: ${sl.hash_digest.substring(0,32)}...</p><p>Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.</p></div>
+<div class="footer"><p>Document ID: ${escapeHtml(sl.scorelist_id)} | Hash: ${escapeHtml(sl.hash_digest.substring(0,32))}...</p><p>Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.</p></div>
 </body></html>`;
 
     const printWin = window.open('', '_blank');
@@ -621,7 +628,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
             const alreadySignedThisStage = certs.some(c => c.approver_id === userId && c.stage === userStage);
 
             return (
-              <Card key={sl.scorelist_id} className={`${effectiveLocked ? 'border-primary/40 bg-primary/5' : ''}`}>
+              <Card key={sl.scorelist_id} className={`transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${effectiveLocked ? 'border-primary/40 bg-primary/5' : ''}`}>
                 <CardContent className="p-4 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
@@ -866,7 +873,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                     </Card>
 
                     {/* Certification Timeline */}
-                    <Card className="border-2 border-accent/30">
+                    <Card className="border-2 border-accent/30 transition-all duration-300">
                       <CardHeader><CardTitle className="font-display text-sm">🏛️ Certification Timeline</CardTitle></CardHeader>
                       <CardContent className="space-y-2">
                         {stageOrder.map(stage => {
@@ -900,7 +907,8 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                     </Card>
 
                     {/* QR + Security */}
-                    <div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5">
+                    <details className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5">
+                      <summary className="cursor-pointer list-none text-sm font-semibold text-primary">Security & QR verification details</summary>
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6">
                         <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm" dangerouslySetInnerHTML={{ __html: renderVerificationQrMarkup(getPublicVerifyScorelistUrl(viewScorelist.scorelist_id), viewScorelist.scorelist_id, viewScorelist.hash_digest, 148) }} />
                         <div className="text-sm text-center sm:text-left">
@@ -918,7 +926,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </details>
 
                     {/* Export from dialog */}
                     <div className="flex flex-wrap gap-2 justify-center border-t pt-4">
