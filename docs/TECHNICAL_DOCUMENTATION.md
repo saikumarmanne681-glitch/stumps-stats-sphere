@@ -65,6 +65,7 @@ Managed via `src/lib/v2api.ts`, with expected sheet tabs defined in `public/goog
 - `DIGITAL_SCORELISTS`
 - `AUDIT_EVENTS`
 - `MANAGEMENT_USERS`
+- `ADMIN_CREDENTIALS`
 - `MATCH_TIMELINE`
 
 ### 4.3 Key Integrity Strategy

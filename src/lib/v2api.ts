@@ -125,6 +125,9 @@ export const v2api = {
     }
   },
 
+  // Admin credentials (dedicated login sheet)
+  getAdminCredentials: () => fetchV2Sheet<{ admin_id?: string; username?: string; password?: string; name?: string; status?: string }>('ADMIN_CREDENTIALS'),
+
   // Management Users
   getManagementUsers: () => fetchV2Sheet<ManagementUser>('MANAGEMENT_USERS'),
   addManagementUser: (m: ManagementUser) => writeV2Sheet('MANAGEMENT_USERS', 'add', m),

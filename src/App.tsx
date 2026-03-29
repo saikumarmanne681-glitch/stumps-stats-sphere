@@ -1,4 +1,3 @@
-import { EnvironmentBadge } from "@/components/EnvironmentBadge";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -131,7 +130,6 @@ const App = () => (
             <Route path="/verify-certificate/:certificateId" element={<CertificateVerifyPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          <EnvironmentBadge />
         </BrowserRouter>
       </TooltipProvider>
       </DataProvider>

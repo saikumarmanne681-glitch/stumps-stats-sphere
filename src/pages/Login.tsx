@@ -67,6 +67,7 @@ const Login = () => {
                   <Label>Password</Label>
                   <Input type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
                 </div>
+                <p className="text-xs text-muted-foreground">Admin credentials are read from the <span className="font-semibold">ADMIN_CREDENTIALS</span> sheet (columns: admin_id, username, password, name, status).</p>
                 <Button className="w-full" onClick={() => handleLogin('admin')} disabled={loading}>
                   {loading ? 'Logging in...' : 'Login as Admin'}
                 </Button>
