@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Award, BarChart3, LifeBuoy, Megaphone, Shield, Sparkles, Ticket, Trophy, Users } from 'lucide-react';
+import { Award, BarChart3, Crown, LifeBuoy, Megaphone, Shield, Sparkles, Swords, Ticket, Trophy, Users } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { Announcement } from '@/lib/types';
 import { compareTimestampsDesc, formatInIST } from '@/lib/time';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { clearQAMockData, readQAMockData } from '@/lib/qaMockData';
 
 interface TeamSummary {
   name: string;
@@ -45,10 +46,13 @@ export default function TeamsDashboardPage() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [profiles, setProfiles] = useState<TeamProfile[]>([]);
   const [titles, setTitles] = useState<TeamTitleRecord[]>([]);
+  const [qaMockLoadedAt, setQaMockLoadedAt] = useState('');
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [ticketForm, setTicketForm] = useState({ category: 'general', priority: 'medium' as SupportTicket['priority'], subject: '', description: '' });
+  const qaMockData = useMemo(() => readQAMockData(), [qaMockLoadedAt]);
+  const allMatches = useMemo(() => [...qaMockData.matches, ...matches], [qaMockData.matches, matches]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,9 +63,11 @@ export default function TeamsDashboardPage() {
         v2api.getTeamTitles(),
       ]);
       if (cancelled) return;
-      setTickets(ticketRows);
-      setProfiles(profileRows);
-      setTitles(titleRows);
+      const mock = readQAMockData();
+      setTickets(mock.enabled ? [...mock.tickets, ...ticketRows] : ticketRows);
+      setProfiles(mock.enabled ? [...mock.profiles, ...profileRows] : profileRows);
+      setTitles(mock.enabled ? [...mock.titles, ...titleRows] : titleRows);
+      setQaMockLoadedAt(mock.enabled ? mock.created_at : '');
       setLoading(false);
     };
     load();
@@ -72,7 +78,7 @@ export default function TeamsDashboardPage() {
 
   const computedTeamNames = useMemo(() => {
     const names = new Set<string>();
-    matches.forEach((match) => {
+    allMatches.forEach((match) => {
       if (match.team_a?.trim()) names.add(match.team_a.trim());
       if (match.team_b?.trim()) names.add(match.team_b.trim());
     });
@@ -87,11 +93,11 @@ export default function TeamsDashboardPage() {
       if (title.team_name?.trim()) names.add(title.team_name.trim());
     });
     return [...names].sort((a, b) => a.localeCompare(b));
-  }, [matches, profiles, seasons, titles]);
+  }, [allMatches, profiles, seasons, titles]);
 
   const teamSummaries = useMemo<TeamSummary[]>(() => {
     return computedTeamNames.map((teamName) => {
-      const completed = matches.filter((m) => m.status === 'completed' && (m.team_a === teamName || m.team_b === teamName));
+      const completed = allMatches.filter((m) => m.status === 'completed' && (m.team_a === teamName || m.team_b === teamName));
       const wins = completed.filter((m) => {
         const result = String(m.result || '').toLowerCase();
         return result.includes(teamName.toLowerCase()) && (result.includes('won') || result.includes('beat'));
@@ -111,7 +117,7 @@ export default function TeamsDashboardPage() {
         lastResult: lastMatch?.result || 'No completed match yet',
       };
     }).sort((a, b) => b.winPct - a.winPct || b.titles - a.titles || a.name.localeCompare(b.name));
-  }, [computedTeamNames, matches, seasons, titles]);
+  }, [allMatches, computedTeamNames, seasons, titles]);
 
   const enforcedTeam = isTeam ? (user?.team_name || user?.name || '') : '';
   const resolvedSelectedTeam = isTeam ? enforcedTeam : selectedTeam;
@@ -133,6 +139,28 @@ export default function TeamsDashboardPage() {
   const titleTimeline = titles
     .filter((record) => resolvedSelectedTeam === 'all' || record.team_name === resolvedSelectedTeam)
     .sort((a, b) => compareTimestampsDesc(a.won_on, b.won_on));
+  const selectedTeamProfile = profiles.find((profile) => profile.team_name === resolvedSelectedTeam);
+  const selectedTeamMatches = allMatches
+    .filter((match) => resolvedSelectedTeam !== 'all' && (match.team_a === resolvedSelectedTeam || match.team_b === resolvedSelectedTeam))
+    .sort((a, b) => compareTimestampsDesc(a.date, b.date));
+  const tournamentLookup = useMemo(
+    () => Object.fromEntries(tournaments.map((item) => [item.tournament_id, item.name])),
+    [tournaments],
+  );
+  const seasonLookup = useMemo(
+    () => Object.fromEntries(seasons.map((item) => [item.season_id, item.year])),
+    [seasons],
+  );
+  const trophyByTournament = useMemo(() => {
+    const map = new Map<string, number>();
+    titleTimeline
+      .filter((record) => record.result_type === 'winner')
+      .forEach((record) => {
+        const competition = record.competition_name || tournamentLookup[record.tournament_id] || 'Tournament';
+        map.set(competition, (map.get(competition) || 0) + 1);
+      });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [titleTimeline, tournamentLookup]);
   const managementNews = useMemo(() => {
     const fromAnnouncements: Announcement[] = announcements.filter((item) => item.active);
     return fromAnnouncements.sort((a, b) => compareTimestampsDesc(a.date, b.date)).slice(0, 8);
@@ -179,6 +207,11 @@ export default function TeamsDashboardPage() {
 
   if (!isManagement && !isTeam) return <Navigate to="/login" replace />;
 
+  const handleClearQAMockData = () => {
+    clearQAMockData();
+    toast({ title: 'Mock data removed', description: 'Refresh the page to view only live data.' });
+    setQaMockLoadedAt('');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -210,12 +243,21 @@ export default function TeamsDashboardPage() {
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open tickets</p><p className="text-2xl font-bold">{openTickets}</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Resolved tickets</p><p className="text-2xl font-bold text-emerald-700">{resolvedTickets}</p></CardContent></Card>
         </div>
+        {qaMockData.enabled && (
+          <Card className="border-dashed border-amber-400 bg-amber-50/70">
+            <CardContent className="p-4 text-sm flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <p><strong>QA mock data active:</strong> session-only testing records loaded ({qaMockLoadedAt ? formatInIST(qaMockLoadedAt) : 'just now'}). Live data is not modified.</p>
+              <Button variant="outline" onClick={handleClearQAMockData}>Delete mock data</Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs defaultValue="insights" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 gap-2 md:grid-cols-5">
             <TabsTrigger value="insights" className="gap-1"><BarChart3 className="h-4 w-4" /> Insights</TabsTrigger>
             <TabsTrigger value="tickets" className="gap-1"><LifeBuoy className="h-4 w-4" /> Support tickets</TabsTrigger>
             <TabsTrigger value="honors" className="gap-1"><Award className="h-4 w-4" /> Honors timeline</TabsTrigger>
+            <TabsTrigger value="matches" className="gap-1"><Swords className="h-4 w-4" /> Match history</TabsTrigger>
             <TabsTrigger value="announcements" className="gap-1"><Megaphone className="h-4 w-4" /> Announcements</TabsTrigger>
           </TabsList>
 
@@ -259,35 +301,46 @@ export default function TeamsDashboardPage() {
           </TabsContent>
 
           <TabsContent value="tickets" className="space-y-4">
-            <Card>
-              <CardHeader><CardTitle>Raise support ticket</CardTitle></CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Input value={ticketForm.category} onChange={(e) => setTicketForm((prev) => ({ ...prev, category: e.target.value }))} placeholder="general / scoring / schedule" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Priority</Label>
-                  <Select value={ticketForm.priority} onValueChange={(value) => setTicketForm((prev) => ({ ...prev, priority: value as SupportTicket['priority'] }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="critical">Critical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Subject</Label>
-                  <Input value={ticketForm.subject} onChange={(e) => setTicketForm((prev) => ({ ...prev, subject: e.target.value }))} placeholder="Short summary of issue" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Description</Label>
-                  <Textarea value={ticketForm.description} onChange={(e) => setTicketForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="Add complete details of your issue/request" />
-                </div>
-                <div className="md:col-span-2">
-                  <Button onClick={handleRaiseTicket} disabled={submittingTicket}>{submittingTicket ? 'Raising ticket...' : 'Raise support ticket'}</Button>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <Card className="lg:col-span-2">
+                <CardHeader><CardTitle>Raise support ticket</CardTitle></CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Input value={ticketForm.category} onChange={(e) => setTicketForm((prev) => ({ ...prev, category: e.target.value }))} placeholder="general / scoring / schedule" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Priority</Label>
+                    <Select value={ticketForm.priority} onValueChange={(value) => setTicketForm((prev) => ({ ...prev, priority: value as SupportTicket['priority'] }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="critical">Critical</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Subject</Label>
+                    <Input value={ticketForm.subject} onChange={(e) => setTicketForm((prev) => ({ ...prev, subject: e.target.value }))} placeholder="Short summary of issue" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Description</Label>
+                    <Textarea value={ticketForm.description} onChange={(e) => setTicketForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="Add complete details of your issue/request" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Button onClick={handleRaiseTicket} disabled={submittingTicket}>{submittingTicket ? 'Raising ticket...' : 'Raise support ticket'}</Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-primary/30 bg-primary/5">
+                <CardHeader><CardTitle className="text-base">Support standards (Admin SLA)</CardTitle></CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p>✅ First response target: <strong>8 hours</strong></p>
+                  <p>✅ Resolution target: <strong>48 hours</strong></p>
+                  <p>✅ Critical issues escalated to management board instantly.</p>
+                  <p className="text-muted-foreground">Please include match id, tournament, screenshots and expected fix in your request for faster resolution.</p>
+                </CardContent>
+              </Card>
+            </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open</p><p className="text-2xl font-bold">{openTickets}</p></CardContent></Card>
               <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">In progress</p><p className="text-2xl font-bold">{inProgressTickets}</p></CardContent></Card>
@@ -315,6 +368,22 @@ export default function TeamsDashboardPage() {
           </TabsContent>
 
           <TabsContent value="honors" className="space-y-4">
+            {resolvedSelectedTeam !== 'all' && (
+              <Card className="border-primary/30 bg-gradient-to-r from-amber-50 via-background to-primary/5">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-amber-600" /> Trophy gallery</CardTitle></CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {trophyByTournament.map(([competition, count]) => (
+                    <div key={competition} className="rounded-xl border bg-card p-4">
+                      <p className="text-sm font-semibold">{competition}</p>
+                      <p className="text-xs text-muted-foreground mb-2">Championship trophies won</p>
+                      <p className="text-2xl">{'🏆'.repeat(Math.min(6, count))}{count > 6 ? ` +${count - 6}` : ''}</p>
+                      <p className="text-sm font-medium text-primary mt-2">{count} title{count === 1 ? '' : 's'}</p>
+                    </div>
+                  ))}
+                  {trophyByTournament.length === 0 && <p className="text-sm text-muted-foreground">No winner trophies available yet for this team.</p>}
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5" /> Team titles and tournament honors</CardTitle></CardHeader>
               <CardContent className="space-y-3">
@@ -330,6 +399,58 @@ export default function TeamsDashboardPage() {
                 ))}
                 {titleTimeline.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">No team title records in TEAM_TITLES yet. Existing season winner/runner-up data remains untouched.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="matches" className="space-y-4">
+            {resolvedSelectedTeam !== 'all' && selectedTeamProfile && (
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Team profile</CardTitle></CardHeader>
+                <CardContent className="grid gap-3 text-sm md:grid-cols-2 lg:grid-cols-4">
+                  <div><p className="text-muted-foreground">Captain</p><p className="font-medium">{selectedTeamProfile.captain_name || 'N/A'}</p></div>
+                  <div><p className="text-muted-foreground">Coach</p><p className="font-medium">{selectedTeamProfile.coach_name || 'N/A'}</p></div>
+                  <div><p className="text-muted-foreground">Home ground</p><p className="font-medium">{selectedTeamProfile.home_ground || 'N/A'}</p></div>
+                  <div><p className="text-muted-foreground">Founded</p><p className="font-medium">{selectedTeamProfile.founded_year || 'N/A'}</p></div>
+                </CardContent>
+              </Card>
+            )}
+            <Card>
+              <CardHeader><CardTitle>All tournament + season matches for selected team</CardTitle></CardHeader>
+              <CardContent>
+                {resolvedSelectedTeam === 'all' ? (
+                  <p className="text-sm text-muted-foreground">Choose one team from the filter to view every match result by tournament and season.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left text-muted-foreground">
+                          <th className="py-2 pr-3">Date</th>
+                          <th className="py-2 pr-3">Tournament</th>
+                          <th className="py-2 pr-3">Season</th>
+                          <th className="py-2 pr-3">Fixture</th>
+                          <th className="py-2 pr-3">Venue</th>
+                          <th className="py-2 pr-3">Status</th>
+                          <th className="py-2">Result</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedTeamMatches.map((match) => (
+                          <tr key={match.match_id} className="border-b">
+                            <td className="py-2 pr-3">{formatInIST(match.date)}</td>
+                            <td className="py-2 pr-3">{tournamentLookup[match.tournament_id] || match.tournament_id}</td>
+                            <td className="py-2 pr-3">{seasonLookup[match.season_id] || match.season_id}</td>
+                            <td className="py-2 pr-3">{match.team_a} vs {match.team_b}</td>
+                            <td className="py-2 pr-3">{match.venue || 'N/A'}</td>
+                            <td className="py-2 pr-3"><Badge variant="outline">{match.status}</Badge></td>
+                            <td className="py-2">{match.result || 'Pending result'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {selectedTeamMatches.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No matches found for this team yet.</p>}
+                  </div>
                 )}
               </CardContent>
             </Card>
