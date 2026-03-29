@@ -57,9 +57,9 @@ export function AdminAuditLog() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const todayCount = events.filter((event) => String(event.timestamp).includes(new Date().getFullYear().toString())).length;
 
-  const downloadDetailedReport = (scope: 'filtered' | 'all') => {
+  const buildReport = (scope: 'filtered' | 'all') => {
     const rows = scope === 'filtered' ? filtered : events;
-    const report = {
+    return {
       generated_at: new Date().toISOString(),
       scope,
       total_events: events.length,
@@ -79,6 +79,10 @@ export function AdminAuditLog() {
         metadata_parsed: parseMetadata(event.metadata),
       })),
     };
+  };
+
+  const downloadDetailedReport = (scope: 'filtered' | 'all') => {
+    const report = buildReport(scope);
 
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -87,6 +91,44 @@ export function AdminAuditLog() {
     anchor.download = `audit-report-${scope}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportAuditAsDoc = (scope: 'filtered' | 'all') => {
+    const report = buildReport(scope);
+    const html = `<!doctype html><html><head><meta charset="utf-8" /><title>Audit Report</title></head><body>
+      <h1>Audit Report (${scope})</h1>
+      <p>Generated: ${report.generated_at}</p>
+      <p>Total events: ${report.total_events} | Included events: ${report.included_events}</p>
+      <table border="1" cellspacing="0" cellpadding="6">
+        <thead><tr><th>Time</th><th>Actor</th><th>Event</th><th>Entity</th><th>ID</th></tr></thead>
+        <tbody>
+          ${report.events.map((event) => `<tr><td>${event.timestamp}</td><td>${event.actor_name}</td><td>${event.event_type}</td><td>${event.entity_type}</td><td>${event.entity_id}</td></tr>`).join('')}
+        </tbody>
+      </table></body></html>`;
+    const blob = new Blob([html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `audit-report-${scope}-${new Date().toISOString().replace(/[:.]/g, '-')}.doc`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportAuditAsPdf = (scope: 'filtered' | 'all') => {
+    const report = buildReport(scope);
+    const popup = window.open('', '_blank', 'width=980,height=740');
+    if (!popup) return;
+    popup.document.write(`<!doctype html><html><head><title>Audit PDF</title><style>body{font-family:Arial,sans-serif;padding:16px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #ccc;padding:6px;vertical-align:top}</style></head><body>
+      <h1>Audit Report (${scope})</h1>
+      <p>Generated: ${report.generated_at}</p>
+      <p>Total events: ${report.total_events} | Included events: ${report.included_events}</p>
+      <table><thead><tr><th>Time</th><th>Actor</th><th>Event</th><th>Entity</th><th>ID</th></tr></thead><tbody>
+      ${report.events.map((event) => `<tr><td>${event.timestamp}</td><td>${event.actor_name}</td><td>${event.event_type}</td><td>${event.entity_type}</td><td>${event.entity_id}</td></tr>`).join('')}
+      </tbody></table>
+    </body></html>`);
+    popup.document.close();
+    popup.focus();
+    popup.print();
   };
 
   useEffect(() => {
@@ -136,6 +178,12 @@ export function AdminAuditLog() {
                 </Button>
                 <Button className="rounded-full" onClick={() => downloadDetailedReport('all')}>
                   <Download className="mr-2 h-4 w-4" /> Export complete report
+                </Button>
+                <Button variant="outline" className="rounded-full" onClick={() => exportAuditAsDoc('filtered')}>
+                  <Download className="mr-2 h-4 w-4" /> Export DOC
+                </Button>
+                <Button variant="outline" className="rounded-full" onClick={() => exportAuditAsPdf('filtered')}>
+                  <Download className="mr-2 h-4 w-4" /> Export PDF
                 </Button>
               </div>
             </div>
