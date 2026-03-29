@@ -64,8 +64,8 @@ const MatchPage = () => {
   const mom = match ? resolvePlayerFromIdentity(match.man_of_match, players) : null;
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
-  const teamAScore = match ? getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score) : null;
-  const teamBScore = match ? getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score) : null;
+  const teamAScore = match ? getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score, matchBowling) : null;
+  const teamBScore = match ? getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score, matchBowling) : null;
   const matchDateLabel = match ? formatSheetDate(match.date, 'dd MMM yyyy', 'Date TBD') : 'Date TBD';
 
   const topBatsman = useMemo(() => {

@@ -112,7 +112,7 @@ function normalizePayload(payload: Record<string, unknown>) {
     Object.entries(payload).map(([key, value]) => {
       if (!["date", "start_date", "end_date"].includes(key) || typeof value !== "string") return [key, value];
       const trimmed = value.trim();
-      if (/^\\d{4}-\\d{2}-\\d{2}$/.test(trimmed)) return [key, trimmed];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return [key, trimmed];
       return [key, value];
     }),
   );

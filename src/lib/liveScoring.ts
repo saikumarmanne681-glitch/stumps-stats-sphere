@@ -1,4 +1,4 @@
-import { BattingScorecard, Match } from '@/lib/types';
+import { BattingScorecard, BowlingScorecard, Match } from '@/lib/types';
 
 export interface TeamScoreSummary {
   runs: number;
@@ -27,7 +27,12 @@ function normalizeFallbackScore(score?: string): TeamScoreSummary | null {
   };
 }
 
-export function getTeamScoreSummary(batting: BattingScorecard[], team: string, fallbackScore?: string): TeamScoreSummary {
+export function getTeamScoreSummary(
+  batting: BattingScorecard[],
+  team: string,
+  fallbackScore?: string,
+  bowling?: BowlingScorecard[],
+): TeamScoreSummary {
   const rows = batting.filter((entry) => entry.team === team);
   const fallback = normalizeFallbackScore(fallbackScore);
   if (rows.length === 0) {
@@ -46,10 +51,13 @@ export function getTeamScoreSummary(batting: BattingScorecard[], team: string, f
     const dismissal = String(entry.how_out || '').trim().toLowerCase();
     return dismissal && dismissal !== 'not out';
   }).length;
+  const wicketsFromBowling = (bowling || [])
+    .filter((entry) => entry.team !== team)
+    .reduce((sum, entry) => sum + (entry.wickets || 0), 0);
   const ballsFromBatting = rows.reduce((sum, entry) => sum + (entry.balls || 0), 0);
 
   const runs = Math.max(runsFromBatting, fallback?.runs || 0);
-  const wickets = Math.max(wicketsFromDismissals, fallback?.wickets || 0);
+  const wickets = Math.max(wicketsFromDismissals, wicketsFromBowling, fallback?.wickets || 0);
   const balls = Math.max(ballsFromBatting, fallback?.balls || 0);
   const overs = `${Math.floor(balls / 6)}.${balls % 6}`;
 
@@ -63,9 +71,19 @@ export function getTeamScoreSummary(batting: BattingScorecard[], team: string, f
   };
 }
 
-export function getLiveMatchScorecard(match: Match, batting: BattingScorecard[]) {
+export function getLiveMatchScorecard(match: Match, batting: BattingScorecard[], bowling: BowlingScorecard[] = []) {
   return {
-    teamA: getTeamScoreSummary(batting.filter((entry) => entry.match_id === match.match_id), match.team_a, match.team_a_score),
-    teamB: getTeamScoreSummary(batting.filter((entry) => entry.match_id === match.match_id), match.team_b, match.team_b_score),
+    teamA: getTeamScoreSummary(
+      batting.filter((entry) => entry.match_id === match.match_id),
+      match.team_a,
+      match.team_a_score,
+      bowling.filter((entry) => entry.match_id === match.match_id),
+    ),
+    teamB: getTeamScoreSummary(
+      batting.filter((entry) => entry.match_id === match.match_id),
+      match.team_b,
+      match.team_b_score,
+      bowling.filter((entry) => entry.match_id === match.match_id),
+    ),
   };
 }
