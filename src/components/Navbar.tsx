@@ -132,7 +132,7 @@ export function Navbar() {
 
   return (
     <nav className="bg-card border-b shadow-sm sticky top-0 z-40">
-      <div className="container mx-auto px-4 flex items-center justify-between h-14">
+      <div className="container mx-auto px-3 md:px-4 flex items-center justify-between h-14 gap-2">
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <span className="text-2xl">🏏</span>
           <span className="font-display text-xl font-bold text-primary">CRICKET CLUB</span>
@@ -141,12 +141,12 @@ export function Navbar() {
         <CommandPalette />
 
         {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden xl:flex items-center gap-1 max-w-[70vw] overflow-x-auto">
           <NavItems />
         </div>
 
-        {/* Mobile Hamburger */}
-        <div className="md:hidden">
+        {/* Mobile + tablet Hamburger */}
+        <div className="xl:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button
