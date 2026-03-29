@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Award, BarChart3, LifeBuoy, Shield, Sparkles, Ticket, Trophy, Users } from 'lucide-react';
+import { Award, BarChart3, LifeBuoy, Megaphone, Shield, Sparkles, Ticket, Trophy, Users } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,7 +14,10 @@ import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api } from '@/lib/v2api';
 import { SupportTicket, TeamProfile, TeamTitleRecord } from '@/lib/v2types';
+import { Announcement } from '@/lib/types';
 import { compareTimestampsDesc, formatInIST } from '@/lib/time';
+import { generateId } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface TeamSummary {
   name: string;
@@ -32,13 +39,16 @@ const ticketBadgeClass: Record<string, string> = {
 };
 
 export default function TeamsDashboardPage() {
-  const { isManagement, user } = useAuth();
-  const { matches, seasons, tournaments } = useData();
+  const { isManagement, isTeam, user } = useAuth();
+  const { matches, seasons, tournaments, announcements } = useData();
+  const { toast } = useToast();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [profiles, setProfiles] = useState<TeamProfile[]>([]);
   const [titles, setTitles] = useState<TeamTitleRecord[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [ticketForm, setTicketForm] = useState({ category: 'general', priority: 'medium' as SupportTicket['priority'], subject: '', description: '' });
 
   useEffect(() => {
     let cancelled = false;
@@ -59,8 +69,6 @@ export default function TeamsDashboardPage() {
       cancelled = true;
     };
   }, []);
-
-  if (!isManagement) return <Navigate to="/login" replace />;
 
   const computedTeamNames = useMemo(() => {
     const names = new Set<string>();
@@ -105,12 +113,15 @@ export default function TeamsDashboardPage() {
     }).sort((a, b) => b.winPct - a.winPct || b.titles - a.titles || a.name.localeCompare(b.name));
   }, [computedTeamNames, matches, seasons, titles]);
 
-  const visibleTeams = selectedTeam === 'all' ? teamSummaries : teamSummaries.filter((entry) => entry.name === selectedTeam);
-  const visibleTickets = selectedTeam === 'all'
+  const enforcedTeam = isTeam ? (user?.team_name || user?.name || '') : '';
+  const resolvedSelectedTeam = isTeam ? enforcedTeam : selectedTeam;
+
+  const visibleTeams = resolvedSelectedTeam === 'all' ? teamSummaries : teamSummaries.filter((entry) => entry.name === resolvedSelectedTeam);
+  const visibleTickets = resolvedSelectedTeam === 'all'
     ? tickets
     : tickets.filter((ticket) => {
       const teamGuess = String((ticket as Record<string, unknown>).team_name || '').trim();
-      return teamGuess === selectedTeam || String(ticket.subject || '').toLowerCase().includes(selectedTeam.toLowerCase());
+      return teamGuess === resolvedSelectedTeam || String(ticket.subject || '').toLowerCase().includes(resolvedSelectedTeam.toLowerCase());
     });
 
   const openTickets = visibleTickets.filter((t) => t.status === 'open').length;
@@ -120,8 +131,54 @@ export default function TeamsDashboardPage() {
   const totalPlayed = visibleTeams.reduce((sum, team) => sum + team.played, 0);
 
   const titleTimeline = titles
-    .filter((record) => selectedTeam === 'all' || record.team_name === selectedTeam)
+    .filter((record) => resolvedSelectedTeam === 'all' || record.team_name === resolvedSelectedTeam)
     .sort((a, b) => compareTimestampsDesc(a.won_on, b.won_on));
+  const managementNews = useMemo(() => {
+    const fromAnnouncements: Announcement[] = announcements.filter((item) => item.active);
+    return fromAnnouncements.sort((a, b) => compareTimestampsDesc(a.date, b.date)).slice(0, 8);
+  }, [announcements]);
+
+  const handleRaiseTicket = async () => {
+    if (!ticketForm.subject.trim() || !ticketForm.description.trim()) {
+      toast({ title: 'Missing details', description: 'Subject and description are required.', variant: 'destructive' });
+      return;
+    }
+    const teamName = resolvedSelectedTeam !== 'all' ? resolvedSelectedTeam : (user?.team_name || user?.name || user?.username || 'Unknown Team');
+    const now = new Date();
+    const firstDue = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const resolutionDue = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const payload: SupportTicket = {
+      ticket_id: generateId('TKT'),
+      created_by_user_id: user?.team_id || user?.management_id || user?.username || 'team',
+      category: ticketForm.category,
+      priority: ticketForm.priority,
+      subject: `[${teamName}] ${ticketForm.subject.trim()}`,
+      description: ticketForm.description.trim(),
+      attachment_url: '',
+      status: 'open',
+      assigned_admin_id: 'admin',
+      created_at: now.toISOString(),
+      first_response_due: firstDue.toISOString(),
+      resolution_due: resolutionDue.toISOString(),
+      resolved_at: '',
+      closed_at: '',
+    };
+    setSubmittingTicket(true);
+    try {
+      const ok = await v2api.addTicket(payload);
+      if (!ok) throw new Error('Unable to save ticket');
+      setTickets((prev) => [payload, ...prev]);
+      setTicketForm({ category: 'general', priority: 'medium', subject: '', description: '' });
+      toast({ title: 'Ticket raised', description: 'Your support ticket has been sent to admin/management.' });
+    } catch {
+      toast({ title: 'Ticket failed', description: 'Could not raise ticket right now.', variant: 'destructive' });
+    } finally {
+      setSubmittingTicket(false);
+    }
+  };
+
+  if (!isManagement && !isTeam) return <Navigate to="/login" replace />;
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -131,9 +188,9 @@ export default function TeamsDashboardPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Management command center</p>
             <h1 className="font-display text-3xl font-bold flex items-center gap-2"><Sparkles className="h-7 w-7 text-primary" /> Teams Insights Dashboard</h1>
-            <p className="text-muted-foreground">Welcome {user?.name || user?.username}. Monitor team performance, honors and support queues in one place.</p>
+            <p className="text-muted-foreground">Welcome {user?.name || user?.username}. Monitor team performance, announcements, support queues and trophies in one place.</p>
           </div>
-          <div className="w-full max-w-sm">
+          {!isTeam && <div className="w-full max-w-sm">
             <Select value={selectedTeam} onValueChange={setSelectedTeam}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by team" />
@@ -143,7 +200,7 @@ export default function TeamsDashboardPage() {
                 {computedTeamNames.map((team) => <SelectItem key={team} value={team}>{team}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
+          </div>}
         </div>
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -155,10 +212,11 @@ export default function TeamsDashboardPage() {
         </div>
 
         <Tabs defaultValue="insights" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="insights" className="gap-1"><BarChart3 className="h-4 w-4" /> Insights</TabsTrigger>
             <TabsTrigger value="tickets" className="gap-1"><LifeBuoy className="h-4 w-4" /> Support tickets</TabsTrigger>
             <TabsTrigger value="honors" className="gap-1"><Award className="h-4 w-4" /> Honors timeline</TabsTrigger>
+            <TabsTrigger value="announcements" className="gap-1"><Megaphone className="h-4 w-4" /> Announcements</TabsTrigger>
           </TabsList>
 
           <TabsContent value="insights" className="space-y-4">
@@ -201,6 +259,35 @@ export default function TeamsDashboardPage() {
           </TabsContent>
 
           <TabsContent value="tickets" className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle>Raise support ticket</CardTitle></CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Input value={ticketForm.category} onChange={(e) => setTicketForm((prev) => ({ ...prev, category: e.target.value }))} placeholder="general / scoring / schedule" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select value={ticketForm.priority} onValueChange={(value) => setTicketForm((prev) => ({ ...prev, priority: value as SupportTicket['priority'] }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Subject</Label>
+                  <Input value={ticketForm.subject} onChange={(e) => setTicketForm((prev) => ({ ...prev, subject: e.target.value }))} placeholder="Short summary of issue" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Description</Label>
+                  <Textarea value={ticketForm.description} onChange={(e) => setTicketForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="Add complete details of your issue/request" />
+                </div>
+                <div className="md:col-span-2">
+                  <Button onClick={handleRaiseTicket} disabled={submittingTicket}>{submittingTicket ? 'Raising ticket...' : 'Raise support ticket'}</Button>
+                </div>
+              </CardContent>
+            </Card>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open</p><p className="text-2xl font-bold">{openTickets}</p></CardContent></Card>
               <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">In progress</p><p className="text-2xl font-bold">{inProgressTickets}</p></CardContent></Card>
@@ -247,6 +334,22 @@ export default function TeamsDashboardPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="announcements" className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Megaphone className="h-5 w-5" /> Admin & management announcements</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {managementNews.map((item) => (
+                  <div key={item.id} className="rounded-lg border p-3">
+                    <p className="font-semibold">{item.title}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{item.message}</p>
+                    <p className="text-xs text-muted-foreground mt-2">Published: {formatInIST(item.date)}</p>
+                  </div>
+                ))}
+                {managementNews.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No active announcements found.</p>}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {loading && <p className="text-sm text-muted-foreground">Loading dashboard datasets…</p>}
@@ -255,7 +358,7 @@ export default function TeamsDashboardPage() {
           <CardContent className="p-4 text-sm text-muted-foreground">
             <p className="font-medium">Optional Google Sheets extension (safe, non-breaking):</p>
             <p className="mt-1">You can add TEAM_PROFILES and TEAM_TITLES sheets for richer team metadata and title history. The dashboard also works from existing matches/seasons if these new sheets are empty.</p>
-            <p className="mt-1">Tournaments loaded: {tournaments.length}.</p>
+            <p className="mt-1">Tournaments loaded: {tournaments.length}. Team login credentials are maintained via TEAM_ACCESS_USERS sheet.</p>
           </CardContent>
         </Card>
       </div>

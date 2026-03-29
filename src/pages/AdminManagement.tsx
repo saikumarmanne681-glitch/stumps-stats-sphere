@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { v2api, logAudit } from '@/lib/v2api';
-import { BoardConfiguration, ManagementUser, MANAGEMENT_ROLES } from '@/lib/v2types';
+import { BoardConfiguration, ManagementUser, MANAGEMENT_ROLES, TeamAccessUser } from '@/lib/v2types';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
@@ -26,6 +26,10 @@ const AdminManagement = () => {
   const { toast } = useToast();
   const [users, setUsers] = useState<ManagementUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teamUsers, setTeamUsers] = useState<TeamAccessUser[]>([]);
+  const [teamProfiles, setTeamProfiles] = useState<Array<{ team_id: string; team_name: string }>>([]);
+  const [editTeamUser, setEditTeamUser] = useState<TeamAccessUser | null>(null);
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<ManagementUser | null>(null);
   const [open, setOpen] = useState(false);
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
@@ -35,9 +39,16 @@ const AdminManagement = () => {
   const [clearingRegistrations, setClearingRegistrations] = useState(false);
 
   const refresh = async () => {
-    const [data, config] = await Promise.all([v2api.getManagementUsers(), v2api.getBoardConfiguration()]);
+    const [data, config, teamRows, profileRows] = await Promise.all([
+      v2api.getManagementUsers(),
+      v2api.getBoardConfiguration(),
+      v2api.getTeamAccessUsers(),
+      v2api.getTeamProfiles(),
+    ]);
     setUsers(data);
     setBoardConfig(config[0] || null);
+    setTeamUsers(teamRows);
+    setTeamProfiles(profileRows.map((item) => ({ team_id: item.team_id, team_name: item.team_name })));
     setLoading(false);
   };
 
@@ -77,6 +88,50 @@ const AdminManagement = () => {
   };
 
 
+
+
+
+  const emptyTeamUser: TeamAccessUser = {
+    team_access_id: '',
+    team_id: '',
+    team_name: '',
+    username: '',
+    password: '',
+    status: 'active',
+    created_at: '',
+    updated_at: '',
+    linked_by_admin: 'admin',
+  };
+
+  const handleSaveTeamUser = async () => {
+    if (!editTeamUser?.team_name || !editTeamUser?.username || !editTeamUser?.password) {
+      toast({ title: 'Missing fields', description: 'Team name, username and password are required.', variant: 'destructive' });
+      return;
+    }
+    setSavingUser(true);
+    try {
+      const now = new Date().toISOString();
+      const payload: TeamAccessUser = {
+        ...editTeamUser,
+        team_access_id: editTeamUser.team_access_id || generateId('TEAMACCESS'),
+        team_id: editTeamUser.team_id || generateId('TEAM'),
+        created_at: editTeamUser.created_at || now,
+        updated_at: now,
+        linked_by_admin: 'admin',
+      };
+      const ok = editTeamUser.team_access_id ? await v2api.updateTeamAccessUser(payload) : await v2api.addTeamAccessUser(payload);
+      if (!ok) {
+        toast({ title: 'Save failed', description: 'Could not save team login user.', variant: 'destructive' });
+        return;
+      }
+      logAudit('admin', editTeamUser.team_access_id ? 'update_team_login' : 'add_team_login', 'team_access', payload.team_access_id, JSON.stringify({ team_id: payload.team_id, team_name: payload.team_name, username: payload.username }));
+      toast({ title: 'Saved', description: 'Team login credentials linked successfully.' });
+      setTeamDialogOpen(false);
+      await refresh();
+    } finally {
+      setSavingUser(false);
+    }
+  };
 
   const saveBoardConfig = async () => {
     const existingConfigId = boardConfig?.config_id || generateId('BRCFG');
@@ -299,6 +354,74 @@ const AdminManagement = () => {
                 </Button>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Team Login Access</CardTitle>
+            <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditTeamUser({ ...emptyTeamUser })}><Plus className="h-4 w-4 mr-1" /> Add Team Login</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{editTeamUser?.team_access_id ? 'Edit' : 'Add'} Team Login</DialogTitle>
+                  <DialogDescription>Link a team with a username/password for dashboard access.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label>Team profile (optional)</Label>
+                    <Select value={editTeamUser?.team_id || '__custom__'} onValueChange={(v) => {
+                      if (v === '__custom__') return;
+                      const team = teamProfiles.find((item) => item.team_id === v);
+                      if (!team) return;
+                      setEditTeamUser((prev) => prev ? { ...prev, team_id: team.team_id, team_name: team.team_name } : prev);
+                    }}>
+                      <SelectTrigger><SelectValue placeholder="Select team profile" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__custom__">Custom / manual team</SelectItem>
+                        {teamProfiles.map((team) => <SelectItem key={team.team_id} value={team.team_id}>{team.team_name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Team Name</Label><Input value={editTeamUser?.team_name || ''} onChange={(e) => setEditTeamUser((prev) => prev ? { ...prev, team_name: e.target.value } : prev)} /></div>
+                  <div><Label>Team ID</Label><Input value={editTeamUser?.team_id || ''} onChange={(e) => setEditTeamUser((prev) => prev ? { ...prev, team_id: e.target.value } : prev)} placeholder="Leave empty to auto-generate" /></div>
+                  <div><Label>Username</Label><Input value={editTeamUser?.username || ''} onChange={(e) => setEditTeamUser((prev) => prev ? { ...prev, username: e.target.value } : prev)} /></div>
+                  <div><Label>Password</Label><Input value={editTeamUser?.password || ''} onChange={(e) => setEditTeamUser((prev) => prev ? { ...prev, password: e.target.value } : prev)} /></div>
+                  <div>
+                    <Label>Status</Label>
+                    <Select value={editTeamUser?.status || 'active'} onValueChange={(v) => setEditTeamUser((prev) => prev ? { ...prev, status: v as 'active' | 'inactive' } : prev)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={handleSaveTeamUser} className="w-full" disabled={savingUser}>
+                    {savingUser ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving team login...</> : 'Save Team Login'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader><TableRow><TableHead>Team</TableHead><TableHead>Username</TableHead><TableHead>Status</TableHead><TableHead>Updated</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {teamUsers.map((row) => (
+                  <TableRow key={row.team_access_id}>
+                    <TableCell>
+                      <p className="font-medium">{row.team_name}</p>
+                      <p className="text-xs text-muted-foreground">{row.team_id}</p>
+                    </TableCell>
+                    <TableCell>{row.username}</TableCell>
+                    <TableCell><Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge></TableCell>
+                    <TableCell>{new Date(row.updated_at || row.created_at || '').toLocaleString() || '-'}</TableCell>
+                    <TableCell><div className="flex gap-1"><Button size="icon" variant="ghost" onClick={() => { setEditTeamUser(row); setTeamDialogOpen(true); }}><Pencil className="h-3 w-3" /></Button><Button size="icon" variant="ghost" onClick={async () => { await v2api.deleteTeamAccessUser(row.team_access_id); logAudit('admin', 'delete_team_login', 'team_access', row.team_access_id); toast({ title: 'Deleted', description: `Removed team login for ${row.team_name}.` }); refresh(); }}><Trash2 className="h-3 w-3 text-destructive" /></Button></div></TableCell>
+                  </TableRow>
+                ))}
+                {teamUsers.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No team logins configured. Add one to enable team dashboard sign in.</TableCell></TableRow>}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
 

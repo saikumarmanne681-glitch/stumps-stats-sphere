@@ -254,6 +254,18 @@ export interface TeamTitleRecord {
   created_at: string;
 }
 
+export interface TeamAccessUser {
+  team_access_id: string;
+  team_id: string;
+  team_name: string;
+  username: string;
+  password: string;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+  linked_by_admin: string;
+}
+
 export interface OfficialDocumentRecord {
   document_id: string;
   title: string;

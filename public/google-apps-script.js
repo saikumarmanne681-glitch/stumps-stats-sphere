@@ -94,6 +94,7 @@ const TABS = {
   OFFICIAL_DOCUMENTS: ["document_id","title","category","department","source_url","source_type","status","allowed_management_ids","allow_preview","allow_download","created_by","created_at","updated_at"],
   TEAM_PROFILES: ["team_id","team_name","short_name","captain_name","coach_name","home_ground","founded_year","primary_color","secondary_color","status","created_at","updated_at"],
   TEAM_TITLES: ["title_id","team_id","team_name","competition_name","tournament_id","season_id","season_label","result_type","won_on","notes","created_at"],
+  TEAM_ACCESS_USERS: ["team_access_id","team_id","team_name","username","password","status","created_at","updated_at","linked_by_admin"],
   // Governance & competition workflow modules
   elections: ["election_id","title","description","roles_json","eligible_roles_json","status","nomination_start","nomination_end","voting_start","voting_end","created_by","created_at","results_published_at"],
   votes: ["vote_id","election_id","role_name","voter_user_id","voter_name","nominee_user_id","nominee_name","submitted_at","immutable_hash"],
@@ -177,6 +178,7 @@ function getKeyColumn(tabName) {
     OFFICIAL_DOCUMENTS: "document_id",
     TEAM_PROFILES: "team_id",
     TEAM_TITLES: "title_id",
+    TEAM_ACCESS_USERS: "team_access_id",
     elections: "election_id",
     votes: "vote_id",
     nominations: "nomination_id",
