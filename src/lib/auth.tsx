@@ -8,7 +8,7 @@ interface AuthContextType {
   user: AuthUser | null;
   login: (username: string, password: string, role: "admin" | "player" | "management") => Promise<boolean>;
   logout: () => void;
-  updateAdminProfile: (updates: { aliasName?: string; password?: string }) => void;
+  updateAdminProfile: (updates: { aliasName?: string }) => void;
   getAdminAlias: () => string;
   isAdmin: boolean;
   isPlayer: boolean;
@@ -29,7 +29,6 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const ADMIN_USERNAME = 'admin';
-  const getAdminPassword = () => localStorage.getItem('adminPassword') || '9908';
   const getAdminAlias = () => localStorage.getItem('adminAlias') || 'Administrator';
 
   const isActiveStatus = (status?: string) => {
@@ -53,8 +52,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string, role: "admin" | "player" | "management"): Promise<boolean> => {
     if (role === "admin") {
-      if (username === ADMIN_USERNAME && password === getAdminPassword()) {
-        const u: AuthUser = { type: "admin", username: ADMIN_USERNAME, name: getAdminAlias() };
+      const managementUsers = await v2api.getManagementUsers();
+      const normalizedInput = username.toLowerCase().trim();
+      const normalizedSecret = password.trim();
+      const adminUser = managementUsers.find((m) => {
+        if (!isActiveStatus(m.status)) return false;
+        const usernameMatch = String(m.username || '').toLowerCase().trim() === normalizedInput;
+        const idMatch = String(m.management_id || '').toLowerCase().trim() === normalizedInput;
+        const roleMatch = String(m.role || '').toLowerCase().includes('admin');
+        return (usernameMatch || idMatch) && roleMatch && String(m.password || '').trim() === normalizedSecret;
+      });
+      if (adminUser) {
+        const u: AuthUser = { type: "admin", username: ADMIN_USERNAME, name: getAdminAlias() || adminUser.name };
         setUser(u);
         localStorage.setItem("cricketUser", JSON.stringify(u));
         startHeartbeat("admin");
@@ -130,12 +139,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("cricketUser");
   };
 
-  const updateAdminProfile = (updates: { aliasName?: string; password?: string }) => {
+  const updateAdminProfile = (updates: { aliasName?: string }) => {
     if (updates.aliasName !== undefined) {
       localStorage.setItem('adminAlias', updates.aliasName.trim() || 'Administrator');
-    }
-    if (updates.password !== undefined && updates.password.trim()) {
-      localStorage.setItem('adminPassword', updates.password.trim());
     }
     setUser((prev) => {
       if (!prev || prev.type !== 'admin') return prev;

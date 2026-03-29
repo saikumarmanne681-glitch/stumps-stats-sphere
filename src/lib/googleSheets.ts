@@ -42,21 +42,31 @@ async function fetchSheet<T>(sheet: string): Promise<T[]> {
     };
     return (mockMap[sheet] || []) as T[];
   }
-  const res = await fetch(`${APPS_SCRIPT_URL}?action=get&sheet=${sheet}`);
-  const data = await res.json();
-  return normalizeSheetRows(data as T[]);
+  try {
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=get&sheet=${sheet}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return normalizeSheetRows(data as T[]);
+  } catch {
+    return [];
+  }
 }
 
 async function writeSheet<T>(sheet: string, action: "add" | "update" | "delete", payload: T): Promise<boolean> {
   if (USE_MOCK()) return true;
   const normalizedPayload = normalizePayload(payload as Record<string, unknown>);
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action, sheet, data: normalizedPayload }),
-  });
-  const result = await res.json();
-  return result.success;
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action, sheet, data: normalizedPayload }),
+    });
+    if (!res.ok) return false;
+    const result = await res.json();
+    return !!result.success;
+  } catch {
+    return false;
+  }
 }
 
 async function replaceScorecardAtomic(payload: ScorecardReplaceRequest): Promise<ScorecardReplaceResult> {
@@ -70,12 +80,31 @@ async function replaceScorecardAtomic(payload: ScorecardReplaceRequest): Promise
     };
   }
 
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action: "replaceScorecardAtomic", data: payload }),
-  });
-  return res.json() as Promise<ScorecardReplaceResult>;
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "replaceScorecardAtomic", data: payload }),
+    });
+    if (!res.ok) {
+      return {
+        success: false,
+        operation_id: "",
+        scorecard_version: payload.expected_scorecard_version || 0,
+        scorecard_checksum: payload.expected_scorecard_checksum || "",
+        error: `HTTP ${res.status}`,
+      };
+    }
+    return res.json() as Promise<ScorecardReplaceResult>;
+  } catch (error) {
+    return {
+      success: false,
+      operation_id: "",
+      scorecard_version: payload.expected_scorecard_version || 0,
+      scorecard_checksum: payload.expected_scorecard_checksum || "",
+      error: String(error),
+    };
+  }
 }
 
 function normalizePayload(payload: Record<string, unknown>) {

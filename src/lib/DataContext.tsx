@@ -260,17 +260,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           { actor: m.from_id || 'system', eventType: 'update_message', entityType: 'message', entityId: m.id, metadata: JSON.stringify({ to: m.to_id, read: m.read, replyTo: m.reply_to || '' }) },
         ),
       saveScorecardBulk: async (matchId, newBatting, newBowling) => {
-        const sourceBatting = isConnected() ? await api.getBattingScorecard() : state.batting;
-        const sourceBowling = isConnected() ? await api.getBowlingScorecard() : state.bowling;
-        const oldBat = sourceBatting.filter((b) => b.match_id === matchId);
-        const oldBowl = sourceBowling.filter((b) => b.match_id === matchId);
+        const existingMatch = state.matches.find((m) => m.match_id === matchId);
+        const replacement = await api.replaceScorecardAtomic({
+          match_id: matchId,
+          expected_scorecard_version: existingMatch?.scorecard_version || 0,
+          expected_scorecard_checksum: existingMatch?.scorecard_checksum || '',
+          batting_entries: newBatting,
+          bowling_entries: newBowling,
+        });
 
-        for (const b of oldBat) await api.deleteBattingEntry(b.id);
-        for (const b of oldBowl) await api.deleteBowlingEntry(b.id);
-        for (const b of newBatting) await api.addBattingEntry(b);
-        for (const b of newBowling) await api.addBowlingEntry(b);
+        if (!replacement.success) {
+          throw new Error(replacement.error || 'Atomic scorecard replace failed');
+        }
 
-        logAudit('system', 'save_scorecard_bulk', 'match', matchId, JSON.stringify({ battingEntries: newBatting.length, bowlingEntries: newBowling.length }));
+        logAudit('system', 'save_scorecard_bulk', 'match', matchId, JSON.stringify({
+          battingEntries: newBatting.length,
+          bowlingEntries: newBowling.length,
+          operation_id: replacement.operation_id,
+          scorecard_version: replacement.scorecard_version,
+          scorecard_checksum: replacement.scorecard_checksum,
+        }));
 
         await invalidateKeys([
           queryKeys.matches,
