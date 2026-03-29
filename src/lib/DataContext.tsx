@@ -53,7 +53,12 @@ interface DataContextType extends DataState {
   deleteAnnouncement: (id: string) => Promise<void>;
   addMessage: (m: Message) => Promise<void>;
   updateMessage: (m: Message) => Promise<void>;
-  saveScorecardBulk: (matchId: string, newBatting: BattingScorecard[], newBowling: BowlingScorecard[]) => Promise<void>;
+  saveScorecardBulk: (
+    matchId: string,
+    newBatting: BattingScorecard[],
+    newBowling: BowlingScorecard[],
+    expectedState?: { scorecardVersion?: number; scorecardChecksum?: string },
+  ) => Promise<{ operationId: string; scorecardVersion: number; scorecardChecksum: string }>;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -259,12 +264,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           [queryKeys.messages],
           { actor: m.from_id || 'system', eventType: 'update_message', entityType: 'message', entityId: m.id, metadata: JSON.stringify({ to: m.to_id, read: m.read, replyTo: m.reply_to || '' }) },
         ),
-      saveScorecardBulk: async (matchId, newBatting, newBowling) => {
+      saveScorecardBulk: async (matchId, newBatting, newBowling, expectedState) => {
         const existingMatch = state.matches.find((m) => m.match_id === matchId);
         const replacement = await api.replaceScorecardAtomic({
           match_id: matchId,
-          expected_scorecard_version: existingMatch?.scorecard_version || 0,
-          expected_scorecard_checksum: existingMatch?.scorecard_checksum || '',
+          expected_scorecard_version: expectedState?.scorecardVersion ?? existingMatch?.scorecard_version ?? 0,
+          expected_scorecard_checksum: expectedState?.scorecardChecksum ?? existingMatch?.scorecard_checksum ?? '',
           batting_entries: newBatting,
           bowling_entries: newBowling,
         });
@@ -281,7 +286,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           scorecard_checksum: replacement.scorecard_checksum,
         }));
 
-        await invalidateKeys([
+        queryClient.setQueryData<Match[]>(queryKeys.matches, (current) =>
+          (current || []).map((item) =>
+            item.match_id === matchId
+              ? {
+                  ...item,
+                  scorecard_version: replacement.scorecard_version,
+                  scorecard_checksum: replacement.scorecard_checksum,
+                  scorecard_operation_id: replacement.operation_id,
+                }
+              : item,
+          ),
+        );
+        queryClient.setQueryData<BattingScorecard[]>(queryKeys.batting, (current) => [
+          ...(current || []).filter((row) => row.match_id !== matchId),
+          ...newBatting,
+        ]);
+        queryClient.setQueryData<BattingScorecard[]>(queryKeys.battingByMatch(matchId), newBatting);
+        queryClient.setQueryData<BowlingScorecard[]>(queryKeys.bowling, (current) => [
+          ...(current || []).filter((row) => row.match_id !== matchId),
+          ...newBowling,
+        ]);
+        queryClient.setQueryData<BowlingScorecard[]>(queryKeys.bowlingByMatch(matchId), newBowling);
+
+        void invalidateKeys([
           queryKeys.matches,
           queryKeys.match(matchId),
           queryKeys.batting,
@@ -289,9 +317,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           queryKeys.bowling,
           queryKeys.bowlingByMatch(matchId),
         ]);
+
+        return {
+          operationId: replacement.operation_id,
+          scorecardVersion: replacement.scorecard_version,
+          scorecardChecksum: replacement.scorecard_checksum,
+        };
       },
     }),
-    [invalidateKeys, mutate, refresh, state],
+    [invalidateKeys, mutate, queryClient, refresh, state],
   );
 
   return <DataContext.Provider value={ctx}>{children}</DataContext.Provider>;
@@ -337,7 +371,7 @@ export function useData() {
       deleteAnnouncement: async () => {},
       addMessage: async () => {},
       updateMessage: async () => {},
-      saveScorecardBulk: async () => ({ operationId: "", scorecardVersion: 0, scorecardChecksum: "" }),
+      saveScorecardBulk: async (_matchId, _newBatting, _newBowling, _expectedState) => ({ operationId: "", scorecardVersion: 0, scorecardChecksum: "" }),
     } as DataContextType;
   }
 
