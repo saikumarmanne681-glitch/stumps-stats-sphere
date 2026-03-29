@@ -109,6 +109,40 @@ export const electionService = {
     return read<ElectionAuditLog>(STORAGE.audit);
   },
 
+
+  async clearAllData(user: AuthUser) {
+    if (user.type !== 'admin') throw new Error('Only admin can clear elections data.');
+    const elections = this.getElections();
+    const nominations = this.getNominations();
+    const votes = this.getVotes();
+    const terms = this.getTerms();
+
+    write(STORAGE.elections, []);
+    write(STORAGE.nominations, []);
+    write(STORAGE.votes, []);
+    write(STORAGE.terms, []);
+    write(STORAGE.audit, []);
+
+    await Promise.allSettled([
+      ...elections.map((item) => safeSyncRow('update', SHEETS.elections, { ...item, status: 'closed' })),
+      ...nominations.map((item) => safeSyncRow('update', SHEETS.nominations, { ...item, status: 'rejected', reviewed_at: nowIso(), reviewed_by: getActorId(user) })),
+      ...votes.map((item) => safeSyncRow('update', SHEETS.votes, { ...item, nominee_user_id: '', nominee_name: '' })),
+      ...terms.map((item) => safeSyncRow('update', SHEETS.terms, { ...item, user_id: '', user_name: '' })),
+    ]);
+
+    appendAudit({
+      audit_id: generateId('EAUD'),
+      module: 'elections',
+      entity_type: 'system',
+      entity_id: 'all',
+      action: 'clear_all_election_data',
+      actor_id: getActorId(user),
+      actor_name: getActorName(user),
+      timestamp: nowIso(),
+      details: JSON.stringify({ elections: elections.length, nominations: nominations.length, votes: votes.length, terms: terms.length }),
+    });
+  },
+
   async createElection(input: Omit<ElectionRecord, 'election_id' | 'created_at' | 'results_published_at'>, user: AuthUser) {
     if (user.type !== 'admin') throw new Error('Only admin can create elections.');
     const record: ElectionRecord = {

@@ -627,7 +627,7 @@ export function AdminMatches() {
         <CardHeader className="flex flex-col gap-4 border-b border-primary/10 bg-gradient-to-r from-background to-primary/5 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle className="font-display text-xl">🏏 Matches & Scorecards</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">Filter fixtures quickly and jump straight into score entry.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Filter fixtures quickly, jump into score entry, and push atomic scorecard saves to Sheets in one fast submit.</p>
           </div>
           <Dialog open={matchOpen} onOpenChange={setMatchOpen}>
             <DialogTrigger asChild>

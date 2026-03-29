@@ -81,6 +81,23 @@ export const tournamentService = {
   getAuditLogs() {
     return read<TournamentAuditLog>(STORAGE.audit);
   },
+
+  async clearAllData(user: AuthUser) {
+    if (user.type !== 'admin') throw new Error('Only admin can clear tournament registration data.');
+    const tournaments = this.getTournaments();
+    const registrations = this.getRegistrations();
+
+    write(STORAGE.tournaments, []);
+    write(STORAGE.registrations, []);
+    write(STORAGE.audit, []);
+
+    await Promise.allSettled([
+      ...tournaments.map((item) => safeSyncRow('delete', SHEETS.tournaments, { tournament_id: item.tournament_id })),
+      ...registrations.map((item) => safeSyncRow('delete', SHEETS.registrations, { registration_id: item.registration_id })),
+    ]);
+
+    appendAudit({ audit_id: generateId('TAUD'), module: 'tournaments', entity_type: 'system', entity_id: 'all', action: 'clear_all_tournament_data', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: new Date().toISOString(), details: JSON.stringify({ tournaments: tournaments.length, registrations: registrations.length }) });
+  },
   async createTournament(input: Omit<TournamentRegistryRecord, 'tournament_id' | 'created_at'>, user: AuthUser) {
     const record: TournamentRegistryRecord = { ...input, tournament_id: generateId('TRN'), created_at: new Date().toISOString() };
     write(STORAGE.tournaments, [record, ...this.getTournaments()]);

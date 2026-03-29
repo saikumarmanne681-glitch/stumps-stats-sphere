@@ -181,7 +181,7 @@ const ElectionsPage = () => {
 
   if (!user) return <Navigate to="/login" replace />;
   if (user.type === 'management') return <Navigate to="/management" replace />;
-  if (!accessLoading && electionsClosed && !canManageElections(user)) {
+  if (!accessLoading && electionsClosed) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
