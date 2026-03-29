@@ -21,10 +21,9 @@ import { useToast } from "@/hooks/use-toast";
 import { generateId } from "@/lib/utils";
 import { ClipboardList, Loader2, Pencil, Plus, Search, Sparkles, Trash2, Users, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
 import { MATCH_STAGES } from "@/lib/v2types";
 import { logAudit } from "@/lib/v2api";
-import { formatDateInIST } from '@/lib/time';
+import { compareSheetDatesDesc, formatSheetDate, parseSheetDate } from "@/lib/dataUtils";
 
 interface PlayerPerformance {
   player_id: string;
@@ -91,6 +90,10 @@ export function AdminMatches() {
   const [saveElapsedSeconds, setSaveElapsedSeconds] = useState(0);
 
   const { toast } = useToast();
+  const normalizeMatchDate = (value: unknown) => {
+    const parsed = parseSheetDate(value);
+    return parsed ? parsed.toISOString().slice(0, 10) : "";
+  };
 
   const emptyMatch: Match = {
     match_id: "",
@@ -115,12 +118,16 @@ export function AdminMatches() {
       toast({ title: "Error", description: "Fill teams", variant: "destructive" });
       return;
     }
+    const normalizedMatch = {
+      ...editMatch,
+      date: normalizeMatchDate(editMatch.date),
+    };
     if (editMatch.match_id) {
-      await updateMatch(editMatch);
+      await updateMatch(normalizedMatch);
       logAudit("admin", "admin_save_match", "match", editMatch.match_id, JSON.stringify({ teams: `${editMatch.team_a} vs ${editMatch.team_b}`, status: editMatch.status, stage: editMatch.match_stage || "" }));
     } else {
       const newId = generateId("M");
-      await addMatch({ ...editMatch, match_id: newId });
+      await addMatch({ ...normalizedMatch, match_id: newId });
       logAudit("admin", "admin_add_match", "match", newId, JSON.stringify({ teams: `${editMatch.team_a} vs ${editMatch.team_b}`, status: editMatch.status, stage: editMatch.match_stage || "" }));
     }
     toast({ title: "Match Saved" });
@@ -270,7 +277,7 @@ export function AdminMatches() {
   const visibleMatches = useMemo(() => {
     const query = matchSearch.trim().toLowerCase();
     return [...matches]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => compareSheetDatesDesc(a.date, b.date))
       .filter((match) => {
         if (statusFilter !== "all" && match.status !== statusFilter) return false;
         if (!query) return true;
@@ -283,7 +290,7 @@ export function AdminMatches() {
   }, [matches, matchSearch, statusFilter]);
 
   const latestMatchTemplate = useMemo(() => {
-    return [...matches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] || null;
+    return [...matches].sort((a, b) => compareSheetDatesDesc(a.date, b.date))[0] || null;
   }, [matches]);
 
   const saveScorecard = async () => {
@@ -328,16 +335,20 @@ export function AdminMatches() {
     });
 
     // Auto-calculate team scores from batting data
-    const calcScore = (team: string) => {
+    const calcScore = (team: string, opponentTeam: string) => {
       const rows = newBatting.filter((b) => b.team === team);
       const totalRuns = rows.reduce((sum, row) => sum + row.runs, 0);
-      const wickets = rows.filter((row) => row.how_out && row.how_out !== "not out").length;
+      const wicketsFromBatting = rows.filter((row) => row.how_out && row.how_out !== "not out").length;
+      const wicketsFromBowling = newBowling
+        .filter((row) => row.team === opponentTeam)
+        .reduce((sum, row) => sum + (row.wickets || 0), 0);
+      const wickets = Math.max(wicketsFromBatting, wicketsFromBowling);
       const totalBalls = rows.reduce((sum, row) => sum + row.balls, 0);
       const overs = Math.floor(totalBalls / 6) + (totalBalls % 6) / 10;
       return `${totalRuns}/${wickets} (${overs.toFixed(1)})`;
     };
-    const teamAScore = calcScore(match.team_a);
-    const teamBScore = calcScore(match.team_b);
+    const teamAScore = calcScore(match.team_a, match.team_b);
+    const teamBScore = calcScore(match.team_b, match.team_a);
 
     setIsSavingScorecard(true);
     setSaveStartedAt(Date.now());
@@ -683,7 +694,7 @@ export function AdminMatches() {
                   <Label>Date</Label>
                   <Input
                     type="date"
-                    value={editMatch?.date || ""}
+                    value={editMatch ? normalizeMatchDate(editMatch.date) : ""}
                     onChange={(e) => setEditMatch((prev) => (prev ? { ...prev, date: e.target.value } : null))}
                   />
                 </div>
@@ -851,7 +862,11 @@ export function AdminMatches() {
                     const rows = batting.filter(b => b.match_id === m.match_id && b.team === team);
                     if (rows.length === 0) return '';
                     const runs = rows.reduce((s, b) => s + b.runs, 0);
-                    const wkts = rows.filter(b => b.how_out && b.how_out !== 'not out').length;
+                    const dismissalWickets = rows.filter(b => b.how_out && b.how_out !== 'not out').length;
+                    const bowlingWickets = bowling
+                      .filter((entry) => entry.match_id === m.match_id && entry.team !== team)
+                      .reduce((sum, entry) => sum + (entry.wickets || 0), 0);
+                    const wkts = Math.max(dismissalWickets, bowlingWickets);
                     const balls = rows.reduce((s, b) => s + b.balls, 0);
                     const overs = Math.floor(balls / 6) + (balls % 6) / 10;
                     return `${runs}/${wkts} (${overs.toFixed(1)})`;
@@ -861,7 +876,7 @@ export function AdminMatches() {
                   return (
                   <TableRow key={m.match_id} className={selectedMatch === m.match_id ? "bg-primary/5" : ""}>
                     <TableCell className="font-mono text-xs">{m.match_id}</TableCell>
-                    <TableCell>{m.date ? formatDateInIST(m.date) : "-"}</TableCell>
+                    <TableCell>{formatSheetDate(m.date, "dd MMM yyyy", "-")}</TableCell>
                     <TableCell className="font-medium">
                       {m.team_a} vs {m.team_b}
                     </TableCell>
@@ -892,7 +907,7 @@ export function AdminMatches() {
                           variant="ghost"
                           title="Edit match"
                           onClick={() => {
-                            setEditMatch(m);
+                            setEditMatch({ ...m, date: normalizeMatchDate(m.date) });
                             setMatchOpen(true);
                           }}
                         >

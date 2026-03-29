@@ -81,8 +81,8 @@ const LiveMatchPage = () => {
     const activeInningsTeam = matchTimeline.find((evt) => evt.team === match.team_a || evt.team === match.team_b)?.team || (teamABatting.length >= teamBBatting.length ? match.team_a : match.team_b);
     const strikerRows = matchBatting.filter((b) => b.team === activeInningsTeam).sort((a, b) => (b.balls || 0) - (a.balls || 0) || (b.runs || 0) - (a.runs || 0)).slice(0, 2);
     const bowlerRows = matchBowling.filter((b) => b.team !== activeInningsTeam).sort((a, b) => Number(b.overs || 0) - Number(a.overs || 0) || (b.wickets || 0) - (a.wickets || 0)).slice(0, 1);
-    const liveAScore = getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score).display || '0/0 (0.0)';
-    const liveBScore = getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score).display || '0/0 (0.0)';
+    const liveAScore = getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score, matchBowling).display || '0/0 (0.0)';
+    const liveBScore = getTeamScoreSummary(matchBatting, match.team_b, match.team_b_score, matchBowling).display || '0/0 (0.0)';
     const aScore = isLive
       ? (teamABatting.length > 0 ? liveAScore : (match.team_a_score || liveAScore))
       : (match.team_a_score || liveAScore);

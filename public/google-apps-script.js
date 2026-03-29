@@ -648,7 +648,7 @@ function doPost(e) {
     if (typeof value !== "string") return value;
     const trimmed = value.trim();
     if (["date", "start_date", "end_date"].indexOf(header) !== -1) {
-      const dateOnly = trimmed.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+      const dateOnly = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if (dateOnly) return trimmed;
     }
     return value;
