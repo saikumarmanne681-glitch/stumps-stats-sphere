@@ -26,7 +26,7 @@
 // MANAGEMENT_USERS: ["management_id","name","email","phone","designation","role","authority_level","signature_image","status","created_at","username","password"],
 // ADMIN_CREDENTIALS: ["admin_id","username","password","name","status","created_at","updated_at"],
 // MATCH_TIMELINE: ["event_id","match_id","over","event_type","description","player_id","team","timestamp"],
-// BOARD_CONFIGURATION: ["config_id","current_period","administration_team_ids","updated_at","updated_by"],
+// BOARD_CONFIGURATION: ["config_id","current_period","administration_team_ids","department_assignments_json","updated_at","updated_by"],
 // NEWS_ROOM_POSTS: ["post_id","title","body","audience","status","posted_by_id","posted_by_name","posted_by_role","published_at","updated_at"],
 // MAIL_DIAGNOSTICS: ["mail_log_id","triggered_at","triggered_by","trigger_source","trigger_entity_type","trigger_entity_id","recipient","subject","body_html","body_text","from_email","reply_to","mail_provider","status","failure_reason","raw_response"],
 // CERTIFICATES: ["certificate_id","certificate_type","title","season_id","tournament_id","match_id","recipient_type","recipient_id","recipient_name","metadata_json","certificate_html","qr_payload","security_hash","approval_status","approvals_json","generated_by","generated_at","approved_at","delivery_status"],
