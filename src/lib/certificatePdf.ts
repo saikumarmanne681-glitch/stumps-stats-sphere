@@ -83,24 +83,24 @@ function buildCertificatePdf(item: CertificateRecord) {
   })();
 
   const lines: PdfTextLine[] = [
-    { text: 'CRICKET TOURNAMENT', x: centerTextX('CRICKET TOURNAMENT', 14, width), y: 548, size: 14, font: 'F2', color: palette.bg },
-    { text: 'CERTIFICATE OF ACHIEVEMENT', x: centerTextX('CERTIFICATE OF ACHIEVEMENT', 34, width), y: 488, size: 34, font: 'F2', color: palette.primary },
-    { text: 'Awarded To', x: centerTextX('Awarded To', 16, width), y: 446, size: 16, color: palette.text },
+    { text: 'CRICKET CLUB HONORS BOARD', x: centerTextX('CRICKET CLUB HONORS BOARD', 13, width), y: 550, size: 13, font: 'F2', color: palette.bg },
+    { text: 'CERTIFICATE OF EXCELLENCE', x: centerTextX('CERTIFICATE OF EXCELLENCE', 34, width), y: 486, size: 34, font: 'F2', color: palette.primary },
+    { text: 'This certificate is proudly presented to', x: centerTextX('This certificate is proudly presented to', 15, width), y: 446, size: 15, color: palette.text },
     { text: item.recipient_name, x: centerTextX(item.recipient_name, recipientFontSize, width), y: 396, size: recipientFontSize, font: 'F2', color: palette.primary },
-    { text: `For outstanding performance in ${String(metadata.tournament || item.tournament_id || 'Tournament')}`, x: centerTextX(`For outstanding performance in ${String(metadata.tournament || item.tournament_id || 'Tournament')}`, 13, width), y: 364, size: 13, color: palette.text },
+    { text: `For exceptional performance in ${String(metadata.tournament || item.tournament_id || 'Tournament')}`, x: centerTextX(`For exceptional performance in ${String(metadata.tournament || item.tournament_id || 'Tournament')}`, 13, width), y: 364, size: 13, color: palette.text },
     { text: `[${awardHeader}] ${item.title}`, x: centerTextX(`[${awardHeader}] ${item.title}`, titleFontSize, width), y: 338, size: titleFontSize, font: 'F2', color: palette.accent },
 
-    { text: `Tournament: ${metadata.tournament || item.tournament_id || 'N/A'}`, x: 82, y: 265, size: 12, color: palette.text },
-    { text: `Season: ${metadata.seasonYear || item.season_id || 'N/A'}`, x: 82, y: 244, size: 12, color: palette.text },
-    { text: `Winner / Runner-up: ${metadata.winnerTeam || 'N/A'} / ${metadata.runnerUpTeam || 'N/A'}`, x: 82, y: 223, size: 11, color: palette.text },
-    { text: `Issue Date: ${formatInIST(item.generated_at)}`, x: 82, y: 202, size: 12, color: palette.text },
-    { text: `Certificate ID: ${item.certificate_id}`, x: 460, y: 265, size: 11, color: palette.text },
-    { text: `Verification Token: ${item.verification_token || 'N/A'}`, x: 460, y: 244, size: 10, color: palette.text },
-    { text: `Award Category: ${metadata.awardCategory || metadata.tournament || 'N/A'}`, x: 460, y: 223, size: 9.5, color: palette.text },
-    { text: `SHA-256 Digest: ${item.security_hash}`, x: 82, y: 183, size: 8.5, color: [0.22, 0.22, 0.22] },
+    { text: `Tournament: ${metadata.tournament || item.tournament_id || 'N/A'}`, x: 82, y: 266, size: 12, color: palette.text },
+    { text: `Season: ${metadata.seasonYear || item.season_id || 'N/A'}`, x: 82, y: 246, size: 12, color: palette.text },
+    { text: `Award Category: ${metadata.awardCategory || metadata.tournament || 'N/A'}`, x: 82, y: 226, size: 11, color: palette.text },
+    { text: `Issue Date: ${formatInIST(item.generated_at)}`, x: 82, y: 206, size: 12, color: palette.text },
+    { text: `Certificate ID: ${item.certificate_id}`, x: 464, y: 266, size: 11, color: palette.text },
+    { text: `Verification Token: ${item.verification_token || 'N/A'}`, x: 464, y: 246, size: 10, color: palette.text },
+    { text: `Approval Status: ${item.approval_status}`, x: 464, y: 226, size: 10.5, color: palette.text },
+    { text: `SHA-256 Digest: ${item.security_hash}`, x: 82, y: 184, size: 8.5, color: [0.22, 0.22, 0.22] },
 
-    { text: 'Verification Link', x: 82, y: 158, size: 9, font: 'F2', color: palette.primary },
-    { text: 'Authorized Signatories', x: centerTextX('Authorized Signatories', 14, width), y: 162, size: 14, font: 'F2', color: palette.primary },
+    { text: 'Verification Link', x: 82, y: 160, size: 9, font: 'F2', color: palette.primary },
+    { text: 'Authorized Signatories', x: centerTextX('Authorized Signatories', 14, width), y: 164, size: 14, font: 'F2', color: palette.primary },
     { text: 'Treasurer', x: 120, y: 88, size: 11, color: palette.text },
     { text: 'Scoring Official', x: 355, y: 88, size: 11, color: palette.text },
     { text: 'Match Referee', x: 615, y: 88, size: 11, color: palette.text },
@@ -122,12 +122,14 @@ function buildCertificatePdf(item: CertificateRecord) {
 
   const background = [
     `${palette.bg.join(' ')} rg 0 0 ${width} ${height} re f`,
-    `${palette.accent.join(' ')} RG 5 w 18 18 ${width - 36} ${height - 36} re S`,
-    `${palette.primary.join(' ')} RG 1.25 w 30 30 ${width - 60} ${height - 60} re S`,
-    `${palette.primary.join(' ')} rg 30 520 ${width - 60} 38 re f`,
-    `${palette.accent.join(' ')} rg 30 34 ${width - 60} 14 re f`,
-    `${palette.primary.join(' ')} RG 0.8 w 68 167 706 112 re S`,
-    `${palette.primary.join(' ')} RG 0.8 w 68 56 706 116 re S`,
+    '1 1 1 rg 16 16 810 563 re f',
+    `${palette.accent.join(' ')} RG 5 w 16 16 ${width - 32} ${height - 32} re S`,
+    `${palette.primary.join(' ')} RG 1.2 w 28 28 ${width - 56} ${height - 56} re S`,
+    `${palette.primary.join(' ')} RG 0.8 w 40 40 ${width - 80} ${height - 80} re S`,
+    `${palette.primary.join(' ')} rg 40 528 ${width - 80} 34 re f`,
+    `${palette.accent.join(' ')} rg 40 38 ${width - 80} 10 re f`,
+    `${palette.primary.join(' ')} RG 0.8 w 68 168 706 110 re S`,
+    `${palette.primary.join(' ')} RG 0.8 w 68 56 706 118 re S`,
     `${palette.accent.join(' ')} RG 0.8 w 180 381 482 0 m S`,
     `${palette.accent.join(' ')} RG 1.1 w 88 118 188 0 m S 323 118 188 0 m S 583 118 188 0 m S`,
     `${palette.primary.join(' ')} RG 0.9 w 78 74 200 58 re S`,
@@ -138,8 +140,8 @@ function buildCertificatePdf(item: CertificateRecord) {
   const watermark = isPending
     ? [
       'q',
-      '0.86 0.2 0.2 rg',
-      'BT /F2 52 Tf 1 0 0 1 230 304 Tm (PENDING APPROVAL) Tj ET',
+      '0.82 0.18 0.18 rg',
+      'BT /F2 50 Tf 1 0 0 1 228 304 Tm (PENDING APPROVAL) Tj ET',
       'Q',
     ]
     : [];
