@@ -27,6 +27,7 @@ import { getActorId, isScheduleApproverRole } from '@/lib/accessControl';
 import { ScheduleRecord } from '@/schedules/types';
 import { formatInIST } from '@/lib/time';
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
+import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember } from '@/lib/boardDepartments';
 
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 const stageLabels: Record<string, string> = scorelistStageLabels;
@@ -86,6 +87,7 @@ const ManagementPage = () => {
   }, [mgmtUsers]);
   const configuredBoardTeam = useMemo(() => boardMembers.filter((member) => administrationTeamIds.includes(member.management_id)), [administrationTeamIds, boardMembers]);
   const otherBoardMembers = useMemo(() => boardMembers.filter((member) => !administrationTeamIds.includes(member.management_id)), [administrationTeamIds, boardMembers]);
+  const departmentAssignments = useMemo(() => parseDepartmentAssignments(boardConfig), [boardConfig]);
   const resolveMessageIdentity = (id: string) => {
     if (id === 'admin') return '🛡️ Admin';
     if (id === 'all') return '📢 All';
@@ -429,6 +431,21 @@ const ManagementPage = () => {
                   ))}
                   {administrationTeam.length === 0 && <p className="text-sm text-muted-foreground">Admin has not selected the administration team yet.</p>}
                 </div>
+                <div className="rounded-lg border border-dashed p-3">
+                  <p className="text-sm font-semibold">Department allocation status</p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {BOARD_DEPARTMENTS.map((department) => {
+                      const assignment = departmentAssignments.find((item) => item.department_id === department.id);
+                      const head = assignment?.head_id ? resolveDepartmentMember(assignment.head_id, boardMembers) : null;
+                      return (
+                        <div key={`snapshot:${department.id}`} className="rounded-md border bg-background p-2">
+                          <p className="text-xs font-semibold">{department.name}</p>
+                          <p className="text-[11px] text-muted-foreground">Head: {head?.name || 'Not assigned'}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -744,6 +761,40 @@ const ManagementPage = () => {
               </div>
             </div>
           </div>
+
+          <Card className="border-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="font-display text-lg flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" /> Department Directory (Admin Controlled)
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">Five core departments with assigned head and operating team.</p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {BOARD_DEPARTMENTS.map((department) => {
+                const assignment = departmentAssignments.find((item) => item.department_id === department.id) || { head_id: '', team_ids: [] };
+                const head = assignment.head_id ? resolveDepartmentMember(assignment.head_id, boardMembers) : null;
+                const members = assignment.team_ids.map((id) => resolveDepartmentMember(id, boardMembers)).filter((member): member is NonNullable<typeof member> => Boolean(member));
+                return (
+                  <div key={`directory:${department.id}`} className="rounded-xl border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold">{department.name}</p>
+                      <Badge variant="outline">Team size: {members.length}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{department.description}</p>
+                    <p className="mt-2 text-sm"><span className="font-medium">Head:</span> {head ? `${head.name} (${head.designation})` : 'Not assigned by admin'}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {members.length === 0 && <Badge variant="secondary">No team members assigned</Badge>}
+                      {members.map((member) => (
+                        <Badge key={`${department.id}:${member.management_id}`} variant="outline">
+                          {member.name} • {member.designation}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <Card className="border-primary/30 shadow-sm">
