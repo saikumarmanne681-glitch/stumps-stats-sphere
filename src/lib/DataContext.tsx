@@ -93,7 +93,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const invalidateKeys = useCallback(
-    async (keys: readonly unknown[][]) => {
+    async (keys: readonly (readonly unknown[])[]) => {
       await Promise.all(keys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
     },
     [queryClient],
