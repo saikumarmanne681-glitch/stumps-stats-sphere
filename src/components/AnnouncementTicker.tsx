@@ -3,6 +3,7 @@ import { useData } from '@/lib/DataContext';
 import { Sparkles, Volume2, ChevronRight, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DataIntegrityBadge } from '@/components/SecurityBadge';
+import { formatSheetDate } from '@/lib/dataUtils';
 
 export function AnnouncementTicker() {
   const { announcements, loading } = useData();
@@ -21,7 +22,13 @@ export function AnnouncementTicker() {
 
   if (activeAnnouncements.length === 0) return null;
 
-  const tickerText = activeAnnouncements.map(a => `📢 ${a.title}: ${a.message}`).join('   ✦   ');
+  const tickerText = activeAnnouncements
+    .map((announcement) => {
+      const publishedOn = formatSheetDate(announcement.date, 'dd MMM');
+      return `📢 ${announcement.title}: ${announcement.message} • ${publishedOn}`;
+    })
+    .join('   ✦   ');
+  const animationDuration = `${Math.max(28, activeAnnouncements.length * 10)}s`;
 
   return (
     <div className="group relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary border-b border-primary/40">
@@ -50,7 +57,10 @@ export function AnnouncementTicker() {
         </div>
 
         {/* Ticker content */}
-        <div className="animate-ticker whitespace-nowrap text-primary-foreground font-body text-sm font-semibold drop-shadow-sm [animation-duration:40s] group-hover:[animation-play-state:paused]">
+        <div
+          className="animate-ticker whitespace-nowrap text-primary-foreground font-body text-sm font-semibold drop-shadow-sm group-hover:[animation-play-state:paused]"
+          style={{ animationDuration }}
+        >
           <span className="inline-flex items-center gap-1">
             {tickerText}
             <ChevronRight className="h-3 w-3 inline opacity-50" />
