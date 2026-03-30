@@ -7,7 +7,7 @@ export type CertificateSignatureRecord = {
   signedAt: string;
 };
 
-type CertificateSecuritySource = Pick<CertificateRecord, 'certificate_id' | 'certificate_type' | 'recipient_id' | 'recipient_name' | 'season_id' | 'tournament_id' | 'match_id' | 'generated_at' | 'verification_token' | 'verification_url' | 'qr_payload' | 'tamper_evident_payload' | 'approvals_json' | 'signatures_json' | 'security_hash' | 'certificate_template' | 'title' | 'recipient_type' | 'approval_status' | 'metadata_json' | 'generated_by' | 'approved_at' | 'delivery_status'>;
+type CertificateSecuritySource = Pick<CertificateRecord, 'certificate_id' | 'certificate_type' | 'recipient_id' | 'recipient_name' | 'season_id' | 'tournament_id' | 'match_id' | 'generated_at' | 'verification_token' | 'verification_url' | 'qr_payload' | 'tamper_evident_payload' | 'approvals_json' | 'signatures_json' | 'security_hash' | 'certificate_template' | 'title' | 'recipient_type' | 'approval_status' | 'metadata_json' | 'certificate_html' | 'generated_by' | 'approved_at' | 'delivery_status'>;
 
 export function buildCertificateVerificationUrl(certificateId: string, token: string) {
   if (typeof window === 'undefined') return `/verify-certificate/${certificateId}?token=${encodeURIComponent(token)}`;
