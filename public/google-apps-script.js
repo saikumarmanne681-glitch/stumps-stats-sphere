@@ -96,9 +96,9 @@ const TABS = {
   TEAM_TITLES: ["title_id","team_id","team_name","competition_name","tournament_id","season_id","season_label","result_type","won_on","notes","created_at"],
   TEAM_ACCESS_USERS: ["team_access_id","team_id","team_name","username","password","status","created_at","updated_at","linked_by_admin"],
   // Governance & competition workflow modules
-  elections: ["election_id","title","description","roles_json","eligible_roles_json","status","nomination_start","nomination_end","voting_start","voting_end","created_by","created_at","results_published_at"],
+  elections: ["election_id","title","description","roles_json","eligible_roles_json","status","notification_date","nomination_start","nomination_end","withdrawal_deadline","scrutiny_date","voting_start","voting_end","results_day","created_by","created_at","results_published_at","show_notice","enable_nominations","enable_status_tracking","publish_candidate_list","enable_voting","close_polling","publish_results","archive_election"],
   votes: ["vote_id","election_id","role_name","voter_user_id","voter_name","nominee_user_id","nominee_name","submitted_at","immutable_hash"],
-  nominations: ["nomination_id","election_id","role_name","nominee_user_id","nominee_name","proposer_user_id","proposer_name","manifesto","status","reviewed_by","reviewed_at","created_at"],
+  nominations: ["nomination_id","election_id","role_name","nominee_user_id","nominee_name","player_id","proposer_user_id","proposer_name","seconder_name","manifesto","declaration_accepted","status","remarks","reviewed_by","reviewed_at","created_at"],
   election_terms: ["assignment_id","election_id","role_name","user_id","user_name","term_start","term_end","assigned_at","source_vote_count"],
   tournaments_v2: ["tournament_id","name","format","venue","start_date","end_date","registration_deadline","created_by","created_at","status","notes","season_id","season_year","source_type","public_page_path"],
   registrations: ["registration_id","tournament_id","tournament_name","season_id","season_year","registration_key","team_name","contact_name","contact_email","contact_phone","players_json","submitted_by","submitted_by_name","submitted_at","status","reviewed_by","reviewed_at","review_notes"],
