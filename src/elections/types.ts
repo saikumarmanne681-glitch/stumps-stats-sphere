@@ -1,5 +1,5 @@
-export type ElectionStatus = 'draft' | 'open' | 'closed';
-export type NominationStatus = 'pending' | 'approved' | 'rejected';
+export type ElectionStatus = 'draft' | 'open' | 'closed' | 'archived';
+export type NominationStatus = 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn';
 
 export interface ElectionRecord {
   election_id: string;
@@ -12,12 +12,21 @@ export interface ElectionRecord {
   nomination_start: string;
   nomination_end: string;
   withdrawal_deadline: string;
+  scrutiny_date: string;
   voting_start: string;
   voting_end: string;
   results_day: string;
   created_by: string;
   created_at: string;
   results_published_at: string;
+  show_notice: boolean;
+  enable_nominations: boolean;
+  enable_status_tracking: boolean;
+  publish_candidate_list: boolean;
+  enable_voting: boolean;
+  close_polling: boolean;
+  publish_results: boolean;
+  archive_election: boolean;
 }
 
 export interface NominationRecord {
@@ -26,10 +35,14 @@ export interface NominationRecord {
   role_name: string;
   nominee_user_id: string;
   nominee_name: string;
+  player_id: string;
   proposer_user_id: string;
   proposer_name: string;
+  seconder_name: string;
   manifesto: string;
+  declaration_accepted: boolean;
   status: NominationStatus;
+  remarks: string;
   reviewed_by: string;
   reviewed_at: string;
   created_at: string;
