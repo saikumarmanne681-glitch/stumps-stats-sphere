@@ -18,6 +18,7 @@ import { getScheduleApprovalRoadmap, getScheduleDetailedStatus, getScorelistDeta
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
 import { useData } from '@/lib/DataContext';
+import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { generateId } from '@/lib/utils';
 import { getAdminNotificationRecipient, sendScorelistApprovalRequestBulk, sendSystemEmail, sendApprovalThankYouEmail, sendScorelistStatusEmailToAdmin, sendMessageNotificationEmail, sendScorelistReminderEmail } from '@/lib/mailer';
 import { DataIntegrityBadge, SecurityShieldBadge, SessionFingerprint } from '@/components/SecurityBadge';
