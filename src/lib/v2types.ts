@@ -165,6 +165,7 @@ export interface BoardConfiguration {
   config_id: string;
   current_period: string;
   administration_team_ids: string;
+  department_assignments_json?: string;
   updated_at: string;
   updated_by: string;
 }
