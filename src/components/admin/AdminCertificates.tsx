@@ -287,7 +287,7 @@ export function AdminCertificates() {
         triggeredBy: 'admin',
       },
     })));
-    const delivered = mailDispatch.filter((entry) => entry.ok).length;
+    const delivered = mailDispatch.filter((entry) => entry.success).length;
     const failed = mailDispatch.length - delivered;
     setLastMailDispatch({ total: mailDispatch.length, delivered, failed });
     toast({
