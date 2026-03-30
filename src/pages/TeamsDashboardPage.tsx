@@ -122,7 +122,7 @@ export default function TeamsDashboardPage() {
   const visibleTickets = resolvedSelectedTeam === 'all'
     ? tickets
     : tickets.filter((ticket) => {
-      const teamGuess = String((ticket as Record<string, unknown>).team_name || '').trim();
+      const teamGuess = String((ticket as unknown as Record<string, unknown>).team_name || '').trim();
       return teamGuess === resolvedSelectedTeam || String(ticket.subject || '').toLowerCase().includes(resolvedSelectedTeam.toLowerCase());
     });
 
