@@ -1,4 +1,5 @@
 import { Navigate, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,9 +21,20 @@ import { AdminCertificates } from '@/components/admin/AdminCertificates';
 import { AdminMailDiagnostics } from '@/components/admin/AdminMailDiagnostics';
 import { AdminSheetsConsole } from '@/components/admin/AdminSheetsConsole';
 import { AdminApprovalsRealtime } from '@/components/admin/AdminApprovalsRealtime';
+import { v2api } from '@/lib/v2api';
+import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
+  const [pendingScorelists, setPendingScorelists] = useState(0);
+
+  useEffect(() => {
+    v2api.getScorelists().then((rows) => {
+      setPendingScorelists(rows.filter((item) => !item.locked && item.certification_status !== 'official_certified').length);
+    }).catch(() => {
+      setPendingScorelists(0);
+    });
+  }, []);
 
   if (!isAdmin) return <Navigate to="/login" />;
 
@@ -49,6 +61,35 @@ const AdminDashboard = () => {
               </Button>
             </div>
           </div>
+        </div>
+
+        <div className="mb-6">
+          <PendingActionsPanel
+            title="Pending Admin Actions"
+            items={[
+              {
+                id: 'pending-scorelists',
+                label: 'Scorelist certifications',
+                description: 'Scorelists waiting for final review and certification.',
+                count: pendingScorelists,
+                to: '/admin/scorelists',
+              },
+              {
+                id: 'work-queue',
+                label: 'Work queue',
+                description: 'Operational queue for approvals, escalations, and admin tasks.',
+                count: pendingScorelists,
+                to: '/admin/work-queue',
+              },
+              {
+                id: 'live-scoring',
+                label: 'Live scoring checks',
+                description: 'Jump into the match center to validate active scoring sessions.',
+                count: 0,
+                to: '/admin/match-center',
+              },
+            ]}
+          />
         </div>
 
         <Tabs defaultValue="matches" className="w-full">

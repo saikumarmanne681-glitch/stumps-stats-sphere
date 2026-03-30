@@ -24,6 +24,7 @@ import { formatDateInIST, formatInIST } from '@/lib/time';
 import { useEffect } from 'react';
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 import { resolvePlayerIdFromIdentity } from '@/lib/dataUtils';
+import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -217,6 +218,33 @@ const PlayerDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        <PendingActionsPanel
+          title="Pending Player Actions"
+          items={[
+            {
+              id: 'messages-unread',
+              label: 'Unread messages',
+              description: 'Unread administrative or management communications in your inbox.',
+              count: unreadCount,
+              to: '/player',
+            },
+            {
+              id: 'support-followup',
+              label: 'Support follow-ups',
+              description: 'Track your ongoing support tickets and responses.',
+              count: playerMessages.filter((m) => m.subject?.toLowerCase().includes('support') && !m.read && m.from_id !== user.player_id).length,
+              to: '/player',
+            },
+            {
+              id: 'approved-certificates',
+              label: 'Ready certificates',
+              description: 'Certificates approved and available for preview/download.',
+              count: certificates.length,
+              to: '/player',
+            },
+          ]}
+        />
 
         <Tabs defaultValue="stats">
           <TabsList className="flex flex-wrap h-auto gap-1">

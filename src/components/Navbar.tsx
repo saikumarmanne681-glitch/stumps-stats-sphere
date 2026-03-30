@@ -130,12 +130,12 @@ export function Navbar() {
         <CommandPalette />
 
         {/* Desktop Nav */}
-        <div className="hidden xl:flex items-center gap-1 max-w-[70vw] overflow-x-auto">
+        <div className="hidden lg:flex items-center gap-1 max-w-[70vw] overflow-x-auto">
           <NavItems />
         </div>
 
         {/* Mobile + tablet Hamburger */}
-        <div className="xl:hidden">
+        <div className="lg:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button

@@ -38,6 +38,9 @@ type AdminCredentialRow = {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const SESSION_KEY = 'cricketUser';
+  const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
+  const IDLE_TIMEOUT_MS = 1000 * 60 * 30;
   const ADMIN_USERNAME = 'admin';
   const getAdminAlias = () => localStorage.getItem('adminAlias') || 'Administrator';
 
@@ -46,27 +49,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return normalized === '' || normalized === 'active';
   };
 
+  const persistSession = (nextUser: AuthUser) => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      user: nextUser,
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + SESSION_TTL_MS,
+      lastActivityAt: Date.now(),
+    }));
+  };
+
+  const clearSession = () => {
+    localStorage.removeItem(SESSION_KEY);
+  };
+
   const createAdminSession = (displayName?: string) => {
     const u: AuthUser = { type: "admin", username: ADMIN_USERNAME, name: getAdminAlias() || displayName || 'Administrator' };
     setUser(u);
-    localStorage.setItem("cricketUser", JSON.stringify(u));
+    persistSession(u);
     startHeartbeat("admin");
     return true;
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem("cricketUser");
+    const stored = localStorage.getItem(SESSION_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setUser(parsed);
-        const userId = parsed.type === "admin" ? "admin" : parsed.player_id || parsed.management_id;
+        const storedUser: AuthUser = parsed?.user || parsed;
+        const expiresAt = Number(parsed?.expiresAt || 0);
+        const lastActivityAt = Number(parsed?.lastActivityAt || 0);
+        const now = Date.now();
+        const isExpired = !!expiresAt && now > expiresAt;
+        const isIdleExpired = !!lastActivityAt && now - lastActivityAt > IDLE_TIMEOUT_MS;
+        if (isExpired || isIdleExpired) {
+          clearSession();
+          stopHeartbeat();
+          return;
+        }
+        setUser(storedUser);
+        persistSession(storedUser);
+        const userId = storedUser.type === "admin" ? "admin" : storedUser.player_id || storedUser.management_id;
         if (userId) startHeartbeat(userId);
       } catch {
         /* ignore */
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const onActivity = () => {
+      persistSession(user);
+    };
+    const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach((eventName) => window.addEventListener(eventName, onActivity));
+
+    const timer = window.setInterval(() => {
+      const stored = localStorage.getItem(SESSION_KEY);
+      if (!stored) return;
+      try {
+        const parsed = JSON.parse(stored);
+        const expiresAt = Number(parsed?.expiresAt || 0);
+        const lastActivityAt = Number(parsed?.lastActivityAt || 0);
+        const now = Date.now();
+        if ((expiresAt && now > expiresAt) || (lastActivityAt && now - lastActivityAt > IDLE_TIMEOUT_MS)) {
+          logout();
+        }
+      } catch {
+        logout();
+      }
+    }, 30000);
+
+    return () => {
+      events.forEach((eventName) => window.removeEventListener(eventName, onActivity));
+      window.clearInterval(timer);
+    };
+  }, [user]);
 
   const login = async (username: string, password: string, role: "admin" | "player" | "management" | "team"): Promise<boolean> => {
     if (role === "admin") {
@@ -111,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (player) {
         const u: AuthUser = { type: "player", username: player.username, player_id: player.player_id, name: player.name };
         setUser(u);
-        localStorage.setItem("cricketUser", JSON.stringify(u));
+        persistSession(u);
         startHeartbeat(player.player_id);
         return true;
       }
@@ -137,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: teamUser.team_name,
       };
       setUser(u);
-      localStorage.setItem("cricketUser", JSON.stringify(u));
+      persistSession(u);
       startHeartbeat(teamUser.team_id || teamUser.team_access_id);
       return true;
     }
@@ -177,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         designation: management.designation,
       };
       setUser(u);
-      localStorage.setItem("cricketUser", JSON.stringify(u));
+      persistSession(u);
       startHeartbeat(management.management_id);
       return true;
     }
@@ -188,7 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     stopHeartbeat();
     setUser(null);
-    localStorage.removeItem("cricketUser");
+    clearSession();
   };
 
   const updateAdminProfile = (updates: { aliasName?: string }) => {
@@ -198,7 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => {
       if (!prev || prev.type !== 'admin') return prev;
       const updated: AuthUser = { ...prev, name: getAdminAlias() };
-      localStorage.setItem('cricketUser', JSON.stringify(updated));
+      persistSession(updated);
       return updated;
     });
   };
