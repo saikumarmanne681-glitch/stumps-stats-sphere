@@ -11,14 +11,21 @@ import { useToast } from '@/hooks/use-toast';
 import { Shield, User, Users, Trophy } from 'lucide-react';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [activeTab, setActiveTab] = useState<'admin' | 'player' | 'management' | 'team'>('admin');
+  const [credentials, setCredentials] = useState<Record<'admin' | 'player' | 'management' | 'team', { username: string; password: string }>>({
+    admin: { username: '', password: '' },
+    player: { username: '', password: '' },
+    management: { username: '', password: '' },
+    team: { username: '', password: '' },
+  });
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleLogin = async (type: 'admin' | 'player' | 'management' | 'team') => {
+    const username = credentials[type].username;
+    const password = credentials[type].password;
     if (!username.trim() || !password.trim()) {
       toast({ title: 'Error', description: 'Please fill in all fields', variant: 'destructive' });
       return;
@@ -28,7 +35,13 @@ const Login = () => {
     setLoading(false);
     if (success) {
       toast({ title: 'Welcome!', description: `Logged in as ${username}` });
-      navigate(type === 'admin' ? '/admin' : type === 'player' ? '/player' : '/management/teams-dashboard');
+      const routeByRole: Record<'admin' | 'player' | 'management' | 'team', string> = {
+        admin: '/admin',
+        player: '/player',
+        management: '/management',
+        team: '/management/teams-dashboard',
+      };
+      navigate(routeByRole[type]);
     } else {
       toast({ title: 'Login Failed', description: 'Invalid credentials', variant: 'destructive' });
     }
@@ -45,8 +58,8 @@ const Login = () => {
             <CardDescription>Choose your role and sign in</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="admin" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'admin' | 'player' | 'management' | 'team')} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
                 <TabsTrigger value="admin" className="flex items-center gap-1">
                   <Shield className="h-4 w-4" /> Admin
                 </TabsTrigger>
@@ -64,11 +77,11 @@ const Login = () => {
               <TabsContent value="admin" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="admin-username">Username</Label>
-                  <Input id="admin-username" placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} />
+                  <Input id="admin-username" placeholder="admin" value={credentials.admin.username} onChange={e => setCredentials((prev) => ({ ...prev, admin: { ...prev.admin, username: e.target.value } }))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="admin-password">Password</Label>
-                  <Input id="admin-password" type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                  <Input id="admin-password" type="password" placeholder="••••" value={credentials.admin.password} onChange={e => setCredentials((prev) => ({ ...prev, admin: { ...prev.admin, password: e.target.value } }))} />
                 </div>
                 <p className="text-xs text-muted-foreground">Admin credentials are read from the <span className="font-semibold">ADMIN_CREDENTIALS</span> sheet (columns: admin_id, username, password, name, status).</p>
                 <Button className="w-full" onClick={() => handleLogin('admin')} disabled={loading}>
@@ -79,11 +92,11 @@ const Login = () => {
               <TabsContent value="player" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="player-username">Username</Label>
-                  <Input id="player-username" placeholder="your username" value={username} onChange={e => setUsername(e.target.value)} />
+                  <Input id="player-username" placeholder="your username" value={credentials.player.username} onChange={e => setCredentials((prev) => ({ ...prev, player: { ...prev.player, username: e.target.value } }))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="player-password">Password</Label>
-                  <Input id="player-password" type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                  <Input id="player-password" type="password" placeholder="••••" value={credentials.player.password} onChange={e => setCredentials((prev) => ({ ...prev, player: { ...prev.player, password: e.target.value } }))} />
                 </div>
                 <Button className="w-full" onClick={() => handleLogin('player')} disabled={loading}>
                   {loading ? 'Logging in...' : 'Login as Player'}
@@ -93,11 +106,11 @@ const Login = () => {
               <TabsContent value="management" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="management-username">Username</Label>
-                  <Input id="management-username" placeholder="management username" value={username} onChange={e => setUsername(e.target.value)} />
+                  <Input id="management-username" placeholder="management username" value={credentials.management.username} onChange={e => setCredentials((prev) => ({ ...prev, management: { ...prev.management, username: e.target.value } }))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="management-password">Password</Label>
-                  <Input id="management-password" type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                  <Input id="management-password" type="password" placeholder="••••" value={credentials.management.password} onChange={e => setCredentials((prev) => ({ ...prev, management: { ...prev.management, password: e.target.value } }))} />
                 </div>
                 <Button className="w-full" onClick={() => handleLogin('management')} disabled={loading}>
                   {loading ? 'Logging in...' : 'Login as Management'}
@@ -107,11 +120,11 @@ const Login = () => {
               <TabsContent value="team" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor="team-username">Team Username / Team Name</Label>
-                  <Input id="team-username" placeholder="e.g. royals_team" value={username} onChange={e => setUsername(e.target.value)} />
+                  <Input id="team-username" placeholder="e.g. royals_team" value={credentials.team.username} onChange={e => setCredentials((prev) => ({ ...prev, team: { ...prev.team, username: e.target.value } }))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="team-password">Password</Label>
-                  <Input id="team-password" type="password" placeholder="••••" value={password} onChange={e => setPassword(e.target.value)} />
+                  <Input id="team-password" type="password" placeholder="••••" value={credentials.team.password} onChange={e => setCredentials((prev) => ({ ...prev, team: { ...prev.team, password: e.target.value } }))} />
                 </div>
                 <p className="text-xs text-muted-foreground">Team logins are managed by admin via <span className="font-semibold">TEAM_ACCESS_USERS</span> sheet.</p>
                 <Button className="w-full" onClick={() => handleLogin('team')} disabled={loading}>
