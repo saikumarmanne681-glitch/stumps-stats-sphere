@@ -94,6 +94,11 @@ const normalizeNomination = (item: NominationRecord): NominationRecord => ({
   declaration_accepted: parseSheetBoolean(item.declaration_accepted),
 });
 
+const nominationCompositeKey = (item: Pick<NominationRecord, 'election_id' | 'nominee_user_id' | 'role_name'>) =>
+  `${item.election_id}:${item.nominee_user_id}:${item.role_name}`;
+
+const nominationLookupKey = (item: NominationRecord) => item.nomination_id?.trim() || nominationCompositeKey(item);
+
 export const electionService = {
   getTables() {
     return ['elections', 'nominations', 'votes', 'election_terms'] as const;
@@ -109,7 +114,7 @@ export const electionService = {
         v2api.getCustomSheet<ElectionTermRecord>(SHEETS.terms),
       ]);
       if (elections.length) write(STORAGE.elections, dedupeByKey(elections.map(normalizeElection), (item) => item.election_id));
-      if (nominations.length) write(STORAGE.nominations, dedupeByKey(nominations.map(normalizeNomination), (item) => item.nomination_id || `${item.election_id}:${item.nominee_user_id}:${item.role_name}`));
+      if (nominations.length) write(STORAGE.nominations, dedupeByKey(nominations.map(normalizeNomination), (item) => nominationLookupKey(item)));
       if (votes.length) write(STORAGE.votes, dedupeByKey(votes, (item) => item.vote_id || `${item.election_id}:${item.voter_user_id}:${item.role_name}`));
       if (terms.length) write(STORAGE.terms, dedupeByKey(terms, (item) => item.assignment_id || `${item.election_id}:${item.role_name}:${item.user_id}`));
     } catch {
@@ -200,7 +205,7 @@ export const electionService = {
       reviewed_at: '',
       remarks: '',
     };
-    write(STORAGE.nominations, dedupeByKey([record, ...this.getNominations()], (item) => item.nomination_id || `${item.election_id}:${item.nominee_user_id}:${item.role_name}`));
+    write(STORAGE.nominations, dedupeByKey([record, ...this.getNominations()], (item) => nominationLookupKey(item)));
     await safeSyncRow('add', SHEETS.nominations, record);
     appendAudit({
       audit_id: generateId('EAUD'),
@@ -218,11 +223,11 @@ export const electionService = {
 
   async reviewNomination(nominationId: string, status: 'under_review' | 'approved' | 'rejected', remarks: string, user: AuthUser) {
     if (user.type !== 'admin') throw new Error('Only admin can review nominations.');
-    const current = this.getNominations().find((item) => item.nomination_id === nominationId);
+    const current = this.getNominations().find((item) => nominationLookupKey(item) === nominationId);
     if (!current) throw new Error('Nomination not found.');
-    const updated = this.getNominations().map((item) => item.nomination_id === nominationId ? { ...item, status, remarks, reviewed_by: getActorId(user), reviewed_at: nowIso() } : item);
+    const updated = this.getNominations().map((item) => nominationLookupKey(item) === nominationId ? { ...item, status, remarks, reviewed_by: getActorId(user), reviewed_at: nowIso() } : item);
     write(STORAGE.nominations, updated);
-    const changed = updated.find((item) => item.nomination_id === nominationId);
+    const changed = updated.find((item) => nominationLookupKey(item) === nominationId);
     if (changed) await safeSyncRow('update', SHEETS.nominations, changed);
     appendAudit({
       audit_id: generateId('EAUD'),
@@ -240,12 +245,12 @@ export const electionService = {
   async withdrawNomination(nominationId: string, user: AuthUser) {
     if (user.type !== 'player') throw new Error('Only players can withdraw nominations.');
     const userId = getActorId(user);
-    const current = this.getNominations().find((item) => item.nomination_id === nominationId && item.nominee_user_id === userId);
+    const current = this.getNominations().find((item) => nominationLookupKey(item) === nominationId && item.nominee_user_id === userId);
     if (!current) throw new Error('Nomination not found.');
     if (current.status === 'withdrawn') return;
-    const updated = this.getNominations().map((item) => item.nomination_id === nominationId ? { ...item, status: 'withdrawn', remarks: 'Withdrawn by player' } : item);
+    const updated = this.getNominations().map((item) => nominationLookupKey(item) === nominationId ? { ...item, status: 'withdrawn', remarks: 'Withdrawn by player' } : item);
     write(STORAGE.nominations, updated);
-    const changed = updated.find((item) => item.nomination_id === nominationId);
+    const changed = updated.find((item) => nominationLookupKey(item) === nominationId);
     if (changed) await safeSyncRow('update', SHEETS.nominations, changed);
     appendAudit({
       audit_id: generateId('EAUD'),
