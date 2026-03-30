@@ -328,7 +328,7 @@ const AdminManagement = () => {
                                     const teamIds = selected
                                       ? assignment.team_ids.filter((id) => id !== u.management_id)
                                       : [...assignment.team_ids, u.management_id];
-                                    const next = departmentAssignments.map((item) => item.department_id === department.id ? { ...item, team_ids } : item);
+                                    const next = departmentAssignments.map((item) => item.department_id === department.id ? { ...item, team_ids: teamIds } : item);
                                     setBoardConfig(getConfigDraft({ department_assignments_json: toDepartmentAssignmentsJson(next) }));
                                   }}
                                 >

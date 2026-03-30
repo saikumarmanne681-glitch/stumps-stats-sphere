@@ -56,10 +56,11 @@ function buildCertificatePdf(item: CertificateRecord) {
   const height = 595;
   const isPending = item.approval_status !== 'approved';
   const theme = item.certificate_template || 'classic';
+  type C3 = [number, number, number];
   const palette = {
-    classic: { bg: [0.988, 0.984, 0.965], primary: [0.08, 0.2, 0.38], accent: [0.73, 0.56, 0.2], text: [0.14, 0.14, 0.14] },
-    premium: { bg: [0.962, 0.972, 0.994], primary: [0.1, 0.22, 0.44], accent: [0.31, 0.5, 0.88], text: [0.12, 0.15, 0.22] },
-    gold: { bg: [0.995, 0.976, 0.93], primary: [0.24, 0.17, 0.05], accent: [0.69, 0.53, 0.13], text: [0.2, 0.17, 0.08] },
+    classic: { bg: [0.988, 0.984, 0.965] as C3, primary: [0.08, 0.2, 0.38] as C3, accent: [0.73, 0.56, 0.2] as C3, text: [0.14, 0.14, 0.14] as C3 },
+    premium: { bg: [0.962, 0.972, 0.994] as C3, primary: [0.1, 0.22, 0.44] as C3, accent: [0.31, 0.5, 0.88] as C3, text: [0.12, 0.15, 0.22] as C3 },
+    gold: { bg: [0.995, 0.976, 0.93] as C3, primary: [0.24, 0.17, 0.05] as C3, accent: [0.69, 0.53, 0.13] as C3, text: [0.2, 0.17, 0.08] as C3 },
   }[theme];
 
   const recipientFontSize = item.recipient_name.length > 36 ? 27 : item.recipient_name.length > 24 ? 31 : 35;
