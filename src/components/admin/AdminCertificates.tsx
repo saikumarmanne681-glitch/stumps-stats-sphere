@@ -37,10 +37,10 @@ const certCatalog: Array<{ value: CertType; label: string; icon: string }> = [
   { value: 'man_of_match', label: 'Man of the Match', icon: '🔥' },
 ];
 
-const templateCatalog: Array<{ value: CertTemplate; label: string; border: string; bg: string }> = [
-  { value: 'classic', label: 'Classic', border: '#7a5a1c', bg: '#fdf7e4' },
-  { value: 'premium', label: 'Premium', border: '#2150ba', bg: '#edf3ff' },
-  { value: 'gold', label: 'Gold', border: '#8b6b12', bg: '#fff8d9' },
+const templateCatalog: Array<{ value: CertTemplate; label: string; border: string; bg: string; accent: string; heading: string }> = [
+  { value: 'classic', label: 'Regal Ivory', border: '#8c6a2e', bg: '#fefaf0', accent: '#caa35d', heading: '#1f2f5e' },
+  { value: 'premium', label: 'Royal Sapphire', border: '#1e4db8', bg: '#f1f6ff', accent: '#78a8ff', heading: '#17306a' },
+  { value: 'gold', label: 'Imperial Gold', border: '#97721a', bg: '#fff9e7', accent: '#d2a93d', heading: '#3f2c07' },
 ];
 
 export function AdminCertificates() {
@@ -54,6 +54,7 @@ export function AdminCertificates() {
   const [preview, setPreview] = useState<CertificateRecord | null>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const { toast } = useToast();
+  const [lastMailDispatch, setLastMailDispatch] = useState<{ total: number; delivered: number; failed: number } | null>(null);
 
   const refresh = async () => {
     const data = await v2api.getCertificates();
@@ -117,49 +118,53 @@ export function AdminCertificates() {
     const palette = templateCatalog.find((item) => item.value === template) || templateCatalog[0];
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fefcf6';
+    ctx.fillStyle = palette.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const deepBlue: [number, number, number] = [20, 49, 106];
-    ctx.fillStyle = `rgb(${deepBlue.join(',')})`;
-    ctx.fillRect(12, 12, canvas.width - 24, canvas.height - 24);
-    ctx.fillStyle = '#fdfbf3';
-    ctx.fillRect(36, 36, canvas.width - 72, canvas.height - 72);
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, '#ffffff');
+    gradient.addColorStop(1, palette.bg);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
     ctx.strokeStyle = palette.border;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3.5;
+    ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
+    ctx.strokeStyle = palette.accent;
+    ctx.lineWidth = 1.2;
     ctx.strokeRect(44, 44, canvas.width - 88, canvas.height - 88);
-    ctx.strokeStyle = '#d8ba63';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(58, 58, canvas.width - 116, canvas.height - 116);
+    ctx.strokeRect(54, 54, canvas.width - 108, canvas.height - 108);
+    ctx.fillStyle = palette.heading;
+    ctx.fillRect(54, 54, canvas.width - 108, 44);
 
-    ctx.fillStyle = '#0f2a56';
+    ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.font = '700 20px serif';
-    ctx.fillText('CRICKET TOURNAMENT', canvas.width / 2, 98);
+    ctx.font = '600 18px serif';
+    ctx.fillText('CRICKET CLUB HONORS BOARD', canvas.width / 2, 82);
+    ctx.fillStyle = palette.heading;
     ctx.font = '700 42px serif';
-    ctx.fillText('CERTIFICATE', canvas.width / 2, 145);
-    ctx.font = '700 22px serif';
-    ctx.fillText('OF ACHIEVEMENT', canvas.width / 2, 176);
-    ctx.font = '500 18px sans-serif';
-    ctx.fillText('Awarded To', canvas.width / 2, 208);
+    ctx.fillText('CERTIFICATE', canvas.width / 2, 156);
+    ctx.font = '700 21px serif';
+    ctx.fillText('OF EXCELLENCE', canvas.width / 2, 188);
+    ctx.font = '500 17px sans-serif';
+    ctx.fillText('This is proudly presented to', canvas.width / 2, 220);
     ctx.font = 'italic 700 40px serif';
     ctx.fillText(recipient || '[Recipient Full Name]', canvas.width / 2, 254);
-    ctx.strokeStyle = '#b89443';
+    ctx.strokeStyle = palette.accent;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(130, 264);
     ctx.lineTo(canvas.width - 130, 264);
     ctx.stroke();
     ctx.font = '600 17px sans-serif';
-    ctx.fillText('For outstanding performance in the', canvas.width / 2, 292);
+    ctx.fillText('For exceptional cricketing contribution in', canvas.width / 2, 292);
     ctx.font = '700 26px sans-serif';
     ctx.fillText((selectedTournament?.name || '[CRICKET TOURNAMENT NAME]').toUpperCase(), canvas.width / 2, 323);
     ctx.font = '700 22px sans-serif';
-    ctx.fillStyle = '#8d6924';
+    ctx.fillStyle = palette.border;
     ctx.fillText(`[${type === 'winner_team' ? 'WINNER' : type === 'runner_up_team' ? 'RUNNER-UP' : 'SPECIAL AWARD'}]`, canvas.width / 2, 354);
     ctx.fillStyle = '#111827';
     ctx.font = '600 16px sans-serif';
     ctx.fillText(`Award Category: ${awardCategoryLabel}`, canvas.width / 2, 380);
-    ctx.fillText(`Team Name: ${type.includes('team') ? (recipient || 'Team') : (selectedSeason?.winner_team || 'N/A')}`, canvas.width / 2, 402);
+    ctx.fillText(`Awarded Entity: ${type.includes('team') ? (recipient || 'Team') : recipient || 'Player'}`, canvas.width / 2, 402);
     ctx.fillText(`Date: ${new Date().toLocaleDateString('en-GB')}    Season: ${selectedSeason?.year || 'N/A'}`, canvas.width / 2, 424);
 
     ctx.font = '13px sans-serif';
@@ -183,8 +188,8 @@ export function AdminCertificates() {
     ctx.lineTo(canvas.width * 0.86, 452);
     ctx.stroke();
 
-    ctx.globalAlpha = 0.15;
-    ctx.fillStyle = '#b45309';
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = palette.border;
     ctx.font = 'bold 56px serif';
     ctx.fillText('LIVE PREVIEW', canvas.width / 2, canvas.height / 2 + 32);
     ctx.globalAlpha = 1;
@@ -193,6 +198,10 @@ export function AdminCertificates() {
   const generateCertificate = async () => {
     if (!selectedSeason || !recipient.trim()) {
       toast({ title: 'Select season and recipient', variant: 'destructive' });
+      return;
+    }
+    if (type === 'man_of_match' && !matchId) {
+      toast({ title: 'Match required for Man of the Match', description: 'Select a match so certificate data stays accurate.', variant: 'destructive' });
       return;
     }
     const tournament = tournaments.find((t) => t.tournament_id === selectedSeason.tournament_id);
@@ -267,7 +276,7 @@ export function AdminCertificates() {
     const management = await v2api.getManagementUsers();
     const requiredRoles = ['Treasurer', 'Scoring Official', 'Match Referee'];
     const mailTargets = management.filter((member) => requiredRoles.includes(String(member.designation || '')) && !!String(member.email || '').trim());
-    await Promise.all(mailTargets.map((member) => sendSystemEmail({
+    const mailDispatch = await Promise.all(mailTargets.map((member) => sendSystemEmail({
       to: String(member.email || ''),
       subject: `Certificate approval required: ${certificate.certificate_id}`,
       htmlBody: `<p>Dear ${member.name || member.designation},</p><p>A certificate is waiting for your approval signature.</p><p><strong>Certificate ID:</strong> ${certificate.certificate_id}<br/><strong>Recipient:</strong> ${certificate.recipient_name}<br/><strong>Type:</strong> ${certificate.title}</p><p>Please sign in to Management and approve it.</p>`,
@@ -278,7 +287,16 @@ export function AdminCertificates() {
         triggeredBy: 'admin',
       },
     })));
-    toast({ title: 'Certificate generated', description: 'Sent to signature approval workflow.' });
+    const delivered = mailDispatch.filter((entry) => entry.ok).length;
+    const failed = mailDispatch.length - delivered;
+    setLastMailDispatch({ total: mailDispatch.length, delivered, failed });
+    toast({
+      title: failed > 0 ? 'Certificate generated with mail warnings' : 'Certificate generated',
+      description: failed > 0
+        ? `Approval workflow created. ${delivered}/${mailDispatch.length} emails delivered.`
+        : `Sent ${delivered} approval request email(s).`,
+      variant: failed > 0 ? 'destructive' : 'default',
+    });
     setPreview(certificate);
     refresh();
   };
@@ -326,10 +344,17 @@ export function AdminCertificates() {
               <canvas ref={previewCanvasRef} width={760} height={470} className="w-full rounded-lg border border-primary/10 bg-white" />
             </div>
             <div className="rounded-xl border bg-background p-3 text-xs text-muted-foreground">
-              <p className="font-semibold text-foreground">Template details</p>
+              <p className="font-semibold text-foreground">Certificate reliability status</p>
               <p className="mt-2">The QR and verification link point to a public verify route.</p>
               <p className="mt-1">Security uses SHA-256 digest over a tamper-evident canonical payload.</p>
               <p className="mt-1">Pending certificates are watermarked in preview/PDF until fully approved.</p>
+              <p className="mt-1">Approvals require Treasurer, Scoring Official, and Match Referee signatures.</p>
+              {lastMailDispatch && (
+                <p className="mt-1">
+                  Latest email dispatch: {lastMailDispatch.delivered}/{lastMailDispatch.total} delivered
+                  {lastMailDispatch.failed > 0 ? ` (${lastMailDispatch.failed} failed)` : ''}.
+                </p>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
