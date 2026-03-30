@@ -1,5 +1,3 @@
-export type RegistrationStatus = 'pending' | 'approved' | 'rejected';
-
 export interface TournamentRegistryRecord {
   tournament_id: string;
   name: string;
@@ -16,27 +14,6 @@ export interface TournamentRegistryRecord {
   season_year?: number | string;
   source_type?: 'existing' | 'custom';
   public_page_path?: string;
-}
-
-export interface RegistrationRecord {
-  registration_id: string;
-  tournament_id: string;
-  tournament_name?: string;
-  season_id?: string;
-  season_year?: number | string;
-  registration_key?: string;
-  team_name: string;
-  contact_name: string;
-  contact_email: string;
-  contact_phone: string;
-  players_json: string;
-  submitted_by: string;
-  submitted_by_name: string;
-  submitted_at: string;
-  status: RegistrationStatus;
-  reviewed_by: string;
-  reviewed_at: string;
-  review_notes: string;
 }
 
 export interface TournamentAuditLog {

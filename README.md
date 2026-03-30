@@ -52,7 +52,7 @@ Authentication supports three user types:
 
 - **Admin**
   - Full admin console access (management users, board config, backups, scorelists, governance features)
-  - Can manage elections/tournament operations and bypass feature closures where implemented
+  - Can manage tournament operations and governance workflows
 - **Management**
   - Logs in through v2 management user records (active status required)
   - Capabilities depend on designation/role:
@@ -61,12 +61,12 @@ Authentication supports three user types:
   - Access to management workflows, but not unrestricted admin-only areas
 - **Player**
   - Personal dashboard, stats, messages/support, certificate access
-  - Can vote/contest elections as enabled by feature controls
+  - Can access player-facing dashboards and club communications
 
 Auth constraints and guardrails:
 - Protected routes use authentication checks (`RequireAuth`); unauthenticated users are redirected to `/login`.
 - Admin-only pages perform explicit admin checks and reject non-admin users.
-- Feature toggles (for example, elections and tournament registration windows) can be closed globally for non-admin users.
+- Feature gating and route access are controlled through role-aware checks for non-admin users.
 
 ## Troubleshooting
 ### Apps Script connectivity issues

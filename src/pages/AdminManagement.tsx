@@ -10,16 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { v2api, logAudit } from '@/lib/v2api';
 import { BoardConfiguration, ManagementUser, MANAGEMENT_ROLES, TeamAccessUser } from '@/lib/v2types';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
-import { parseSheetBoolean } from '@/lib/sheetValueParsers';
-import { electionService } from '@/elections/electionService';
-import { tournamentService } from '@/tournaments/tournamentService';
 
 const AdminManagement = () => {
   const { isAdmin } = useAuth();
@@ -35,8 +30,6 @@ const AdminManagement = () => {
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
   const [savingBoardConfig, setSavingBoardConfig] = useState(false);
   const [savingUser, setSavingUser] = useState(false);
-  const [clearingElections, setClearingElections] = useState(false);
-  const [clearingRegistrations, setClearingRegistrations] = useState(false);
 
   const refresh = async () => {
     const [data, config, teamRows, profileRows] = await Promise.all([
@@ -140,10 +133,6 @@ const AdminManagement = () => {
       config_id: existingConfigId,
       current_period: boardConfig?.current_period || '',
       administration_team_ids: boardConfig?.administration_team_ids || '',
-      elections_closed: parseSheetBoolean(boardConfig?.elections_closed),
-      elections_closed_reason: boardConfig?.elections_closed_reason || '',
-      tournament_registration_closed: parseSheetBoolean(boardConfig?.tournament_registration_closed),
-      tournament_registration_closed_reason: boardConfig?.tournament_registration_closed_reason || '',
       updated_at: new Date().toISOString(),
       updated_by: 'admin',
     };
@@ -171,38 +160,10 @@ const AdminManagement = () => {
     config_id: boardConfig?.config_id || generateId('BRCFG'),
     current_period: boardConfig?.current_period || '',
     administration_team_ids: boardConfig?.administration_team_ids || '',
-    elections_closed: parseSheetBoolean(boardConfig?.elections_closed),
-    elections_closed_reason: boardConfig?.elections_closed_reason || '',
-    tournament_registration_closed: parseSheetBoolean(boardConfig?.tournament_registration_closed),
-    tournament_registration_closed_reason: boardConfig?.tournament_registration_closed_reason || '',
     updated_at: boardConfig?.updated_at || new Date().toISOString(),
     updated_by: 'admin',
     ...overrides,
   });
-
-  const clearElectionsData = async () => {
-    setClearingElections(true);
-    try {
-      await electionService.clearAllData({ type: 'admin', username: 'admin' });
-      toast({ title: 'Elections data cleared', description: 'All election records were reset and audit entries were captured.' });
-    } catch (error) {
-      toast({ title: 'Unable to clear elections', description: error instanceof Error ? error.message : 'Unexpected error', variant: 'destructive' });
-    } finally {
-      setClearingElections(false);
-    }
-  };
-
-  const clearRegistrationData = async () => {
-    setClearingRegistrations(true);
-    try {
-      await tournamentService.clearAllData({ type: 'admin', username: 'admin' });
-      toast({ title: 'Registration data cleared', description: 'Tournament and registration CRUD records were deleted.' });
-    } catch (error) {
-      toast({ title: 'Unable to clear registrations', description: error instanceof Error ? error.message : 'Unexpected error', variant: 'destructive' });
-    } finally {
-      setClearingRegistrations(false);
-    }
-  };
 
   if (loading) return (
     <div className="min-h-screen bg-background">
@@ -286,30 +247,6 @@ const AdminManagement = () => {
                 }))}
               />
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-lg border p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Close Elections for everyone</Label>
-                  <Switch checked={!!boardConfig?.elections_closed} onCheckedChange={(checked) => setBoardConfig(getConfigDraft({ elections_closed: checked }))} />
-                </div>
-                <Textarea
-                  placeholder="Reason shown on Elections page"
-                  value={boardConfig?.elections_closed_reason || ''}
-                  onChange={(e) => setBoardConfig(getConfigDraft({ elections_closed_reason: e.target.value }))}
-                />
-              </div>
-              <div className="rounded-lg border p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Close Tournament Registrations for everyone</Label>
-                  <Switch checked={!!boardConfig?.tournament_registration_closed} onCheckedChange={(checked) => setBoardConfig(getConfigDraft({ tournament_registration_closed: checked }))} />
-                </div>
-                <Textarea
-                  placeholder="Reason shown on registration page"
-                  value={boardConfig?.tournament_registration_closed_reason || ''}
-                  onChange={(e) => setBoardConfig(getConfigDraft({ tournament_registration_closed_reason: e.target.value }))}
-                />
-              </div>
-            </div>
             <div className="space-y-2">
               <Label>Administration Team (select from board users)</Label>
               <div className="grid gap-2 md:grid-cols-2">
@@ -341,18 +278,9 @@ const AdminManagement = () => {
             <div className="rounded-lg border border-dashed p-4 space-y-3">
               <p className="font-semibold">Admin-friendly workflow guide</p>
               <ol className="list-decimal ml-5 text-sm text-muted-foreground space-y-1">
-                <li>Toggle close switches and save. Both pages will display your reason message.</li>
+                <li>Update the current period and save so management pages show the right committee cycle.</li>
                 <li>Use administration team selection so signatures route to the right approvers.</li>
-                <li>Clear data only when you intentionally need a full reset of elections/registrations.</li>
               </ol>
-              <div className="flex gap-2 flex-wrap">
-                <Button variant="destructive" onClick={clearElectionsData} disabled={clearingElections}>
-                  {clearingElections ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Clearing elections...</> : 'Delete all Elections CRUD data'}
-                </Button>
-                <Button variant="destructive" onClick={clearRegistrationData} disabled={clearingRegistrations}>
-                  {clearingRegistrations ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Clearing registrations...</> : 'Delete all Tournament CRUD data'}
-                </Button>
-              </div>
             </div>
           </CardContent>
         </Card>

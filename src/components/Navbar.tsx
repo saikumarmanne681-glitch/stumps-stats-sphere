@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Vote, ClipboardList, Layers3, Crown, Newspaper, FolderLock, Search } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
 
 export function Navbar() {
@@ -52,17 +52,6 @@ export function Navbar() {
           <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
             <Link to="/documents-portal"><FolderLock className="h-4 w-4 mr-1" /> Documents</Link>
           </Button>
-        )}
-
-        {user && user.type !== 'management' && (
-          <>
-            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
-              <Link to="/elections"><Vote className="h-4 w-4 mr-1" /> Elections</Link>
-            </Button>
-            <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
-              <Link to="/tournaments"><ClipboardList className="h-4 w-4 mr-1" /> Tournaments</Link>
-            </Button>
-          </>
         )}
 
         {!user && (

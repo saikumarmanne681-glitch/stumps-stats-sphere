@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/lib/auth';
-import { canManageElections, canManageTournament, getActorId } from '@/lib/accessControl';
-import { electionService } from '@/elections/electionService';
+import { canManageTournament, getActorId } from '@/lib/accessControl';
 import { scheduleService } from '@/schedules/scheduleService';
 import { ScheduleMatch } from '@/schedules/types';
 import { tournamentService } from '@/tournaments/tournamentService';
@@ -28,10 +27,9 @@ export function AdminGovernance() {
   const [expandedSchedules, setExpandedSchedules] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    Promise.all([electionService.syncFromBackend(), scheduleService.syncFromBackend(), tournamentService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
+    Promise.all([scheduleService.syncFromBackend(), tournamentService.syncFromBackend()]).finally(() => setRefreshKey((value) => value + 1));
   }, []);
 
-  const elections = useMemo(() => electionService.getElections(), [refreshKey]);
   const schedules = useMemo(() => scheduleService.getSchedules(), [refreshKey]);
   const approvals = useMemo(() => scheduleService.getApprovals(), [refreshKey]);
   const tournamentOptions = useMemo(() => tournamentService.getTournaments(), [refreshKey]);
@@ -66,24 +64,6 @@ export function AdminGovernance() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader><CardTitle>Election Control</CardTitle></CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-lg border p-4">
-            <p className="text-sm text-muted-foreground">Total elections</p>
-            <p className="font-display text-3xl font-bold">{elections.length}</p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-sm text-muted-foreground">Can administer</p>
-            <p className="font-medium">{canManageElections(user) ? 'Yes — admin only' : 'Admin only'}</p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-sm text-muted-foreground">Audit source</p>
-            <p className="font-medium">Local collections + central audit log</p>
-          </div>
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader><CardTitle>Schedule Versioning</CardTitle></CardHeader>
         <CardContent className="space-y-4">

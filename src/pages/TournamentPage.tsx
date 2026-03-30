@@ -15,7 +15,6 @@ import { compareSheetDatesDesc, findTournamentById, formatSheetDate, hasSheetDat
 import { useAuth } from '@/lib/auth';
 import { ApprovedSchedulePanel } from '@/schedules/ApprovedSchedulePanel';
 import { scheduleService } from '@/schedules/scheduleService';
-import { tournamentService } from '@/tournaments/tournamentService';
 
 const TournamentPage = () => {
   const { id } = useParams();
@@ -31,7 +30,7 @@ const TournamentPage = () => {
 
   useEffect(() => {
     if (user) {
-      Promise.all([tournamentService.syncFromBackend(), scheduleService.syncFromBackend()]).catch(() => undefined);
+      scheduleService.syncFromBackend().catch(() => undefined);
     }
     let active = true;
     setScorelistsLoading(true);
@@ -273,22 +272,11 @@ const TournamentPage = () => {
         {user ? (
           <div className="grid gap-6 lg:grid-cols-2"> 
             <Card>
-              <CardHeader><CardTitle className="font-display">📝 Member Registration</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="font-display">📝 Tournament Operations</CardTitle></CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <p className="text-muted-foreground">If this tournament has linked registration seasons, approved schedules and registration totals will surface here while deeper admin edits stay in the tournament workspace.</p>
+                <p className="text-muted-foreground">Approved schedule versions and governance status are available here for members.</p>
                 <div className="rounded-lg border p-4 space-y-1">
-                  <p><strong>Pending registrations:</strong> {tournamentService.getRegistrations().filter((item) => item.tournament_id === tournament.tournament_id && item.status === 'pending').length}</p>
-                  <p><strong>Approved registrations:</strong> {tournamentService.getRegistrations().filter((item) => item.tournament_id === tournament.tournament_id && item.status === 'approved').length}</p>
-                  <p><strong>Rejected registrations:</strong> {tournamentService.getRegistrations().filter((item) => item.tournament_id === tournament.tournament_id && item.status === 'rejected').length}</p>
                   <p><strong>Approved schedules:</strong> {scheduleService.getApprovedSchedulesForTournament(tournament.tournament_id).length}</p>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button asChild>
-                    <Link to="/tournaments">Open Registrations & Schedule</Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link to={`/tournaments?focus=${tournament.tournament_id}`}>Manage linked seasons</Link>
-                  </Button>
                 </div>
               </CardContent>
             </Card>
