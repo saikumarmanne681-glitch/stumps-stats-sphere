@@ -87,7 +87,7 @@ const TABS = {
   MANAGEMENT_USERS: ["management_id","name","email","phone","designation","role","authority_level","signature_image","status","created_at","username","password"],
   ADMIN_CREDENTIALS: ["admin_id","username","password","name","status","created_at","updated_at"],
   MATCH_TIMELINE: ["event_id","match_id","over","event_type","description","player_id","team","timestamp"],
-  BOARD_CONFIGURATION: ["config_id","current_period","administration_team_ids","elections_closed","elections_closed_reason","tournament_registration_closed","tournament_registration_closed_reason","updated_at","updated_by"],
+  BOARD_CONFIGURATION: ["config_id","current_period","administration_team_ids","updated_at","updated_by"],
   NEWS_ROOM_POSTS: ["post_id","title","body","audience","status","posted_by_id","posted_by_name","posted_by_role","published_at","updated_at"],
   MAIL_DIAGNOSTICS: ["mail_log_id","triggered_at","triggered_by","trigger_source","trigger_entity_type","trigger_entity_id","recipient","subject","body_html","body_text","from_email","reply_to","mail_provider","status","failure_reason","raw_response"],
   CERTIFICATES: ["certificate_id","certificate_type","title","season_id","tournament_id","match_id","recipient_type","recipient_id","recipient_name","metadata_json","certificate_html","qr_payload","security_hash","approval_status","approvals_json","generated_by","generated_at","approved_at","delivery_status"],
@@ -96,12 +96,7 @@ const TABS = {
   TEAM_TITLES: ["title_id","team_id","team_name","competition_name","tournament_id","season_id","season_label","result_type","won_on","notes","created_at"],
   TEAM_ACCESS_USERS: ["team_access_id","team_id","team_name","username","password","status","created_at","updated_at","linked_by_admin"],
   // Governance & competition workflow modules
-  elections: ["election_id","title","description","roles_json","eligible_roles_json","status","notification_date","nomination_start","nomination_end","withdrawal_deadline","scrutiny_date","voting_start","voting_end","results_day","created_by","created_at","results_published_at","show_notice","enable_nominations","enable_status_tracking","publish_candidate_list","enable_voting","close_polling","publish_results","archive_election"],
-  votes: ["vote_id","election_id","role_name","voter_user_id","voter_name","nominee_user_id","nominee_name","submitted_at","immutable_hash"],
-  nominations: ["nomination_id","election_id","role_name","nominee_user_id","nominee_name","player_id","proposer_user_id","proposer_name","seconder_name","manifesto","declaration_accepted","status","remarks","reviewed_by","reviewed_at","created_at"],
-  election_terms: ["assignment_id","election_id","role_name","user_id","user_name","term_start","term_end","assigned_at","source_vote_count"],
   tournaments_v2: ["tournament_id","name","format","venue","start_date","end_date","registration_deadline","created_by","created_at","status","notes","season_id","season_year","source_type","public_page_path"],
-  registrations: ["registration_id","tournament_id","tournament_name","season_id","season_year","registration_key","team_name","contact_name","contact_email","contact_phone","players_json","submitted_by","submitted_by_name","submitted_at","status","reviewed_by","reviewed_at","review_notes"],
   schedules: ["schedule_id","tournament_id","tournament_name","version_number","matches_json","created_by","created_by_name","timestamp","change_log","status","parent_schedule_id","hash","rejection_reason"],
   approvals: ["approval_id","schedule_id","approver_id","approver_name","approver_role","decision","comments","timestamp"],
 };
@@ -179,12 +174,7 @@ function getKeyColumn(tabName) {
     TEAM_PROFILES: "team_id",
     TEAM_TITLES: "title_id",
     TEAM_ACCESS_USERS: "team_access_id",
-    elections: "election_id",
-    votes: "vote_id",
-    nominations: "nomination_id",
-    election_terms: "assignment_id",
     tournaments_v2: "tournament_id",
-    registrations: "registration_id",
     schedules: "schedule_id",
     approvals: "approval_id",
   };
@@ -662,22 +652,6 @@ function doPost(e) {
   }
 
   if (action === "add") {
-    if (tabName === "registrations") {
-      const existing = sheetToJson(sheet);
-      const incomingKey = String((data && data.registration_key) || '').trim();
-      const normalizedTeam = String((data && data.team_name) || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      const incomingTournament = String((data && data.tournament_id) || '').trim();
-      const incomingSeason = String((data && data.season_id) || '').trim();
-      const duplicate = existing.some((row) => {
-        const rowKey = String((row && row.registration_key) || '').trim();
-        if (incomingKey && rowKey) return rowKey === incomingKey;
-        const rowTeam = String((row && row.team_name) || '').trim().toLowerCase().replace(/\s+/g, ' ');
-        return String((row && row.tournament_id) || '').trim() === incomingTournament && String((row && row.season_id) || '').trim() === incomingSeason && rowTeam === normalizedTeam;
-      });
-      if (duplicate) {
-        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Duplicate registration" })).setMimeType(ContentService.MimeType.JSON);
-      }
-    }
     const incomingKey = keyCol ? data[keyCol] : "";
     const existingRowIdx = incomingKey ? findRowIndex(sheet, keyCol, incomingKey) : -1;
     const row = headers.map((h) => normalizeSheetValue(h, data[h]));

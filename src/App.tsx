@@ -4,13 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { RouteChangeIndicator } from "@/components/RouteChangeIndicator";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { AuthProvider } from "@/lib/auth";
 import { DataProvider } from "@/lib/DataContext";
-import { useAuth } from "@/lib/auth";
-import { v2api } from "@/lib/v2api";
-import { parseSheetBoolean } from "@/lib/sheetValueParsers";
-import { ClosedAccessScreen } from "@/components/ClosedAccessScreen";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -27,9 +22,6 @@ import AdminBackups from "./pages/AdminBackups";
 import AdminManagement from "./pages/AdminManagement";
 import AdminScorelistsPage from "./pages/AdminScorelistsPage";
 import LiveMatchPage from "./pages/LiveMatchPage";
-import ElectionsPage from '@/elections/ElectionsPage';
-import TournamentsHubPage from '@/tournaments/TournamentsHubPage';
-import RegistrationTournamentPage from '@/tournaments/RegistrationTournamentPage';
 import SeasonsOverviewPage from './pages/SeasonsOverviewPage';
 import TournamentHonorsPage from './pages/TournamentHonorsPage';
 import NewsRoomPage from './pages/NewsRoomPage';
@@ -40,60 +32,6 @@ import AdminWorkQueuePage from './pages/AdminWorkQueuePage';
 import TeamsDashboardPage from './pages/TeamsDashboardPage';
 
 const queryClient = new QueryClient();
-
-const FeatureAccessRoute = ({
-  feature,
-  title,
-  backHref,
-  children,
-}: {
-  feature: 'elections' | 'tournament_registration';
-  title: string;
-  backHref: string;
-  children: JSX.Element;
-}) => {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [closed, setClosed] = useState(false);
-  const [reason, setReason] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    v2api.getBoardConfiguration()
-      .then((rows) => {
-        if (cancelled) return;
-        const config = rows[0];
-        if (feature === 'elections') {
-          setClosed(parseSheetBoolean(config?.elections_closed));
-          setReason(config?.elections_closed_reason || '');
-        } else {
-          setClosed(parseSheetBoolean(config?.tournament_registration_closed));
-          setReason(config?.tournament_registration_closed_reason || '');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [feature]);
-
-  if (loading) {
-    return <div className="min-h-[30vh] grid place-items-center text-sm text-muted-foreground">Checking access policy…</div>;
-  }
-  if (closed) {
-    return (
-      <ClosedAccessScreen
-        title={title}
-        reason={reason}
-        backHref={backHref}
-        homeHref="/"
-      />
-    );
-  }
-  return children;
-};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -121,9 +59,6 @@ const App = () => (
             <Route path="/verify-scorelist/:id" element={<VerifyScorelist />} />
             <Route path="/management" element={<ManagementPage />} />
             <Route path="/management/teams-dashboard" element={<RequireAuth><TeamsDashboardPage /></RequireAuth>} />
-            <Route path="/elections" element={<RequireAuth><FeatureAccessRoute feature="elections" title="Elections are currently closed" backHref="/"><ElectionsPage /></FeatureAccessRoute></RequireAuth>} />
-            <Route path="/tournaments" element={<RequireAuth><TournamentsHubPage /></RequireAuth>} />
-            <Route path="/tournaments/registration/:id" element={<RequireAuth><FeatureAccessRoute feature="tournament_registration" title="Tournament registration is currently closed" backHref="/tournaments"><RegistrationTournamentPage /></FeatureAccessRoute></RequireAuth>} />
             <Route path="/live" element={<LiveMatchPage />} />
             <Route path="/seasons" element={<SeasonsOverviewPage />} />
             <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
