@@ -93,6 +93,21 @@ export function AdminCertificates() {
     return [players.find((p) => p.player_id === runLeader)?.name, players.find((p) => p.player_id === wicketLeader)?.name].filter(Boolean) as string[];
   }, [selectedSeason, type, seasonMatches, players, batting, bowling]);
 
+  const selectedTournament = useMemo(
+    () => tournaments.find((t) => t.tournament_id === selectedSeason?.tournament_id),
+    [selectedSeason?.tournament_id, tournaments],
+  );
+  const awardCategoryLabel = useMemo(() => {
+    if (type === 'winner_team' || type === 'runner_up_team') {
+      return `${selectedTournament?.name || 'Tournament'} • ${selectedSeason?.year || 'Season'}`;
+    }
+    if (type === 'man_of_match' && matchId) {
+      const match = seasonMatches.find((m) => m.match_id === matchId);
+      return match ? `${match.team_a} vs ${match.team_b}` : 'Match category';
+    }
+    return selectedTournament?.name || 'Performance category';
+  }, [matchId, seasonMatches, selectedSeason?.year, selectedTournament?.name, type]);
+
   useEffect(() => {
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
@@ -101,46 +116,70 @@ export function AdminCertificates() {
     const palette = templateCatalog.find((item) => item.value === template) || templateCatalog[0];
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = palette.bg;
+    ctx.fillStyle = '#fefcf6';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const deepBlue: [number, number, number] = [20, 49, 106];
+    ctx.fillStyle = `rgb(${deepBlue.join(',')})`;
+    ctx.fillRect(12, 12, canvas.width - 24, canvas.height - 24);
+    ctx.fillStyle = '#fdfbf3';
+    ctx.fillRect(36, 36, canvas.width - 72, canvas.height - 72);
     ctx.strokeStyle = palette.border;
-    ctx.lineWidth = 6;
-    ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32);
-    ctx.lineWidth = 2;
-    ctx.strokeRect(28, 28, canvas.width - 56, canvas.height - 56);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(44, 44, canvas.width - 88, canvas.height - 88);
+    ctx.strokeStyle = '#d8ba63';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(58, 58, canvas.width - 116, canvas.height - 116);
 
-    ctx.fillStyle = '#1f2937';
+    ctx.fillStyle = '#0f2a56';
     ctx.textAlign = 'center';
-    ctx.font = 'bold 16px serif';
-    ctx.fillText('CRICKET CLUB OF EXCELLENCE', canvas.width / 2, 70);
-    ctx.font = 'bold 30px serif';
-    ctx.fillText('PRESENTATION CERTIFICATE', canvas.width / 2, 116);
-    ctx.font = '16px sans-serif';
-    ctx.fillText('Presented to', canvas.width / 2, 166);
-    ctx.font = 'bold 34px serif';
-    ctx.fillText(recipient || 'Recipient Name', canvas.width / 2, 214);
-    ctx.font = '18px sans-serif';
-    ctx.fillText(certCatalog.find((c) => c.value === type)?.label || 'Certificate', canvas.width / 2, 252);
+    ctx.font = '700 20px serif';
+    ctx.fillText('CRICKET TOURNAMENT', canvas.width / 2, 98);
+    ctx.font = '700 42px serif';
+    ctx.fillText('CERTIFICATE', canvas.width / 2, 145);
+    ctx.font = '700 22px serif';
+    ctx.fillText('OF ACHIEVEMENT', canvas.width / 2, 176);
+    ctx.font = '500 18px sans-serif';
+    ctx.fillText('Awarded To', canvas.width / 2, 208);
+    ctx.font = 'italic 700 40px serif';
+    ctx.fillText(recipient || '[Recipient Full Name]', canvas.width / 2, 254);
+    ctx.strokeStyle = '#b89443';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(130, 264);
+    ctx.lineTo(canvas.width - 130, 264);
+    ctx.stroke();
+    ctx.font = '600 17px sans-serif';
+    ctx.fillText('For outstanding performance in the', canvas.width / 2, 292);
+    ctx.font = '700 26px sans-serif';
+    ctx.fillText((selectedTournament?.name || '[CRICKET TOURNAMENT NAME]').toUpperCase(), canvas.width / 2, 323);
+    ctx.font = '700 22px sans-serif';
+    ctx.fillStyle = '#8d6924';
+    ctx.fillText(`[${type === 'winner_team' ? 'WINNER' : type === 'runner_up_team' ? 'RUNNER-UP' : 'SPECIAL AWARD'}]`, canvas.width / 2, 354);
+    ctx.fillStyle = '#111827';
+    ctx.font = '600 16px sans-serif';
+    ctx.fillText(`Award Category: ${awardCategoryLabel}`, canvas.width / 2, 380);
+    ctx.fillText(`Team Name: ${type.includes('team') ? (recipient || 'Team') : (selectedSeason?.winner_team || 'N/A')}`, canvas.width / 2, 402);
+    ctx.fillText(`Date: ${new Date().toLocaleDateString('en-GB')}    Season: ${selectedSeason?.year || 'N/A'}`, canvas.width / 2, 424);
 
-    ctx.font = '14px sans-serif';
+    ctx.font = '13px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`Season: ${selectedSeason?.year || '—'}`, 65, 322);
-    ctx.fillText(`Template: ${palette.label}`, 65, 348);
-    ctx.fillText(`Type: ${type}`, 65, 374);
+    ctx.fillText(`Certificate ID: LIVE-PREVIEW`, 70, 448);
+    ctx.fillText(`Template: ${palette.label}`, 70, 468);
+    ctx.fillText(`Verification via QR + signed approvals`, 70, 488);
 
     ctx.textAlign = 'center';
     ctx.font = '12px sans-serif';
-    ctx.fillText('Treasurer', canvas.width * 0.2, 430);
-    ctx.fillText('Scoring Official', canvas.width * 0.5, 430);
-    ctx.fillText('Match Referee', canvas.width * 0.8, 430);
+    ctx.fillText('SIGNATURE 1', canvas.width * 0.24, 468);
+    ctx.fillText('SIGNATURE 2', canvas.width * 0.5, 468);
+    ctx.fillText('SIGNATURE 3', canvas.width * 0.76, 468);
     ctx.strokeStyle = '#6b7280';
     ctx.beginPath();
-    ctx.moveTo(canvas.width * 0.1, 410);
-    ctx.lineTo(canvas.width * 0.3, 410);
-    ctx.moveTo(canvas.width * 0.4, 410);
-    ctx.lineTo(canvas.width * 0.6, 410);
-    ctx.moveTo(canvas.width * 0.7, 410);
-    ctx.lineTo(canvas.width * 0.9, 410);
+    ctx.moveTo(canvas.width * 0.14, 452);
+    ctx.lineTo(canvas.width * 0.34, 452);
+    ctx.moveTo(canvas.width * 0.4, 452);
+    ctx.lineTo(canvas.width * 0.6, 452);
+    ctx.moveTo(canvas.width * 0.66, 452);
+    ctx.lineTo(canvas.width * 0.86, 452);
     ctx.stroke();
 
     ctx.globalAlpha = 0.15;
@@ -148,7 +187,7 @@ export function AdminCertificates() {
     ctx.font = 'bold 56px serif';
     ctx.fillText('LIVE PREVIEW', canvas.width / 2, canvas.height / 2 + 32);
     ctx.globalAlpha = 1;
-  }, [recipient, selectedSeason?.year, template, type]);
+  }, [awardCategoryLabel, recipient, selectedSeason?.winner_team, selectedSeason?.year, selectedTournament?.name, template, type]);
 
   const generateCertificate = async () => {
     if (!selectedSeason || !recipient.trim()) {
@@ -196,7 +235,14 @@ export function AdminCertificates() {
       recipient_type: type.includes('team') ? 'team' : 'player',
       recipient_id: players.find((p) => p.name === recipient)?.player_id || recipient,
       recipient_name: recipient.trim(),
-      metadata_json: JSON.stringify({ seasonYear: selectedSeason.year, tournament: tournament?.name || '' }),
+      metadata_json: JSON.stringify({
+        seasonYear: selectedSeason.year,
+        tournament: tournament?.name || '',
+        winnerTeam: selectedSeason.winner_team || '',
+        runnerUpTeam: selectedSeason.runner_up_team || '',
+        awardCategory: awardCategoryLabel,
+        generatedForMatch: matchId || '',
+      }),
       certificate_html: `<section><h2>${title}</h2><p>${recipient.trim()}</p><p>${selectedSeason.year}</p><p>Template: ${template}</p></section>`,
       qr_payload: qrPayload,
       verification_url: verificationUrl,

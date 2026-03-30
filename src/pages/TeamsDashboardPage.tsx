@@ -13,12 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api } from '@/lib/v2api';
-import { SupportTicket, TeamProfile, TeamTitleRecord } from '@/lib/v2types';
+import { SupportTicket, TeamProfile } from '@/lib/v2types';
 import { Announcement } from '@/lib/types';
 import { compareTimestampsDesc, formatInIST } from '@/lib/time';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { clearQAMockData, readQAMockData } from '@/lib/qaMockData';
 
 interface TeamSummary {
   name: string;
@@ -45,29 +44,22 @@ export default function TeamsDashboardPage() {
   const { toast } = useToast();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [profiles, setProfiles] = useState<TeamProfile[]>([]);
-  const [titles, setTitles] = useState<TeamTitleRecord[]>([]);
-  const [qaMockLoadedAt, setQaMockLoadedAt] = useState('');
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [ticketForm, setTicketForm] = useState({ category: 'general', priority: 'medium' as SupportTicket['priority'], subject: '', description: '' });
-  const qaMockData = useMemo(() => readQAMockData(), [qaMockLoadedAt]);
-  const allMatches = useMemo(() => [...qaMockData.matches, ...matches], [qaMockData.matches, matches]);
+  const allMatches = matches;
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const [ticketRows, profileRows, titleRows] = await Promise.all([
+      const [ticketRows, profileRows] = await Promise.all([
         v2api.getTickets(),
         v2api.getTeamProfiles(),
-        v2api.getTeamTitles(),
       ]);
       if (cancelled) return;
-      const mock = readQAMockData();
-      setTickets(mock.enabled ? [...mock.tickets, ...ticketRows] : ticketRows);
-      setProfiles(mock.enabled ? [...mock.profiles, ...profileRows] : profileRows);
-      setTitles(mock.enabled ? [...mock.titles, ...titleRows] : titleRows);
-      setQaMockLoadedAt(mock.enabled ? mock.created_at : '');
+      setTickets(ticketRows);
+      setProfiles(profileRows);
       setLoading(false);
     };
     load();
@@ -89,11 +81,8 @@ export default function TeamsDashboardPage() {
     profiles.forEach((profile) => {
       if (profile.team_name?.trim()) names.add(profile.team_name.trim());
     });
-    titles.forEach((title) => {
-      if (title.team_name?.trim()) names.add(title.team_name.trim());
-    });
     return [...names].sort((a, b) => a.localeCompare(b));
-  }, [allMatches, profiles, seasons, titles]);
+  }, [allMatches, profiles, seasons]);
 
   const teamSummaries = useMemo<TeamSummary[]>(() => {
     return computedTeamNames.map((teamName) => {
@@ -103,8 +92,8 @@ export default function TeamsDashboardPage() {
         return result.includes(teamName.toLowerCase()) && (result.includes('won') || result.includes('beat'));
       }).length;
       const losses = Math.max(completed.length - wins, 0);
-      const titleCount = seasons.filter((s) => s.winner_team === teamName).length + titles.filter((t) => t.team_name === teamName && t.result_type === 'winner').length;
-      const runnerUpCount = seasons.filter((s) => s.runner_up_team === teamName).length + titles.filter((t) => t.team_name === teamName && t.result_type === 'runner_up').length;
+      const titleCount = seasons.filter((s) => s.winner_team === teamName).length;
+      const runnerUpCount = seasons.filter((s) => s.runner_up_team === teamName).length;
       const lastMatch = completed.sort((a, b) => compareTimestampsDesc(a.date, b.date))[0];
       return {
         name: teamName,
@@ -117,7 +106,7 @@ export default function TeamsDashboardPage() {
         lastResult: lastMatch?.result || 'No completed match yet',
       };
     }).sort((a, b) => b.winPct - a.winPct || b.titles - a.titles || a.name.localeCompare(b.name));
-  }, [allMatches, computedTeamNames, seasons, titles]);
+  }, [allMatches, computedTeamNames, seasons]);
 
   const enforcedTeam = isTeam ? (user?.team_name || user?.name || '') : '';
   const resolvedSelectedTeam = isTeam ? enforcedTeam : selectedTeam;
@@ -136,9 +125,36 @@ export default function TeamsDashboardPage() {
   const totalTitles = visibleTeams.reduce((sum, team) => sum + team.titles, 0);
   const totalPlayed = visibleTeams.reduce((sum, team) => sum + team.played, 0);
 
-  const titleTimeline = titles
-    .filter((record) => resolvedSelectedTeam === 'all' || record.team_name === resolvedSelectedTeam)
-    .sort((a, b) => compareTimestampsDesc(a.won_on, b.won_on));
+  const titleTimeline = useMemo(() => {
+    const records = seasons.flatMap((season) => {
+      const date = season.end_date || season.start_date || '';
+      const rows = [];
+      if (season.winner_team?.trim()) {
+        rows.push({
+          id: `${season.season_id}:winner`,
+          team_name: season.winner_team.trim(),
+          competition_name: tournaments.find((t) => t.tournament_id === season.tournament_id)?.name || season.tournament_id || 'Tournament',
+          season_label: season.year || season.season_id,
+          result_type: 'winner' as const,
+          won_on: date,
+        });
+      }
+      if (season.runner_up_team?.trim()) {
+        rows.push({
+          id: `${season.season_id}:runner_up`,
+          team_name: season.runner_up_team.trim(),
+          competition_name: tournaments.find((t) => t.tournament_id === season.tournament_id)?.name || season.tournament_id || 'Tournament',
+          season_label: season.year || season.season_id,
+          result_type: 'runner_up' as const,
+          won_on: date,
+        });
+      }
+      return rows;
+    });
+    return records
+      .filter((record) => resolvedSelectedTeam === 'all' || record.team_name === resolvedSelectedTeam)
+      .sort((a, b) => compareTimestampsDesc(a.won_on, b.won_on));
+  }, [resolvedSelectedTeam, seasons, tournaments]);
   const selectedTeamProfile = profiles.find((profile) => profile.team_name === resolvedSelectedTeam);
   const selectedTeamMatches = allMatches
     .filter((match) => resolvedSelectedTeam !== 'all' && (match.team_a === resolvedSelectedTeam || match.team_b === resolvedSelectedTeam))
@@ -156,7 +172,7 @@ export default function TeamsDashboardPage() {
     titleTimeline
       .filter((record) => record.result_type === 'winner')
       .forEach((record) => {
-        const competition = record.competition_name || tournamentLookup[record.tournament_id] || 'Tournament';
+        const competition = record.competition_name || 'Tournament';
         map.set(competition, (map.get(competition) || 0) + 1);
       });
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
@@ -207,12 +223,6 @@ export default function TeamsDashboardPage() {
 
   if (!isManagement && !isTeam) return <Navigate to="/login" replace />;
 
-  const handleClearQAMockData = () => {
-    clearQAMockData();
-    toast({ title: 'Mock data removed', description: 'Refresh the page to view only live data.' });
-    setQaMockLoadedAt('');
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -243,15 +253,6 @@ export default function TeamsDashboardPage() {
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open tickets</p><p className="text-2xl font-bold">{openTickets}</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Resolved tickets</p><p className="text-2xl font-bold text-emerald-700">{resolvedTickets}</p></CardContent></Card>
         </div>
-        {qaMockData.enabled && (
-          <Card className="border-dashed border-amber-400 bg-amber-50/70">
-            <CardContent className="p-4 text-sm flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <p><strong>QA mock data active:</strong> session-only testing records loaded ({qaMockLoadedAt ? formatInIST(qaMockLoadedAt) : 'just now'}). Live data is not modified.</p>
-              <Button variant="outline" onClick={handleClearQAMockData}>Delete mock data</Button>
-            </CardContent>
-          </Card>
-        )}
-
         <Tabs defaultValue="insights" className="space-y-4">
           <TabsList className="grid w-full grid-cols-2 gap-2 md:grid-cols-5">
             <TabsTrigger value="insights" className="gap-1"><BarChart3 className="h-4 w-4" /> Insights</TabsTrigger>
@@ -329,6 +330,14 @@ export default function TeamsDashboardPage() {
                   <div className="md:col-span-2">
                     <Button onClick={handleRaiseTicket} disabled={submittingTicket}>{submittingTicket ? 'Raising ticket...' : 'Raise support ticket'}</Button>
                   </div>
+                  <div className="md:col-span-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                    <p className="font-medium text-foreground">Support request quality checklist</p>
+                    <ul className="mt-2 list-disc pl-4 space-y-1">
+                      <li>Include tournament, season and match ID where applicable.</li>
+                      <li>Mention expected outcome and any immediate workaround already tried.</li>
+                      <li>Provide screenshots or error text in the description for faster triage.</li>
+                    </ul>
+                  </div>
                 </CardContent>
               </Card>
               <Card className="border-primary/30 bg-primary/5">
@@ -388,7 +397,7 @@ export default function TeamsDashboardPage() {
               <CardHeader><CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5" /> Team titles and tournament honors</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {titleTimeline.map((record) => (
-                  <div key={record.title_id} className="flex items-start gap-3 rounded-lg border p-3">
+                  <div key={record.id} className="flex items-start gap-3 rounded-lg border p-3">
                     <Shield className="mt-1 h-4 w-4 text-primary" />
                     <div>
                       <p className="font-medium">{record.team_name} · {record.competition_name}</p>
@@ -398,7 +407,7 @@ export default function TeamsDashboardPage() {
                   </div>
                 ))}
                 {titleTimeline.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">No team title records in TEAM_TITLES yet. Existing season winner/runner-up data remains untouched.</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No season winner/runner-up records matched this team yet.</p>
                 )}
               </CardContent>
             </Card>
@@ -477,8 +486,8 @@ export default function TeamsDashboardPage() {
 
         <Card className="border-dashed bg-muted/30">
           <CardContent className="p-4 text-sm text-muted-foreground">
-            <p className="font-medium">Optional Google Sheets extension (safe, non-breaking):</p>
-            <p className="mt-1">You can add TEAM_PROFILES and TEAM_TITLES sheets for richer team metadata and title history. The dashboard also works from existing matches/seasons if these new sheets are empty.</p>
+            <p className="font-medium">Data source note:</p>
+            <p className="mt-1">Team honors are now computed directly from Seasons winner/runner-up fields to keep dashboard totals aligned with the Seasons module.</p>
             <p className="mt-1">Tournaments loaded: {tournaments.length}. Team login credentials are maintained via TEAM_ACCESS_USERS sheet.</p>
           </CardContent>
         </Card>
