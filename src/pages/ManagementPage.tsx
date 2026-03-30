@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, FileText, Users, AlertTriangle, BriefcaseBusiness, Sparkles, Download } from 'lucide-react';
+import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, FileText, Users, AlertTriangle, BriefcaseBusiness, Search, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { v2api, logAudit, istNow } from '@/lib/v2api';
 import { ManagementUser, DigitalScorelist, CertificationApproval, BoardConfiguration, CertificateRecord } from '@/lib/v2types';
@@ -55,6 +55,8 @@ const ManagementPage = () => {
   const [scheduleComments, setScheduleComments] = useState<Record<string, string>>({});
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
+  const [boardSearch, setBoardSearch] = useState('');
+  const [boardRoleFilter, setBoardRoleFilter] = useState<'all' | string>('all');
 
   const refresh = async () => {
     const [users, scorelistData, boardRows, certificateRows] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), v2api.getBoardConfiguration(), v2api.getCertificates(), scheduleService.syncFromBackend()]);
@@ -88,6 +90,22 @@ const ManagementPage = () => {
   }, [mgmtUsers]);
   const configuredBoardTeam = useMemo(() => boardMembers.filter((member) => administrationTeamIds.includes(member.management_id)), [administrationTeamIds, boardMembers]);
   const otherBoardMembers = useMemo(() => boardMembers.filter((member) => !administrationTeamIds.includes(member.management_id)), [administrationTeamIds, boardMembers]);
+  const boardRoleOptions = useMemo(() => {
+    const roles = new Set(boardMembers.map((member) => member.designation).filter(Boolean));
+    return Array.from(roles).sort((a, b) => a.localeCompare(b));
+  }, [boardMembers]);
+  const filteredBoardMembers = useMemo(() => {
+    const q = boardSearch.trim().toLowerCase();
+    return boardMembers.filter((member) => {
+      const roleMatch = boardRoleFilter === 'all' || member.designation === boardRoleFilter;
+      const searchMatch = !q || [member.name, member.email, member.designation, member.role]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(q);
+      return roleMatch && searchMatch;
+    });
+  }, [boardMembers, boardRoleFilter, boardSearch]);
   const departmentAssignments = useMemo(() => parseDepartmentAssignments(boardConfig), [boardConfig]);
   const resolveMessageIdentity = (id: string) => {
     if (id === 'admin') return '🛡️ Admin';
@@ -780,7 +798,7 @@ const ManagementPage = () => {
                 <h2 className="font-display text-2xl md:text-3xl font-bold mt-1 flex items-center gap-2">
                   <Crown className="h-6 w-6 text-primary" /> Management Board Members
                 </h2>
-                <p className="text-sm text-muted-foreground mt-2">Complete governance roster, including the admin-selected Management Board Configuration team.</p>
+                <p className="text-sm text-muted-foreground mt-2">A cleaner governance directory with quick filtering, clear team tagging, and department ownership visibility.</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="bg-primary text-primary-foreground">Total Board Members: {boardMembers.length}</Badge>
@@ -824,79 +842,71 @@ const ManagementPage = () => {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <Card className="border-primary/30 shadow-sm">
-              <CardHeader className="pb-3">
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3 space-y-3">
+              <div>
                 <CardTitle className="font-display text-lg flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" /> Management Board Configuration Team
+                  <BriefcaseBusiness className="h-5 w-5 text-accent" /> Board Roster
                 </CardTitle>
-                <p className="text-xs text-muted-foreground">This list is loaded from admin board settings.</p>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {configuredBoardTeam.length === 0 && (
-                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                    Admin has not selected and saved the management board configuration team yet.
-                  </div>
-                )}
-                {configuredBoardTeam.map((member) => (
-                  <div key={member.management_id} className="rounded-xl border bg-primary/5 p-3 flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                <p className="text-xs text-muted-foreground">Unified list of all active management users with configuration highlighting.</p>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="relative">
+                  <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Input
+                    value={boardSearch}
+                    onChange={(event) => setBoardSearch(event.target.value)}
+                    className="pl-9"
+                    placeholder="Search by name, email, designation, or role"
+                  />
+                </div>
+                <Select value={boardRoleFilter} onValueChange={setBoardRoleFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by designation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All designations</SelectItem>
+                    {boardRoleOptions.map((role) => (
+                      <SelectItem key={role} value={role}>{role}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+              {filteredBoardMembers.length === 0 && (
+                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  No board members matched your current filters.
+                </div>
+              )}
+              {filteredBoardMembers.map((member) => {
+                const highlighted = administrationTeamIds.includes(member.management_id);
+                return (
+                  <div key={member.management_id} className={`rounded-xl border p-3 flex items-center gap-3 ${highlighted ? 'border-primary/40 bg-primary/5' : 'bg-background'}`}>
+                    <div className="h-11 w-11 rounded-lg bg-muted flex items-center justify-center shrink-0">
                       {member.signature_image ? (
-                        <img src={member.signature_image} alt={member.name} className="h-12 w-12 rounded-xl object-cover" />
+                        <img src={member.signature_image} alt={member.name} className="h-11 w-11 rounded-lg object-cover" />
                       ) : (
-                        <Crown className="h-5 w-5 text-primary" />
+                        <User className="h-5 w-5 text-muted-foreground" />
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="font-display font-bold truncate">{member.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate">{member.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{member.email || 'No email configured'}</p>
                       <div className="mt-1 flex items-center gap-2 flex-wrap">
-                        <Badge className="bg-primary text-primary-foreground text-[10px]">{member.designation}</Badge>
+                        <Badge variant={highlighted ? 'default' : 'outline'} className="text-[10px]">{member.designation}</Badge>
                         {member.role && <Badge variant="outline" className="text-[10px]">{member.role}</Badge>}
+                        {highlighted && <Badge className="bg-accent/20 text-accent-foreground text-[10px]">Configured Team</Badge>}
                       </div>
                     </div>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="font-display text-lg flex items-center gap-2">
-                  <BriefcaseBusiness className="h-5 w-5 text-accent" /> Full Board Roster
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">All active management members are shown below.</p>
-              </CardHeader>
-              <CardContent className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
-                {boardMembers.map((member) => {
-                  const highlighted = administrationTeamIds.includes(member.management_id);
-                  return (
-                    <div key={member.management_id} className={`rounded-xl border p-3 flex items-center gap-3 ${highlighted ? 'border-primary/40 bg-primary/5' : 'bg-background'}`}>
-                      <div className="h-11 w-11 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                        {member.signature_image ? (
-                          <img src={member.signature_image} alt={member.name} className="h-11 w-11 rounded-lg object-cover" />
-                        ) : (
-                          <User className="h-5 w-5 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold truncate">{member.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{member.email || 'No email configured'}</p>
-                        <div className="mt-1 flex items-center gap-2 flex-wrap">
-                          <Badge variant={highlighted ? 'default' : 'outline'} className="text-[10px]">{member.designation}</Badge>
-                          {member.role && <Badge variant="outline" className="text-[10px]">{member.role}</Badge>}
-                          {highlighted && <Badge className="bg-accent/20 text-accent-foreground text-[10px]">Configured Team</Badge>}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {otherBoardMembers.length === 0 && boardMembers.length > 0 && (
-                  <p className="text-xs text-muted-foreground">All board members are currently part of the configured team.</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                );
+              })}
+              {otherBoardMembers.length === 0 && boardMembers.length > 0 && (
+                <p className="text-xs text-muted-foreground">All board members are currently part of the configured team.</p>
+              )}
+            </CardContent>
+          </Card>
         </section>
 
         {mgmtUsers.length === 0 && <p className="text-center text-muted-foreground py-8">No management users configured yet.</p>}
