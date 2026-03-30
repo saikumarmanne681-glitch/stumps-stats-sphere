@@ -93,6 +93,11 @@ Auth constraints and guardrails:
   2. Read + write against Apps Script endpoint
   3. Email-trigger workflow (OTP/support/notification)
 
+## UX/Security Enhancements
+- Login now keeps role credentials isolated per tab and routes each role to the correct post-login dashboard.
+- Client-side sessions now include expiry + idle timeout safeguards.
+- A lightweight service worker (`public/sw.js`) is registered for offline resilience of static assets.
+
 ## Contributing
 1. Create a branch from the active integration branch.
 2. Keep PRs scoped to one feature/fix area.

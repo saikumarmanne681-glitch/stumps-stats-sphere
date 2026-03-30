@@ -17,7 +17,7 @@ import { SessionFingerprint, SecurityShieldBadge } from "@/components/SecurityBa
 import { VerticalAnnouncementsBox } from "@/components/VerticalAnnouncementsBox";
 
 const Home = () => {
-  const { players, tournaments, seasons, matches, batting, bowling, loading } = useData();
+  const { players, tournaments, seasons, matches, batting, bowling, loading, lastRefresh } = useData();
   const [filterTournament, setFilterTournament] = useState<string>("all");
   const [filterSeason, setFilterSeason] = useState<string>("all");
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -72,6 +72,11 @@ const Home = () => {
         {loading && (
           <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
             Loading latest data, please wait...
+          </div>
+        )}
+        {!navigator.onLine && (
+          <div className="rounded-md border border-amber-400/40 bg-amber-100/40 px-4 py-3 text-sm text-amber-900">
+            You are offline. Showing last available data snapshot.
           </div>
         )}
         {/* Filters */}
@@ -181,7 +186,7 @@ const Home = () => {
 
       <footer className="bg-card border-t py-6 mt-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2025 Cricket Club Portal. All rights reserved.
+          © {new Date().getFullYear()} Cricket Club Portal. All rights reserved. Last data refresh: {lastRefresh ? new Date(lastRefresh).toLocaleString() : 'N/A'}.
         </div>
       </footer>
     </div>

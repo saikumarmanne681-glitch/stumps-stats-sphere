@@ -27,6 +27,7 @@ import { getActorId, isScheduleApproverRole } from '@/lib/accessControl';
 import { ScheduleRecord } from '@/schedules/types';
 import { formatInIST } from '@/lib/time';
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
+import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 const stageLabels: Record<string, string> = scorelistStageLabels;
@@ -408,6 +409,33 @@ const ManagementPage = () => {
             </CardContent>
           </Card>
         </div>
+
+        <PendingActionsPanel
+          title="Pending Management Actions"
+          items={[
+            {
+              id: 'scorelists-pending',
+              label: 'Scorelist approvals',
+              description: 'Scorelists currently waiting for your designation stage approval.',
+              count: pendingScorelists.length,
+              to: '/management',
+            },
+            {
+              id: 'schedules-pending',
+              label: 'Schedule approvals',
+              description: 'Schedules that need your governance decision.',
+              count: pendingSchedules.length,
+              to: '/management',
+            },
+            {
+              id: 'certificates-pending',
+              label: 'Certificate signatures',
+              description: 'Certificates waiting for digital signatures from your role.',
+              count: pendingCertificates.length,
+              to: '/management',
+            },
+          ]}
+        />
 
         {isManagement && (
           <>
