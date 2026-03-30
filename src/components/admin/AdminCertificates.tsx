@@ -15,6 +15,7 @@ import { ShieldCheck, Trophy, Medal, Award, Download, Eye, FileText, PaintBucket
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 import { resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { sendSystemEmail } from '@/lib/mailer';
+import { createVerificationToken, buildCertificateVerificationUrl, createCertificateDigest } from '@/lib/certificateSecurity';
 
 type CertType = CertificateRecord['certificate_type'];
 type CertTemplate = CertificateRecord['certificate_template'];

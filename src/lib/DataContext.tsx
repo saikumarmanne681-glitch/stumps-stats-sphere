@@ -102,7 +102,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const mutate = useCallback(
     async (
       apiFn: () => Promise<boolean>,
-      invalidateAfter: readonly unknown[][],
+      invalidateAfter: readonly (readonly unknown[])[],
       audit?: { actor: string; eventType: string; entityType: string; entityId: string; metadata?: string },
     ) => {
       const success = await apiFn();
