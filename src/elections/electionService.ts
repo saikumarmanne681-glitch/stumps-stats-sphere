@@ -4,6 +4,7 @@ import { AuthUser } from '@/lib/types';
 import { logAudit, v2api } from '@/lib/v2api';
 import { ElectionAuditLog, ElectionRecord, ElectionResultSummary, ElectionTermRecord, NominationRecord, VoteRecord } from './types';
 import { compareTimestampsDesc, nowIso } from '@/lib/time';
+import { parseSheetBoolean } from '@/lib/sheetValueParsers';
 
 const STORAGE = {
   elections: 'club:elections',
@@ -69,14 +70,28 @@ async function safeSyncRow<T>(method: 'add' | 'update', sheet: string, row: T) {
 const normalizeElection = (item: ElectionRecord): ElectionRecord => ({
   ...item,
   scrutiny_date: item.scrutiny_date || '',
-  show_notice: Boolean(item.show_notice),
-  enable_nominations: Boolean(item.enable_nominations),
-  enable_status_tracking: item.enable_status_tracking === undefined ? true : Boolean(item.enable_status_tracking),
-  publish_candidate_list: Boolean(item.publish_candidate_list),
-  enable_voting: Boolean(item.enable_voting),
-  close_polling: Boolean(item.close_polling),
-  publish_results: Boolean(item.publish_results),
-  archive_election: Boolean(item.archive_election),
+  show_notice: parseSheetBoolean(item.show_notice),
+  enable_nominations: parseSheetBoolean(item.enable_nominations),
+  enable_status_tracking: item.enable_status_tracking === undefined ? true : parseSheetBoolean(item.enable_status_tracking),
+  publish_candidate_list: parseSheetBoolean(item.publish_candidate_list),
+  enable_voting: parseSheetBoolean(item.enable_voting),
+  close_polling: parseSheetBoolean(item.close_polling),
+  publish_results: parseSheetBoolean(item.publish_results),
+  archive_election: parseSheetBoolean(item.archive_election),
+});
+
+const normalizeNominationStatus = (status: unknown): NominationRecord['status'] => {
+  const normalized = String(status ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+  if (normalized === 'under_review' || normalized === 'approved' || normalized === 'rejected' || normalized === 'withdrawn') {
+    return normalized;
+  }
+  return 'submitted';
+};
+
+const normalizeNomination = (item: NominationRecord): NominationRecord => ({
+  ...item,
+  status: normalizeNominationStatus(item.status),
+  declaration_accepted: parseSheetBoolean(item.declaration_accepted),
 });
 
 export const electionService = {
@@ -94,7 +109,7 @@ export const electionService = {
         v2api.getCustomSheet<ElectionTermRecord>(SHEETS.terms),
       ]);
       if (elections.length) write(STORAGE.elections, dedupeByKey(elections.map(normalizeElection), (item) => item.election_id));
-      if (nominations.length) write(STORAGE.nominations, dedupeByKey(nominations, (item) => item.nomination_id || `${item.election_id}:${item.nominee_user_id}:${item.role_name}`));
+      if (nominations.length) write(STORAGE.nominations, dedupeByKey(nominations.map(normalizeNomination), (item) => item.nomination_id || `${item.election_id}:${item.nominee_user_id}:${item.role_name}`));
       if (votes.length) write(STORAGE.votes, dedupeByKey(votes, (item) => item.vote_id || `${item.election_id}:${item.voter_user_id}:${item.role_name}`));
       if (terms.length) write(STORAGE.terms, dedupeByKey(terms, (item) => item.assignment_id || `${item.election_id}:${item.role_name}:${item.user_id}`));
     } catch {
@@ -107,7 +122,7 @@ export const electionService = {
   },
 
   getNominations() {
-    return read<NominationRecord>(STORAGE.nominations).sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at));
+    return read<NominationRecord>(STORAGE.nominations).map(normalizeNomination).sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at));
   },
 
   getVotes() {
