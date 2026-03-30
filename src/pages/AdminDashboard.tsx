@@ -14,8 +14,7 @@ import { AdminSupportDashboard } from '@/components/admin/AdminSupport';
 import { AdminPresence } from '@/components/admin/AdminPresence';
 import { AdminScorelists } from '@/components/admin/AdminScorelists';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
-import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Vote, Newspaper, ListTodo, MailSearch } from 'lucide-react';
-import { AdminGovernance } from '@/components/admin/AdminGovernance';
+import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Newspaper, ListTodo, MailSearch } from 'lucide-react';
 import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
 import { AdminCertificates } from '@/components/admin/AdminCertificates';
 import { AdminMailDiagnostics } from '@/components/admin/AdminMailDiagnostics';
@@ -87,9 +86,6 @@ const AdminDashboard = () => {
             <TabsTrigger value="mail-diagnostics" className="flex items-center gap-1 text-xs">
               <MailSearch className="h-3 w-3" /> Mail Diagnostics
             </TabsTrigger>
-            <TabsTrigger value="governance" className="flex items-center gap-1 text-xs">
-              <Vote className="h-3 w-3" /> Governance
-            </TabsTrigger>
             <TabsTrigger value="approvals-live" className="flex items-center gap-1 text-xs">
               <Shield className="h-3 w-3" /> Approvals Live
             </TabsTrigger>
@@ -118,7 +114,6 @@ const AdminDashboard = () => {
           <TabsContent value="scorelists"><AdminScorelists /></TabsContent>
           <TabsContent value="audit"><AdminAuditLog /></TabsContent>
           <TabsContent value="mail-diagnostics"><AdminMailDiagnostics /></TabsContent>
-          <TabsContent value="governance"><AdminGovernance /></TabsContent>
           <TabsContent value="approvals-live"><AdminApprovalsRealtime /></TabsContent>
           <TabsContent value="newsroom"><AdminNewsRoom /></TabsContent>
           <TabsContent value="certificates"><AdminCertificates /></TabsContent>
