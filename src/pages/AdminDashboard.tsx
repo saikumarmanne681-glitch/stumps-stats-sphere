@@ -14,14 +14,13 @@ import { AdminSupportDashboard } from '@/components/admin/AdminSupport';
 import { AdminPresence } from '@/components/admin/AdminPresence';
 import { AdminScorelists } from '@/components/admin/AdminScorelists';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
-import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Vote, Newspaper, ListTodo, MailSearch, ClipboardCheck } from 'lucide-react';
+import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Vote, Newspaper, ListTodo, MailSearch } from 'lucide-react';
 import { AdminGovernance } from '@/components/admin/AdminGovernance';
 import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
 import { AdminCertificates } from '@/components/admin/AdminCertificates';
 import { AdminMailDiagnostics } from '@/components/admin/AdminMailDiagnostics';
 import { AdminSheetsConsole } from '@/components/admin/AdminSheetsConsole';
 import { AdminApprovalsRealtime } from '@/components/admin/AdminApprovalsRealtime';
-import { AdminTeamsOperations } from '@/components/admin/AdminTeamsOperations';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -106,9 +105,6 @@ const AdminDashboard = () => {
             <TabsTrigger value="settings" className="flex items-center gap-1 text-xs">
               <Settings className="h-3 w-3" /> Settings
             </TabsTrigger>
-            <TabsTrigger value="team-ops" className="flex items-center gap-1 text-xs">
-              <ClipboardCheck className="h-3 w-3" /> Team Ops & QA
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="matches"><AdminMatches /></TabsContent>
@@ -128,7 +124,6 @@ const AdminDashboard = () => {
           <TabsContent value="certificates"><AdminCertificates /></TabsContent>
           <TabsContent value="sheets"><AdminSheetsConsole /></TabsContent>
           <TabsContent value="settings"><AdminSettings /></TabsContent>
-          <TabsContent value="team-ops"><AdminTeamsOperations /></TabsContent>
         </Tabs>
       </div>
     </div>

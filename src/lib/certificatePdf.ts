@@ -62,10 +62,17 @@ function buildCertificatePdf(item: CertificateRecord) {
     gold: { bg: [0.995, 0.976, 0.93], primary: [0.24, 0.17, 0.05], accent: [0.69, 0.53, 0.13], text: [0.2, 0.17, 0.08] },
   }[theme];
 
-  const recipientFontSize = item.recipient_name.length > 36 ? 30 : item.recipient_name.length > 24 ? 34 : 38;
-  const titleFontSize = item.title.length > 36 ? 16 : 18;
+  const recipientFontSize = item.recipient_name.length > 36 ? 27 : item.recipient_name.length > 24 ? 31 : 35;
+  const titleFontSize = item.title.length > 36 ? 15 : 17;
   const verificationTarget = item.verification_url || item.qr_payload || 'N/A';
   const verificationLines = splitTextByWidth(`Verify: ${verificationTarget}`, 640, 9);
+  const awardHeader = item.certificate_type === 'winner_team'
+    ? 'WINNER'
+    : item.certificate_type === 'runner_up_team'
+      ? 'RUNNER-UP'
+      : item.certificate_type === 'man_of_match'
+        ? 'MAN OF THE MATCH'
+        : 'SPECIAL AWARD';
 
   const signatureMetadata = (() => {
     try {
@@ -76,20 +83,23 @@ function buildCertificatePdf(item: CertificateRecord) {
   })();
 
   const lines: PdfTextLine[] = [
-    { text: 'CRICKET CLUB OF EXCELLENCE', x: centerTextX('CRICKET CLUB OF EXCELLENCE', 14, width), y: 544, size: 14, color: palette.bg },
-    { text: 'CHAMPIONSHIP CERTIFICATE OF RECOGNITION', x: centerTextX('CHAMPIONSHIP CERTIFICATE OF RECOGNITION', 30, width), y: 488, size: 30, font: 'F2', color: palette.primary },
-    { text: 'This certificate is presented with pride to', x: centerTextX('This certificate is presented with pride to', 15, width), y: 446, size: 15, color: palette.text },
-    { text: item.recipient_name, x: centerTextX(item.recipient_name, recipientFontSize, width), y: 388, size: recipientFontSize, font: 'F2', color: palette.primary },
-    { text: item.title, x: centerTextX(item.title, titleFontSize, width), y: 352, size: titleFontSize, color: palette.text },
+    { text: 'CRICKET TOURNAMENT', x: centerTextX('CRICKET TOURNAMENT', 14, width), y: 548, size: 14, font: 'F2', color: palette.bg },
+    { text: 'CERTIFICATE OF ACHIEVEMENT', x: centerTextX('CERTIFICATE OF ACHIEVEMENT', 34, width), y: 488, size: 34, font: 'F2', color: palette.primary },
+    { text: 'Awarded To', x: centerTextX('Awarded To', 16, width), y: 446, size: 16, color: palette.text },
+    { text: item.recipient_name, x: centerTextX(item.recipient_name, recipientFontSize, width), y: 396, size: recipientFontSize, font: 'F2', color: palette.primary },
+    { text: `For outstanding performance in ${String(metadata.tournament || item.tournament_id || 'Tournament')}`, x: centerTextX(`For outstanding performance in ${String(metadata.tournament || item.tournament_id || 'Tournament')}`, 13, width), y: 364, size: 13, color: palette.text },
+    { text: `[${awardHeader}] ${item.title}`, x: centerTextX(`[${awardHeader}] ${item.title}`, titleFontSize, width), y: 338, size: titleFontSize, font: 'F2', color: palette.accent },
 
     { text: `Tournament: ${metadata.tournament || item.tournament_id || 'N/A'}`, x: 82, y: 265, size: 12, color: palette.text },
     { text: `Season: ${metadata.seasonYear || item.season_id || 'N/A'}`, x: 82, y: 244, size: 12, color: palette.text },
-    { text: `Issue Date: ${formatInIST(item.generated_at)}`, x: 82, y: 223, size: 12, color: palette.text },
+    { text: `Winner / Runner-up: ${metadata.winnerTeam || 'N/A'} / ${metadata.runnerUpTeam || 'N/A'}`, x: 82, y: 223, size: 11, color: palette.text },
+    { text: `Issue Date: ${formatInIST(item.generated_at)}`, x: 82, y: 202, size: 12, color: palette.text },
     { text: `Certificate ID: ${item.certificate_id}`, x: 460, y: 265, size: 11, color: palette.text },
     { text: `Verification Token: ${item.verification_token || 'N/A'}`, x: 460, y: 244, size: 10, color: palette.text },
-    { text: `SHA-256 Digest: ${item.security_hash}`, x: 82, y: 204, size: 8.5, color: [0.22, 0.22, 0.22] },
+    { text: `Award Category: ${metadata.awardCategory || metadata.tournament || 'N/A'}`, x: 460, y: 223, size: 9.5, color: palette.text },
+    { text: `SHA-256 Digest: ${item.security_hash}`, x: 82, y: 183, size: 8.5, color: [0.22, 0.22, 0.22] },
 
-    { text: 'Verification Link', x: 82, y: 174, size: 9, font: 'F2', color: palette.primary },
+    { text: 'Verification Link', x: 82, y: 158, size: 9, font: 'F2', color: palette.primary },
     { text: 'Authorized Signatories', x: centerTextX('Authorized Signatories', 14, width), y: 162, size: 14, font: 'F2', color: palette.primary },
     { text: 'Treasurer', x: 120, y: 88, size: 11, color: palette.text },
     { text: 'Scoring Official', x: 355, y: 88, size: 11, color: palette.text },
@@ -97,7 +107,7 @@ function buildCertificatePdf(item: CertificateRecord) {
   ];
 
   verificationLines.forEach((line, index) => {
-    lines.push({ text: line, x: 82, y: 158 - (index * 11), size: 8.5, color: [0.24, 0.24, 0.24] });
+    lines.push({ text: line, x: 82, y: 144 - (index * 11), size: 8.5, color: [0.24, 0.24, 0.24] });
   });
 
   signatureMetadata.forEach((entry: { role?: string; signerName?: string; signedAt?: string }, index: number) => {
@@ -116,8 +126,9 @@ function buildCertificatePdf(item: CertificateRecord) {
     `${palette.primary.join(' ')} RG 1.25 w 30 30 ${width - 60} ${height - 60} re S`,
     `${palette.primary.join(' ')} rg 30 520 ${width - 60} 38 re f`,
     `${palette.accent.join(' ')} rg 30 34 ${width - 60} 14 re f`,
-    `${palette.primary.join(' ')} RG 0.8 w 68 185 706 94 re S`,
+    `${palette.primary.join(' ')} RG 0.8 w 68 167 706 112 re S`,
     `${palette.primary.join(' ')} RG 0.8 w 68 56 706 116 re S`,
+    `${palette.accent.join(' ')} RG 0.8 w 180 381 482 0 m S`,
     `${palette.accent.join(' ')} RG 1.1 w 88 118 188 0 m S 323 118 188 0 m S 583 118 188 0 m S`,
     `${palette.primary.join(' ')} RG 0.9 w 78 74 200 58 re S`,
     `${palette.primary.join(' ')} RG 0.9 w 313 74 200 58 re S`,
