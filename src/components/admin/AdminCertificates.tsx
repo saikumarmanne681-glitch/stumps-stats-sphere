@@ -16,6 +16,7 @@ import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificate
 import { resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { sendSystemEmail } from '@/lib/mailer';
 import { buildCertificateTamperEvidentPayload, createVerificationToken, buildCertificateVerificationUrl, createCertificateDigest, withResolvedCertificateSecurity } from '@/lib/certificateSecurity';
+import CertificateArtboard from '@/components/CertificateArtboard';
 
 type CertType = CertificateRecord['certificate_type'];
 type CertTemplate = CertificateRecord['certificate_template'];
