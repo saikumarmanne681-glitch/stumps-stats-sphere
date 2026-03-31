@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -9,13 +9,14 @@ import { useData } from '@/lib/DataContext';
 import { CertificateRecord } from '@/lib/v2types';
 import { istNow, logAudit, v2api } from '@/lib/v2api';
 import { generateId } from '@/lib/utils';
-import { QRCodeSVG } from 'qrcode.react';
+
 import { useToast } from '@/hooks/use-toast';
 import { ShieldCheck, Trophy, Medal, Award, Download, Eye, FileText, PaintBucket } from 'lucide-react';
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 import { resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { sendSystemEmail } from '@/lib/mailer';
 import { buildCertificateTamperEvidentPayload, createVerificationToken, buildCertificateVerificationUrl, createCertificateDigest, withResolvedCertificateSecurity } from '@/lib/certificateSecurity';
+import CertificateArtboard from '@/components/CertificateArtboard';
 
 type CertType = CertificateRecord['certificate_type'];
 type CertTemplate = CertificateRecord['certificate_template'];
@@ -52,7 +53,7 @@ export function AdminCertificates() {
   const [matchId, setMatchId] = useState('');
   const [template, setTemplate] = useState<CertTemplate>('classic');
   const [preview, setPreview] = useState<CertificateRecord | null>(null);
-  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  
   const { toast } = useToast();
   const [lastMailDispatch, setLastMailDispatch] = useState<{ total: number; delivered: number; failed: number } | null>(null);
 
@@ -110,90 +111,36 @@ export function AdminCertificates() {
     return selectedTournament?.name || 'Performance category';
   }, [matchId, seasonMatches, selectedSeason?.year, selectedTournament?.name, type]);
 
-  useEffect(() => {
-    const canvas = previewCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const palette = templateCatalog.find((item) => item.value === template) || templateCatalog[0];
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = palette.bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, '#ffffff');
-    gradient.addColorStop(1, palette.bg);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
-    ctx.strokeStyle = palette.border;
-    ctx.lineWidth = 3.5;
-    ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
-    ctx.strokeStyle = palette.accent;
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(44, 44, canvas.width - 88, canvas.height - 88);
-    ctx.strokeRect(54, 54, canvas.width - 108, canvas.height - 108);
-    ctx.fillStyle = palette.heading;
-    ctx.fillRect(54, 54, canvas.width - 108, 44);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.font = '600 18px serif';
-    ctx.fillText('CRICKET CLUB HONORS BOARD', canvas.width / 2, 82);
-    ctx.fillStyle = palette.heading;
-    ctx.font = '700 42px serif';
-    ctx.fillText('CERTIFICATE', canvas.width / 2, 156);
-    ctx.font = '700 21px serif';
-    ctx.fillText('OF EXCELLENCE', canvas.width / 2, 188);
-    ctx.font = '500 17px sans-serif';
-    ctx.fillText('This is proudly presented to', canvas.width / 2, 220);
-    ctx.font = 'italic 700 40px serif';
-    ctx.fillText(recipient || '[Recipient Full Name]', canvas.width / 2, 254);
-    ctx.strokeStyle = palette.accent;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(130, 264);
-    ctx.lineTo(canvas.width - 130, 264);
-    ctx.stroke();
-    ctx.font = '600 17px sans-serif';
-    ctx.fillText('For exceptional cricketing contribution in', canvas.width / 2, 292);
-    ctx.font = '700 26px sans-serif';
-    ctx.fillText((selectedTournament?.name || '[CRICKET TOURNAMENT NAME]').toUpperCase(), canvas.width / 2, 323);
-    ctx.font = '700 22px sans-serif';
-    ctx.fillStyle = palette.border;
-    ctx.fillText(`[${type === 'winner_team' ? 'WINNER' : type === 'runner_up_team' ? 'RUNNER-UP' : 'SPECIAL AWARD'}]`, canvas.width / 2, 354);
-    ctx.fillStyle = '#111827';
-    ctx.font = '600 16px sans-serif';
-    ctx.fillText(`Award Category: ${awardCategoryLabel}`, canvas.width / 2, 380);
-    ctx.fillText(`Awarded Entity: ${type.includes('team') ? (recipient || 'Team') : recipient || 'Player'}`, canvas.width / 2, 402);
-    ctx.fillText(`Date: ${new Date().toLocaleDateString('en-GB')}    Season: ${selectedSeason?.year || 'N/A'}`, canvas.width / 2, 424);
-
-    ctx.font = '13px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Certificate ID: LIVE-PREVIEW`, 70, 448);
-    ctx.fillText(`Template: ${palette.label}`, 70, 468);
-    ctx.fillText(`Verification via QR + signed approvals`, 70, 488);
-
-    ctx.textAlign = 'center';
-    ctx.font = '12px sans-serif';
-    ctx.fillText('SIGNATURE 1', canvas.width * 0.24, 468);
-    ctx.fillText('SIGNATURE 2', canvas.width * 0.5, 468);
-    ctx.fillText('SIGNATURE 3', canvas.width * 0.76, 468);
-    ctx.strokeStyle = '#6b7280';
-    ctx.beginPath();
-    ctx.moveTo(canvas.width * 0.14, 452);
-    ctx.lineTo(canvas.width * 0.34, 452);
-    ctx.moveTo(canvas.width * 0.4, 452);
-    ctx.lineTo(canvas.width * 0.6, 452);
-    ctx.moveTo(canvas.width * 0.66, 452);
-    ctx.lineTo(canvas.width * 0.86, 452);
-    ctx.stroke();
-
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = palette.border;
-    ctx.font = 'bold 56px serif';
-    ctx.fillText('LIVE PREVIEW', canvas.width / 2, canvas.height / 2 + 32);
-    ctx.globalAlpha = 1;
-  }, [awardCategoryLabel, recipient, selectedSeason?.winner_team, selectedSeason?.year, selectedTournament?.name, template, type]);
+  // Live preview certificate record (not saved, just for visual)
+  const livePreviewCert = useMemo<CertificateRecord | null>(() => {
+    if (!selectedSeason) return null;
+    return {
+      certificate_id: 'LIVE-PREVIEW',
+      certificate_template: template,
+      certificate_type: type,
+      title: certCatalog.find((c) => c.value === type)?.label || 'Certificate',
+      season_id: selectedSeason.season_id,
+      tournament_id: selectedSeason.tournament_id,
+      match_id: matchId,
+      recipient_type: type.includes('team') ? 'team' : 'player',
+      recipient_id: '',
+      recipient_name: recipient || '[Recipient Name]',
+      metadata_json: JSON.stringify({ seasonYear: selectedSeason.year, tournament: selectedTournament?.name || '', awardCategory: awardCategoryLabel }),
+      certificate_html: '',
+      qr_payload: 'https://example.com/verify-certificate/LIVE-PREVIEW',
+      verification_url: 'https://example.com/verify-certificate/LIVE-PREVIEW',
+      verification_token: 'preview-token',
+      security_hash: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+      tamper_evident_payload: '',
+      approval_status: 'pending_approval',
+      approvals_json: JSON.stringify({ Treasurer: false, 'Scoring Official': false, 'Match Referee': false }),
+      signatures_json: '[]',
+      generated_by: 'admin',
+      generated_at: new Date().toISOString(),
+      approved_at: '',
+      delivery_status: 'not_sent',
+    };
+  }, [selectedSeason, template, type, matchId, recipient, selectedTournament?.name, awardCategoryLabel]);
 
   const generateCertificate = async () => {
     if (!selectedSeason || !recipient.trim()) {
@@ -342,11 +289,15 @@ export function AdminCertificates() {
             {suggestedRecipients.slice(0, 4).map((name) => <Button key={name} variant="outline" size="sm" onClick={() => setRecipient(name)}>{name}</Button>)}
           </div>
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-            <div className="rounded-[1.5rem] border border-primary/15 bg-gradient-to-br from-background via-card to-primary/5 p-3 shadow-sm">
+            <div className="rounded-xl border border-primary/15 bg-card p-3 shadow-sm">
               <p className="mb-3 text-sm font-medium text-foreground">Live certificate artboard preview</p>
-              <canvas ref={previewCanvasRef} width={760} height={470} className="w-full rounded-lg border border-primary/10 bg-white" />
+              {livePreviewCert ? (
+                <CertificateArtboard certificate={livePreviewCert} compact />
+              ) : (
+                <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">Select a season to preview</div>
+              )}
             </div>
-            <div className="rounded-[1.5rem] border border-primary/15 bg-gradient-to-b from-card to-muted/40 p-4 text-xs text-muted-foreground shadow-sm">
+            <div className="rounded-xl border border-primary/15 bg-gradient-to-b from-card to-muted/40 p-4 text-xs text-muted-foreground shadow-sm">
               <p className="font-semibold text-foreground">Certificate reliability status</p>
               <p className="mt-2">The QR and verification link point to a public verify route.</p>
               <p className="mt-1">Security uses SHA-256 digest over a tamper-evident canonical payload.</p>
@@ -370,64 +321,11 @@ export function AdminCertificates() {
       {preview && (
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Eye className="h-4 w-4" /> Certificate Preview</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="relative overflow-hidden rounded-[2rem] border border-primary/20 bg-gradient-to-br from-card via-background to-accent/10 p-6 text-center shadow-[0_24px_80px_-48px_hsl(var(--foreground)/0.45)]">
-              <div className="pointer-events-none absolute inset-0 soft-dot-grid opacity-60" aria-hidden="true" />
-              <div className="pointer-events-none absolute inset-x-10 top-10 h-24 rounded-full bg-accent/15 blur-3xl" aria-hidden="true" />
-              {preview.approval_status !== 'approved' && <div className="pointer-events-none absolute inset-0 grid place-items-center text-5xl font-black tracking-[0.3em] text-accent/20">PENDING</div>}
-              <div className="relative mx-auto max-w-4xl rounded-[1.75rem] border border-primary/20 bg-card/85 px-6 py-8 shadow-inner backdrop-blur-sm">
-                <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-background/80 px-4 py-1 text-xs font-semibold">{certCatalog.find((c) => c.value === preview.certificate_type)?.icon} Authenticated League Certificate</div>
-                <div className="mx-auto mb-5 h-px w-40 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                <h3 className="font-display text-3xl uppercase tracking-[0.14em] text-foreground">{preview.title}</h3>
-                <p className="mt-4 text-sm uppercase tracking-[0.3em] text-muted-foreground">Presented to</p>
-                <p className="mt-2 font-display text-4xl tracking-wide text-primary">{preview.recipient_name}</p>
-                <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground">Official merit record with visible security ornamentation, semi-visible watermarking, multi-role approvals, and public authenticity verification.</p>
-                <div className="mt-8 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-                  <div className="rounded-[1.5rem] border border-primary/15 bg-background/75 p-5 text-left">
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">Visible security features</p>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-border bg-card p-3">
-                        <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">Certificate ID</p>
-                        <p className="mt-1 font-mono text-sm text-foreground">{preview.certificate_id}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-card p-3">
-                        <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">Approval status</p>
-                        <p className="mt-1 text-sm font-semibold text-foreground">{preview.approval_status.replace('_', ' ')}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-card p-3 sm:col-span-2">
-                        <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">Security hash</p>
-                        <p className="mt-1 break-all font-mono text-[11px] text-foreground">{preview.security_hash}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rounded-[1.5rem] border border-primary/15 bg-gradient-to-b from-card to-muted/50 p-5">
-                    <QRCodeSVG value={preview.verification_url || preview.qr_payload} size={122} className="mx-auto rounded-lg bg-white p-2" />
-                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary">Scan to verify</p>
-                    <p className="mt-2 break-all text-[11px] text-muted-foreground">{preview.verification_url || preview.qr_payload}</p>
-                  </div>
-                </div>
-                <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
-                  {(Object.keys({ Treasurer: true, 'Scoring Official': true, 'Match Referee': true }) as (keyof ApprovalMap)[]).map((role) => {
-                    const approved = (() => {
-                      try {
-                        const parsed = preview.approvals_json ? JSON.parse(preview.approvals_json) as ApprovalMap : { Treasurer: false, 'Scoring Official': false, 'Match Referee': false };
-                        return !!parsed[role];
-                      } catch {
-                        return false;
-                      }
-                    })();
-                    return <div key={role} className="rounded-2xl border border-primary/15 bg-card/80 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{role}</p>
-                      <p className="mt-1 text-sm font-semibold text-foreground">{approved ? 'Approved' : 'Awaiting signature'}</p>
-                    </div>;
-                  })}
-                </div>
-              </div>
-              <p className="relative mt-4 text-xs text-muted-foreground break-all">Verify URL: {preview.verification_url || preview.qr_payload}</p>
-              <div className="relative mt-4 flex items-center justify-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => previewCertificatePdf(preview)}><FileText className="mr-1 h-3 w-3" /> Preview PDF</Button>
-                <Button size="sm" onClick={() => downloadCertificatePdf(preview)}><Download className="mr-1 h-3 w-3" /> Download PDF</Button>
-              </div>
+          <CardContent className="space-y-4">
+            <CertificateArtboard certificate={preview} />
+            <div className="flex items-center justify-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => previewCertificatePdf(preview)}><FileText className="mr-1 h-3 w-3" /> Preview PDF</Button>
+              <Button size="sm" onClick={() => downloadCertificatePdf(preview)}><Download className="mr-1 h-3 w-3" /> Download PDF</Button>
             </div>
           </CardContent>
         </Card>
