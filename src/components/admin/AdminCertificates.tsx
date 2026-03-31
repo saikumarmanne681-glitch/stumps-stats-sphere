@@ -321,64 +321,11 @@ export function AdminCertificates() {
       {preview && (
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Eye className="h-4 w-4" /> Certificate Preview</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="relative overflow-hidden rounded-[2rem] border border-primary/20 bg-gradient-to-br from-card via-background to-accent/10 p-6 text-center shadow-[0_24px_80px_-48px_hsl(var(--foreground)/0.45)]">
-              <div className="pointer-events-none absolute inset-0 soft-dot-grid opacity-60" aria-hidden="true" />
-              <div className="pointer-events-none absolute inset-x-10 top-10 h-24 rounded-full bg-accent/15 blur-3xl" aria-hidden="true" />
-              {preview.approval_status !== 'approved' && <div className="pointer-events-none absolute inset-0 grid place-items-center text-5xl font-black tracking-[0.3em] text-accent/20">PENDING</div>}
-              <div className="relative mx-auto max-w-4xl rounded-[1.75rem] border border-primary/20 bg-card/85 px-6 py-8 shadow-inner backdrop-blur-sm">
-                <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-background/80 px-4 py-1 text-xs font-semibold">{certCatalog.find((c) => c.value === preview.certificate_type)?.icon} Authenticated League Certificate</div>
-                <div className="mx-auto mb-5 h-px w-40 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                <h3 className="font-display text-3xl uppercase tracking-[0.14em] text-foreground">{preview.title}</h3>
-                <p className="mt-4 text-sm uppercase tracking-[0.3em] text-muted-foreground">Presented to</p>
-                <p className="mt-2 font-display text-4xl tracking-wide text-primary">{preview.recipient_name}</p>
-                <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground">Official merit record with visible security ornamentation, semi-visible watermarking, multi-role approvals, and public authenticity verification.</p>
-                <div className="mt-8 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-                  <div className="rounded-[1.5rem] border border-primary/15 bg-background/75 p-5 text-left">
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">Visible security features</p>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-border bg-card p-3">
-                        <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">Certificate ID</p>
-                        <p className="mt-1 font-mono text-sm text-foreground">{preview.certificate_id}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-card p-3">
-                        <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">Approval status</p>
-                        <p className="mt-1 text-sm font-semibold text-foreground">{preview.approval_status.replace('_', ' ')}</p>
-                      </div>
-                      <div className="rounded-2xl border border-border bg-card p-3 sm:col-span-2">
-                        <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">Security hash</p>
-                        <p className="mt-1 break-all font-mono text-[11px] text-foreground">{preview.security_hash}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rounded-[1.5rem] border border-primary/15 bg-gradient-to-b from-card to-muted/50 p-5">
-                    <QRCodeSVG value={preview.verification_url || preview.qr_payload} size={122} className="mx-auto rounded-lg bg-white p-2" />
-                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary">Scan to verify</p>
-                    <p className="mt-2 break-all text-[11px] text-muted-foreground">{preview.verification_url || preview.qr_payload}</p>
-                  </div>
-                </div>
-                <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
-                  {(Object.keys({ Treasurer: true, 'Scoring Official': true, 'Match Referee': true }) as (keyof ApprovalMap)[]).map((role) => {
-                    const approved = (() => {
-                      try {
-                        const parsed = preview.approvals_json ? JSON.parse(preview.approvals_json) as ApprovalMap : { Treasurer: false, 'Scoring Official': false, 'Match Referee': false };
-                        return !!parsed[role];
-                      } catch {
-                        return false;
-                      }
-                    })();
-                    return <div key={role} className="rounded-2xl border border-primary/15 bg-card/80 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">{role}</p>
-                      <p className="mt-1 text-sm font-semibold text-foreground">{approved ? 'Approved' : 'Awaiting signature'}</p>
-                    </div>;
-                  })}
-                </div>
-              </div>
-              <p className="relative mt-4 text-xs text-muted-foreground break-all">Verify URL: {preview.verification_url || preview.qr_payload}</p>
-              <div className="relative mt-4 flex items-center justify-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => previewCertificatePdf(preview)}><FileText className="mr-1 h-3 w-3" /> Preview PDF</Button>
-                <Button size="sm" onClick={() => downloadCertificatePdf(preview)}><Download className="mr-1 h-3 w-3" /> Download PDF</Button>
-              </div>
+          <CardContent className="space-y-4">
+            <CertificateArtboard certificate={preview} />
+            <div className="flex items-center justify-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => previewCertificatePdf(preview)}><FileText className="mr-1 h-3 w-3" /> Preview PDF</Button>
+              <Button size="sm" onClick={() => downloadCertificatePdf(preview)}><Download className="mr-1 h-3 w-3" /> Download PDF</Button>
             </div>
           </CardContent>
         </Card>
