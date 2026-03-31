@@ -9,7 +9,7 @@ import { useData } from '@/lib/DataContext';
 import { CertificateRecord } from '@/lib/v2types';
 import { istNow, logAudit, v2api } from '@/lib/v2api';
 import { generateId } from '@/lib/utils';
-import { QRCodeSVG } from 'qrcode.react';
+
 import { useToast } from '@/hooks/use-toast';
 import { ShieldCheck, Trophy, Medal, Award, Download, Eye, FileText, PaintBucket } from 'lucide-react';
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
