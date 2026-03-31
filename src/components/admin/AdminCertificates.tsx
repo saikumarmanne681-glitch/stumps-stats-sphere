@@ -289,11 +289,15 @@ export function AdminCertificates() {
             {suggestedRecipients.slice(0, 4).map((name) => <Button key={name} variant="outline" size="sm" onClick={() => setRecipient(name)}>{name}</Button>)}
           </div>
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-            <div className="rounded-[1.5rem] border border-primary/15 bg-gradient-to-br from-background via-card to-primary/5 p-3 shadow-sm">
+            <div className="rounded-xl border border-primary/15 bg-card p-3 shadow-sm">
               <p className="mb-3 text-sm font-medium text-foreground">Live certificate artboard preview</p>
-              <canvas ref={previewCanvasRef} width={760} height={470} className="w-full rounded-lg border border-primary/10 bg-white" />
+              {livePreviewCert ? (
+                <CertificateArtboard certificate={livePreviewCert} compact />
+              ) : (
+                <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">Select a season to preview</div>
+              )}
             </div>
-            <div className="rounded-[1.5rem] border border-primary/15 bg-gradient-to-b from-card to-muted/40 p-4 text-xs text-muted-foreground shadow-sm">
+            <div className="rounded-xl border border-primary/15 bg-gradient-to-b from-card to-muted/40 p-4 text-xs text-muted-foreground shadow-sm">
               <p className="font-semibold text-foreground">Certificate reliability status</p>
               <p className="mt-2">The QR and verification link point to a public verify route.</p>
               <p className="mt-1">Security uses SHA-256 digest over a tamper-evident canonical payload.</p>
