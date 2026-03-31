@@ -53,7 +53,7 @@ export function AdminCertificates() {
   const [matchId, setMatchId] = useState('');
   const [template, setTemplate] = useState<CertTemplate>('classic');
   const [preview, setPreview] = useState<CertificateRecord | null>(null);
-  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  
   const { toast } = useToast();
   const [lastMailDispatch, setLastMailDispatch] = useState<{ total: number; delivered: number; failed: number } | null>(null);
 
