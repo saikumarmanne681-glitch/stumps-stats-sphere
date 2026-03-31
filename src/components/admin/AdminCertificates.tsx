@@ -111,90 +111,36 @@ export function AdminCertificates() {
     return selectedTournament?.name || 'Performance category';
   }, [matchId, seasonMatches, selectedSeason?.year, selectedTournament?.name, type]);
 
-  useEffect(() => {
-    const canvas = previewCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const palette = templateCatalog.find((item) => item.value === template) || templateCatalog[0];
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = palette.bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, '#ffffff');
-    gradient.addColorStop(1, palette.bg);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
-    ctx.strokeStyle = palette.border;
-    ctx.lineWidth = 3.5;
-    ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
-    ctx.strokeStyle = palette.accent;
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(44, 44, canvas.width - 88, canvas.height - 88);
-    ctx.strokeRect(54, 54, canvas.width - 108, canvas.height - 108);
-    ctx.fillStyle = palette.heading;
-    ctx.fillRect(54, 54, canvas.width - 108, 44);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.font = '600 18px serif';
-    ctx.fillText('CRICKET CLUB HONORS BOARD', canvas.width / 2, 82);
-    ctx.fillStyle = palette.heading;
-    ctx.font = '700 42px serif';
-    ctx.fillText('CERTIFICATE', canvas.width / 2, 156);
-    ctx.font = '700 21px serif';
-    ctx.fillText('OF EXCELLENCE', canvas.width / 2, 188);
-    ctx.font = '500 17px sans-serif';
-    ctx.fillText('This is proudly presented to', canvas.width / 2, 220);
-    ctx.font = 'italic 700 40px serif';
-    ctx.fillText(recipient || '[Recipient Full Name]', canvas.width / 2, 254);
-    ctx.strokeStyle = palette.accent;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(130, 264);
-    ctx.lineTo(canvas.width - 130, 264);
-    ctx.stroke();
-    ctx.font = '600 17px sans-serif';
-    ctx.fillText('For exceptional cricketing contribution in', canvas.width / 2, 292);
-    ctx.font = '700 26px sans-serif';
-    ctx.fillText((selectedTournament?.name || '[CRICKET TOURNAMENT NAME]').toUpperCase(), canvas.width / 2, 323);
-    ctx.font = '700 22px sans-serif';
-    ctx.fillStyle = palette.border;
-    ctx.fillText(`[${type === 'winner_team' ? 'WINNER' : type === 'runner_up_team' ? 'RUNNER-UP' : 'SPECIAL AWARD'}]`, canvas.width / 2, 354);
-    ctx.fillStyle = '#111827';
-    ctx.font = '600 16px sans-serif';
-    ctx.fillText(`Award Category: ${awardCategoryLabel}`, canvas.width / 2, 380);
-    ctx.fillText(`Awarded Entity: ${type.includes('team') ? (recipient || 'Team') : recipient || 'Player'}`, canvas.width / 2, 402);
-    ctx.fillText(`Date: ${new Date().toLocaleDateString('en-GB')}    Season: ${selectedSeason?.year || 'N/A'}`, canvas.width / 2, 424);
-
-    ctx.font = '13px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Certificate ID: LIVE-PREVIEW`, 70, 448);
-    ctx.fillText(`Template: ${palette.label}`, 70, 468);
-    ctx.fillText(`Verification via QR + signed approvals`, 70, 488);
-
-    ctx.textAlign = 'center';
-    ctx.font = '12px sans-serif';
-    ctx.fillText('SIGNATURE 1', canvas.width * 0.24, 468);
-    ctx.fillText('SIGNATURE 2', canvas.width * 0.5, 468);
-    ctx.fillText('SIGNATURE 3', canvas.width * 0.76, 468);
-    ctx.strokeStyle = '#6b7280';
-    ctx.beginPath();
-    ctx.moveTo(canvas.width * 0.14, 452);
-    ctx.lineTo(canvas.width * 0.34, 452);
-    ctx.moveTo(canvas.width * 0.4, 452);
-    ctx.lineTo(canvas.width * 0.6, 452);
-    ctx.moveTo(canvas.width * 0.66, 452);
-    ctx.lineTo(canvas.width * 0.86, 452);
-    ctx.stroke();
-
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = palette.border;
-    ctx.font = 'bold 56px serif';
-    ctx.fillText('LIVE PREVIEW', canvas.width / 2, canvas.height / 2 + 32);
-    ctx.globalAlpha = 1;
-  }, [awardCategoryLabel, recipient, selectedSeason?.winner_team, selectedSeason?.year, selectedTournament?.name, template, type]);
+  // Live preview certificate record (not saved, just for visual)
+  const livePreviewCert = useMemo<CertificateRecord | null>(() => {
+    if (!selectedSeason) return null;
+    return {
+      certificate_id: 'LIVE-PREVIEW',
+      certificate_template: template,
+      certificate_type: type,
+      title: certCatalog.find((c) => c.value === type)?.label || 'Certificate',
+      season_id: selectedSeason.season_id,
+      tournament_id: selectedSeason.tournament_id,
+      match_id: matchId,
+      recipient_type: type.includes('team') ? 'team' : 'player',
+      recipient_id: '',
+      recipient_name: recipient || '[Recipient Name]',
+      metadata_json: JSON.stringify({ seasonYear: selectedSeason.year, tournament: selectedTournament?.name || '', awardCategory: awardCategoryLabel }),
+      certificate_html: '',
+      qr_payload: 'https://example.com/verify-certificate/LIVE-PREVIEW',
+      verification_url: 'https://example.com/verify-certificate/LIVE-PREVIEW',
+      verification_token: 'preview-token',
+      security_hash: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+      tamper_evident_payload: '',
+      approval_status: 'pending_approval',
+      approvals_json: JSON.stringify({ Treasurer: false, 'Scoring Official': false, 'Match Referee': false }),
+      signatures_json: '[]',
+      generated_by: 'admin',
+      generated_at: new Date().toISOString(),
+      approved_at: '',
+      delivery_status: 'not_sent',
+    };
+  }, [selectedSeason, template, type, matchId, recipient, selectedTournament?.name, awardCategoryLabel]);
 
   const generateCertificate = async () => {
     if (!selectedSeason || !recipient.trim()) {
