@@ -32,6 +32,41 @@ type SignatureEntry = {
 };
 
 const defaultApprovals = (): ApprovalMap => ({ Treasurer: false, 'Scoring Official': false, 'Match Referee': false });
+const SVG_MIME = 'image/svg+xml';
+
+function toDataUrlSvg(svgContent: string) {
+  return `data:${SVG_MIME};base64,${btoa(unescape(encodeURIComponent(svgContent)))}`;
+}
+
+function decodeDataUrlSvg(dataUrl: string) {
+  const payload = dataUrl.split(',', 2)[1] || '';
+  const isBase64 = /;base64,/i.test(dataUrl);
+  if (isBase64) {
+    return decodeURIComponent(escape(atob(payload)));
+  }
+  return decodeURIComponent(payload);
+}
+
+function injectTemplatePlaceholders(imageDataUrl: string, values: Record<string, string>) {
+  if (!String(imageDataUrl || '').startsWith(`data:${SVG_MIME}`)) return imageDataUrl;
+  const replacements: Record<string, string> = {
+    '{{recipient_name}}': values.recipient_name || '',
+    '{{title}}': values.title || '',
+    '{{season}}': values.season || '',
+    '{{verification_url}}': values.verification_url || '',
+    RECIPIENT_NAME: values.recipient_name || '',
+    RECIPENT_NAME: values.recipient_name || '',
+    CERTIFICATE_TYPE: values.title || '',
+    tournament_id: values.tournament_id || '',
+    'Match Id': values.match_id || '',
+    verify: values.verification_url || '',
+  };
+  let svg = decodeDataUrlSvg(imageDataUrl);
+  Object.entries(replacements).forEach(([token, value]) => {
+    svg = svg.split(token).join(value);
+  });
+  return toDataUrlSvg(svg);
+}
 
 function parseApprovalMap(raw: string | undefined): ApprovalMap {
   if (!raw) return defaultApprovals();
@@ -180,7 +215,14 @@ export function AdminCertificates() {
         seasonYear: selectedSeason.year,
         tournament: selectedTournament?.name || '',
         awardCategory: awardCategoryLabel,
-        templateDesignImage: activeDesign?.image_data_url || '',
+        templateDesignImage: injectTemplatePlaceholders(activeDesign?.image_data_url || '', {
+          recipient_name: recipient || '{{recipient_name}}',
+          title: certCatalog.find((c) => c.value === type)?.label || 'Certificate',
+          season: String(selectedSeason.year || ''),
+          tournament_id: String(selectedSeason.tournament_id || ''),
+          match_id: String(matchId || ''),
+          verification_url: 'https://example.com/verify-certificate/LIVE-PREVIEW',
+        }),
       }),
       certificate_html: '',
       qr_payload: 'https://example.com/verify-certificate/LIVE-PREVIEW',
@@ -195,7 +237,7 @@ export function AdminCertificates() {
       generated_at: new Date().toISOString(),
       approved_at: '',
       delivery_status: 'not_sent',
-      render_provider: 'uploaded_png',
+      render_provider: activeDesign?.image_data_url?.startsWith(`data:${SVG_MIME}`) ? 'uploaded_svg' : 'uploaded_png',
       render_status: 'completed',
       render_error: '',
       rendered_at: '',
@@ -205,16 +247,22 @@ export function AdminCertificates() {
   const onUploadDesign = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!file.type.includes('png')) {
-      toast({ title: 'PNG only', description: 'Upload a certificate PNG file.', variant: 'destructive' });
+    const isPng = file.type.includes('png') || /\.png$/i.test(file.name);
+    const isSvg = file.type.includes('svg') || /\.svg$/i.test(file.name);
+    if (!isPng && !isSvg) {
+      toast({ title: 'Unsupported format', description: 'Upload PNG or SVG certificate template.', variant: 'destructive' });
       return;
     }
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(new Error('Unable to read PNG'));
-      reader.readAsDataURL(file);
-    });
+      reader.onerror = () => reject(new Error(`Unable to read ${isSvg ? 'SVG' : 'PNG'}`));
+      if (isSvg) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsDataURL(file);
+      }
+    }).then((result) => (isSvg ? toDataUrlSvg(result) : result));
     const payload: CertificateDesignTemplate = {
       template_asset_id: generateId('CERTTPL'),
       file_name: file.name,
@@ -292,7 +340,14 @@ export function AdminCertificates() {
         runnerUpTeam: selectedSeason.runner_up_team || '',
         awardCategory: awardCategoryLabel,
         generatedForMatch: matchId || '',
-        templateDesignImage: activeDesign?.image_data_url || '',
+        templateDesignImage: injectTemplatePlaceholders(activeDesign?.image_data_url || '', {
+          recipient_name: recipient.trim(),
+          title,
+          season: String(selectedSeason.year || ''),
+          tournament_id: String(selectedSeason.tournament_id || ''),
+          match_id: String(matchId || ''),
+          verification_url: verificationUrl,
+        }),
         placeholderTokens: ['{{recipient_name}}', '{{title}}', '{{season}}', '{{verification_url}}'],
       }),
       certificate_html: `<section><h2>${title}</h2><p>${recipient.trim()}</p><p>${selectedSeason.year}</p><p>Template: uploaded PNG</p></section>`,
@@ -308,7 +363,7 @@ export function AdminCertificates() {
       generated_at: generatedAt,
       approved_at: '',
       delivery_status: 'not_sent',
-      render_provider: 'uploaded_png',
+      render_provider: activeDesign?.image_data_url?.startsWith(`data:${SVG_MIME}`) ? 'uploaded_svg' : 'uploaded_png',
       render_status: 'completed',
       render_error: '',
       rendered_at: generatedAt,
@@ -382,8 +437,8 @@ export function AdminCertificates() {
             <div><Label>Recipient</Label><Input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder={suggestedRecipients[0] || 'Name / team'} /></div>
             <div><Label>Match (for MOM)</Label><Select value={matchId} onValueChange={setMatchId}><SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger><SelectContent>{seasonMatches.map((m) => <SelectItem key={m.match_id} value={m.match_id}>{m.match_id}: {m.team_a} vs {m.team_b}</SelectItem>)}</SelectContent></Select></div>
             <div>
-              <Label>Design PNG</Label>
-              <Input type="file" accept="image/png" onChange={onUploadDesign} />
+              <Label>Design Template</Label>
+              <Input type="file" accept="image/png,image/svg+xml,.png,.svg" onChange={onUploadDesign} />
             </div>
           </div>
           {activeDesign && <p className="text-xs text-muted-foreground">Active design: {activeDesign.file_name} ({activeDesign.uploaded_at})</p>}
@@ -448,7 +503,7 @@ export function AdminCertificates() {
                   <div><p className="font-semibold">{item.title} • {item.recipient_name}</p><p className="text-xs text-muted-foreground">{item.certificate_id}</p></div>
                   <div className="flex items-center gap-2">
                     <Badge variant={item.approval_status === 'approved' ? 'default' : 'secondary'}>{item.approval_status}</Badge>
-                    <Badge variant="outline" className="inline-flex items-center gap-1"><Upload className="h-3 w-3" /> PNG design</Badge>
+                    <Badge variant="outline" className="inline-flex items-center gap-1"><Upload className="h-3 w-3" /> {item.render_provider === 'uploaded_svg' ? 'SVG template' : 'PNG design'}</Badge>
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
