@@ -201,15 +201,38 @@ export default function CertificateArtboard({ certificate: cert, compact = false
   const themeId = cert.certificate_template || 'classic';
 
   const metadata = useMemo(() => {
-    try { return cert.metadata_json ? JSON.parse(cert.metadata_json) : {}; } catch { return {}; }
+    try {
+      const parsed = cert.metadata_json ? JSON.parse(cert.metadata_json) : {};
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
   }, [cert.metadata_json]);
 
   const approvals = useMemo<ApprovalMap>(() => {
-    try { return cert.approvals_json ? JSON.parse(cert.approvals_json) : {}; } catch { return {} as ApprovalMap; }
+    try {
+      const parsed = cert.approvals_json ? JSON.parse(cert.approvals_json) : {};
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { Treasurer: false, 'Scoring Official': false, 'Match Referee': false };
+      }
+      const map = parsed as Record<string, unknown>;
+      return {
+        Treasurer: !!map.Treasurer,
+        'Scoring Official': !!map['Scoring Official'],
+        'Match Referee': !!map['Match Referee'],
+      };
+    } catch {
+      return { Treasurer: false, 'Scoring Official': false, 'Match Referee': false };
+    }
   }, [cert.approvals_json]);
 
   const signatures = useMemo<SignatureEntry[]>(() => {
-    try { return cert.signatures_json ? JSON.parse(cert.signatures_json) : []; } catch { return []; }
+    try {
+      const parsed = cert.signatures_json ? JSON.parse(cert.signatures_json) : [];
+      return Array.isArray(parsed) ? parsed as SignatureEntry[] : [];
+    } catch {
+      return [];
+    }
   }, [cert.signatures_json]);
 
   const isApproved = cert.approval_status === 'approved';
