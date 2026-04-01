@@ -42,6 +42,8 @@ const templateCatalog: Array<{ value: CertTemplate; label: string; border: strin
   { value: 'classic', label: 'Regal Ivory', border: '#8c6a2e', bg: '#fefaf0', accent: '#caa35d', heading: '#1f2f5e' },
   { value: 'premium', label: 'Royal Sapphire', border: '#1e4db8', bg: '#f1f6ff', accent: '#78a8ff', heading: '#17306a' },
   { value: 'gold', label: 'Imperial Gold', border: '#97721a', bg: '#fff9e7', accent: '#d2a93d', heading: '#3f2c07' },
+  { value: 'heritage', label: 'Cricket Heritage', border: '#991b1b', bg: '#fdf6f4', accent: '#dc2626', heading: '#450a0a' },
+  { value: 'artdeco', label: 'Art Deco', border: '#047857', bg: '#f0faf5', accent: '#10b981', heading: '#064e3b' },
 ];
 
 export function AdminCertificates() {
