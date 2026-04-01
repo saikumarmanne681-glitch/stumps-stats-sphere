@@ -30,6 +30,32 @@ type SignatureEntry = {
   signedAt: string;
 };
 
+const defaultApprovals = (): ApprovalMap => ({ Treasurer: false, 'Scoring Official': false, 'Match Referee': false });
+
+function parseApprovalMap(raw: string | undefined): ApprovalMap {
+  if (!raw) return defaultApprovals();
+  try {
+    const parsed = JSON.parse(raw) as Partial<ApprovalMap>;
+    return {
+      Treasurer: !!parsed.Treasurer,
+      'Scoring Official': !!parsed['Scoring Official'],
+      'Match Referee': !!parsed['Match Referee'],
+    };
+  } catch {
+    return defaultApprovals();
+  }
+}
+
+function parseSignatures(raw: string | undefined): SignatureEntry[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed as SignatureEntry[] : [];
+  } catch {
+    return [];
+  }
+}
+
 const certCatalog: Array<{ value: CertType; label: string; icon: string }> = [
   { value: 'winner_team', label: 'Tournament Winner Merit', icon: '🏆' },
   { value: 'runner_up_team', label: 'Tournament Runner-up Merit', icon: '🥈' },
@@ -168,7 +194,7 @@ export function AdminCertificates() {
       return;
     }
     const tournament = tournaments.find((t) => t.tournament_id === selectedSeason.tournament_id);
-    const approvals: ApprovalMap = { Treasurer: false, 'Scoring Official': false, 'Match Referee': false };
+    const approvals: ApprovalMap = defaultApprovals();
     const title = certCatalog.find((c) => c.value === type)?.label || 'Certificate';
     const certificateId = generateId('CERT');
     const verificationToken = createVerificationToken();
@@ -328,10 +354,34 @@ export function AdminCertificates() {
     await refresh();
   };
 
+  const syncAllCanvaStatuses = async () => {
+    const canvaRows = certificates.filter((item) => item.render_provider === 'canva' && item.canva_job_id && item.render_status !== 'completed');
+    if (canvaRows.length === 0) {
+      toast({ title: 'No pending Canva jobs', description: 'All Canva renders are already synced.' });
+      return;
+    }
+
+    await Promise.all(canvaRows.map(async (item) => {
+      const job = await pollCanvaCertificateRender(item.canva_job_id as string);
+      if (!job) return;
+      const updated: CertificateRecord = {
+        ...item,
+        render_provider: 'canva',
+        render_status: job.status,
+        canva_export_url: job.export_url,
+        render_error: job.error,
+        rendered_at: job.completed_at || item.rendered_at,
+      };
+      await v2api.updateCertificate(updated);
+    }));
+    await refresh();
+    toast({ title: 'Canva statuses synced', description: `Updated ${canvaRows.length} certificate render job(s).` });
+  };
+
   const toggleApproval = async (item: CertificateRecord, role: keyof ApprovalMap) => {
-    const parsed = (item.approvals_json ? JSON.parse(item.approvals_json) : {}) as ApprovalMap;
+    const parsed = parseApprovalMap(item.approvals_json);
     const updated = { ...parsed, [role]: !parsed[role] };
-    const signatures: SignatureEntry[] = item.signatures_json ? JSON.parse(item.signatures_json) : [];
+    const signatures = parseSignatures(item.signatures_json);
     const nextSignatures = updated[role]
       ? [...signatures.filter((entry) => entry.role !== role), { role, signerId: 'admin', signerName: role, signedAt: istNow() }]
       : signatures.filter((entry) => entry.role !== role);
@@ -395,6 +445,7 @@ export function AdminCertificates() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={generateCertificate}><Medal className="mr-1 h-4 w-4" /> Generate & Send for Approval</Button>
+            <Button variant="outline" onClick={syncAllCanvaStatuses}>Sync Render Status</Button>
             {preview && <Button variant="secondary" onClick={() => downloadCertificatePdf(preview)}><Download className="mr-1 h-4 w-4" /> Download Preview</Button>}
           </div>
         </CardContent>
@@ -417,7 +468,7 @@ export function AdminCertificates() {
         <CardHeader><CardTitle className="flex items-center gap-2"><Award className="h-4 w-4" /> Certificate Workflow Queue</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {certificates.map((item) => {
-            const approvals = (item.approvals_json ? JSON.parse(item.approvals_json) : {}) as ApprovalMap;
+            const approvals = parseApprovalMap(item.approvals_json);
             return (
               <div key={item.certificate_id} className="rounded-xl border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
