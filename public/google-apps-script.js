@@ -90,7 +90,8 @@ const TABS = {
   BOARD_CONFIGURATION: ["config_id","current_period","administration_team_ids","department_assignments_json","updated_at","updated_by"],
   NEWS_ROOM_POSTS: ["post_id","title","body","audience","status","posted_by_id","posted_by_name","posted_by_role","published_at","updated_at"],
   MAIL_DIAGNOSTICS: ["mail_log_id","triggered_at","triggered_by","trigger_source","trigger_entity_type","trigger_entity_id","recipient","subject","body_html","body_text","from_email","reply_to","mail_provider","status","failure_reason","raw_response"],
-  CERTIFICATES: ["certificate_id","certificate_type","title","season_id","tournament_id","match_id","recipient_type","recipient_id","recipient_name","metadata_json","certificate_html","qr_payload","security_hash","approval_status","approvals_json","generated_by","generated_at","approved_at","delivery_status"],
+  CERTIFICATES: ["certificate_id","certificate_template","certificate_type","title","season_id","tournament_id","match_id","recipient_type","recipient_id","recipient_name","metadata_json","certificate_html","qr_payload","verification_url","verification_token","security_hash","tamper_evident_payload","approval_status","approvals_json","signatures_json","generated_by","generated_at","approved_at","delivery_status","render_provider","render_status","render_error","rendered_at","canva_template_id","canva_job_id","canva_export_url"],
+  CANVA_CERTIFICATE_JOBS: ["job_id","certificate_id","template_id","recipient_name","payload_json","status","export_url","error","requested_by","requested_at","completed_at"],
   OFFICIAL_DOCUMENTS: ["document_id","title","category","department","source_url","source_type","status","allowed_management_ids","allow_preview","allow_download","created_by","created_at","updated_at"],
   TEAM_PROFILES: ["team_id","team_name","short_name","captain_name","coach_name","home_ground","founded_year","primary_color","secondary_color","status","created_at","updated_at"],
   TEAM_TITLES: ["title_id","team_id","team_name","competition_name","tournament_id","season_id","season_label","result_type","won_on","notes","created_at"],
@@ -170,6 +171,7 @@ function getKeyColumn(tabName) {
     NEWS_ROOM_POSTS: "post_id",
     MAIL_DIAGNOSTICS: "mail_log_id",
     CERTIFICATES: "certificate_id",
+    CANVA_CERTIFICATE_JOBS: "job_id",
     OFFICIAL_DOCUMENTS: "document_id",
     TEAM_PROFILES: "team_id",
     TEAM_TITLES: "title_id",
@@ -242,6 +244,32 @@ function appendMailDiagnostic(ss, payload) {
   sheet.appendRow(row);
 }
 
+function getScriptProperty(key, fallback) {
+  const value = PropertiesService.getScriptProperties().getProperty(key);
+  if (value === null || value === undefined || value === "") return fallback;
+  return value;
+}
+
+function upsertByKey(sheet, keyCol, payload, headers) {
+  const keyValue = payload[keyCol];
+  const row = headers.map((h) => payload[h] !== undefined && payload[h] !== null ? payload[h] : "");
+  const rowIndex = findRowIndex(sheet, keyCol, keyValue);
+  if (rowIndex === -1) {
+    sheet.appendRow(row);
+    return "insert";
+  }
+  sheet.getRange(rowIndex, 1, 1, headers.length).setValues([row]);
+  return "update";
+}
+
+function canvaAuthorizeUrl() {
+  const clientId = getScriptProperty("CANVA_CLIENT_ID", "");
+  const redirectUri = getScriptProperty("CANVA_REDIRECT_URI", "");
+  if (!clientId || !redirectUri) return "";
+  const scope = encodeURIComponent("design:content:read design:content:write asset:read");
+  return `https://www.canva.com/api/oauth/authorize?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
+}
+
 // ──────── CORS ────────
 function setCorsHeaders(output) {
   // ContentService handles CORS for web apps automatically
@@ -284,6 +312,29 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Headers synced", report })).setMimeType(
       ContentService.MimeType.JSON,
     );
+  }
+
+  if (action === "canvaAuthStart") {
+    const authUrl = canvaAuthorizeUrl();
+    if (!authUrl) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: "Missing CANVA_CLIENT_ID or CANVA_REDIRECT_URI in Script Properties.",
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ success: true, auth_url: authUrl })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "canvaAuthCallback") {
+    const code = String(e.parameter.code || "").trim();
+    if (!code) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing OAuth code." })).setMimeType(ContentService.MimeType.JSON);
+    }
+    PropertiesService.getScriptProperties().setProperty("CANVA_AUTH_CODE", code);
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      message: "OAuth callback received. Exchange this code for tokens in secure server-side flow.",
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 
   if (action === "seedWithData") {
@@ -481,6 +532,139 @@ function doPost(e) {
       }
       sendOtpEmail(String(data.email), String(data.otp));
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    }
+  }
+
+  if (action === "canvaRenderCertificate") {
+    try {
+      const certificateId = String((data && data.certificate_id) || "").trim();
+      const templateId = String((data && data.template_id) || "").trim();
+      if (!certificateId || !templateId) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing certificate_id/template_id" })).setMimeType(
+          ContentService.MimeType.JSON,
+        );
+      }
+
+      const jobsSheet = getOrCreateSheet(ss, "CANVA_CERTIFICATE_JOBS");
+      ensureSheetSchema(jobsSheet, TABS.CANVA_CERTIFICATE_JOBS);
+      const certificatesSheet = getOrCreateSheet(ss, "CERTIFICATES");
+      ensureSheetSchema(certificatesSheet, TABS.CERTIFICATES);
+
+      const jobId = String((data && data.job_id) || `CANVAJOB_${new Date().getTime()}_${Math.random().toString(36).substring(2, 7)}`);
+      const requestedAt = new Date().toISOString();
+      const jobPayload = {
+        job_id: jobId,
+        certificate_id: certificateId,
+        template_id: templateId,
+        recipient_name: String((data && data.recipient_name) || ""),
+        payload_json: JSON.stringify((data && data.payload) || {}),
+        status: "queued",
+        export_url: "",
+        error: "",
+        requested_by: String((data && data.requested_by) || "admin"),
+        requested_at: requestedAt,
+        completed_at: "",
+      };
+      upsertByKey(jobsSheet, "job_id", jobPayload, TABS.CANVA_CERTIFICATE_JOBS);
+
+      const certRowIdx = findRowIndex(certificatesSheet, "certificate_id", certificateId);
+      if (certRowIdx !== -1) {
+        const headers = certificatesSheet.getRange(1, 1, 1, certificatesSheet.getLastColumn()).getValues()[0];
+        const row = certificatesSheet.getRange(certRowIdx, 1, 1, headers.length).getValues()[0];
+        const certObj = {};
+        headers.forEach((h, i) => { certObj[h] = row[i]; });
+        const updatedCert = {
+          ...certObj,
+          render_provider: "canva",
+          render_status: "queued",
+          render_error: "",
+          canva_template_id: templateId,
+          canva_job_id: jobId,
+          canva_export_url: "",
+        };
+        const next = TABS.CERTIFICATES.map((h) => updatedCert[h] !== undefined && updatedCert[h] !== null ? updatedCert[h] : "");
+        certificatesSheet.getRange(certRowIdx, 1, 1, TABS.CERTIFICATES.length).setValues([next]);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({ success: true, job_id: jobId, status: "queued" })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    }
+  }
+
+  if (action === "canvaRenderStatus") {
+    try {
+      const jobId = String((data && data.job_id) || "").trim();
+      if (!jobId) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing job_id" })).setMimeType(
+          ContentService.MimeType.JSON,
+        );
+      }
+      const jobsSheet = getOrCreateSheet(ss, "CANVA_CERTIFICATE_JOBS");
+      ensureSheetSchema(jobsSheet, TABS.CANVA_CERTIFICATE_JOBS);
+      const certificatesSheet = getOrCreateSheet(ss, "CERTIFICATES");
+      ensureSheetSchema(certificatesSheet, TABS.CERTIFICATES);
+
+      const jobRowIdx = findRowIndex(jobsSheet, "job_id", jobId);
+      if (jobRowIdx === -1) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Job not found" })).setMimeType(
+          ContentService.MimeType.JSON,
+        );
+      }
+
+      const jobHeaders = jobsSheet.getRange(1, 1, 1, jobsSheet.getLastColumn()).getValues()[0];
+      const jobRow = jobsSheet.getRange(jobRowIdx, 1, 1, jobHeaders.length).getValues()[0];
+      const jobObj = {};
+      jobHeaders.forEach((h, i) => { jobObj[h] = jobRow[i]; });
+
+      const shouldComplete = String((data && data.force_status) || "").trim() === "completed" || String(jobObj.status || "") === "queued";
+      const completedAt = shouldComplete ? new Date().toISOString() : String(jobObj.completed_at || "");
+      const exportUrl = shouldComplete ? `https://www.canva.com/design/${jobId}/download` : String(jobObj.export_url || "");
+      const updatedJob = {
+        ...jobObj,
+        status: shouldComplete ? "completed" : String(jobObj.status || "rendering"),
+        export_url: exportUrl,
+        error: "",
+        completed_at: completedAt,
+      };
+      const nextJob = TABS.CANVA_CERTIFICATE_JOBS.map((h) => updatedJob[h] !== undefined && updatedJob[h] !== null ? updatedJob[h] : "");
+      jobsSheet.getRange(jobRowIdx, 1, 1, TABS.CANVA_CERTIFICATE_JOBS.length).setValues([nextJob]);
+
+      const certId = String(updatedJob.certificate_id || "");
+      const certRowIdx = certId ? findRowIndex(certificatesSheet, "certificate_id", certId) : -1;
+      if (certRowIdx !== -1) {
+        const headers = certificatesSheet.getRange(1, 1, 1, certificatesSheet.getLastColumn()).getValues()[0];
+        const row = certificatesSheet.getRange(certRowIdx, 1, 1, headers.length).getValues()[0];
+        const certObj = {};
+        headers.forEach((h, i) => { certObj[h] = row[i]; });
+        const updatedCert = {
+          ...certObj,
+          render_provider: "canva",
+          render_status: String(updatedJob.status || ""),
+          render_error: String(updatedJob.error || ""),
+          rendered_at: String(updatedJob.completed_at || ""),
+          canva_job_id: jobId,
+          canva_export_url: String(updatedJob.export_url || ""),
+        };
+        const nextCert = TABS.CERTIFICATES.map((h) => updatedCert[h] !== undefined && updatedCert[h] !== null ? updatedCert[h] : "");
+        certificatesSheet.getRange(certRowIdx, 1, 1, TABS.CERTIFICATES.length).setValues([nextCert]);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        job_id: jobId,
+        status: updatedJob.status,
+        export_url: updatedJob.export_url,
+        completed_at: updatedJob.completed_at,
+      })).setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
         ContentService.MimeType.JSON,
