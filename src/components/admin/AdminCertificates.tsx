@@ -17,6 +17,7 @@ import { resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { sendSystemEmail } from '@/lib/mailer';
 import { buildCertificateTamperEvidentPayload, createVerificationToken, buildCertificateVerificationUrl, createCertificateDigest, withResolvedCertificateSecurity } from '@/lib/certificateSecurity';
 import CertificateArtboard from '@/components/CertificateArtboard';
+import { queueCanvaCertificateRender, pollCanvaCertificateRender } from '@/lib/canva';
 
 type CertType = CertificateRecord['certificate_type'];
 type CertTemplate = CertificateRecord['certificate_template'];
@@ -54,6 +55,8 @@ export function AdminCertificates() {
   const [recipient, setRecipient] = useState('');
   const [matchId, setMatchId] = useState('');
   const [template, setTemplate] = useState<CertTemplate>('classic');
+  const [renderProvider, setRenderProvider] = useState<'internal_pdf' | 'canva'>('internal_pdf');
+  const [canvaTemplateId, setCanvaTemplateId] = useState('');
   const [preview, setPreview] = useState<CertificateRecord | null>(null);
   
   const { toast } = useToast();
@@ -141,8 +144,15 @@ export function AdminCertificates() {
       generated_at: new Date().toISOString(),
       approved_at: '',
       delivery_status: 'not_sent',
+      render_provider: renderProvider,
+      render_status: 'not_requested',
+      canva_template_id: canvaTemplateId.trim(),
+      canva_export_url: '',
+      canva_job_id: '',
+      render_error: '',
+      rendered_at: '',
     };
-  }, [selectedSeason, template, type, matchId, recipient, selectedTournament?.name, awardCategoryLabel]);
+  }, [selectedSeason, template, type, matchId, recipient, selectedTournament?.name, awardCategoryLabel, renderProvider, canvaTemplateId]);
 
   const generateCertificate = async () => {
     if (!selectedSeason || !recipient.trim()) {
@@ -151,6 +161,10 @@ export function AdminCertificates() {
     }
     if (type === 'man_of_match' && !matchId) {
       toast({ title: 'Match required for Man of the Match', description: 'Select a match so certificate data stays accurate.', variant: 'destructive' });
+      return;
+    }
+    if (renderProvider === 'canva' && !canvaTemplateId.trim()) {
+      toast({ title: 'Canva template required', description: 'Provide a Canva template ID before generating.', variant: 'destructive' });
       return;
     }
     const tournament = tournaments.find((t) => t.tournament_id === selectedSeason.tournament_id);
@@ -217,6 +231,13 @@ export function AdminCertificates() {
       generated_at: generatedAt,
       approved_at: '',
       delivery_status: 'not_sent',
+      render_provider: renderProvider,
+      render_status: 'not_requested',
+      canva_template_id: canvaTemplateId.trim(),
+      canva_export_url: '',
+      canva_job_id: '',
+      render_error: '',
+      rendered_at: '',
     };
     const normalizedCertificate = withResolvedCertificateSecurity(certificate);
     const ok = await v2api.addCertificate(normalizedCertificate);
@@ -250,7 +271,61 @@ export function AdminCertificates() {
       variant: failed > 0 ? 'destructive' : 'default',
     });
     setPreview(normalizedCertificate);
+    if (renderProvider === 'canva') {
+      const job = await queueCanvaCertificateRender(normalizedCertificate, 'admin');
+      const queuedCertificate: CertificateRecord = {
+        ...normalizedCertificate,
+        canva_job_id: job.job_id,
+        render_status: 'queued',
+      };
+      await v2api.updateCertificate(queuedCertificate);
+      toast({
+        title: 'Canva render queued',
+        description: `Template ${queuedCertificate.canva_template_id} queued for ${queuedCertificate.recipient_name}.`,
+      });
+      setPreview(queuedCertificate);
+    }
     refresh();
+  };
+
+  const triggerCanvaRender = async (item: CertificateRecord) => {
+    if (!item.canva_template_id) {
+      toast({ title: 'Missing Canva template ID', variant: 'destructive' });
+      return;
+    }
+    const job = await queueCanvaCertificateRender(item, 'admin');
+    const updated: CertificateRecord = {
+      ...item,
+      canva_job_id: job.job_id,
+      render_provider: 'canva',
+      render_status: 'queued',
+      render_error: '',
+    };
+    await v2api.updateCertificate(updated);
+    await refresh();
+  };
+
+  const syncCanvaStatus = async (item: CertificateRecord) => {
+    if (!item.canva_job_id) {
+      toast({ title: 'No Canva job linked', description: 'Queue a render first.', variant: 'destructive' });
+      return;
+    }
+    const job = await pollCanvaCertificateRender(item.canva_job_id);
+    if (!job) {
+      toast({ title: 'Canva job not found', variant: 'destructive' });
+      return;
+    }
+    const updated: CertificateRecord = {
+      ...item,
+      render_provider: 'canva',
+      render_status: job.status,
+      canva_export_url: job.export_url,
+      render_error: job.error,
+      rendered_at: job.completed_at || item.rendered_at,
+    };
+    await v2api.updateCertificate(updated);
+    setPreview(updated);
+    await refresh();
   };
 
   const toggleApproval = async (item: CertificateRecord, role: keyof ApprovalMap) => {
@@ -280,13 +355,17 @@ export function AdminCertificates() {
           <CardTitle className="font-display flex items-center gap-2"><Trophy className="h-5 w-5" /> Special Presentation Certificates</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-6">
             <div><Label>Season</Label><Select value={seasonId} onValueChange={setSeasonId}><SelectTrigger><SelectValue placeholder="Select season" /></SelectTrigger><SelectContent>{seasons.map((s) => <SelectItem key={s.season_id} value={s.season_id}>{s.year} • {s.season_id}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Certificate Type</Label><Select value={type} onValueChange={(v) => setType(v as CertType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{certCatalog.map((c) => <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Template</Label><Select value={template} onValueChange={(v) => setTemplate(v as CertTemplate)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{templateCatalog.map((t) => <SelectItem key={t.value} value={t.value}><span className="inline-flex items-center gap-2"><PaintBucket className="h-3 w-3" /> {t.label}</span></SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Render via</Label><Select value={renderProvider} onValueChange={(v) => setRenderProvider(v as 'internal_pdf' | 'canva')}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="internal_pdf">Internal PDF</SelectItem><SelectItem value="canva">Canva Template</SelectItem></SelectContent></Select></div>
             <div><Label>Recipient</Label><Input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder={suggestedRecipients[0] || 'Name / team'} /></div>
             <div><Label>Match (for MOM)</Label><Select value={matchId} onValueChange={setMatchId}><SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger><SelectContent>{seasonMatches.map((m) => <SelectItem key={m.match_id} value={m.match_id}>{m.match_id}: {m.team_a} vs {m.team_b}</SelectItem>)}</SelectContent></Select></div>
           </div>
+          {renderProvider === 'canva' && (
+            <div><Label>Canva Template ID</Label><Input value={canvaTemplateId} onChange={(e) => setCanvaTemplateId(e.target.value)} placeholder="e.g. DAFx12345ABCDE" /></div>
+          )}
           <div className="flex flex-wrap gap-2">
             {suggestedRecipients.slice(0, 4).map((name) => <Button key={name} variant="outline" size="sm" onClick={() => setRecipient(name)}>{name}</Button>)}
           </div>
@@ -305,6 +384,7 @@ export function AdminCertificates() {
               <p className="mt-1">Security uses SHA-256 digest over a tamper-evident canonical payload.</p>
               <p className="mt-1">Pending certificates are watermarked in preview/PDF until fully approved.</p>
               <p className="mt-1">Approvals require Treasurer, Scoring Official, and Match Referee signatures.</p>
+              <p className="mt-1">Canva mode queues a render job and stores export link after status sync.</p>
               {lastMailDispatch && (
                 <p className="mt-1">
                   Latest email dispatch: {lastMailDispatch.delivered}/{lastMailDispatch.total} delivered
@@ -342,7 +422,10 @@ export function AdminCertificates() {
               <div key={item.certificate_id} className="rounded-xl border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div><p className="font-semibold">{item.title} • {item.recipient_name}</p><p className="text-xs text-muted-foreground">{item.certificate_id}</p></div>
-                  <Badge variant={item.approval_status === 'approved' ? 'default' : 'secondary'}>{item.approval_status}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={item.approval_status === 'approved' ? 'default' : 'secondary'}>{item.approval_status}</Badge>
+                    {item.render_provider === 'canva' && <Badge variant="outline">Canva: {item.render_status || 'not_requested'}</Badge>}
+                  </div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(Object.keys({ Treasurer: true, 'Scoring Official': true, 'Match Referee': true }) as (keyof ApprovalMap)[]).map((role) => (
@@ -353,6 +436,21 @@ export function AdminCertificates() {
                   <Button size="sm" variant="outline" onClick={() => { setPreview(item); }}>{'Preview'}</Button>
                   <Button size="sm" variant="outline" onClick={() => previewCertificatePdf(item)}>Preview PDF</Button>
                   <Button size="sm" variant="outline" onClick={() => downloadCertificatePdf(item)}>Download PDF</Button>
+                  {item.render_provider === 'canva' && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => syncCanvaStatus(item)}>Sync Canva Status</Button>
+                      {!item.canva_job_id && <Button size="sm" variant="outline" onClick={() => triggerCanvaRender(item)}>Queue Canva Render</Button>}
+                      {item.canva_export_url && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => window.open(item.canva_export_url, '_blank', 'noopener,noreferrer')}
+                        >
+                          Open Canva Export
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             );

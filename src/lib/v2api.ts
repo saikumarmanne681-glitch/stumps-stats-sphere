@@ -1,4 +1,4 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, CertificateRecord, TeamProfile, TeamTitleRecord, TeamAccessUser } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, CertificateRecord, TeamProfile, TeamTitleRecord, TeamAccessUser, CanvaCertificateJob } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 
@@ -155,6 +155,9 @@ export const v2api = {
   addCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'add', certificate),
   updateCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'update', certificate),
   deleteCertificate: (certificateId: string) => writeV2Sheet('CERTIFICATES', 'delete', { certificate_id: certificateId }),
+  getCanvaCertificateJobs: () => fetchV2Sheet<CanvaCertificateJob>('CANVA_CERTIFICATE_JOBS'),
+  addCanvaCertificateJob: (job: CanvaCertificateJob) => writeV2Sheet('CANVA_CERTIFICATE_JOBS', 'add', job),
+  updateCanvaCertificateJob: (job: CanvaCertificateJob) => writeV2Sheet('CANVA_CERTIFICATE_JOBS', 'update', job),
 
   // Teams dashboard (optional new sheets; safe to keep empty)
   getTeamProfiles: () => fetchV2Sheet<TeamProfile>('TEAM_PROFILES'),
