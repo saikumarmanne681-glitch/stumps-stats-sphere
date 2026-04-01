@@ -32,6 +32,27 @@ import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember 
 
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 const stageLabels: Record<string, string> = scorelistStageLabels;
+const defaultCertificateApprovals = { Treasurer: false, 'Scoring Official': false, 'Match Referee': false } as const;
+
+function parseJsonObject(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'string' || !value.trim()) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseJsonArray<T>(value: unknown): T[] {
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed as T[] : [];
+  } catch {
+    return [];
+  }
+}
 
 const ManagementPage = () => {
   const { user, isManagement } = useAuth();
@@ -118,7 +139,7 @@ const ManagementPage = () => {
   const pendingScorelists = useMemo(() => scorelists.filter(s => {
     if (s.locked) return false;
     if (!isManagement || !user?.management_id) return false;
-    const certs: CertificationApproval[] = s.certifications_json ? JSON.parse(s.certifications_json) : [];
+    const certs = parseJsonArray<CertificationApproval>(s.certifications_json);
     if (certs.some(c => c.approver_id === user.management_id)) return false;
     const userStage = resolveStageFromDesignation(user.designation || '');
     if (!userStage) return false;
@@ -141,7 +162,7 @@ const ManagementPage = () => {
     return certificates.filter((item) => {
       if (item.approval_status !== 'pending_approval') return false;
       if (!certificateRole) return true;
-      const approvals = item.approvals_json ? JSON.parse(item.approvals_json) as Record<string, boolean> : {};
+      const approvals = { ...defaultCertificateApprovals, ...parseJsonObject(item.approvals_json) } as Record<string, boolean>;
       return !approvals[certificateRole];
     });
   }, [certificateRole, certificates, user]);
@@ -171,9 +192,9 @@ const ManagementPage = () => {
 
   const signCertificate = async (certificate: CertificateRecord) => {
     if (!certificateRole || !user) return;
-    const approvals = certificate.approvals_json ? JSON.parse(certificate.approvals_json) as Record<string, boolean> : {};
+    const approvals = { ...defaultCertificateApprovals, ...parseJsonObject(certificate.approvals_json) } as Record<string, boolean>;
     const nextApprovals = { ...approvals, [certificateRole]: true };
-    const signatures = certificate.signatures_json ? JSON.parse(certificate.signatures_json) as Array<{ role: string; signerId: string; signerName: string; signedAt: string }> : [];
+    const signatures = parseJsonArray<{ role: string; signerId: string; signerName: string; signedAt: string }>(certificate.signatures_json);
     const nextSignatures = [
       ...signatures.filter((entry) => entry.role !== certificateRole),
       {
@@ -204,7 +225,7 @@ const ManagementPage = () => {
     if (!currentMgmt?.email || pendingScorelists.length === 0) return;
 
     const reminderKey = `mgmt-scorelist-reminders:${user.management_id}`;
-    const stored = JSON.parse(localStorage.getItem(reminderKey) || '{}') as Record<string, number>;
+    const stored = parseJsonObject(localStorage.getItem(reminderKey)) as Record<string, number>;
 
     pendingScorelists.forEach((scorelist) => {
       const lastSent = stored[scorelist.scorelist_id] || 0;
@@ -225,7 +246,7 @@ const ManagementPage = () => {
   const signScorelist = async (scorelist: DigitalScorelist, comment?: string) => {
     if (!isManagement || !user?.management_id) return;
     setScorelistActionLoading(true);
-    const certs: CertificationApproval[] = scorelist.certifications_json ? JSON.parse(scorelist.certifications_json) : [];
+    const certs = parseJsonArray<CertificationApproval>(scorelist.certifications_json);
     if (certs.some(c => c.approver_id === user.management_id)) {
       setScorelistActionLoading(false);
       toast({ title: 'Already signed' }); return;
@@ -682,7 +703,7 @@ const ManagementPage = () => {
               <TabsContent value="certificates" className="mt-4 space-y-3">
                 {pendingCertificates.length === 0 && <Card><CardContent className="p-6 text-center text-muted-foreground">No certificates are waiting for your signature right now.</CardContent></Card>}
                 {pendingCertificates.map((certificate) => {
-                  const approvals = certificate.approvals_json ? JSON.parse(certificate.approvals_json) as Record<string, boolean> : {};
+                  const approvals = { ...defaultCertificateApprovals, ...parseJsonObject(certificate.approvals_json) } as Record<string, boolean>;
                   const signedByMe = certificateRole ? !!approvals[certificateRole] : false;
                   return (
                     <Card key={certificate.certificate_id} className="border-l-4 border-l-primary/50">
