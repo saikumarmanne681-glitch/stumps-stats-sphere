@@ -185,7 +185,7 @@ export interface NewsRoomPost {
 
 export interface CertificateRecord {
   certificate_id: string;
-  certificate_template: 'classic' | 'premium' | 'gold';
+  certificate_template: 'classic' | 'premium' | 'gold' | 'heritage' | 'artdeco';
   certificate_type:
     | 'winner_team'
     | 'runner_up_team'
