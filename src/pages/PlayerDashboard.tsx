@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/lib/DataContext';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount, getPlayerMomCount } from '@/lib/calculations';
 import { generateId } from '@/lib/utils';
-import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity, Eye, Download, Trophy, ExternalLink } from 'lucide-react';
+import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity, Eye, Download, Trophy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -369,15 +369,6 @@ const PlayerDashboard = () => {
                       <Button variant="outline" size="sm" onClick={() => downloadCertificatePdf(item)}>
                         <Download className="mr-1 h-3 w-3" /> Download PDF
                       </Button>
-                      {item.render_provider === 'canva' && item.canva_export_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(item.canva_export_url, '_blank', 'noopener,noreferrer')}
-                        >
-                          <ExternalLink className="mr-1 h-3 w-3" /> Open Canva Certificate
-                        </Button>
-                      )}
                     </div>
                   </div>
                 ))}

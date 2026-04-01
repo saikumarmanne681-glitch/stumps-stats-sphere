@@ -241,6 +241,28 @@ export default function CertificateArtboard({ certificate: cert, compact = false
   const verifyUrl = cert.verification_url || cert.qr_payload || '';
   const tournamentName = metadata.tournament || cert.tournament_id || 'Tournament';
   const seasonYear = metadata.seasonYear || cert.season_id || '';
+  const templateDesignImage = String(metadata.templateDesignImage || '');
+
+  if (templateDesignImage) {
+    return (
+      <div className={`relative overflow-hidden rounded-lg border bg-white ${compact ? 'text-[0.82em]' : ''}`} style={{ aspectRatio: '1.414/1' }}>
+        <img src={templateDesignImage} alt="Certificate design template" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-black/5" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
+          <p className="text-xs tracking-[0.3em] uppercase text-white/85 drop-shadow">Certificate</p>
+          <p className="mt-2 font-display text-4xl font-bold text-white drop-shadow">{cert.recipient_name}</p>
+          <p className="mt-2 text-lg font-semibold text-white drop-shadow">{cert.title}</p>
+          <p className="mt-1 text-sm text-white/90 drop-shadow">{seasonYear}</p>
+        </div>
+        <div className="absolute bottom-4 right-4 rounded-lg bg-white p-2 shadow">
+          <QRCodeSVG value={verifyUrl || 'N/A'} size={compact ? 72 : 90} level="H" />
+        </div>
+        <div className="absolute bottom-4 left-4 max-w-[55%] rounded bg-white/90 px-2 py-1 text-[10px] font-mono text-foreground">
+          {verifyUrl}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`relative select-none ${compact ? 'text-[0.82em]' : ''}`} style={{ aspectRatio: '1.414/1' }}>
