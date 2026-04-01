@@ -247,22 +247,17 @@ export function AdminCertificates() {
   const onUploadDesign = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const isPng = file.type.includes('png') || /\.png$/i.test(file.name);
     const isSvg = file.type.includes('svg') || /\.svg$/i.test(file.name);
-    if (!isPng && !isSvg) {
-      toast({ title: 'Unsupported format', description: 'Upload PNG or SVG certificate template.', variant: 'destructive' });
+    if (!isSvg) {
+      toast({ title: 'Unsupported format', description: 'Upload an SVG certificate template.', variant: 'destructive' });
       return;
     }
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(new Error(`Unable to read ${isSvg ? 'SVG' : 'PNG'}`));
-      if (isSvg) {
-        reader.readAsText(file);
-      } else {
-        reader.readAsDataURL(file);
-      }
-    }).then((result) => (isSvg ? toDataUrlSvg(result) : result));
+      reader.onerror = () => reject(new Error('Unable to read SVG'));
+      reader.readAsText(file);
+    }).then((result) => toDataUrlSvg(result));
     const payload: CertificateDesignTemplate = {
       template_asset_id: generateId('CERTTPL'),
       file_name: file.name,
@@ -350,7 +345,7 @@ export function AdminCertificates() {
         }),
         placeholderTokens: ['{{recipient_name}}', '{{title}}', '{{season}}', '{{verification_url}}'],
       }),
-      certificate_html: `<section><h2>${title}</h2><p>${recipient.trim()}</p><p>${selectedSeason.year}</p><p>Template: uploaded PNG</p></section>`,
+      certificate_html: `<section><h2>${title}</h2><p>${recipient.trim()}</p><p>${selectedSeason.year}</p><p>Template: uploaded SVG</p></section>`,
       qr_payload: qrPayload,
       verification_url: verificationUrl,
       verification_token: verificationToken,
@@ -438,7 +433,7 @@ export function AdminCertificates() {
             <div><Label>Match (for MOM)</Label><Select value={matchId} onValueChange={setMatchId}><SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger><SelectContent>{seasonMatches.map((m) => <SelectItem key={m.match_id} value={m.match_id}>{m.match_id}: {m.team_a} vs {m.team_b}</SelectItem>)}</SelectContent></Select></div>
             <div>
               <Label>Design Template</Label>
-              <Input type="file" accept="image/png,image/svg+xml,.png,.svg" onChange={onUploadDesign} />
+              <Input type="file" accept="image/svg+xml,.svg" onChange={onUploadDesign} />
             </div>
           </div>
           {activeDesign && <p className="text-xs text-muted-foreground">Active design: {activeDesign.file_name} ({activeDesign.uploaded_at})</p>}
