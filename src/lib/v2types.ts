@@ -218,7 +218,7 @@ export interface CertificateRecord {
   escalation_state?: "normal" | "warning" | "breached" | "breached_notified";
   approved_at: string;
   delivery_status: 'not_sent' | 'sent_to_player';
-  render_provider?: 'internal_pdf' | 'uploaded_png';
+  render_provider?: 'internal_pdf' | 'uploaded_png' | 'uploaded_svg';
   render_status?: 'not_requested' | 'queued' | 'rendering' | 'completed' | 'failed';
   render_error?: string;
   rendered_at?: string;
