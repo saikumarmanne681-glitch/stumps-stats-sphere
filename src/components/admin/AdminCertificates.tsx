@@ -388,7 +388,7 @@ export function AdminCertificates() {
           </div>
           {activeDesign && <p className="text-xs text-muted-foreground">Active design: {activeDesign.file_name} ({activeDesign.uploaded_at})</p>}
           <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-            Placeholders supported in your design flow: <code>{{`{{recipient_name}}`}}</code>, <code>{{`{{title}}`}}</code>, <code>{{`{{season}}`}}</code>, <code>{{`{{verification_url}}`}}</code>.
+            Placeholders supported in your design flow: <code>{"{{recipient_name}}"}</code>, <code>{"{{title}}"}</code>, <code>{"{{season}}"}</code>, <code>{"{{verification_url}}"}</code>.
             Real-time values, QR, and verify URL are injected in preview/PDF/dashboard.
           </div>
           <div className="flex flex-wrap gap-2">
