@@ -218,13 +218,22 @@ export interface CertificateRecord {
   escalation_state?: "normal" | "warning" | "breached" | "breached_notified";
   approved_at: string;
   delivery_status: 'not_sent' | 'sent_to_player';
-  render_provider?: 'internal_pdf' | 'canva';
+  render_provider?: 'internal_pdf' | 'uploaded_png';
   render_status?: 'not_requested' | 'queued' | 'rendering' | 'completed' | 'failed';
   render_error?: string;
   rendered_at?: string;
   canva_template_id?: string;
   canva_job_id?: string;
   canva_export_url?: string;
+}
+
+export interface CertificateDesignTemplate {
+  template_asset_id: string;
+  file_name: string;
+  image_data_url: string;
+  uploaded_by: string;
+  uploaded_at: string;
+  is_active: 'yes' | 'no';
 }
 
 export interface CanvaCertificateJob {
