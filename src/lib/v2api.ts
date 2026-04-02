@@ -1,4 +1,4 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, TeamProfile, TeamTitleRecord, TeamAccessUser } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, TeamProfile, TeamTitleRecord, TeamAccessUser, CertificateRecord, CertificateApprovalRecord, CertificateTemplateRecord } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 
@@ -165,6 +165,21 @@ export const v2api = {
   addTeamAccessUser: (teamUser: TeamAccessUser) => writeV2Sheet('TEAM_ACCESS_USERS', 'add', teamUser),
   updateTeamAccessUser: (teamUser: TeamAccessUser) => writeV2Sheet('TEAM_ACCESS_USERS', 'update', teamUser),
   deleteTeamAccessUser: (teamAccessId: string) => writeV2Sheet('TEAM_ACCESS_USERS', 'delete', { team_access_id: teamAccessId }),
+
+  // Certificates
+  getCertificates: () => fetchV2Sheet<CertificateRecord>('CERTIFICATES'),
+  addCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'add', certificate),
+  updateCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'update', certificate),
+  deleteCertificate: (id: string) => writeV2Sheet('CERTIFICATES', 'delete', { id }),
+
+  getCertificateApprovals: () => fetchV2Sheet<CertificateApprovalRecord>('CERTIFICATE_APPROVALS'),
+  addCertificateApproval: (approval: CertificateApprovalRecord) => writeV2Sheet('CERTIFICATE_APPROVALS', 'add', approval),
+  updateCertificateApproval: (approval: CertificateApprovalRecord) => writeV2Sheet('CERTIFICATE_APPROVALS', 'update', approval),
+
+  getCertificateTemplates: () => fetchV2Sheet<CertificateTemplateRecord>('CERTIFICATE_TEMPLATES'),
+  addCertificateTemplate: (template: CertificateTemplateRecord) => writeV2Sheet('CERTIFICATE_TEMPLATES', 'add', template),
+  updateCertificateTemplate: (template: CertificateTemplateRecord) => writeV2Sheet('CERTIFICATE_TEMPLATES', 'update', template),
+  deleteCertificateTemplate: (templateId: string) => writeV2Sheet('CERTIFICATE_TEMPLATES', 'delete', { template_id: templateId }),
 };
 
 // Helper to create IST timestamp

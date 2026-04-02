@@ -27,6 +27,7 @@ import { scheduleService } from '@/schedules/scheduleService';
 import { getActorId, isScheduleApproverRole } from '@/lib/accessControl';
 import { ScheduleRecord } from '@/schedules/types';
 import { formatInIST } from '@/lib/time';
+import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
 import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember } from '@/lib/boardDepartments';
 
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
@@ -420,6 +421,14 @@ const ManagementPage = () => {
             },
           ]}
         />
+
+        {['treasurer', 'referee', 'tournament director'].some((role) => String(user?.designation || '').toLowerCase().includes(role)) && (
+          <div className="space-y-4">
+            <h2 className="font-display text-xl font-semibold">Pending Certificates</h2>
+            <ApprovalPanel mode="approver" />
+          </div>
+        )}
+
 
         {isManagement && (
           <>

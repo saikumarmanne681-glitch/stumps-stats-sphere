@@ -15,13 +15,15 @@ import { AdminSupportDashboard } from '@/components/admin/AdminSupport';
 import { AdminPresence } from '@/components/admin/AdminPresence';
 import { AdminScorelists } from '@/components/admin/AdminScorelists';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
-import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Newspaper, ListTodo, MailSearch } from 'lucide-react';
+import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Newspaper, ListTodo, MailSearch, Award } from 'lucide-react';
 import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
 import { AdminMailDiagnostics } from '@/components/admin/AdminMailDiagnostics';
 import { AdminSheetsConsole } from '@/components/admin/AdminSheetsConsole';
 import { AdminApprovalsRealtime } from '@/components/admin/AdminApprovalsRealtime';
 import { v2api } from '@/lib/v2api';
 import { PendingActionsPanel } from '@/components/PendingActionsPanel';
+import { CertificateBuilder } from '@/components/certificates/CertificateBuilder';
+import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -138,6 +140,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="settings" className="flex items-center gap-1 text-xs">
               <Settings className="h-3 w-3" /> Settings
             </TabsTrigger>
+            <TabsTrigger value="certificates" className="flex items-center gap-1 text-xs">
+              <Award className="h-3 w-3" /> Certificates
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="matches"><AdminMatches /></TabsContent>
@@ -155,6 +160,12 @@ const AdminDashboard = () => {
           <TabsContent value="newsroom"><AdminNewsRoom /></TabsContent>
           <TabsContent value="sheets"><AdminSheetsConsole /></TabsContent>
           <TabsContent value="settings"><AdminSettings /></TabsContent>
+          <TabsContent value="certificates">
+            <div className="space-y-6">
+              <CertificateBuilder />
+              <ApprovalPanel mode="admin" />
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
