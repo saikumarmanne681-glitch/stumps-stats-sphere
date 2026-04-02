@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
@@ -17,10 +17,12 @@ import { useToast } from '@/hooks/use-toast';
 import { PlayerSupport } from '@/components/player/PlayerSupport';
 import { PlayerEmailSettings } from '@/components/player/PlayerEmailSettings';
 import { SessionFingerprint, SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
-import { logAudit } from '@/lib/v2api';
+import { logAudit, v2api } from '@/lib/v2api';
 import { resolvePlayerIdFromIdentity } from '@/lib/dataUtils';
 import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { formatDateInIST, formatInIST } from '@/lib/time';
+import { CertificateRecord } from '@/lib/certificates';
+import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -31,6 +33,7 @@ const PlayerDashboard = () => {
   const [replyBody, setReplyBody] = useState<Record<string, string>>({});
   const [expandedThread, setExpandedThread] = useState<string>('');
   const [replySending, setReplySending] = useState<string | null>(null);
+  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
 
   const player = useMemo(() => {
     if (!user?.player_id) return null;
@@ -62,6 +65,13 @@ const PlayerDashboard = () => {
   }, [matches, players, relevantMatchIds, user?.player_id]);
 
   const playerMessages = useMemo(() => user?.player_id ? messages.filter(m => m.to_id === user.player_id || m.to_id === 'all' || m.from_id === user.player_id) : [], [user?.player_id, messages]);
+
+
+  useEffect(() => {
+    v2api.getCertificates().then((rows) => {
+      setCertificates(rows.filter((item) => item.status === 'CERTIFIED' && item.recipient_type === 'player' && item.recipient_id === user?.player_id));
+    });
+  }, [user?.player_id]);
 
   const threads = useMemo(() => {
     const threadMap = new Map<string, typeof playerMessages>();
@@ -236,6 +246,7 @@ const PlayerDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="support" className="flex items-center gap-1"><Headphones className="h-4 w-4" /> Support</TabsTrigger>
             <TabsTrigger value="account" className="flex items-center gap-1"><Settings className="h-4 w-4" /> Account</TabsTrigger>
+            <TabsTrigger value="certificates" className="flex items-center gap-1"><Award className="h-4 w-4" /> Certificates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="stats" className="space-y-6 mt-4">
@@ -413,6 +424,22 @@ const PlayerDashboard = () => {
 
           <TabsContent value="support" className="mt-4">
             <PlayerSupport playerId={user.player_id!} />
+          </TabsContent>
+
+          <TabsContent value="certificates" className="space-y-4 mt-4">
+            {certificates.length === 0 && <p className="text-sm text-muted-foreground">No certified player certificates yet.</p>}
+            {certificates.map((certificate) => (
+              <div key={certificate.id} className="space-y-2">
+                <CertificatePreview
+                  certificate={certificate}
+                  verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
+                  watermark
+                />
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={() => window.print()}>Download as PDF</Button>
+                </div>
+              </div>
+            ))}
           </TabsContent>
 
           <TabsContent value="account" className="mt-4">

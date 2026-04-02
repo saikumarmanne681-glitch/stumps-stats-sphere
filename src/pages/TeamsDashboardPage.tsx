@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Award, BarChart3, Crown, LifeBuoy, Megaphone, Shield, Sparkles, Swords, Ticket, Trophy, Users } from 'lucide-react';
+import { Award, BarChart3, Crown, LifeBuoy, Megaphone, Shield, Sparkles, Swords, Ticket, Trophy, Users, FileBadge2 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,8 @@ import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api } from '@/lib/v2api';
 import { BoardConfiguration, ManagementUser, SupportTicket, TeamProfile } from '@/lib/v2types';
+import { CertificateRecord } from '@/lib/certificates';
+import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 import { Announcement } from '@/lib/types';
 import { compareTimestampsDesc, formatInIST } from '@/lib/time';
 import { generateId } from '@/lib/utils';
@@ -50,23 +52,26 @@ export default function TeamsDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
   const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [ticketForm, setTicketForm] = useState({ category: 'general', priority: 'medium' as SupportTicket['priority'], subject: '', description: '' });
   const allMatches = matches;
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const [ticketRows, profileRows, boardRows, mgmtRows] = await Promise.all([
+      const [ticketRows, profileRows, boardRows, mgmtRows, certificateRows] = await Promise.all([
         v2api.getTickets(),
         v2api.getTeamProfiles(),
         v2api.getBoardConfiguration(),
         v2api.getManagementUsers(),
+        v2api.getCertificates(),
       ]);
       if (cancelled) return;
       setTickets(ticketRows);
       setProfiles(profileRows);
       setBoardConfig(boardRows[0] || null);
       setBoardMembers(mgmtRows.filter((member) => String(member.status || '').trim().toLowerCase() !== 'inactive'));
+      setCertificates(certificateRows.filter((item) => item.status === 'CERTIFIED' && item.recipient_type === 'team'));
       setLoading(false);
     };
     load();
@@ -298,6 +303,7 @@ export default function TeamsDashboardPage() {
             <TabsTrigger value="honors" className="gap-1"><Award className="h-4 w-4" /> Honors timeline</TabsTrigger>
             <TabsTrigger value="matches" className="gap-1"><Swords className="h-4 w-4" /> Match history</TabsTrigger>
             <TabsTrigger value="announcements" className="gap-1"><Megaphone className="h-4 w-4" /> Announcements</TabsTrigger>
+            <TabsTrigger value="certificates" className="gap-1"><FileBadge2 className="h-4 w-4" /> Certificates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="insights" className="space-y-4">
@@ -501,6 +507,24 @@ export default function TeamsDashboardPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="certificates" className="space-y-4">
+            {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => item.recipient_name === resolvedSelectedTeam || item.recipient_id === resolvedSelectedTeam)).map((certificate) => (
+              <div key={certificate.id} className="space-y-2">
+                <CertificatePreview
+                  certificate={certificate}
+                  verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
+                  watermark
+                />
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={() => window.print()}>Download as PDF</Button>
+                </div>
+              </div>
+            ))}
+            {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => item.recipient_name === resolvedSelectedTeam || item.recipient_id === resolvedSelectedTeam)).length === 0 && (
+              <p className="text-sm text-muted-foreground">No certified team certificates yet.</p>
+            )}
           </TabsContent>
 
           <TabsContent value="announcements" className="space-y-4">

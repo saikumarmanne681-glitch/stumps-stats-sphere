@@ -224,6 +224,44 @@ export interface TeamAccessUser {
   linked_by_admin: string;
 }
 
+
+export interface CertificateRecord {
+  id: string;
+  type: string;
+  tournament: string;
+  season: string;
+  match_id: string;
+  recipient_type: 'player' | 'team';
+  recipient_id: string;
+  recipient_name: string;
+  template_id: string;
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'REJECTED' | 'APPROVED' | 'CERTIFIED';
+  created_by: string;
+  created_at: string;
+  details_json?: string;
+  performance_json?: string;
+  verification_code?: string;
+  certified_at?: string;
+  certified_by?: string;
+}
+
+export interface CertificateApprovalRecord {
+  certificate_id: string;
+  role: 'treasurer' | 'referee' | 'tournament_director';
+  status: 'pending' | 'approved' | 'rejected';
+  approved_by: string;
+  approved_at: string;
+  remarks?: string;
+}
+
+export interface CertificateTemplateRecord {
+  template_id: string;
+  type: string;
+  template_name: string;
+  image_url: string;
+  design_config: string;
+}
+
 export interface OfficialDocumentRecord {
   document_id: string;
   title: string;

@@ -32,6 +32,7 @@ const NewsRoomPage = lazy(() => import("./pages/NewsRoomPage"));
 const DocumentsPortalPage = lazy(() => import("./pages/DocumentsPortalPage"));
 const AdminWorkQueuePage = lazy(() => import("./pages/AdminWorkQueuePage"));
 const TeamsDashboardPage = lazy(() => import("./pages/TeamsDashboardPage"));
+const VerificationPage = lazy(() => import('./pages/VerificationPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,6 +87,7 @@ const App = () => (
                 <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
                 <Route path="/news-room" element={<RequireAuth><NewsRoomPage /></RequireAuth>} />
                 <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
+                <Route path="/verify" element={<VerificationPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
