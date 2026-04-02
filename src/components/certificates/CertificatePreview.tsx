@@ -21,7 +21,7 @@ const fitClass = (text: string) => {
   return 'text-2xl md:text-3xl';
 };
 
-function downloadCertificateAsImage(element: HTMLElement, filename: string) {
+function downloadCertificateAsPdf(element: HTMLElement, filename: string) {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
   const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
@@ -29,13 +29,18 @@ function downloadCertificateAsImage(element: HTMLElement, filename: string) {
     .join('');
   const html = `<!DOCTYPE html><html><head><title>${filename}</title>${cssLinks}<style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; background: white; padding: 16px; }
-    .cert-wrapper { width: 1120px; max-width: 100%; }
+    html, body { width: 100%; height: 100%; background: white; }
+    body { display: flex; justify-content: center; align-items: center; }
+    .cert-page { width: 297mm; height: 210mm; padding: 10mm; }
+    .cert-wrapper { width: 100%; height: 100%; }
     .cert-download-bar { display: none !important; }
-    @page { size: A4 landscape; margin: 10mm; }
-    @media print { body { margin: 0; padding: 0; } .cert-wrapper { width: 100%; } }
-  </style></head><body><div class="cert-wrapper">${element.innerHTML}</div>
-  <script>setTimeout(()=>{window.print();window.close();},500)<\/script></body></html>`;
+    @page { size: A4 landscape; margin: 0; }
+    @media print {
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { margin: 0; padding: 0; }
+    }
+  </style></head><body><div class="cert-page"><div class="cert-wrapper">${element.innerHTML}</div></div>
+  <script>setTimeout(()=>{window.print();window.close();},250)<\/script></body></html>`;
   printWindow.document.write(html);
   printWindow.document.close();
 }
@@ -182,7 +187,7 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
             <Button
               size="sm"
               variant="outline"
-              onClick={() => ref.current && downloadCertificateAsImage(ref.current, `Certificate_${id}`)}
+              onClick={() => ref.current && downloadCertificateAsPdf(ref.current, `Certificate_${id}`)}
             >
               <Download className="h-3 w-3 mr-1" /> Download PDF
             </Button>
