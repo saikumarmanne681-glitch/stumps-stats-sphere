@@ -21,7 +21,7 @@ import { logAudit, v2api } from '@/lib/v2api';
 import { resolvePlayerIdFromIdentity } from '@/lib/dataUtils';
 import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { formatDateInIST, formatInIST } from '@/lib/time';
-import { CertificateRecord } from '@/lib/certificates';
+import { CertificateRecord, certificateMatchesPlayer, isCertificateCertified } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 
 const PlayerDashboard = () => {
@@ -70,12 +70,9 @@ const PlayerDashboard = () => {
   useEffect(() => {
     v2api.getCertificates().then((rows) => {
       setCertificates(rows.filter((item) => (
-        item.status === 'CERTIFIED'
+        isCertificateCertified(item)
         && !!user?.player_id
-        && (
-          (item.recipient_type === 'player' && item.recipient_id === user.player_id)
-          || item.linked_player_id === user.player_id
-        )
+        && certificateMatchesPlayer(item, user.player_id)
       )));
     });
   }, [user?.player_id]);

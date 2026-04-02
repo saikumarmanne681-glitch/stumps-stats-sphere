@@ -148,3 +148,75 @@ export function isCertificateAuthentic(certificate?: Partial<CertificateRecord> 
   const hasVerificationCode = Boolean(String(certificate.verification_code || '').trim());
   return certified && hasCertifiedAt && hasCertifiedBy && hasVerificationCode;
 }
+
+type GenericRow = Record<string, unknown>;
+
+const firstString = (...values: unknown[]): string => {
+  for (const value of values) {
+    const text = String(value ?? '').trim();
+    if (text) return text;
+  }
+  return '';
+};
+
+export function normalizeCertificateRecord(raw: Partial<CertificateRecord> | GenericRow): CertificateRecord {
+  const row = raw as GenericRow;
+  const id = firstString(row.id, row.certificate_id, row.cert_id, row.certificateId) || `CERT-${Date.now()}`;
+  const linkedPlayerId = firstString(row.linked_player_id, row.player_id, row.playerId);
+  const linkedTeamName = firstString(row.linked_team_name, row.team_name, row.team, row.teamName);
+  const recipientName = firstString(row.recipient_name, row.player_name, row.team_name, row.recipient);
+  const recipientTypeRaw = firstString(row.recipient_type).toLowerCase();
+  const recipientType: CertificateRecord['recipient_type'] = recipientTypeRaw === 'team' || (!!linkedTeamName && !linkedPlayerId) ? 'team' : 'player';
+  const recipientId = firstString(
+    row.recipient_id,
+    row.linked_player_id,
+    row.player_id,
+    row.linked_team_name,
+    row.team_name,
+  );
+  const status = normalizeCertificateStatus(firstString(row.status)) || 'DRAFT';
+  return {
+    id,
+    type: firstString(row.type, row.certificate_type, row.title) || 'Certificate of Excellence',
+    tournament: firstString(row.tournament, row.tournament_name, row.competition_name) || 'Tournament',
+    season: firstString(row.season, row.season_year, row.year) || 'Season',
+    match_id: firstString(row.match_id, row.match, row.matchId),
+    recipient_type: recipientType,
+    recipient_id: recipientId,
+    recipient_name: recipientName || (recipientType === 'team' ? linkedTeamName : linkedPlayerId) || 'Recipient',
+    linked_player_id: linkedPlayerId,
+    linked_team_name: linkedTeamName,
+    template_id: firstString(row.template_id, row.template, row.template_name) || 'TPL_CLASSIC_GOLD',
+    status,
+    created_by: firstString(row.created_by, row.createdBy) || 'admin',
+    created_at: firstString(row.created_at, row.createdAt, row.issued_at),
+    details_json: firstString(row.details_json, row.details, row.match_details),
+    performance_json: firstString(row.performance_json, row.performance, row.stats),
+    verification_code: firstString(row.verification_code, row.verify_code, row.verificationCode),
+    certified_at: firstString(row.certified_at, row.approved_at, row.certifiedAt),
+    certified_by: firstString(row.certified_by, row.approved_by, row.certifiedBy),
+  };
+}
+
+export function certificateMatchesPlayer(certificate: Partial<CertificateRecord>, playerId: string): boolean {
+  const normalized = normalizeCertificateRecord(certificate);
+  const target = String(playerId || '').trim().toLowerCase();
+  return Boolean(target) && (
+    (normalized.recipient_type === 'player' && normalized.recipient_id.trim().toLowerCase() === target)
+    || String(normalized.linked_player_id || '').trim().toLowerCase() === target
+  );
+}
+
+export function certificateMatchesTeam(certificate: Partial<CertificateRecord>, teamName: string): boolean {
+  const normalized = normalizeCertificateRecord(certificate);
+  const target = String(teamName || '').trim().toLowerCase();
+  if (!target) return false;
+  const recipientId = String(normalized.recipient_id || '').trim().toLowerCase();
+  const recipientName = String(normalized.recipient_name || '').trim().toLowerCase();
+  const linkedTeam = String(normalized.linked_team_name || '').trim().toLowerCase();
+  return normalized.recipient_type === 'team' && (
+    recipientName === target
+    || recipientId === target
+    || linkedTeam === target
+  );
+}

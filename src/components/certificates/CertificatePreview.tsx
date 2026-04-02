@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { CertificateRecord } from '@/lib/certificates';
 import { QRCodeSVG } from 'qrcode.react';
-import { Download } from 'lucide-react';
+import { CheckCircle2, Download, ShieldCheck } from 'lucide-react';
 import { useRef } from 'react';
 
 interface Props {
@@ -24,10 +24,16 @@ const fitClass = (text: string) => {
 function downloadCertificateAsImage(element: HTMLElement, filename: string) {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
-  const html = `<!DOCTYPE html><html><head><title>${filename}</title><style>
+  const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+    .map((item) => item.outerHTML)
+    .join('');
+  const html = `<!DOCTYPE html><html><head><title>${filename}</title>${cssLinks}<style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: white; }
-    @media print { body { margin: 0; } .cert-wrapper { page-break-inside: avoid; } }
+    body { display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; background: white; padding: 16px; }
+    .cert-wrapper { width: 1120px; max-width: 100%; }
+    .cert-download-bar { display: none !important; }
+    @page { size: A4 landscape; margin: 10mm; }
+    @media print { body { margin: 0; padding: 0; } .cert-wrapper { width: 100%; } }
   </style></head><body><div class="cert-wrapper">${element.innerHTML}</div>
   <script>setTimeout(()=>{window.print();window.close();},500)<\/script></body></html>`;
   printWindow.document.write(html);
@@ -46,38 +52,45 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
   const createdAt = certificate.created_at ? new Date(certificate.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '';
   const certifiedAt = certificate.certified_at ? new Date(certificate.certified_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '';
   const verificationCode = certificate.verification_code || '';
+  const certifiedBy = certificate.certified_by || 'Portal Authority';
 
   return (
-    <Card className="overflow-hidden border-2 border-amber-400/40">
+    <Card className="overflow-hidden border border-amber-500/30 bg-background">
       <CardContent className="p-0">
         <div
           ref={ref}
-          className="relative min-h-[520px] p-6 md:p-10"
+          className="relative min-h-[560px] p-6 md:p-10"
           style={{
             backgroundImage: template?.image_url
-              ? `linear-gradient(rgba(255,255,255,.9),rgba(255,255,255,.95)),url(${template.image_url})`
-              : 'linear-gradient(140deg,#fff8e1,#fef3c7,#fffbeb)',
+              ? `linear-gradient(rgba(252,250,245,.97),rgba(255,255,255,.97)),url(${template.image_url})`
+              : 'radial-gradient(circle at top right,#fffbeb 0,#fff 42%,#f8fafc 100%)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
         >
-          {/* Decorative border */}
-          <div className="absolute inset-2 border-2 border-amber-300/30 rounded-lg pointer-events-none" />
-          <div className="absolute inset-3 border border-amber-200/20 rounded-lg pointer-events-none" />
+          <div className="absolute inset-2 rounded-xl border-2 border-amber-500/40 pointer-events-none" />
+          <div className="absolute inset-4 rounded-lg border border-amber-500/20 pointer-events-none" />
 
           {watermark && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <span className="rotate-[-24deg] text-5xl font-black uppercase tracking-[0.35em] text-emerald-700/10">Verified Certificate</span>
+              <span className="rotate-[-24deg] text-5xl font-black uppercase tracking-[0.35em] text-emerald-700/10">Certified</span>
             </div>
           )}
 
-          <div className="relative z-10 flex h-full flex-col items-center text-center">
-            {/* Header */}
-            <Badge className="mb-2 bg-emerald-600 text-white">Cricket Club Portal</Badge>
-            <p className="text-[9px] uppercase tracking-[0.5em] text-amber-700/60 mb-3">Official Document</p>
+          <div className="relative z-10 flex h-full flex-col text-center">
+            <div className="flex items-center justify-between">
+              <div className="text-left">
+                <Badge className="bg-emerald-700 text-white">Cricket Club Portal</Badge>
+                <p className="mt-2 text-[9px] uppercase tracking-[0.45em] text-amber-900/70">Official Certificate</p>
+              </div>
+              <div className="rounded-lg border border-emerald-700/30 bg-emerald-50 px-3 py-2 text-right">
+                <p className="text-[10px] uppercase tracking-wider text-emerald-700">Verification Code</p>
+                <p className="font-mono text-xs font-semibold">{verificationCode || 'Pending'}</p>
+              </div>
+            </div>
 
-            <h3 className="font-display text-xl font-semibold uppercase tracking-[0.25em] text-amber-900">Certificate</h3>
-            <div className="mt-1 h-px w-32 bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+            <h3 className="mt-6 font-display text-xl font-semibold uppercase tracking-[0.25em] text-amber-900">Certificate of Achievement</h3>
+            <div className="mt-2 h-px w-full bg-gradient-to-r from-transparent via-amber-500/70 to-transparent" />
 
             <p className="mt-4 text-sm text-muted-foreground">This certifies that</p>
             <h2 className={cn('mt-2 font-display font-bold text-primary break-words max-w-[680px]', fitClass(recipient))}>{recipient}</h2>
@@ -85,7 +98,7 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
             <p className="mt-4 max-w-2xl text-sm text-foreground/80">has been awarded</p>
             <p className="mt-2 rounded-md bg-white/80 px-4 py-1.5 text-lg font-semibold text-amber-900 border border-amber-200/50">{title}</p>
 
-            <p className="mt-4 max-w-2xl text-sm text-muted-foreground">{tournament} • Season {season}{match !== 'N/A' ? ` • Match: ${match}` : ''}</p>
+            <p className="mt-4 max-w-2xl text-sm text-muted-foreground">{tournament} • Season {season}{match !== 'N/A' ? ` • Match ${match}` : ''}</p>
 
             {/* Details */}
             {certificate.details_json && (
@@ -96,7 +109,7 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
             )}
 
             {/* Certificate metadata grid */}
-            <div className="mt-6 grid w-full max-w-2xl grid-cols-2 gap-3 border-t border-amber-200/40 pt-4 text-left md:grid-cols-4">
+            <div className="mt-6 grid w-full grid-cols-2 gap-3 border-t border-amber-300/50 pt-4 text-left md:grid-cols-4">
               <div>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Certificate ID</p>
                 <p className="font-mono text-xs font-semibold">{id}</p>
@@ -110,13 +123,13 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
                 <p className="text-xs font-semibold">{template?.template_name || certificate.template_id || 'Default'}</p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Verification</p>
-                <p className="font-mono text-[10px]">{verificationCode || 'Pending'}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Certified By</p>
+                <p className="text-xs font-semibold">{certifiedBy}</p>
               </div>
             </div>
 
             {/* Dates */}
-            <div className="mt-3 grid w-full max-w-2xl grid-cols-2 gap-3 text-left">
+            <div className="mt-3 grid w-full grid-cols-2 gap-3 text-left">
               {createdAt && (
                 <div>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Issued</p>
@@ -131,15 +144,30 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
               )}
             </div>
 
-            {/* QR + verification URL */}
-            <div className="mt-6 flex flex-col items-center gap-2 rounded-lg bg-white/80 p-4 border border-amber-200/30">
-              <QRCodeSVG value={verificationUrl} size={90} />
-              <p className="text-[10px] text-muted-foreground">Scan to verify authenticity</p>
-              <p className="text-[9px] text-muted-foreground/70 break-all max-w-[300px]">{verificationUrl}</p>
+            <div className="mt-6 grid w-full items-end gap-4 md:grid-cols-3">
+              <div className="rounded-lg border border-amber-200/60 bg-white/80 p-3 text-left">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Authority Seal</p>
+                <div className="mt-2 flex items-center gap-2 text-emerald-700">
+                  <ShieldCheck className="h-5 w-5" />
+                  <span className="text-xs font-semibold">Digitally certified</span>
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">Tamper-evident record preserved in certificate registry.</p>
+              </div>
+              <div className="flex flex-col items-center gap-1 rounded-lg border border-amber-200/60 bg-white/80 p-3">
+                <QRCodeSVG value={verificationUrl} size={96} />
+                <p className="text-[10px] text-muted-foreground">Scan QR to verify</p>
+              </div>
+              <div className="rounded-lg border border-amber-200/60 bg-white/80 p-3 text-left">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Verification URL</p>
+                <p className="mt-1 break-all font-mono text-[10px] text-foreground/80">{verificationUrl}</p>
+                <div className="mt-2 flex items-center gap-1 text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <p className="text-[10px] font-medium">Public authenticity check enabled</p>
+                </div>
+              </div>
             </div>
 
-            {/* Micro-lettering security strip */}
-            <div className="mt-4 w-full max-w-2xl overflow-hidden">
+            <div className="mt-4 w-full overflow-hidden">
               <p className="text-[4px] text-amber-700/20 tracking-[0.3em] text-center select-none whitespace-nowrap">
                 {'CRICKET CLUB PORTAL • OFFICIAL CERTIFICATE • TAMPER EVIDENT DOCUMENT • '.repeat(8)}
               </p>
@@ -149,7 +177,7 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
 
         {/* Download bar */}
         {showDownload && (
-          <div className="flex items-center justify-between border-t bg-muted/30 px-4 py-2">
+          <div className="cert-download-bar flex items-center justify-between border-t bg-muted/30 px-4 py-2">
             <p className="text-xs text-muted-foreground">{id} • {status}</p>
             <Button
               size="sm"

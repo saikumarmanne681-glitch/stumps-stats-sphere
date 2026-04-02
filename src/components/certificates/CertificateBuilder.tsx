@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateId } from '@/lib/utils';
 import { CERTIFICATE_TYPES, CertificateRecord, CertificateTemplateRecord } from '@/lib/certificates';
 import { CertificatePreview } from './CertificatePreview';
+import { isCertificateCertified } from '@/lib/certificates';
 
 const FALLBACK_TEMPLATES: CertificateTemplateRecord[] = [
   { template_id: 'TPL_CLASSIC_GOLD', type: 'all', template_name: 'Classic Gold', image_url: '', design_config: '' },
@@ -24,6 +25,8 @@ export function CertificateBuilder() {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<CertificateTemplateRecord[]>([]);
   const [saving, setSaving] = useState(false);
+  const [library, setLibrary] = useState<CertificateRecord[]>([]);
+  const [searchText, setSearchText] = useState('');
   const [form, setForm] = useState<Partial<CertificateRecord>>({
     type: CERTIFICATE_TYPES[0],
     recipient_type: 'player',
@@ -39,6 +42,15 @@ export function CertificateBuilder() {
 
   useEffect(() => {
     v2api.getCertificateTemplates().then((rows) => setTemplates(rows.length ? rows : FALLBACK_TEMPLATES));
+  }, []);
+
+  const loadLibrary = async () => {
+    const rows = await v2api.getCertificates();
+    setLibrary(rows.filter((item) => isCertificateCertified(item)));
+  };
+
+  useEffect(() => {
+    loadLibrary();
   }, []);
 
   const filteredTemplates = useMemo(() => {
@@ -107,6 +119,7 @@ export function CertificateBuilder() {
       logAudit(user?.username || 'admin', 'certificate_certified', 'certificate', id, JSON.stringify(payload));
       toast({ title: 'Certificate saved', description: `Certificate ${id} is certified and ready for download.` });
       setForm((prev) => ({ ...prev, id, status: payload.status }));
+      await loadLibrary();
     } catch (error) {
       toast({ title: 'Save failed', description: error instanceof Error ? error.message : 'Unexpected error', variant: 'destructive' });
     } finally {
@@ -115,7 +128,8 @@ export function CertificateBuilder() {
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="space-y-6">
+      <div className="grid gap-4 xl:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Certificate Builder</CardTitle>
@@ -247,6 +261,47 @@ export function CertificateBuilder() {
           showDownload
         />
       </div>
+      </div>
+
+      <Card>
+        <CardHeader className="gap-3">
+          <CardTitle>Certified Certificate Library</CardTitle>
+          <Input
+            placeholder="Search by certificate ID, recipient, tournament, team, player..."
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+          />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {library
+            .filter((item) => {
+              const query = searchText.trim().toLowerCase();
+              if (!query) return true;
+              const haystack = [
+                item.id,
+                item.recipient_name,
+                item.recipient_id,
+                item.tournament,
+                item.season,
+                item.linked_player_id,
+                item.linked_team_name,
+                item.type,
+              ].join(' ').toLowerCase();
+              return haystack.includes(query);
+            })
+            .sort((a, b) => new Date(b.certified_at || b.created_at || '').getTime() - new Date(a.certified_at || a.created_at || '').getTime())
+            .map((certificate) => (
+              <CertificatePreview
+                key={certificate.id}
+                certificate={certificate}
+                verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
+                watermark
+                showDownload
+              />
+            ))}
+          {library.length === 0 && <p className="text-sm text-muted-foreground">No certified certificates available yet.</p>}
+        </CardContent>
+      </Card>
     </div>
   );
 }
