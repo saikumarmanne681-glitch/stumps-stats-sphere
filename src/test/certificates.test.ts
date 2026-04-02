@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCertificateAuthentic, isCertificateCertified, normalizeCertificateId } from '@/lib/certificates';
+import { isCertificateAuthentic, isCertificateCertified, normalizeCertificateId, normalizeCertificateRecord } from '@/lib/certificates';
 
 describe('certificate verification helpers', () => {
   it('normalizes ids for resilient lookup', () => {
@@ -27,5 +27,13 @@ describe('certificate verification helpers', () => {
       certified_by: 'admin',
       verification_code: '',
     })).toBe(false);
+  });
+
+  it('maps legacy certification status columns to CERTIFIED', () => {
+    expect(normalizeCertificateRecord({
+      id: 'CERT-LEGACY-1',
+      approval_status: 'certified',
+      recipient_name: 'Legacy Recipient',
+    }).status).toBe('CERTIFIED');
   });
 });

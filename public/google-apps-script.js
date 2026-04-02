@@ -361,6 +361,7 @@ function doGet(e) {
       );
     }
     const sheet = getOrCreateSheet(ss, tabName);
+    ensureSheetSchema(sheet, TABS[tabName]);
     const data = sheetToJson(sheet);
     return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
   }
@@ -910,6 +911,7 @@ function doPost(e) {
   const sheet = getOrCreateSheet(ss, tabName);
   const headers = TABS[tabName];
   const keyCol = getKeyColumn(tabName);
+  ensureSheetSchema(sheet, headers);
   const spreadsheetTimeZone = ss.getSpreadsheetTimeZone ? ss.getSpreadsheetTimeZone() : Session.getScriptTimeZone();
 
   function normalizeSheetValue(header, value) {

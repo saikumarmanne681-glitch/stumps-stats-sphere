@@ -174,7 +174,9 @@ export function normalizeCertificateRecord(raw: Partial<CertificateRecord> | Gen
     row.linked_team_name,
     row.team_name,
   );
-  const status = normalizeCertificateStatus(firstString(row.status)) || 'DRAFT';
+  const status = normalizeCertificateStatus(
+    firstString(row.status, row.approval_status, row.certificate_status, row.certification_status),
+  ) || 'DRAFT';
   return {
     id,
     type: firstString(row.type, row.certificate_type, row.title) || 'Certificate of Excellence',
