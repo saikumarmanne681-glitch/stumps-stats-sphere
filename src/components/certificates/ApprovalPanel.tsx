@@ -21,14 +21,14 @@ export function ApprovalPanel({ mode }: Props) {
   const [templates, setTemplates] = useState<Record<string, { template_name?: string; image_url?: string }>>({});
   const [selected, setSelected] = useState<CertificateRecord | null>(null);
 
-  const myRole = mapDesignationToApproverRole(user?.designation);
+  const myRole = mapDesignationToApproverRole(user?.designation, user?.role);
 
   const load = async () => {
     const [cRows, aRows, tRows] = await Promise.all([v2api.getCertificates(), v2api.getCertificateApprovals(), v2api.getCertificateTemplates()]);
     setCertificates(cRows);
     setApprovals(aRows);
     setTemplates(Object.fromEntries(tRows.map((row) => [row.template_id, row])));
-    setSelected((prev) => cRows.find((item) => item.id === prev?.id) || null);
+    setSelected((prev) => cRows.find((item) => item.id === prev?.id) || cRows[0] || null);
   };
 
   useEffect(() => { load(); }, []);

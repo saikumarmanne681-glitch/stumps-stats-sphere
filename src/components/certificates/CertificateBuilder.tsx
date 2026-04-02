@@ -101,20 +101,25 @@ export function CertificateBuilder() {
       if (!ok) throw new Error('Could not save certificate');
 
       if (sendForApproval) {
-        await Promise.all(APPROVER_ROLES.map((role) => v2api.updateCertificateApproval({
-          certificate_id: id,
-          role,
-          status: 'pending',
-          approved_by: '',
-          approved_at: '',
-          remarks: '',
-        })));
+        await Promise.all(APPROVER_ROLES.map(async (role) => {
+          const approvalPayload = {
+            certificate_id: id,
+            role,
+            status: 'pending' as const,
+            approved_by: '',
+            approved_at: '',
+            remarks: '',
+          };
+          const updated = await v2api.updateCertificateApproval(approvalPayload);
+          if (!updated) await v2api.addCertificateApproval(approvalPayload);
+        }));
 
-        // fallback explicit filter for clarity
-        const pendingApprovers = management.filter((member) => {
-          const d = String(member.designation || '').toLowerCase();
-          return d.includes('treasurer') || d.includes('referee') || d.includes('tournament director');
-        });
+        const pendingApprovers = management.filter((member) => APPROVER_ROLES.some((role) => {
+          const value = `${String(member.designation || '')} ${String(member.role || '')}`.toLowerCase();
+          return role === 'tournament_director'
+            ? value.includes('tournament director') || value.includes('tournament_director') || value.includes('tournamentdirector')
+            : value.includes(role);
+        }));
         await Promise.all(pendingApprovers
           .filter((member) => member.email)
           .map((member) => sendSystemEmail({
@@ -256,4 +261,3 @@ export function CertificateBuilder() {
     </div>
   );
 }
-

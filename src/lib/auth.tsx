@@ -238,6 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         management_id: management.management_id,
         name: management.name,
         designation: management.designation,
+        role: management.role,
       };
       setUser(u);
       persistSession(u);
