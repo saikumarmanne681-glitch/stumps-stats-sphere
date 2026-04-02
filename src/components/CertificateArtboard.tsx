@@ -239,8 +239,8 @@ export default function CertificateArtboard({ certificate: cert, compact = false
   const isRevoked = cert.approval_status === 'revoked';
   const isPending = !isApproved && !isRevoked;
   const verifyUrl = cert.verification_url || cert.qr_payload || '';
-  const tournamentName = metadata.tournament || cert.tournament_id || 'Tournament';
-  const seasonYear = metadata.seasonYear || cert.season_id || '';
+  const tournamentName = String(metadata.tournament || cert.tournament_id || 'Tournament');
+  const seasonYear = String(metadata.seasonYear || cert.season_id || '');
   const templateDesignImage = String(metadata.templateDesignImage || '');
 
   if (templateDesignImage) {
