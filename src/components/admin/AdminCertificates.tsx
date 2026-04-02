@@ -232,7 +232,7 @@ export function AdminCertificates() {
       reader.onload = () => resolve(String(reader.result || ''));
       reader.onerror = () => reject(new Error('Unable to read SVG'));
       reader.readAsText(file);
-    }).then((result) => toDataUrlSvg(result));
+    }).then((result) => svgToDataUrl(result));
     const payload: CertificateDesignTemplate = {
       template_asset_id: generateId('CERTTPL'),
       file_name: file.name,
