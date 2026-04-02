@@ -17,7 +17,6 @@ import { AdminScorelists } from '@/components/admin/AdminScorelists';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
 import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Newspaper, ListTodo, MailSearch } from 'lucide-react';
 import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
-import { AdminCertificates } from '@/components/admin/AdminCertificates';
 import { AdminMailDiagnostics } from '@/components/admin/AdminMailDiagnostics';
 import { AdminSheetsConsole } from '@/components/admin/AdminSheetsConsole';
 import { AdminApprovalsRealtime } from '@/components/admin/AdminApprovalsRealtime';
@@ -133,9 +132,6 @@ const AdminDashboard = () => {
             <TabsTrigger value="newsroom" className="flex items-center gap-1 text-xs">
               <Newspaper className="h-3 w-3" /> News Room
             </TabsTrigger>
-            <TabsTrigger value="certificates" className="flex items-center gap-1 text-xs">
-              <Trophy className="h-3 w-3" /> Certificates
-            </TabsTrigger>
             <TabsTrigger value="sheets" className="flex items-center gap-1 text-xs">
               <Settings className="h-3 w-3" /> Sheets Console
             </TabsTrigger>
@@ -157,7 +153,6 @@ const AdminDashboard = () => {
           <TabsContent value="mail-diagnostics"><AdminMailDiagnostics /></TabsContent>
           <TabsContent value="approvals-live"><AdminApprovalsRealtime /></TabsContent>
           <TabsContent value="newsroom"><AdminNewsRoom /></TabsContent>
-          <TabsContent value="certificates"><AdminCertificates /></TabsContent>
           <TabsContent value="sheets"><AdminSheetsConsole /></TabsContent>
           <TabsContent value="settings"><AdminSettings /></TabsContent>
         </Tabs>

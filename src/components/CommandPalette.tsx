@@ -241,7 +241,7 @@ export function CommandPalette() {
           id: 'action-pending-approvals',
           label: 'View pending approvals',
           description: `Pending certification approvals: ${pendingApprovals}`,
-          keywords: 'pending approvals certificate scorelist',
+          keywords: 'pending approvals scorelist',
           section: 'Quick actions',
           icon: <Shield className="h-4 w-4" />,
           route: '/admin/scorelists',

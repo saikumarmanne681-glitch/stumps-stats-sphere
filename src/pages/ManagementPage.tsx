@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Shield, ShieldCheck, Clock, CheckCircle2, ChevronDown, ChevronUp, Send, Loader2, MessageSquare, Crown, FileText, Users, AlertTriangle, BriefcaseBusiness, Search, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { v2api, logAudit, istNow } from '@/lib/v2api';
-import { ManagementUser, DigitalScorelist, CertificationApproval, BoardConfiguration, CertificateRecord } from '@/lib/v2types';
+import { ManagementUser, DigitalScorelist, CertificationApproval, BoardConfiguration } from '@/lib/v2types';
 import { getScheduleApprovalRoadmap, getScheduleDetailedStatus, getScorelistDetailedStatus, getScorelistRoadmap, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { useToast } from '@/hooks/use-toast';
 import { Navigate, Link } from 'react-router-dom';
@@ -27,12 +27,10 @@ import { scheduleService } from '@/schedules/scheduleService';
 import { getActorId, isScheduleApproverRole } from '@/lib/accessControl';
 import { ScheduleRecord } from '@/schedules/types';
 import { formatInIST } from '@/lib/time';
-import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember } from '@/lib/boardDepartments';
 
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 const stageLabels: Record<string, string> = scorelistStageLabels;
-const defaultCertificateApprovals = { Treasurer: false, 'Scoring Official': false, 'Match Referee': false } as const;
 
 function parseJsonObject(value: unknown): Record<string, unknown> {
   if (typeof value !== 'string' || !value.trim()) return {};
@@ -75,16 +73,14 @@ const ManagementPage = () => {
   const [scheduleActionLoadingId, setScheduleActionLoadingId] = useState<string | null>(null);
   const [scheduleComments, setScheduleComments] = useState<Record<string, string>>({});
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
-  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [boardSearch, setBoardSearch] = useState('');
   const [boardRoleFilter, setBoardRoleFilter] = useState<'all' | string>('all');
 
   const refresh = async () => {
-    const [users, scorelistData, boardRows, certificateRows] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), v2api.getBoardConfiguration(), v2api.getCertificates(), scheduleService.syncFromBackend()]);
+    const [users, scorelistData, boardRows] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), v2api.getBoardConfiguration(), scheduleService.syncFromBackend()]);
     setMgmtUsers(users.filter(m => String(m.status || '').trim().toLowerCase() !== 'inactive'));
     setScorelists(scorelistData);
     setBoardConfig(boardRows[0] || null);
-    setCertificates(certificateRows.sort((a, b) => (b.generated_at || '').localeCompare(a.generated_at || '')));
     setLoading(false);
   };
 
@@ -149,23 +145,6 @@ const ManagementPage = () => {
     return nextStage === userStage;
   }), [isManagement, scorelists, user?.designation, user?.management_id]);
   const scheduleApprover = isManagement && isScheduleApproverRole(user?.designation);
-  const normalizeCertificateRole = (designation?: string | null) => {
-    const normalized = String(designation || '').trim().toLowerCase();
-    if (normalized === 'treasurer') return 'Treasurer';
-    if (normalized === 'scoring official' || normalized === 'scorer' || normalized === 'score official') return 'Scoring Official';
-    if (normalized === 'match referee' || normalized === 'referee') return 'Match Referee';
-    return null;
-  };
-  const certificateRole = normalizeCertificateRole(user?.designation);
-  const pendingCertificates = useMemo(() => {
-    if (!user) return [] as CertificateRecord[];
-    return certificates.filter((item) => {
-      if (item.approval_status !== 'pending_approval') return false;
-      if (!certificateRole) return true;
-      const approvals = { ...defaultCertificateApprovals, ...parseJsonObject(item.approvals_json) } as Record<string, boolean>;
-      return !approvals[certificateRole];
-    });
-  }, [certificateRole, certificates, user]);
   const pendingSchedules = useMemo(() => {
     if (!scheduleApprover || !user) return [] as ScheduleRecord[];
     return scheduleService.getSchedules().filter((schedule) => {
@@ -188,35 +167,6 @@ const ManagementPage = () => {
     } finally {
       setScheduleActionLoadingId(null);
     }
-  };
-
-  const signCertificate = async (certificate: CertificateRecord) => {
-    if (!certificateRole || !user) return;
-    const approvals = { ...defaultCertificateApprovals, ...parseJsonObject(certificate.approvals_json) } as Record<string, boolean>;
-    const nextApprovals = { ...approvals, [certificateRole]: true };
-    const signatures = parseJsonArray<{ role: string; signerId: string; signerName: string; signedAt: string }>(certificate.signatures_json);
-    const nextSignatures = [
-      ...signatures.filter((entry) => entry.role !== certificateRole),
-      {
-        role: certificateRole,
-        signerId: user.management_id || user.username,
-        signerName: user.name,
-        signedAt: istNow(),
-      },
-    ];
-    const full = (['Treasurer', 'Scoring Official', 'Match Referee'] as const).every((role) => !!nextApprovals[role]);
-    const payload: CertificateRecord = {
-      ...certificate,
-      approvals_json: JSON.stringify(nextApprovals),
-      signatures_json: JSON.stringify(nextSignatures),
-      approval_status: full ? 'approved' : 'pending_approval',
-      approved_at: full ? istNow() : certificate.approved_at,
-      delivery_status: full ? 'sent_to_player' : certificate.delivery_status,
-    };
-    await v2api.updateCertificate(payload);
-    logAudit(user.management_id || user.username, 'management_sign_certificate', 'certificate', certificate.certificate_id, JSON.stringify({ designation: certificateRole, fullyApproved: full }));
-    toast({ title: full ? 'Certificate fully approved' : 'Certificate signature recorded', description: `${certificateRole} signature has been saved.` });
-    await refresh();
   };
 
   useEffect(() => {
@@ -468,13 +418,6 @@ const ManagementPage = () => {
               count: pendingSchedules.length,
               to: '/management',
             },
-            {
-              id: 'certificates-pending',
-              label: 'Certificate signatures',
-              description: 'Certificates waiting for digital signatures from your role.',
-              count: pendingCertificates.length,
-              to: '/management',
-            },
           ]}
         />
 
@@ -524,7 +467,6 @@ const ManagementPage = () => {
               </TabsTrigger>
               <TabsTrigger value="all" className="text-xs md:text-sm gap-1"><Shield className="h-3 w-3" /> All Scorelists</TabsTrigger>
               {scheduleApprover && <TabsTrigger value="schedule-approvals" className="text-xs md:text-sm gap-1"><Clock className="h-3 w-3" /> Schedule Approvals {pendingSchedules.length > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1">{pendingSchedules.length}</Badge>}</TabsTrigger>}
-              <TabsTrigger value="certificates" className="text-xs md:text-sm gap-1"><ShieldCheck className="h-3 w-3" /> Certificates {pendingCertificates.length > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1">{pendingCertificates.length}</Badge>}</TabsTrigger>
               <TabsTrigger value="messages" className="text-xs md:text-sm gap-1"><MessageSquare className="h-3 w-3" /> Messages</TabsTrigger>
               <TabsTrigger value="compose" className="text-xs md:text-sm gap-1"><Send className="h-3 w-3" /> Send Notice</TabsTrigger>
             </TabsList>
@@ -699,46 +641,6 @@ const ManagementPage = () => {
                 })}
               </TabsContent>
             )}
-
-              <TabsContent value="certificates" className="mt-4 space-y-3">
-                {pendingCertificates.length === 0 && <Card><CardContent className="p-6 text-center text-muted-foreground">No certificates are waiting for your signature right now.</CardContent></Card>}
-                {pendingCertificates.map((certificate) => {
-                  const approvals = { ...defaultCertificateApprovals, ...parseJsonObject(certificate.approvals_json) } as Record<string, boolean>;
-                  const signedByMe = certificateRole ? !!approvals[certificateRole] : false;
-                  return (
-                    <Card key={certificate.certificate_id} className="border-l-4 border-l-primary/50">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="font-display font-bold">{certificate.title}</p>
-                            <p className="text-sm text-muted-foreground">{certificate.recipient_name} • {certificate.certificate_id}</p>
-                          </div>
-                          <Badge variant="secondary">{certificate.approval_status}</Badge>
-                        </div>
-                        <div className="grid gap-2 md:grid-cols-3">
-                          {['Treasurer', 'Scoring Official', 'Match Referee'].map((role) => (
-                            <div key={role} className={`rounded-md border p-2 text-xs ${approvals[role] ? 'border-primary/30 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
-                              <p className="font-semibold">{role}</p>
-                              <p className="text-muted-foreground">{approvals[role] ? 'Signed' : 'Pending signature'}</p>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" onClick={() => previewCertificatePdf(certificate)}><FileText className="mr-1 h-3 w-3" /> Preview PDF</Button>
-                          <Button variant="outline" onClick={() => downloadCertificatePdf(certificate)}><Download className="mr-1 h-3 w-3" /> Download PDF</Button>
-                          {certificateRole ? (
-                            <Button onClick={() => signCertificate(certificate)} disabled={signedByMe}>
-                              <ShieldCheck className="mr-1 h-3 w-3" /> {signedByMe ? `Already signed as ${certificateRole}` : `Sign as ${certificateRole}`}
-                            </Button>
-                          ) : (
-                            <Badge variant="secondary" className="py-2 px-3">View-only: your designation is not an approval signatory.</Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </TabsContent>
 
             <TabsContent value="messages" className="mt-4 space-y-3">
               <h3 className="font-display text-lg font-bold flex items-center gap-2"><MessageSquare className="h-5 w-5 text-primary" /> Messages</h3>
