@@ -170,11 +170,11 @@ export default function AdminWorkQueuePage() {
             label: 'Certificate Approval',
             title: `${certificate.id} • ${certificate.recipient_name}`,
             assigneeId: assignee?.management_id || '',
-            assigneeLabel: assignee ? `${assignee.name} • ${assignee.designation}` : `Pending with ${role.replaceAll('_', ' ')}`,
+            assigneeLabel: assignee ? `${assignee.name} • ${assignee.designation}` : `Pending with ${role.replace(/_/g, ' ')}`,
             dueAt: new Date(new Date(certificate.created_at || Date.now()).getTime() + 24 * 3600 * 1000).toISOString(),
             priority: 'high',
             escalationState: 'normal',
-            status: `Awaiting ${role.replaceAll('_', ' ')}`,
+            status: `Awaiting ${role.replace(/_/g, ' ')}`,
           });
         });
       });

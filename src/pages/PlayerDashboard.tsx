@@ -429,16 +429,13 @@ const PlayerDashboard = () => {
           <TabsContent value="certificates" className="space-y-4 mt-4">
             {certificates.length === 0 && <p className="text-sm text-muted-foreground">No certified player certificates yet.</p>}
             {certificates.map((certificate) => (
-              <div key={certificate.id} className="space-y-2">
-                <CertificatePreview
-                  certificate={certificate}
-                  verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
-                  watermark
-                />
-                <div className="flex justify-end">
-                  <Button variant="outline" onClick={() => window.print()}>Download as PDF</Button>
-                </div>
-              </div>
+              <CertificatePreview
+                key={certificate.id}
+                certificate={certificate}
+                verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
+                watermark
+                showDownload
+              />
             ))}
           </TabsContent>
 

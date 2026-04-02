@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ApproverRole, CertificateApprovalRecord, CertificateRecord, approverLabel, canFinalize, deriveApprovalStatus, mapDesignationToApproverRole } from '@/lib/certificates';
 import { CertificatePreview } from './CertificatePreview';
 import { sendSystemEmail, getAdminNotificationRecipient } from '@/lib/mailer';
+import { CheckCircle2, XCircle, Eye, Loader2, ShieldCheck } from 'lucide-react';
 
 interface Props {
   mode: 'admin' | 'approver';
@@ -20,15 +21,19 @@ export function ApprovalPanel({ mode }: Props) {
   const [approvals, setApprovals] = useState<CertificateApprovalRecord[]>([]);
   const [templates, setTemplates] = useState<Record<string, { template_name?: string; image_url?: string }>>({});
   const [selected, setSelected] = useState<CertificateRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const myRole = mapDesignationToApproverRole(user?.designation, user?.role);
 
   const load = async () => {
+    setLoading(true);
     const [cRows, aRows, tRows] = await Promise.all([v2api.getCertificates(), v2api.getCertificateApprovals(), v2api.getCertificateTemplates()]);
     setCertificates(cRows);
     setApprovals(aRows);
     setTemplates(Object.fromEntries(tRows.map((row) => [row.template_id, row])));
-    setSelected((prev) => cRows.find((item) => item.id === prev?.id) || cRows[0] || null);
+    setSelected((prev) => cRows.find((item) => item.id === prev?.id) || null);
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
@@ -36,43 +41,49 @@ export function ApprovalPanel({ mode }: Props) {
   const rows = useMemo(() => {
     if (mode === 'admin') return certificates.filter((item) => ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CERTIFIED'].includes(item.status));
     if (!myRole) return [];
-    return certificates.filter((item) => item.status === 'PENDING_APPROVAL').filter((item) => {
+    return certificates.filter((item) => {
+      if (item.status !== 'PENDING_APPROVAL') return false;
       const status = deriveApprovalStatus(approvals.filter((row) => row.certificate_id === item.id));
-      return status[myRole] !== 'approved';
+      return status[myRole] === 'pending';
     });
   }, [approvals, certificates, mode, myRole]);
 
   const approve = async (certificate: CertificateRecord, decision: 'approved' | 'rejected') => {
     if (!myRole || mode !== 'approver') return;
-    const payload: CertificateApprovalRecord = {
-      certificate_id: certificate.id,
-      role: myRole,
-      status: decision,
-      approved_by: user?.management_id || user?.username || 'management',
-      approved_at: new Date().toISOString(),
-      remarks: '',
-    };
-    const ok = await v2api.updateCertificateApproval(payload);
-    if (!ok) {
-      toast({ title: 'Action failed', description: 'Unable to update approval.', variant: 'destructive' });
-      return;
+    setActionLoading(`${certificate.id}:${decision}`);
+    try {
+      const payload: CertificateApprovalRecord = {
+        certificate_id: certificate.id,
+        role: myRole,
+        status: decision,
+        approved_by: user?.management_id || user?.username || 'management',
+        approved_at: new Date().toISOString(),
+        remarks: '',
+      };
+      const ok = await v2api.updateCertificateApproval(payload);
+      if (!ok) {
+        toast({ title: 'Action failed', description: 'Unable to update approval.', variant: 'destructive' });
+        return;
+      }
+      const current = approvals.filter((item) => item.certificate_id === certificate.id && item.role !== myRole);
+      const overall = deriveApprovalStatus([...current, payload]);
+      const nextStatus: CertificateRecord['status'] = decision === 'rejected' ? 'REJECTED' : canFinalize(overall) ? 'APPROVED' : 'PENDING_APPROVAL';
+      await v2api.updateCertificate({ ...certificate, status: nextStatus });
+      const adminRecipient = getAdminNotificationRecipient();
+      if (adminRecipient) {
+        await sendSystemEmail({
+          to: adminRecipient,
+          subject: `Certificate ${decision}: ${certificate.id}`,
+          htmlBody: `<p>${approverLabel(myRole)} ${decision} certificate <strong>${certificate.id}</strong>.</p>`,
+          diagnostics: { triggerSource: 'certificate_approval_update', triggerEntityType: 'certificate', triggerEntityId: certificate.id, triggeredBy: user?.username || 'management' },
+        });
+      }
+      logAudit(user?.management_id || user?.username || 'management', `certificate_${decision}`, 'certificate', certificate.id, JSON.stringify({ role: myRole }));
+      toast({ title: `Certificate ${decision}` });
+      await load();
+    } finally {
+      setActionLoading(null);
     }
-    const current = approvals.filter((item) => item.certificate_id === certificate.id && item.role !== myRole);
-    const overall = deriveApprovalStatus([...current, payload]);
-    const nextStatus: CertificateRecord['status'] = decision === 'rejected' ? 'REJECTED' : canFinalize(overall) ? 'APPROVED' : 'PENDING_APPROVAL';
-    await v2api.updateCertificate({ ...certificate, status: nextStatus });
-    const adminRecipient = getAdminNotificationRecipient();
-    if (adminRecipient) {
-      await sendSystemEmail({
-        to: adminRecipient,
-        subject: `Certificate ${decision}: ${certificate.id}`,
-        htmlBody: `<p>${approverLabel(myRole)} ${decision} certificate <strong>${certificate.id}</strong>.</p>`,
-        diagnostics: { triggerSource: 'certificate_approval_update', triggerEntityType: 'certificate', triggerEntityId: certificate.id, triggeredBy: user?.username || 'management' },
-      });
-    }
-    logAudit(user?.management_id || user?.username || 'management', `certificate_${decision}`, 'certificate', certificate.id, JSON.stringify({ role: myRole }));
-    toast({ title: `Certificate ${decision}` });
-    await load();
   };
 
   const finalize = async (certificate: CertificateRecord) => {
@@ -81,55 +92,121 @@ export function ApprovalPanel({ mode }: Props) {
       toast({ title: 'All approvals required', description: 'Treasurer, Referee, and Tournament Director must approve.', variant: 'destructive' });
       return;
     }
-    const payload: CertificateRecord = { ...certificate, status: 'CERTIFIED', certified_at: new Date().toISOString(), certified_by: user?.username || 'admin' };
-    const ok = await v2api.updateCertificate(payload);
-    if (!ok) {
-      toast({ title: 'Finalize failed', variant: 'destructive' });
-      return;
+    setActionLoading(`${certificate.id}:finalize`);
+    try {
+      const payload: CertificateRecord = { ...certificate, status: 'CERTIFIED', certified_at: new Date().toISOString(), certified_by: user?.username || 'admin' };
+      const ok = await v2api.updateCertificate(payload);
+      if (!ok) {
+        toast({ title: 'Finalize failed', variant: 'destructive' });
+        return;
+      }
+      logAudit(user?.username || 'admin', 'certificate_certified', 'certificate', certificate.id);
+      const adminRecipient = getAdminNotificationRecipient();
+      if (adminRecipient) {
+        await sendSystemEmail({ to: adminRecipient, subject: `Certificate certified: ${certificate.id}`, htmlBody: `<p>Certificate <strong>${certificate.id}</strong> has been fully certified.</p>` });
+      }
+      toast({ title: 'Certificate finalized', description: `${certificate.id} is now certified.` });
+      await load();
+    } finally {
+      setActionLoading(null);
     }
-    logAudit(user?.username || 'admin', 'certificate_certified', 'certificate', certificate.id);
-    const adminRecipient = getAdminNotificationRecipient();
-    if (adminRecipient) {
-      await sendSystemEmail({ to: adminRecipient, subject: `Certificate certified: ${certificate.id}`, htmlBody: `<p>Certificate <strong>${certificate.id}</strong> has been fully certified.</p>` });
-    }
-    toast({ title: 'Certificate finalized', description: `${certificate.id} is now certified.` });
-    await load();
   };
 
-  return (
-    <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+  if (loading) {
+    return (
       <Card>
-        <CardHeader><CardTitle>{mode === 'admin' ? 'Approval Tracker' : 'Pending Certificates'}</CardTitle></CardHeader>
+        <CardContent className="flex items-center justify-center p-8 gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">Loading certificates…</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            {mode === 'admin' ? 'Certificate Approval Queue' : 'Certificates Awaiting Your Approval'}
+            {rows.length > 0 && <Badge className="ml-2">{rows.length}</Badge>}
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-3">
-          {rows.length === 0 && <p className="text-sm text-muted-foreground">No certificates found.</p>}
+          {rows.length === 0 && (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              {mode === 'admin' ? 'No certificates in the approval pipeline.' : 'No certificates pending your approval.'}
+            </p>
+          )}
           {rows.map((certificate) => {
             const status = deriveApprovalStatus(approvals.filter((item) => item.certificate_id === certificate.id));
+            const isSelected = selected?.id === certificate.id;
             return (
-              <div key={certificate.id} className="rounded-lg border p-3">
+              <div key={certificate.id} className={`rounded-lg border p-4 transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-mono text-xs text-muted-foreground">{certificate.id}</p>
                     <p className="font-semibold">{certificate.type} · {certificate.recipient_name}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{certificate.id} · {certificate.tournament} · {certificate.season}</p>
                   </div>
-                  <Badge>{certificate.status}</Badge>
+                  <Badge variant={certificate.status === 'CERTIFIED' ? 'default' : certificate.status === 'REJECTED' ? 'destructive' : 'outline'}>
+                    {certificate.status}
+                  </Badge>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-1 text-xs">
-                  {(['treasurer', 'referee', 'tournament_director'] as ApproverRole[]).map((role) => (
-                    <Badge key={`${certificate.id}:${role}`} variant={status[role] === 'approved' ? 'default' : status[role] === 'rejected' ? 'destructive' : 'outline'}>
-                      {approverLabel(role)}: {status[role]}
-                    </Badge>
-                  ))}
-                </div>
+
+                {/* Approval chain */}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setSelected(certificate)}>Preview</Button>
-                  {mode === 'approver' && myRole && (
+                  {(['treasurer', 'referee', 'tournament_director'] as ApproverRole[]).map((role) => {
+                    const s = status[role];
+                    return (
+                      <Badge
+                        key={`${certificate.id}:${role}`}
+                        variant={s === 'approved' ? 'default' : s === 'rejected' ? 'destructive' : 'outline'}
+                        className="gap-1"
+                      >
+                        {s === 'approved' && <CheckCircle2 className="h-3 w-3" />}
+                        {s === 'rejected' && <XCircle className="h-3 w-3" />}
+                        {approverLabel(role)}: {s}
+                      </Badge>
+                    );
+                  })}
+                </div>
+
+                {/* Actions */}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" variant={isSelected ? 'secondary' : 'outline'} onClick={() => setSelected(isSelected ? null : certificate)}>
+                    <Eye className="h-3 w-3 mr-1" /> {isSelected ? 'Hide Preview' : 'Preview'}
+                  </Button>
+                  {mode === 'approver' && myRole && status[myRole] === 'pending' && (
                     <>
-                      <Button size="sm" onClick={() => approve(certificate, 'approved')}>Approve</Button>
-                      <Button size="sm" variant="destructive" onClick={() => approve(certificate, 'rejected')}>Reject</Button>
+                      <Button
+                        size="sm"
+                        onClick={() => approve(certificate, 'approved')}
+                        disabled={!!actionLoading}
+                        loading={actionLoading === `${certificate.id}:approved`}
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1" /> Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => approve(certificate, 'rejected')}
+                        disabled={!!actionLoading}
+                        loading={actionLoading === `${certificate.id}:rejected`}
+                      >
+                        <XCircle className="h-3 w-3 mr-1" /> Reject
+                      </Button>
                     </>
                   )}
                   {mode === 'admin' && certificate.status !== 'CERTIFIED' && (
-                    <Button size="sm" onClick={() => finalize(certificate)} disabled={!canFinalize(status)}>Finalize Certificate</Button>
+                    <Button
+                      size="sm"
+                      onClick={() => finalize(certificate)}
+                      disabled={!canFinalize(status) || !!actionLoading}
+                      loading={actionLoading === `${certificate.id}:finalize`}
+                    >
+                      <ShieldCheck className="h-3 w-3 mr-1" /> Finalize Certificate
+                    </Button>
                   )}
                 </div>
               </div>
@@ -138,18 +215,16 @@ export function ApprovalPanel({ mode }: Props) {
         </CardContent>
       </Card>
 
-      <div>
-        {selected ? (
-          <CertificatePreview
-            certificate={selected}
-            verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(selected.id)}`}
-            template={templates[selected.template_id]}
-            watermark={selected.status === 'CERTIFIED'}
-          />
-        ) : (
-          <Card><CardContent className="p-6 text-sm text-muted-foreground">Select a certificate to preview.</CardContent></Card>
-        )}
-      </div>
+      {/* Preview panel */}
+      {selected && (
+        <CertificatePreview
+          certificate={selected}
+          verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(selected.id)}`}
+          template={templates[selected.template_id]}
+          watermark={selected.status === 'CERTIFIED'}
+          showDownload
+        />
+      )}
     </div>
   );
 }

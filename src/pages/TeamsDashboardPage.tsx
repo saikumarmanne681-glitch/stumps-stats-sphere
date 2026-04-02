@@ -511,16 +511,13 @@ export default function TeamsDashboardPage() {
 
           <TabsContent value="certificates" className="space-y-4">
             {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => item.recipient_name === resolvedSelectedTeam || item.recipient_id === resolvedSelectedTeam)).map((certificate) => (
-              <div key={certificate.id} className="space-y-2">
-                <CertificatePreview
-                  certificate={certificate}
-                  verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
-                  watermark
-                />
-                <div className="flex justify-end">
-                  <Button variant="outline" onClick={() => window.print()}>Download as PDF</Button>
-                </div>
-              </div>
+              <CertificatePreview
+                key={certificate.id}
+                certificate={certificate}
+                verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
+                watermark
+                showDownload
+              />
             ))}
             {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => item.recipient_name === resolvedSelectedTeam || item.recipient_id === resolvedSelectedTeam)).length === 0 && (
               <p className="text-sm text-muted-foreground">No certified team certificates yet.</p>
