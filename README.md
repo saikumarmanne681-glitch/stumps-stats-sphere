@@ -77,6 +77,7 @@ Auth constraints and guardrails:
   3. Re-authorize Apps Script scopes (Sheets + Mail) for the deployment owner account.
   4. Confirm required sheet tabs/headers exist (v1 + v2 entities).
   5. Inspect browser Network response bodies and Apps Script execution logs.
+  6. Run `?action=cleanupSchema&dryRun=true` first to audit extra tabs/columns, then `dryRun=false` to safely prune only empty unknown tabs and trailing empty columns.
 
 ### Common local setup failures
 - **`npm install` fails:** remove `node_modules` and lockfile mismatch artifacts, then reinstall with a single package manager.

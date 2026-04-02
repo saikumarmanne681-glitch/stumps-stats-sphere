@@ -209,6 +209,68 @@ function ensureAllTabsAndHeaders(ss) {
   return report;
 }
 
+function cleanupSheetColumns(sheet, expectedHeaders) {
+  const maxColumns = sheet.getMaxColumns();
+  const expectedCount = expectedHeaders.length;
+  if (maxColumns <= expectedCount) return { deleted: 0 };
+
+  const extraColumns = maxColumns - expectedCount;
+  const trailingValues = sheet.getRange(1, expectedCount + 1, sheet.getMaxRows(), extraColumns).getValues();
+  const hasDataInExtras = trailingValues.some((row) => row.some((value) => String(value || "").trim() !== ""));
+  if (hasDataInExtras) return { deleted: 0, skipped: "extra_columns_contain_data" };
+
+  sheet.deleteColumns(expectedCount + 1, extraColumns);
+  return { deleted: extraColumns };
+}
+
+function cleanupSpreadsheetStructure(ss, options) {
+  const settings = options || {};
+  const dryRun = settings.dryRun !== false;
+  const removeUnknownSheets = settings.removeUnknownSheets !== false;
+  const trimTrailingColumns = settings.trimTrailingColumns !== false;
+  const report = {
+    dry_run: dryRun,
+    unknown_sheets_removed: [],
+    unknown_sheets_skipped: [],
+    trailing_columns_trimmed: {},
+  };
+
+  if (removeUnknownSheets) {
+    const knownTabs = Object.keys(TABS);
+    const knownSet = {};
+    knownTabs.forEach((tab) => {
+      knownSet[tab] = true;
+    });
+
+    ss.getSheets().forEach((sheet) => {
+      const name = sheet.getName();
+      if (knownSet[name]) return;
+
+      const hasRows = sheet.getLastRow() > 1;
+      const hasCols = sheet.getLastColumn() > 1;
+      const hasContent = hasRows || hasCols;
+      if (hasContent) {
+        report.unknown_sheets_skipped.push(name);
+        return;
+      }
+
+      report.unknown_sheets_removed.push(name);
+      if (!dryRun) ss.deleteSheet(sheet);
+    });
+  }
+
+  if (trimTrailingColumns) {
+    Object.keys(TABS).forEach((tabName) => {
+      const sheet = getOrCreateSheet(ss, tabName);
+      ensureSheetSchema(sheet, TABS[tabName]);
+      const result = cleanupSheetColumns(sheet, TABS[tabName]);
+      report.trailing_columns_trimmed[tabName] = result;
+    });
+  }
+
+  return report;
+}
+
 function toSafeNumber(value, fallback) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -316,6 +378,16 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Headers synced", report })).setMimeType(
       ContentService.MimeType.JSON,
     );
+  }
+
+  if (action === "cleanupSchema") {
+    const dryRun = String(e.parameter.dryRun || "true").toLowerCase() !== "false";
+    const report = cleanupSpreadsheetStructure(ss, { dryRun });
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      message: dryRun ? "Cleanup dry-run completed" : "Cleanup completed",
+      report,
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 
   if (action === "canvaAuthStart") {
@@ -520,6 +592,24 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Headers synced", report })).setMimeType(
         ContentService.MimeType.JSON,
       );
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    }
+  }
+
+  if (action === "cleanupSchema") {
+    try {
+      const dryRun = !(data && data.dryRun === false);
+      const removeUnknownSheets = !(data && data.removeUnknownSheets === false);
+      const trimTrailingColumns = !(data && data.trimTrailingColumns === false);
+      const report = cleanupSpreadsheetStructure(ss, { dryRun, removeUnknownSheets, trimTrailingColumns });
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: dryRun ? "Cleanup dry-run completed" : "Cleanup completed",
+        report,
+      })).setMimeType(ContentService.MimeType.JSON);
     } catch (err) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message })).setMimeType(
         ContentService.MimeType.JSON,
