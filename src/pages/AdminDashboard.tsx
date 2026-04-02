@@ -23,7 +23,6 @@ import { AdminApprovalsRealtime } from '@/components/admin/AdminApprovalsRealtim
 import { v2api } from '@/lib/v2api';
 import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { CertificateBuilder } from '@/components/certificates/CertificateBuilder';
-import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -163,7 +162,6 @@ const AdminDashboard = () => {
           <TabsContent value="certificates">
             <div className="space-y-6">
               <CertificateBuilder />
-              <ApprovalPanel mode="admin" />
             </div>
           </TabsContent>
         </Tabs>

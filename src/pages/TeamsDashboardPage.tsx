@@ -71,7 +71,13 @@ export default function TeamsDashboardPage() {
       setProfiles(profileRows);
       setBoardConfig(boardRows[0] || null);
       setBoardMembers(mgmtRows.filter((member) => String(member.status || '').trim().toLowerCase() !== 'inactive'));
-      setCertificates(certificateRows.filter((item) => item.status === 'CERTIFIED' && item.recipient_type === 'team'));
+      setCertificates(certificateRows.filter((item) => (
+        item.status === 'CERTIFIED'
+        && (
+          item.recipient_type === 'team'
+          || !!String(item.linked_team_name || '').trim()
+        )
+      )));
       setLoading(false);
     };
     load();
@@ -510,7 +516,11 @@ export default function TeamsDashboardPage() {
           </TabsContent>
 
           <TabsContent value="certificates" className="space-y-4">
-            {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => item.recipient_name === resolvedSelectedTeam || item.recipient_id === resolvedSelectedTeam)).map((certificate) => (
+            {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => (
+              item.recipient_name === resolvedSelectedTeam
+              || item.recipient_id === resolvedSelectedTeam
+              || item.linked_team_name === resolvedSelectedTeam
+            ))).map((certificate) => (
               <CertificatePreview
                 key={certificate.id}
                 certificate={certificate}
@@ -519,7 +529,11 @@ export default function TeamsDashboardPage() {
                 showDownload
               />
             ))}
-            {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => item.recipient_name === resolvedSelectedTeam || item.recipient_id === resolvedSelectedTeam)).length === 0 && (
+            {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => (
+              item.recipient_name === resolvedSelectedTeam
+              || item.recipient_id === resolvedSelectedTeam
+              || item.linked_team_name === resolvedSelectedTeam
+            ))).length === 0 && (
               <p className="text-sm text-muted-foreground">No certified team certificates yet.</p>
             )}
           </TabsContent>
