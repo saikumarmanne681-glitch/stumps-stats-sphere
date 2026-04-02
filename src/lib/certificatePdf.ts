@@ -97,7 +97,7 @@ function buildCertificatePdf(item: CertificateRecord) {
   const tournamentName = String(metadata.tournament || item.tournament_id || 'Tournament');
   const seasonYear = String(metadata.seasonYear || item.season_id || 'N/A');
   const awardCategory = String(metadata.awardCategory || item.title || 'Award');
-  const status = String(item.approval_status || 'pending').replaceAll('_', ' ').toUpperCase();
+  const status = String(item.approval_status || 'pending').split('_').join(' ').toUpperCase();
   const isApproved = item.approval_status === 'approved';
 
   const awardLabel = item.certificate_type === 'winner_team'
