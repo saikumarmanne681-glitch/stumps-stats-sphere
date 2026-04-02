@@ -412,9 +412,35 @@ export function AdminCertificates() {
             </div>
           </div>
           {activeDesign && <p className="text-xs text-muted-foreground">Active design: {activeDesign.file_name} ({activeDesign.uploaded_at})</p>}
-          <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-            Placeholders supported in your design flow: <code>{"{{recipient_name}}"}</code>, <code>{"{{title}}"}</code>, <code>{"{{season}}"}</code>, <code>{"{{verification_url}}"}</code>.
-            Real-time values, QR, and verify URL are injected in preview/PDF/dashboard.
+
+          {/* ═══ PLACEHOLDER REFERENCE ═══ */}
+          <div className="rounded-xl border border-primary/20 bg-gradient-to-r from-muted/40 to-card p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Info className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">SVG Template Placeholders</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Use these exact placeholders in your Canva SVG design. They will be automatically replaced with real values when generating certificates.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {CERT_PLACEHOLDERS.map((ph) => (
+                <button
+                  key={ph.token}
+                  type="button"
+                  className="group flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                  onClick={() => { navigator.clipboard.writeText(ph.token); toast({ title: 'Copied!', description: `${ph.token} copied to clipboard` }); }}
+                >
+                  <Copy className="h-3 w-3 text-muted-foreground group-hover:text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <code className="text-[10px] font-bold text-primary block truncate">{ph.token}</code>
+                    <span className="text-[9px] text-muted-foreground block truncate">{ph.label}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2 italic">
+              💡 System placeholders (QR, hash, token, URL, date, status) are auto-filled. Click any placeholder to copy it.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {suggestedRecipients.slice(0, 4).map((name) => <Button key={name} variant="outline" size="sm" onClick={() => setRecipient(name)}>{name}</Button>)}
