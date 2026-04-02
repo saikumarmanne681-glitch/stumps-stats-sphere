@@ -10,10 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { generateId } from '@/lib/utils';
-import { CERTIFICATE_TYPES, CertificateRecord, CertificateTemplateRecord, APPROVER_ROLES, approverLabel } from '@/lib/certificates';
+import { CERTIFICATE_TYPES, CertificateRecord, CertificateTemplateRecord } from '@/lib/certificates';
 import { CertificatePreview } from './CertificatePreview';
-import { sendSystemEmail, getAdminNotificationRecipient } from '@/lib/mailer';
-import { ManagementUser } from '@/lib/v2types';
 
 const FALLBACK_TEMPLATES: CertificateTemplateRecord[] = [
   { template_id: 'TPL_CLASSIC_GOLD', type: 'all', template_name: 'Classic Gold', image_url: '', design_config: '' },
@@ -25,21 +23,22 @@ export function CertificateBuilder() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [templates, setTemplates] = useState<CertificateTemplateRecord[]>([]);
-  const [management, setManagement] = useState<ManagementUser[]>([]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Partial<CertificateRecord>>({
     type: CERTIFICATE_TYPES[0],
     recipient_type: 'player',
     template_id: 'TPL_CLASSIC_GOLD',
-    status: 'DRAFT',
+    status: 'CERTIFIED',
     match_id: '',
+    recipient_name: '',
+    linked_player_id: '',
+    linked_team_name: '',
     details_json: '',
     performance_json: '',
   });
 
   useEffect(() => {
     v2api.getCertificateTemplates().then((rows) => setTemplates(rows.length ? rows : FALLBACK_TEMPLATES));
-    v2api.getManagementUsers().then((rows) => setManagement(rows));
   }, []);
 
   const filteredTemplates = useMemo(() => {
@@ -47,17 +46,14 @@ export function CertificateBuilder() {
     return all.filter((template) => template.type === 'all' || template.type === form.type);
   }, [form.type, templates]);
 
-  const recipients = useMemo(() => {
-    if (form.recipient_type === 'team') {
-      const names = new Set<string>();
-      matches.forEach((match) => {
-        if (match.team_a?.trim()) names.add(match.team_a.trim());
-        if (match.team_b?.trim()) names.add(match.team_b.trim());
-      });
-      return [...names].map((name) => ({ id: name, name }));
-    }
-    return players.map((player) => ({ id: player.player_id, name: player.name }));
-  }, [form.recipient_type, matches, players]);
+  const teamOptions = useMemo(() => {
+    const names = new Set<string>();
+    matches.forEach((match) => {
+      if (match.team_a?.trim()) names.add(match.team_a.trim());
+      if (match.team_b?.trim()) names.add(match.team_b.trim());
+    });
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [matches]);
 
   const selectedTemplate = filteredTemplates.find((item) => item.template_id === form.template_id) || filteredTemplates[0];
   const verificationUrl = `${window.location.origin}/verify?certificate_id=${encodeURIComponent(form.id || 'preview')}`;
@@ -66,31 +62,39 @@ export function CertificateBuilder() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const createCertificate = async (sendForApproval = false) => {
-    if (!form.tournament || !form.season || !form.recipient_id || !form.recipient_name || !form.type) {
-      toast({ title: 'Missing fields', description: 'Please fill tournament, season, recipient, and type.', variant: 'destructive' });
+  const createCertificate = async () => {
+    if (!form.tournament || !form.season || !form.recipient_name || !form.type) {
+      toast({ title: 'Missing fields', description: 'Please fill tournament, season, recipient name, and type.', variant: 'destructive' });
       return;
     }
+
     const now = new Date().toISOString();
     const id = form.id || generateId('CERT');
+    const linkedPlayerId = String(form.linked_player_id || '').trim();
+    const linkedTeamName = String(form.linked_team_name || '').trim();
+    const recipientType: CertificateRecord['recipient_type'] = linkedTeamName && !linkedPlayerId ? 'team' : 'player';
+    const recipientId = linkedPlayerId || linkedTeamName || '';
+
     const payload: CertificateRecord = {
       id,
       type: form.type,
       tournament: form.tournament,
       season: form.season,
       match_id: form.match_id || '',
-      recipient_type: form.recipient_type || 'player',
-      recipient_id: form.recipient_id,
+      recipient_type: recipientType,
+      recipient_id: recipientId,
       recipient_name: form.recipient_name,
+      linked_player_id: linkedPlayerId,
+      linked_team_name: linkedTeamName,
       template_id: form.template_id || selectedTemplate?.template_id || FALLBACK_TEMPLATES[0].template_id,
-      status: sendForApproval ? 'PENDING_APPROVAL' : 'DRAFT',
+      status: 'CERTIFIED',
       created_by: user?.username || 'admin',
       created_at: now,
       details_json: form.details_json || '',
       performance_json: form.performance_json || '',
       verification_code: generateId('VERIFY'),
-      certified_at: '',
-      certified_by: '',
+      certified_at: now,
+      certified_by: user?.username || 'admin',
     };
 
     setSaving(true);
@@ -100,38 +104,8 @@ export function CertificateBuilder() {
       const ok = found ? await v2api.updateCertificate(payload) : await v2api.addCertificate(payload);
       if (!ok) throw new Error('Could not save certificate');
 
-      if (sendForApproval) {
-        await Promise.all(APPROVER_ROLES.map(async (role) => {
-          const approvalPayload = {
-            certificate_id: id,
-            role,
-            status: 'pending' as const,
-            approved_by: '',
-            approved_at: '',
-            remarks: '',
-          };
-          const updated = await v2api.updateCertificateApproval(approvalPayload);
-          if (!updated) await v2api.addCertificateApproval(approvalPayload);
-        }));
-
-        const pendingApprovers = management.filter((member) => APPROVER_ROLES.some((role) => {
-          const value = `${String(member.designation || '')} ${String(member.role || '')}`.toLowerCase();
-          return role === 'tournament_director'
-            ? value.includes('tournament director') || value.includes('tournament_director') || value.includes('tournamentdirector')
-            : value.includes(role);
-        }));
-        await Promise.all(pendingApprovers
-          .filter((member) => member.email)
-          .map((member) => sendSystemEmail({
-            to: member.email,
-            subject: `Certificate approval required: ${id}`,
-            htmlBody: `<p>Certificate <strong>${id}</strong> is waiting for your approval as ${member.designation}.</p>`,
-            diagnostics: { triggerSource: 'certificate_approval_request', triggerEntityType: 'certificate', triggerEntityId: id, triggeredBy: user?.username || 'admin' },
-          })));
-      }
-
-      logAudit(user?.username || 'admin', sendForApproval ? 'certificate_sent_for_approval' : 'certificate_saved_draft', 'certificate', id, JSON.stringify(payload));
-      toast({ title: sendForApproval ? 'Sent for approval' : 'Saved', description: `Certificate ${id} ${sendForApproval ? 'queued for approval' : 'saved as draft'}.` });
+      logAudit(user?.username || 'admin', 'certificate_certified', 'certificate', id, JSON.stringify(payload));
+      toast({ title: 'Certificate saved', description: `Certificate ${id} is certified and ready for download.` });
       setForm((prev) => ({ ...prev, id, status: payload.status }));
     } catch (error) {
       toast({ title: 'Save failed', description: error instanceof Error ? error.message : 'Unexpected error', variant: 'destructive' });
@@ -190,44 +164,60 @@ export function CertificateBuilder() {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <Label>Recipient type</Label>
-              <Select value={form.recipient_type || 'player'} onValueChange={(value) => setForm((prev) => ({ ...prev, recipient_type: value as 'player' | 'team', recipient_id: '', recipient_name: '' }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="player">Player</SelectItem>
-                  <SelectItem value="team">Team</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Template</Label>
-              <Select value={form.template_id || selectedTemplate?.template_id} onValueChange={(value) => updateField('template_id', value)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {filteredTemplates.map((template) => <SelectItem key={template.template_id} value={template.template_id}>{template.template_name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
           <div>
-            <Label>Recipient</Label>
-            <Select value={form.recipient_id || ''} onValueChange={(value) => {
-              const found = recipients.find((item) => item.id === value);
-              setForm((prev) => ({ ...prev, recipient_id: value, recipient_name: found?.name || prev.recipient_name }));
-            }}>
-              <SelectTrigger><SelectValue placeholder="Select recipient" /></SelectTrigger>
+            <Label>Template</Label>
+            <Select value={form.template_id || selectedTemplate?.template_id} onValueChange={(value) => updateField('template_id', value)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {recipients.map((recipient) => <SelectItem key={recipient.id} value={recipient.id}>{recipient.name}</SelectItem>)}
+                {filteredTemplates.map((template) => <SelectItem key={template.template_id} value={template.template_id}>{template.template_name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <Label>Link player (optional)</Label>
+              <Select value={form.linked_player_id || 'none'} onValueChange={(value) => {
+                const linkedPlayerId = value === 'none' ? '' : value;
+                const linkedPlayer = players.find((item) => item.player_id === linkedPlayerId);
+                setForm((prev) => ({
+                  ...prev,
+                  linked_player_id: linkedPlayerId,
+                  recipient_id: linkedPlayerId || prev.linked_team_name || '',
+                  recipient_type: prev.linked_team_name && !linkedPlayerId ? 'team' : 'player',
+                  recipient_name: prev.recipient_name || linkedPlayer?.name || '',
+                }));
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select player" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not linked</SelectItem>
+                  {players.map((player) => <SelectItem key={player.player_id} value={player.player_id}>{player.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Link team (optional)</Label>
+              <Select value={form.linked_team_name || 'none'} onValueChange={(value) => {
+                const linkedTeamName = value === 'none' ? '' : value;
+                setForm((prev) => ({
+                  ...prev,
+                  linked_team_name: linkedTeamName,
+                  recipient_id: prev.linked_player_id || linkedTeamName || '',
+                  recipient_type: linkedTeamName && !prev.linked_player_id ? 'team' : 'player',
+                }));
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not linked</SelectItem>
+                  {teamOptions.map((team) => <SelectItem key={team} value={team}>{team}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div>
             <Label>Recipient display name</Label>
-            <Input value={form.recipient_name || ''} onChange={(event) => updateField('recipient_name', event.target.value)} />
+            <Input value={form.recipient_name || ''} onChange={(event) => updateField('recipient_name', event.target.value)} placeholder="Displayed on certificate" />
           </div>
 
           <div>
@@ -241,11 +231,9 @@ export function CertificateBuilder() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button disabled={saving} variant="outline" onClick={() => createCertificate(false)}>Save Draft</Button>
-            <Button disabled={saving} onClick={() => createCertificate(true)}>Send for Approval</Button>
+            <Button disabled={saving} onClick={() => createCertificate()}>Save & Certify</Button>
           </div>
-          <p className="text-xs text-muted-foreground">Required approvers: {APPROVER_ROLES.map((role) => approverLabel(role)).join(', ')}.</p>
-          {getAdminNotificationRecipient() && <p className="text-xs text-muted-foreground">Admin mailbox notifications are enabled.</p>}
+          <p className="text-xs text-muted-foreground">No approval workflow: certificates are certified immediately by admin and available for preview/download.</p>
         </CardContent>
       </Card>
 
@@ -256,6 +244,7 @@ export function CertificateBuilder() {
           template={selectedTemplate}
           verificationUrl={verificationUrl}
           watermark={form.status === 'CERTIFIED'}
+          showDownload
         />
       </div>
     </div>

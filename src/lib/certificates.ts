@@ -23,6 +23,8 @@ export interface CertificateRecord {
   recipient_type: 'player' | 'team';
   recipient_id: string;
   recipient_name: string;
+  linked_player_id?: string;
+  linked_team_name?: string;
   template_id: string;
   status: CertificateStatus;
   created_by: string;

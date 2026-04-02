@@ -69,7 +69,14 @@ const PlayerDashboard = () => {
 
   useEffect(() => {
     v2api.getCertificates().then((rows) => {
-      setCertificates(rows.filter((item) => item.status === 'CERTIFIED' && item.recipient_type === 'player' && item.recipient_id === user?.player_id));
+      setCertificates(rows.filter((item) => (
+        item.status === 'CERTIFIED'
+        && !!user?.player_id
+        && (
+          (item.recipient_type === 'player' && item.recipient_id === user.player_id)
+          || item.linked_player_id === user.player_id
+        )
+      )));
     });
   }, [user?.player_id]);
 
