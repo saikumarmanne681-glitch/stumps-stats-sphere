@@ -11,18 +11,21 @@ import { istNow, logAudit, v2api } from '@/lib/v2api';
 import { generateId } from '@/lib/utils';
 
 import { useToast } from '@/hooks/use-toast';
-import { ShieldCheck, Trophy, Medal, Award, Download, Eye, FileText, PaintBucket, Upload } from 'lucide-react';
+import { ShieldCheck, Trophy, Medal, Award, Download, Eye, FileText, PaintBucket, Upload, Copy, Info } from 'lucide-react';
 import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 import { resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { sendSystemEmail } from '@/lib/mailer';
 import { buildCertificateTamperEvidentPayload, createVerificationToken, buildCertificateVerificationUrl, createCertificateDigest, withResolvedCertificateSecurity } from '@/lib/certificateSecurity';
 import CertificateArtboard from '@/components/CertificateArtboard';
+import { CERT_PLACEHOLDERS, renderCertificateSvg, svgToDataUrl, dataUrlToSvg } from '@/lib/certificateTemplate';
+import { formatInIST } from '@/lib/time';
 
 type CertType = CertificateRecord['certificate_type'];
 type CertTemplate = CertificateRecord['certificate_template'];
 type ApprovalMap = Record<'Treasurer' | 'Scoring Official' | 'Match Referee', boolean>;
 
 const LOCAL_TEMPLATE_KEY = 'certificate-design-template-v1';
+const SVG_MIME = 'image/svg+xml';
 
 type SignatureEntry = {
   role: keyof ApprovalMap;
@@ -32,40 +35,12 @@ type SignatureEntry = {
 };
 
 const defaultApprovals = (): ApprovalMap => ({ Treasurer: false, 'Scoring Official': false, 'Match Referee': false });
-const SVG_MIME = 'image/svg+xml';
-
-function toDataUrlSvg(svgContent: string) {
-  return `data:${SVG_MIME};base64,${btoa(unescape(encodeURIComponent(svgContent)))}`;
-}
-
-function decodeDataUrlSvg(dataUrl: string) {
-  const payload = dataUrl.split(',', 2)[1] || '';
-  const isBase64 = /;base64,/i.test(dataUrl);
-  if (isBase64) {
-    return decodeURIComponent(escape(atob(payload)));
-  }
-  return decodeURIComponent(payload);
-}
 
 function injectTemplatePlaceholders(imageDataUrl: string, values: Record<string, string>) {
   if (!String(imageDataUrl || '').startsWith(`data:${SVG_MIME}`)) return imageDataUrl;
-  const replacements: Record<string, string> = {
-    '{{recipient_name}}': values.recipient_name || '',
-    '{{title}}': values.title || '',
-    '{{season}}': values.season || '',
-    '{{verification_url}}': values.verification_url || '',
-    RECIPIENT_NAME: values.recipient_name || '',
-    RECIPENT_NAME: values.recipient_name || '',
-    CERTIFICATE_TYPE: values.title || '',
-    tournament_id: values.tournament_id || '',
-    'Match Id': values.match_id || '',
-    verify: values.verification_url || '',
-  };
-  let svg = decodeDataUrlSvg(imageDataUrl);
-  Object.entries(replacements).forEach(([token, value]) => {
-    svg = svg.split(token).join(value);
-  });
-  return toDataUrlSvg(svg);
+  const rawSvg = dataUrlToSvg(imageDataUrl);
+  const rendered = renderCertificateSvg(rawSvg, values);
+  return svgToDataUrl(rendered);
 }
 
 function parseApprovalMap(raw: string | undefined): ApprovalMap {
