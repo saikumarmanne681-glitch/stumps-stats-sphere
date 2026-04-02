@@ -101,3 +101,20 @@ export function getApproversByRole(users: ManagementUser[]) {
     return acc;
   }, { treasurer: [], referee: [], tournament_director: [] });
 }
+
+export function normalizeCertificateId(value?: string | null): string {
+  return String(value || '').trim().toUpperCase();
+}
+
+export function isCertificateCertified(certificate?: Partial<CertificateRecord> | null): boolean {
+  return String(certificate?.status || '').trim().toUpperCase() === 'CERTIFIED';
+}
+
+export function isCertificateAuthentic(certificate?: Partial<CertificateRecord> | null): boolean {
+  if (!certificate) return false;
+  const certified = isCertificateCertified(certificate);
+  const hasCertifiedAt = Boolean(String(certificate.certified_at || '').trim());
+  const hasCertifiedBy = Boolean(String(certificate.certified_by || '').trim());
+  const hasVerificationCode = Boolean(String(certificate.verification_code || '').trim());
+  return certified && hasCertifiedAt && hasCertifiedBy && hasVerificationCode;
+}
