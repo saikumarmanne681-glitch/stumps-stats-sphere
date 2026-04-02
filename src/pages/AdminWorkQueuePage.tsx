@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/lib/auth';
 import { v2api } from '@/lib/v2api';
-import { DigitalScorelist, ManagementUser, SupportTicket } from '@/lib/v2types';
+import { CertificateApprovalRecord, CertificateRecord, DigitalScorelist, ManagementUser, SupportTicket } from '@/lib/v2types';
 import { scheduleService } from '@/schedules/scheduleService';
 import { ScheduleApprovalRecord, ScheduleRecord } from '@/schedules/types';
 import { getScorelistRoadmap, getScheduleApprovalRoadmap, readScorelistCertifications } from '@/lib/workflowStatus';
@@ -15,7 +15,7 @@ import { AlertTriangle, CalendarDays, Loader2, UserX } from 'lucide-react';
 
 interface WorkQueueTask {
   id: string;
-  source: 'support' | 'scorelist' | 'governance';
+  source: 'support' | 'scorelist' | 'governance' | 'certificate';
   label: string;
   title: string;
   assigneeId: string;
@@ -54,19 +54,25 @@ export default function AdminWorkQueuePage() {
   const [scorelists, setScorelists] = useState<DigitalScorelist[]>([]);
   const [schedules, setSchedules] = useState<ScheduleRecord[]>([]);
   const [scheduleApprovals, setScheduleApprovals] = useState<ScheduleApprovalRecord[]>([]);
+  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
+  const [certificateApprovals, setCertificateApprovals] = useState<CertificateApprovalRecord[]>([]);
 
   useEffect(() => {
     const run = async () => {
       setLoading(true);
       await scheduleService.syncFromBackend();
-      const [ticketsData, scorelistsData, managementData] = await Promise.all([
+      const [ticketsData, scorelistsData, managementData, certificateData, certificateApprovalData] = await Promise.all([
         v2api.getTickets(),
         v2api.getScorelists(),
         v2api.getManagementUsers(),
+        v2api.getCertificates(),
+        v2api.getCertificateApprovals(),
       ]);
       setSupportTickets(ticketsData);
       setScorelists(scorelistsData);
       setManagementUsers(managementData.filter((item) => String(item.status || '').toLowerCase() !== 'inactive'));
+      setCertificates(certificateData);
+      setCertificateApprovals(certificateApprovalData);
       setSchedules(scheduleService.getSchedules());
       setScheduleApprovals(scheduleService.getApprovals());
       setLoading(false);
@@ -83,6 +89,14 @@ export default function AdminWorkQueuePage() {
 
   const tasks = useMemo(() => {
     const list: WorkQueueTask[] = [];
+    const resolveMemberForCertificateRole = (role: string) => {
+      const normalizedRole = role.toLowerCase();
+      return managementUsers.find((item) => {
+        const designation = String(item.designation || '').toLowerCase();
+        if (normalizedRole === 'tournament_director') return designation.includes('tournament director');
+        return designation.includes(normalizedRole);
+      });
+    };
 
     supportTickets
       .filter((ticket) => ['open', 'in_progress', 'waiting_for_user'].includes(ticket.status))
@@ -142,8 +156,31 @@ export default function AdminWorkQueuePage() {
         });
       });
 
+    certificates
+      .filter((certificate) => ['PENDING_APPROVAL', 'APPROVED'].includes(certificate.status))
+      .forEach((certificate) => {
+        const certificateRows = certificateApprovals.filter((item) => item.certificate_id === certificate.id);
+        (['treasurer', 'referee', 'tournament_director'] as const).forEach((role) => {
+          const roleRow = certificateRows.find((item) => item.role === role);
+          if (roleRow?.status === 'approved') return;
+          const assignee = resolveMemberForCertificateRole(role);
+          list.push({
+            id: `${certificate.id}:${role}`,
+            source: 'certificate',
+            label: 'Certificate Approval',
+            title: `${certificate.id} • ${certificate.recipient_name}`,
+            assigneeId: assignee?.management_id || '',
+            assigneeLabel: assignee ? `${assignee.name} • ${assignee.designation}` : `Pending with ${role.replaceAll('_', ' ')}`,
+            dueAt: new Date(new Date(certificate.created_at || Date.now()).getTime() + 24 * 3600 * 1000).toISOString(),
+            priority: 'high',
+            escalationState: 'normal',
+            status: `Awaiting ${role.replaceAll('_', ' ')}`,
+          });
+        });
+      });
+
     return list.sort((a, b) => (parseTimestamp(a.dueAt)?.getTime() || Number.MAX_SAFE_INTEGER) - (parseTimestamp(b.dueAt)?.getTime() || Number.MAX_SAFE_INTEGER));
-  }, [supportTickets, scorelists, schedules, scheduleApprovals, managementUsers]);
+  }, [supportTickets, scorelists, schedules, scheduleApprovals, managementUsers, certificates, certificateApprovals]);
 
   const myTasksToday = useMemo(() => {
     const actorId = user?.management_id || user?.username || '';

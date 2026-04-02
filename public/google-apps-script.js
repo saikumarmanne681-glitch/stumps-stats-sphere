@@ -665,7 +665,7 @@ function doPost(e) {
       };
       upsertByKey(jobsSheet, "job_id", jobPayload, TABS.CANVA_CERTIFICATE_JOBS);
 
-      const certRowIdx = findRowIndex(certificatesSheet, "certificate_id", certificateId);
+      const certRowIdx = findRowIndex(certificatesSheet, "id", certificateId);
       if (certRowIdx !== -1) {
         const headers = certificatesSheet.getRange(1, 1, 1, certificatesSheet.getLastColumn()).getValues()[0];
         const row = certificatesSheet.getRange(certRowIdx, 1, 1, headers.length).getValues()[0];
@@ -733,7 +733,7 @@ function doPost(e) {
       jobsSheet.getRange(jobRowIdx, 1, 1, TABS.CANVA_CERTIFICATE_JOBS.length).setValues([nextJob]);
 
       const certId = String(updatedJob.certificate_id || "");
-      const certRowIdx = certId ? findRowIndex(certificatesSheet, "certificate_id", certId) : -1;
+      const certRowIdx = certId ? findRowIndex(certificatesSheet, "id", certId) : -1;
       if (certRowIdx !== -1) {
         const headers = certificatesSheet.getRange(1, 1, 1, certificatesSheet.getLastColumn()).getValues()[0];
         const row = certificatesSheet.getRange(certRowIdx, 1, 1, headers.length).getValues()[0];
@@ -927,6 +927,45 @@ function doPost(e) {
       if (dateOnly) return trimmed;
     }
     return value;
+  }
+
+  if (tabName === "CERTIFICATE_APPROVALS") {
+    const certificateId = String((data && data.certificate_id) || "");
+    const role = String((data && data.role) || "");
+    if (!certificateId || !role) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing certificate_id/role" })).setMimeType(
+        ContentService.MimeType.JSON,
+      );
+    }
+
+    const rows = sheet.getDataRange().getValues();
+    const sheetHeaders = rows[0] || headers;
+    const certificateIdx = sheetHeaders.indexOf("certificate_id");
+    const roleIdx = sheetHeaders.indexOf("role");
+    const rowIdx = rows.findIndex((row, index) => {
+      if (index === 0) return false;
+      return String(row[certificateIdx] || "") === certificateId && String(row[roleIdx] || "") === role;
+    });
+    const next = headers.map((h) => normalizeSheetValue(h, data[h]));
+
+    if (action === "add" || action === "update") {
+      if (rowIdx !== -1) {
+        sheet.getRange(rowIdx + 1, 1, 1, headers.length).setValues([next]);
+        return ContentService.createTextOutput(JSON.stringify({ success: true, mode: "overwrite" })).setMimeType(ContentService.MimeType.JSON);
+      }
+      sheet.appendRow(next);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, mode: "insert" })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "delete") {
+      if (rowIdx === -1) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" })).setMimeType(
+          ContentService.MimeType.JSON,
+        );
+      }
+      sheet.deleteRow(rowIdx + 1);
+      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+    }
   }
 
   if (action === "add") {
