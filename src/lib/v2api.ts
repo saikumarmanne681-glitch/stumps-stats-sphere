@@ -1,6 +1,7 @@
 import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, TeamProfile, TeamTitleRecord, TeamAccessUser, CertificateRecord, CertificateApprovalRecord, CertificateTemplateRecord } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
+import { normalizeCertificateRecord } from './certificates';
 
 async function fetchV2Sheet<T>(sheet: string): Promise<T[]> {
   const url = getAppsScriptUrl();
@@ -167,7 +168,10 @@ export const v2api = {
   deleteTeamAccessUser: (teamAccessId: string) => writeV2Sheet('TEAM_ACCESS_USERS', 'delete', { team_access_id: teamAccessId }),
 
   // Certificates
-  getCertificates: () => fetchV2Sheet<CertificateRecord>('CERTIFICATES'),
+  getCertificates: async () => {
+    const rows = await fetchV2Sheet<CertificateRecord>('CERTIFICATES');
+    return rows.map((row) => normalizeCertificateRecord(row));
+  },
   addCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'add', certificate),
   updateCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'update', certificate),
   deleteCertificate: (id: string) => writeV2Sheet('CERTIFICATES', 'delete', { id }),

@@ -14,7 +14,7 @@ import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api } from '@/lib/v2api';
 import { BoardConfiguration, ManagementUser, SupportTicket, TeamProfile } from '@/lib/v2types';
-import { CertificateRecord } from '@/lib/certificates';
+import { CertificateRecord, certificateMatchesTeam, isCertificateCertified } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 import { Announcement } from '@/lib/types';
 import { compareTimestampsDesc, formatInIST } from '@/lib/time';
@@ -72,7 +72,7 @@ export default function TeamsDashboardPage() {
       setBoardConfig(boardRows[0] || null);
       setBoardMembers(mgmtRows.filter((member) => String(member.status || '').trim().toLowerCase() !== 'inactive'));
       setCertificates(certificateRows.filter((item) => (
-        item.status === 'CERTIFIED'
+        isCertificateCertified(item)
         && (
           item.recipient_type === 'team'
           || !!String(item.linked_team_name || '').trim()
@@ -128,6 +128,11 @@ export default function TeamsDashboardPage() {
 
   const enforcedTeam = isTeam ? (user?.team_name || user?.name || '') : '';
   const resolvedSelectedTeam = isTeam ? enforcedTeam : selectedTeam;
+  const visibleCertificates = useMemo(() => (
+    resolvedSelectedTeam === 'all'
+      ? certificates
+      : certificates.filter((item) => certificateMatchesTeam(item, resolvedSelectedTeam))
+  ), [certificates, resolvedSelectedTeam]);
 
   const visibleTeams = resolvedSelectedTeam === 'all' ? teamSummaries : teamSummaries.filter((entry) => entry.name === resolvedSelectedTeam);
   const visibleTickets = resolvedSelectedTeam === 'all'
@@ -516,11 +521,7 @@ export default function TeamsDashboardPage() {
           </TabsContent>
 
           <TabsContent value="certificates" className="space-y-4">
-            {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => (
-              item.recipient_name === resolvedSelectedTeam
-              || item.recipient_id === resolvedSelectedTeam
-              || item.linked_team_name === resolvedSelectedTeam
-            ))).map((certificate) => (
+            {visibleCertificates.map((certificate) => (
               <CertificatePreview
                 key={certificate.id}
                 certificate={certificate}
@@ -529,11 +530,7 @@ export default function TeamsDashboardPage() {
                 showDownload
               />
             ))}
-            {(resolvedSelectedTeam === 'all' ? certificates : certificates.filter((item) => (
-              item.recipient_name === resolvedSelectedTeam
-              || item.recipient_id === resolvedSelectedTeam
-              || item.linked_team_name === resolvedSelectedTeam
-            ))).length === 0 && (
+            {visibleCertificates.length === 0 && (
               <p className="text-sm text-muted-foreground">No certified team certificates yet.</p>
             )}
           </TabsContent>
