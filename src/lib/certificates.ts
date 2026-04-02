@@ -63,12 +63,16 @@ export function emptyApprovalStatus(): ApprovalStatusByRole {
   return { treasurer: 'pending', referee: 'pending', tournament_director: 'pending' };
 }
 
-export function mapDesignationToApproverRole(designation?: string): ApproverRole | null {
-  const value = String(designation || '').trim().toLowerCase();
+export function mapDesignationToApproverRole(designation?: string, role?: string): ApproverRole | null {
+  const value = `${String(designation || '')} ${String(role || '')}`.trim().toLowerCase();
   if (!value) return null;
   if (value.includes('treasurer')) return 'treasurer';
   if (value.includes('referee')) return 'referee';
-  if (value.includes('tournament director') || value.includes('tournament_director')) return 'tournament_director';
+  if (
+    value.includes('tournament director')
+    || value.includes('tournament_director')
+    || value.includes('tournamentdirector')
+  ) return 'tournament_director';
   return null;
 }
 
@@ -91,7 +95,7 @@ export function approverLabel(role: ApproverRole) {
 
 export function getApproversByRole(users: ManagementUser[]) {
   return users.reduce<Record<ApproverRole, ManagementUser[]>>((acc, user) => {
-    const role = mapDesignationToApproverRole(user.designation);
+    const role = mapDesignationToApproverRole(user.designation, user.role);
     if (!role) return acc;
     acc[role].push(user);
     return acc;

@@ -29,6 +29,7 @@ import { ScheduleRecord } from '@/schedules/types';
 import { formatInIST } from '@/lib/time';
 import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
 import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember } from '@/lib/boardDepartments';
+import { mapDesignationToApproverRole } from '@/lib/certificates';
 
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 const stageLabels: Record<string, string> = scorelistStageLabels;
@@ -76,6 +77,7 @@ const ManagementPage = () => {
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
   const [boardSearch, setBoardSearch] = useState('');
   const [boardRoleFilter, setBoardRoleFilter] = useState<'all' | string>('all');
+  const certificateApproverRole = mapDesignationToApproverRole(user?.designation, user?.role);
 
   const refresh = async () => {
     const [users, scorelistData, boardRows] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), v2api.getBoardConfiguration(), scheduleService.syncFromBackend()]);
@@ -422,7 +424,7 @@ const ManagementPage = () => {
           ]}
         />
 
-        {['treasurer', 'referee', 'tournament director'].some((role) => String(user?.designation || '').toLowerCase().includes(role)) && (
+        {certificateApproverRole && (
           <div className="space-y-4">
             <h2 className="font-display text-xl font-semibold">Pending Certificates</h2>
             <ApprovalPanel mode="approver" />

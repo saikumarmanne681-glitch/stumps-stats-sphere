@@ -123,4 +123,5 @@ export interface AuthUser {
   username: string;
   name?: string;
   designation?: string;
+  role?: string;
 }
