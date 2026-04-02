@@ -22,9 +22,10 @@ export default defineConfig(({ mode }) => {
       dedupe: ["react", "react-dom"],
       alias: {
         "@": path.resolve(rootDir, "./src"),
-        react: path.resolve(rootDir, "./node_modules/react"),
-        "react-dom": path.resolve(rootDir, "./node_modules/react-dom"),
       },
+    },
+    optimizeDeps: {
+      include: ["react", "react-dom", "react/jsx-runtime", "@tanstack/react-query"],
     },
   };
 });
