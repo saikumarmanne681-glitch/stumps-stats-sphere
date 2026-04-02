@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { ApproverRole, CertificateApprovalRecord, CertificateRecord, approverLabel, canFinalize, deriveApprovalStatus, mapDesignationToApproverRole } from '@/lib/certificates';
+import { ApproverRole, CertificateApprovalRecord, CertificateRecord, approverLabel, canFinalize, deriveApprovalStatus, mapDesignationToApproverRole, normalizeCertificateStatus } from '@/lib/certificates';
 import { CertificatePreview } from './CertificatePreview';
 import { sendSystemEmail, getAdminNotificationRecipient } from '@/lib/mailer';
 import { CheckCircle2, XCircle, Eye, Loader2, ShieldCheck } from 'lucide-react';
@@ -39,10 +39,13 @@ export function ApprovalPanel({ mode }: Props) {
   useEffect(() => { load(); }, []);
 
   const rows = useMemo(() => {
-    if (mode === 'admin') return certificates.filter((item) => ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CERTIFIED'].includes(item.status));
+    if (mode === 'admin') return certificates.filter((item) => {
+      const status = normalizeCertificateStatus(item.status);
+      return !!status && ['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CERTIFIED'].includes(status);
+    });
     if (!myRole) return [];
     return certificates.filter((item) => {
-      if (item.status !== 'PENDING_APPROVAL') return false;
+      if (normalizeCertificateStatus(item.status) !== 'PENDING_APPROVAL') return false;
       const status = deriveApprovalStatus(approvals.filter((row) => row.certificate_id === item.id));
       return status[myRole] === 'pending';
     });
@@ -149,8 +152,8 @@ export function ApprovalPanel({ mode }: Props) {
                     <p className="font-semibold">{certificate.type} · {certificate.recipient_name}</p>
                     <p className="font-mono text-xs text-muted-foreground">{certificate.id} · {certificate.tournament} · {certificate.season}</p>
                   </div>
-                  <Badge variant={certificate.status === 'CERTIFIED' ? 'default' : certificate.status === 'REJECTED' ? 'destructive' : 'outline'}>
-                    {certificate.status}
+                  <Badge variant={normalizeCertificateStatus(certificate.status) === 'CERTIFIED' ? 'default' : normalizeCertificateStatus(certificate.status) === 'REJECTED' ? 'destructive' : 'outline'}>
+                    {normalizeCertificateStatus(certificate.status) || certificate.status}
                   </Badge>
                 </div>
 
@@ -198,7 +201,7 @@ export function ApprovalPanel({ mode }: Props) {
                       </Button>
                     </>
                   )}
-                  {mode === 'admin' && certificate.status !== 'CERTIFIED' && (
+                  {mode === 'admin' && normalizeCertificateStatus(certificate.status) !== 'CERTIFIED' && (
                     <Button
                       size="sm"
                       onClick={() => finalize(certificate)}

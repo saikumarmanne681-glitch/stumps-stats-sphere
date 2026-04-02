@@ -67,19 +67,47 @@ export function mapDesignationToApproverRole(designation?: string, role?: string
   const value = `${String(designation || '')} ${String(role || '')}`.trim().toLowerCase();
   if (!value) return null;
   if (value.includes('treasurer')) return 'treasurer';
-  if (value.includes('referee')) return 'referee';
+  if (value.includes('referee') || value.includes('umpire')) return 'referee';
   if (
     value.includes('tournament director')
     || value.includes('tournament_director')
     || value.includes('tournamentdirector')
+    || value.includes('director')
   ) return 'tournament_director';
   return null;
+}
+
+export function normalizeCertificateStatus(value?: string | null): CertificateStatus | null {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (normalized === 'DRAFT') return 'DRAFT';
+  if (normalized === 'PENDING_APPROVAL') return 'PENDING_APPROVAL';
+  if (normalized === 'REJECTED') return 'REJECTED';
+  if (normalized === 'APPROVED') return 'APPROVED';
+  if (normalized === 'CERTIFIED') return 'CERTIFIED';
+  return null;
+}
+
+export function normalizeApproverRole(value?: string | null): ApproverRole | null {
+  const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+  if (normalized === 'treasurer') return 'treasurer';
+  if (normalized === 'referee' || normalized === 'umpire') return 'referee';
+  if (normalized === 'tournament_director' || normalized === 'director') return 'tournament_director';
+  return null;
+}
+
+export function normalizeApprovalDecision(value?: string | null): ApprovalDecision {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'approved') return 'approved';
+  if (normalized === 'rejected') return 'rejected';
+  return 'pending';
 }
 
 export function deriveApprovalStatus(rows: CertificateApprovalRecord[]): ApprovalStatusByRole {
   const next = emptyApprovalStatus();
   rows.forEach((row) => {
-    if (APPROVER_ROLES.includes(row.role)) next[row.role] = row.status;
+    const role = normalizeApproverRole(row.role);
+    if (!role) return;
+    next[role] = normalizeApprovalDecision(row.status);
   });
   return next;
 }
