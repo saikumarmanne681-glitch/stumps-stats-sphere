@@ -86,6 +86,14 @@ export function CertificateBuilder() {
     const linkedTeamName = String(form.linked_team_name || '').trim();
     const recipientType: CertificateRecord['recipient_type'] = linkedTeamName && !linkedPlayerId ? 'team' : 'player';
     const recipientId = linkedPlayerId || linkedTeamName || '';
+    if (!recipientId) {
+      toast({
+        title: 'Link recipient first',
+        description: 'Please link either a player or a team. Unlinked certificates do not appear in player/team dashboards.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const payload: CertificateRecord = {
       id,
