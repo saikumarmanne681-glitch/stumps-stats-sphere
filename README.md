@@ -60,7 +60,7 @@ Authentication supports three user types:
     - President/Vice President/Secretary/Treasurer: schedule approval roles
   - Access to management workflows, but not unrestricted admin-only areas
 - **Player**
-  - Personal dashboard, stats, messages/support, certificate access
+  - Personal dashboard, stats, messages/support
   - Can access player-facing dashboards and club communications
 
 Auth constraints and guardrails:

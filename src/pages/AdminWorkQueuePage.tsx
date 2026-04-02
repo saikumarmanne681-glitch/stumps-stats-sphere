@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/lib/auth';
 import { v2api } from '@/lib/v2api';
-import { CertificateRecord, DigitalScorelist, ManagementUser, SupportTicket } from '@/lib/v2types';
+import { DigitalScorelist, ManagementUser, SupportTicket } from '@/lib/v2types';
 import { scheduleService } from '@/schedules/scheduleService';
 import { ScheduleApprovalRecord, ScheduleRecord } from '@/schedules/types';
 import { getScorelistRoadmap, getScheduleApprovalRoadmap, readScorelistCertifications } from '@/lib/workflowStatus';
@@ -52,7 +52,6 @@ export default function AdminWorkQueuePage() {
   const [managementUsers, setManagementUsers] = useState<ManagementUser[]>([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [scorelists, setScorelists] = useState<DigitalScorelist[]>([]);
-  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [schedules, setSchedules] = useState<ScheduleRecord[]>([]);
   const [scheduleApprovals, setScheduleApprovals] = useState<ScheduleApprovalRecord[]>([]);
 
@@ -60,15 +59,13 @@ export default function AdminWorkQueuePage() {
     const run = async () => {
       setLoading(true);
       await scheduleService.syncFromBackend();
-      const [ticketsData, scorelistsData, certificatesData, managementData] = await Promise.all([
+      const [ticketsData, scorelistsData, managementData] = await Promise.all([
         v2api.getTickets(),
         v2api.getScorelists(),
-        v2api.getCertificates(),
         v2api.getManagementUsers(),
       ]);
       setSupportTickets(ticketsData);
       setScorelists(scorelistsData);
-      setCertificates(certificatesData);
       setManagementUsers(managementData.filter((item) => String(item.status || '').toLowerCase() !== 'inactive'));
       setSchedules(scheduleService.getSchedules());
       setScheduleApprovals(scheduleService.getApprovals());
@@ -145,33 +142,8 @@ export default function AdminWorkQueuePage() {
         });
       });
 
-    certificates
-      .filter((certificate) => certificate.approval_status === 'pending_approval')
-      .forEach((certificate) => {
-        const approvals = (() => {
-          try {
-            return certificate.approvals_json ? JSON.parse(certificate.approvals_json) as Record<string, boolean> : {};
-          } catch {
-            return {} as Record<string, boolean>;
-          }
-        })();
-        const nextRole = Object.entries(approvals).find(([, approved]) => !approved)?.[0] || 'Approver';
-        list.push({
-          id: certificate.certificate_id,
-          source: 'governance',
-          label: 'Governance Certificate',
-          title: `${certificate.title} • ${certificate.certificate_id}`,
-          assigneeId: certificate.assignee_id || '',
-          assigneeLabel: certificate.assignee_id ? getMemberLabel(certificate.assignee_id) : `Pending with ${nextRole}`,
-          dueAt: certificate.due_at || new Date(new Date(certificate.generated_at || Date.now()).getTime() + 24 * 3600 * 1000).toISOString(),
-          priority: certificate.priority || 'medium',
-          escalationState: certificate.escalation_state || 'normal',
-          status: certificate.approval_status,
-        });
-      });
-
     return list.sort((a, b) => (parseTimestamp(a.dueAt)?.getTime() || Number.MAX_SAFE_INTEGER) - (parseTimestamp(b.dueAt)?.getTime() || Number.MAX_SAFE_INTEGER));
-  }, [supportTickets, scorelists, schedules, scheduleApprovals, certificates, managementUsers]);
+  }, [supportTickets, scorelists, schedules, scheduleApprovals, managementUsers]);
 
   const myTasksToday = useMemo(() => {
     const actorId = user?.management_id || user?.username || '';

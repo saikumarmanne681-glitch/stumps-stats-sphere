@@ -30,7 +30,6 @@ const SeasonsOverviewPage = lazy(() => import("./pages/SeasonsOverviewPage"));
 const TournamentHonorsPage = lazy(() => import("./pages/TournamentHonorsPage"));
 const NewsRoomPage = lazy(() => import("./pages/NewsRoomPage"));
 const DocumentsPortalPage = lazy(() => import("./pages/DocumentsPortalPage"));
-const CertificateVerifyPage = lazy(() => import("./pages/CertificateVerifyPage"));
 const AdminWorkQueuePage = lazy(() => import("./pages/AdminWorkQueuePage"));
 const TeamsDashboardPage = lazy(() => import("./pages/TeamsDashboardPage"));
 
@@ -87,7 +86,6 @@ const App = () => (
                 <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
                 <Route path="/news-room" element={<RequireAuth><NewsRoomPage /></RequireAuth>} />
                 <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
-                <Route path="/verify-certificate/:certificateId" element={<CertificateVerifyPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

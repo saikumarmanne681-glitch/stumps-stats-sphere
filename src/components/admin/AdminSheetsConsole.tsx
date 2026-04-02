@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { v2api } from '@/lib/v2api';
 import { Loader2 } from 'lucide-react';
 
-const SHEETS = ['Players', 'Tournaments', 'Seasons', 'Matches', 'DIGITAL_SCORELISTS', 'CERTIFICATES', 'schedules', 'approvals'] as const;
+const SHEETS = ['Players', 'Tournaments', 'Seasons', 'Matches', 'DIGITAL_SCORELISTS', 'schedules', 'approvals'] as const;
 
 export function AdminSheetsConsole() {
   const [sheet, setSheet] = useState<string>(SHEETS[0]);
@@ -31,7 +31,7 @@ export function AdminSheetsConsole() {
   }, [rows]);
 
   const keyColumn = useMemo(() => {
-    const preferred = ['player_id', 'tournament_id', 'season_id', 'match_id', 'scorelist_id', 'certificate_id', 'schedule_id', 'approval_id', 'id'];
+    const preferred = ['player_id', 'tournament_id', 'season_id', 'match_id', 'scorelist_id', 'schedule_id', 'approval_id', 'id'];
     return preferred.find((key) => headers.includes(key)) || headers[0] || '';
   }, [headers]);
 

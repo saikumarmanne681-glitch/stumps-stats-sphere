@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/lib/DataContext';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount, getPlayerMomCount } from '@/lib/calculations';
 import { generateId } from '@/lib/utils';
-import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity, Eye, Download, Trophy } from 'lucide-react';
+import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity, Trophy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -18,13 +18,9 @@ import { PlayerSupport } from '@/components/player/PlayerSupport';
 import { PlayerEmailSettings } from '@/components/player/PlayerEmailSettings';
 import { SessionFingerprint, SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
 import { logAudit } from '@/lib/v2api';
-import { CertificateRecord } from '@/lib/v2types';
-import { v2api } from '@/lib/v2api';
-import { formatDateInIST, formatInIST } from '@/lib/time';
-import { useEffect } from 'react';
-import { downloadCertificatePdf, previewCertificatePdf } from '@/lib/certificatePdf';
 import { resolvePlayerIdFromIdentity } from '@/lib/dataUtils';
 import { PendingActionsPanel } from '@/components/PendingActionsPanel';
+import { formatDateInIST, formatInIST } from '@/lib/time';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -35,7 +31,6 @@ const PlayerDashboard = () => {
   const [replyBody, setReplyBody] = useState<Record<string, string>>({});
   const [expandedThread, setExpandedThread] = useState<string>('');
   const [replySending, setReplySending] = useState<string | null>(null);
-  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
 
   const player = useMemo(() => {
     if (!user?.player_id) return null;
@@ -118,17 +113,6 @@ const PlayerDashboard = () => {
   };
 
   const unreadCount = playerMessages.filter(m => !m.read && m.from_id !== user.player_id).length;
-
-  useEffect(() => {
-    const loadCertificates = async () => {
-      if (!user?.player_id) return;
-      const data = await v2api.getCertificates();
-      setCertificates(
-        data.filter((item) => item.approval_status === 'approved' && (item.recipient_id === user.player_id || item.recipient_name === player?.name)),
-      );
-    };
-    loadCertificates();
-  }, [player?.name, user?.player_id]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -236,13 +220,6 @@ const PlayerDashboard = () => {
               count: playerMessages.filter((m) => m.subject?.toLowerCase().includes('support') && !m.read && m.from_id !== user.player_id).length,
               to: '/player',
             },
-            {
-              id: 'approved-certificates',
-              label: 'Ready certificates',
-              description: 'Certificates approved and available for preview/download.',
-              count: certificates.length,
-              to: '/player',
-            },
           ]}
         />
 
@@ -258,7 +235,6 @@ const PlayerDashboard = () => {
               )}
             </TabsTrigger>
             <TabsTrigger value="support" className="flex items-center gap-1"><Headphones className="h-4 w-4" /> Support</TabsTrigger>
-            <TabsTrigger value="certificates" className="flex items-center gap-1"><Award className="h-4 w-4" /> Certificates</TabsTrigger>
             <TabsTrigger value="account" className="flex items-center gap-1"><Settings className="h-4 w-4" /> Account</TabsTrigger>
           </TabsList>
 
@@ -350,29 +326,6 @@ const PlayerDashboard = () => {
                     </TableBody>
                   </Table>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="certificates" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader><CardTitle className="font-display">My Approved Certificates</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {certificates.map((item) => (
-                  <div key={item.certificate_id} className="rounded-xl border bg-gradient-to-r from-primary/5 via-background to-accent/5 p-3">
-                    <p className="font-semibold">{item.title}</p>
-                    <p className="text-sm text-muted-foreground">{item.certificate_id} • {formatInIST(item.approved_at || item.generated_at)}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" onClick={() => previewCertificatePdf(item)}>
-                        <Eye className="mr-1 h-3 w-3" /> Preview PDF
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => downloadCertificatePdf(item)}>
-                        <Download className="mr-1 h-3 w-3" /> Download PDF
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {certificates.length === 0 && <p className="text-sm text-muted-foreground">No approved certificates yet.</p>}
               </CardContent>
             </Card>
           </TabsContent>
