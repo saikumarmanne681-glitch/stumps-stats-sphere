@@ -16,6 +16,7 @@ import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
 import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember, toDepartmentAssignmentsJson } from '@/lib/boardDepartments';
+import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
 
 const AdminManagement = () => {
   const { isAdmin } = useAuth();
@@ -40,7 +41,7 @@ const AdminManagement = () => {
       v2api.getTeamProfiles(),
     ]);
     setUsers(data);
-    setBoardConfig(config[0] || null);
+    setBoardConfig(selectLatestBoardConfiguration(config));
     setTeamUsers(teamRows);
     setTeamProfiles(profileRows.map((item) => ({ team_id: item.team_id, team_name: item.team_name })));
     setLoading(false);

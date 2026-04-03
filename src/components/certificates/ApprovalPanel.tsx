@@ -55,6 +55,7 @@ export function ApprovalPanel({ mode }: Props) {
     if (!myRole || mode !== 'approver') return;
     setActionLoading(`${certificate.id}:${decision}`);
     try {
+      const existingApproval = approvals.find((item) => item.certificate_id === certificate.id && item.role === myRole);
       const payload: CertificateApprovalRecord = {
         certificate_id: certificate.id,
         role: myRole,
@@ -63,7 +64,9 @@ export function ApprovalPanel({ mode }: Props) {
         approved_at: new Date().toISOString(),
         remarks: '',
       };
-      const ok = await v2api.updateCertificateApproval(payload);
+      const ok = existingApproval
+        ? await v2api.updateCertificateApproval(payload)
+        : await v2api.addCertificateApproval(payload);
       if (!ok) {
         toast({ title: 'Action failed', description: 'Unable to update approval.', variant: 'destructive' });
         return;

@@ -23,16 +23,24 @@ import { AdminApprovalsRealtime } from '@/components/admin/AdminApprovalsRealtim
 import { v2api } from '@/lib/v2api';
 import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { CertificateBuilder } from '@/components/certificates/CertificateBuilder';
+import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
+import { normalizeCertificateStatus } from '@/lib/certificates';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
   const [pendingScorelists, setPendingScorelists] = useState(0);
+  const [pendingCertificates, setPendingCertificates] = useState(0);
 
   useEffect(() => {
-    v2api.getScorelists().then((rows) => {
-      setPendingScorelists(rows.filter((item) => !item.locked && item.certification_status !== 'official_certified').length);
+    Promise.all([v2api.getScorelists(), v2api.getCertificates()]).then(([scorelistRows, certificateRows]) => {
+      setPendingScorelists(scorelistRows.filter((item) => !item.locked && item.certification_status !== 'official_certified').length);
+      setPendingCertificates(certificateRows.filter((item) => {
+        const status = normalizeCertificateStatus(item.status);
+        return status === 'PENDING_APPROVAL' || status === 'APPROVED';
+      }).length);
     }).catch(() => {
       setPendingScorelists(0);
+      setPendingCertificates(0);
     });
   }, []);
 
@@ -78,8 +86,15 @@ const AdminDashboard = () => {
                 id: 'work-queue',
                 label: 'Work queue',
                 description: 'Operational queue for approvals, escalations, and admin tasks.',
-                count: pendingScorelists,
+                count: pendingScorelists + pendingCertificates,
                 to: '/admin/work-queue',
+              },
+              {
+                id: 'certificate-queue',
+                label: 'Certificate approvals',
+                description: 'Certificates awaiting role approvals or final certification.',
+                count: pendingCertificates,
+                to: '/admin',
               },
               {
                 id: 'live-scoring',
@@ -161,6 +176,7 @@ const AdminDashboard = () => {
           <TabsContent value="settings"><AdminSettings /></TabsContent>
           <TabsContent value="certificates">
             <div className="space-y-6">
+              <ApprovalPanel mode="admin" />
               <CertificateBuilder />
             </div>
           </TabsContent>

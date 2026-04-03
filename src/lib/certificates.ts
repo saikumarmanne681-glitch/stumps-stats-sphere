@@ -216,6 +216,7 @@ export function certificateMatchesTeam(certificate: Partial<CertificateRecord>, 
   const recipientId = String(normalized.recipient_id || '').trim().toLowerCase();
   const recipientName = String(normalized.recipient_name || '').trim().toLowerCase();
   const linkedTeam = String(normalized.linked_team_name || '').trim().toLowerCase();
+  if (linkedTeam === target) return true;
   return normalized.recipient_type === 'team' && (
     recipientName === target
     || recipientId === target

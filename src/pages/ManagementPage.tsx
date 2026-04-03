@@ -30,6 +30,7 @@ import { formatInIST } from '@/lib/time';
 import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
 import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember } from '@/lib/boardDepartments';
 import { mapDesignationToApproverRole } from '@/lib/certificates';
+import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
 
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 const stageLabels: Record<string, string> = scorelistStageLabels;
@@ -83,7 +84,7 @@ const ManagementPage = () => {
     const [users, scorelistData, boardRows] = await Promise.all([v2api.getManagementUsers(), v2api.getScorelists(), v2api.getBoardConfiguration(), scheduleService.syncFromBackend()]);
     setMgmtUsers(users.filter(m => String(m.status || '').trim().toLowerCase() !== 'inactive'));
     setScorelists(scorelistData);
-    setBoardConfig(boardRows[0] || null);
+    setBoardConfig(selectLatestBoardConfiguration(boardRows));
     setLoading(false);
   };
 
