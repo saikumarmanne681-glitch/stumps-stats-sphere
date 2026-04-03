@@ -69,13 +69,20 @@ const PlayerDashboard = () => {
 
   useEffect(() => {
     v2api.getCertificates().then((rows) => {
+      const normalizedPlayerId = String(user?.player_id || '').trim().toLowerCase();
+      const normalizedPlayerName = String(player?.name || '').trim().toLowerCase();
+      const normalizedUsername = String(user?.username || '').trim().toLowerCase();
       setCertificates(rows.filter((item) => (
         isCertificateCertified(item)
-        && !!user?.player_id
-        && certificateMatchesPlayer(item, user.player_id)
+        && !!normalizedPlayerId
+        && (
+          certificateMatchesPlayer(item, normalizedPlayerId)
+          || String(item.recipient_id || '').trim().toLowerCase() === normalizedUsername
+          || String(item.recipient_name || '').trim().toLowerCase() === normalizedPlayerName
+        )
       )));
     });
-  }, [user?.player_id]);
+  }, [player?.name, user?.player_id, user?.username]);
 
   const threads = useMemo(() => {
     const threadMap = new Map<string, typeof playerMessages>();

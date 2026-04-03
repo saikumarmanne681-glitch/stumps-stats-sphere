@@ -31,17 +31,34 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
   mount.appendChild(clone);
   document.body.appendChild(mount);
 
-  try {
-    const canvas = await html2canvas(clone, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      width: clone.scrollWidth,
-      height: clone.scrollHeight,
-      windowWidth: clone.scrollWidth,
-      windowHeight: clone.scrollHeight,
-    });
+  const renderCanvas = () => html2canvas(clone, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#ffffff',
+    width: clone.scrollWidth,
+    height: clone.scrollHeight,
+    windowWidth: clone.scrollWidth,
+    windowHeight: clone.scrollHeight,
+  });
 
+  try {
+    let canvas;
+    try {
+      canvas = await renderCanvas();
+    } catch {
+      // Fallback path: remove external background images that can taint canvas and block export.
+      clone.style.backgroundImage = 'none';
+      clone.querySelectorAll<HTMLElement>('*').forEach((node) => {
+        if (node.style.backgroundImage) node.style.backgroundImage = 'none';
+      });
+      canvas = await renderCanvas();
+    }
+
+    if (!canvas) {
+      throw new Error('Could not render certificate canvas');
+    }
+
+    const image = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -49,7 +66,6 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
       compress: true,
     });
 
-    const image = canvas.toDataURL('image/png');
     pdf.addImage(image, 'PNG', 0, 0, A4_LANDSCAPE_WIDTH_MM, A4_LANDSCAPE_HEIGHT_MM, undefined, 'FAST');
     pdf.save(`${filename}.pdf`);
   } finally {

@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { CheckCircle2, Download, ShieldCheck } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { downloadCertificatePdf } from '@/lib/certificatePdf';
+import { useToast } from '@/hooks/use-toast';
 
 interface Props {
   certificate: Partial<CertificateRecord>;
@@ -24,6 +25,7 @@ const fitClass = (text: string) => {
 
 export function CertificatePreview({ certificate, template, verificationUrl, watermark = false, showDownload = true }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   const [exporting, setExporting] = useState(false);
   const title = certificate.type || 'Certificate of Excellence';
   const recipient = certificate.recipient_name || 'Recipient Name';
@@ -42,6 +44,12 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
     setExporting(true);
     try {
       await downloadCertificatePdf(ref.current, `Certificate_${id}`);
+    } catch {
+      toast({
+        title: 'Download failed',
+        description: 'Could not render this certificate as PDF. Please retry or use a template without external image URLs.',
+        variant: 'destructive',
+      });
     } finally {
       setExporting(false);
     }
