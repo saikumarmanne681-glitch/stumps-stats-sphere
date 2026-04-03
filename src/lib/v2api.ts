@@ -174,7 +174,7 @@ export const v2api = {
   },
   addCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'add', certificate),
   updateCertificate: (certificate: CertificateRecord) => writeV2Sheet('CERTIFICATES', 'update', certificate),
-  deleteCertificate: (id: string) => writeV2Sheet('CERTIFICATES', 'delete', { id }),
+  deleteCertificate: (id: string) => writeV2Sheet('CERTIFICATES', 'delete', { id, certificate_id: id }),
 
   getCertificateApprovals: () => fetchV2Sheet<CertificateApprovalRecord>('CERTIFICATE_APPROVALS'),
   addCertificateApproval: (approval: CertificateApprovalRecord) => writeV2Sheet('CERTIFICATE_APPROVALS', 'add', approval),

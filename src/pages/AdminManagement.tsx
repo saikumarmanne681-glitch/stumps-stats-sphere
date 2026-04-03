@@ -15,7 +15,7 @@ import { BoardConfiguration, ManagementUser, MANAGEMENT_ROLES, TeamAccessUser } 
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
-import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember, toDepartmentAssignmentsJson } from '@/lib/boardDepartments';
+import { parseDepartmentAssignments, toDepartmentAssignmentsJson } from '@/lib/boardDepartments';
 import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
 
 const AdminManagement = () => {
@@ -277,80 +277,9 @@ const AdminManagement = () => {
                 })}
               </div>
             </div>
-            <div className="space-y-3">
-              <div>
-                <Label>Department Directory (5 Departments)</Label>
-                <p className="text-xs text-muted-foreground mt-1">Assign one head and a supporting team for each department. This same structure will be visible on the Management Board page.</p>
-              </div>
-              <div className="space-y-3">
-                {BOARD_DEPARTMENTS.map((department) => {
-                  const assignment = departmentAssignments.find((item) => item.department_id === department.id) || { department_id: department.id, head_id: '', team_ids: [] };
-                  return (
-                    <div key={department.id} className="rounded-lg border p-3 space-y-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold">{department.name}</p>
-                        <Badge variant="outline">{assignment.team_ids.length} team member{assignment.team_ids.length === 1 ? '' : 's'}</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{department.description}</p>
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Department Head</Label>
-                          <Select
-                            value={assignment.head_id || '__none__'}
-                            onValueChange={(value) => {
-                              const next = departmentAssignments.map((item) => item.department_id === department.id ? { ...item, head_id: value === '__none__' ? '' : value } : item);
-                              setBoardConfig(getConfigDraft({ department_assignments_json: toDepartmentAssignmentsJson(next) }));
-                            }}
-                          >
-                            <SelectTrigger><SelectValue placeholder="Select department head" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">No head assigned</SelectItem>
-                              {users.filter((u) => u.status === 'active').map((u) => (
-                                <SelectItem key={`${department.id}:head:${u.management_id}`} value={u.management_id}>
-                                  {u.name} • {u.designation}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Department Team</Label>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {users.filter((u) => u.status === 'active').map((u) => {
-                              const selected = assignment.team_ids.includes(u.management_id);
-                              return (
-                                <Button
-                                  key={`${department.id}:team:${u.management_id}`}
-                                  type="button"
-                                  size="sm"
-                                  variant={selected ? 'default' : 'outline'}
-                                  className="justify-between"
-                                  onClick={() => {
-                                    const teamIds = selected
-                                      ? assignment.team_ids.filter((id) => id !== u.management_id)
-                                      : [...assignment.team_ids, u.management_id];
-                                    const next = departmentAssignments.map((item) => item.department_id === department.id ? { ...item, team_ids: teamIds } : item);
-                                    setBoardConfig(getConfigDraft({ department_assignments_json: toDepartmentAssignmentsJson(next) }));
-                                  }}
-                                >
-                                  <span className="truncate">{u.name}</span>
-                                  <span className="text-[10px] opacity-80">{u.designation}</span>
-                                </Button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                      {assignment.head_id && (
-                        <p className="text-xs text-muted-foreground">
-                          Head preview: <span className="font-medium text-foreground">{resolveDepartmentMember(assignment.head_id, users)?.name || 'Unknown member'}</span>
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Department directory configuration has been retired from this screen to keep governance settings focused and lightweight.
+            </p>
 
             <Button onClick={saveBoardConfig} disabled={savingBoardConfig}>
               {savingBoardConfig ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving board configuration...</> : 'Save Board Settings'}

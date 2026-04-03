@@ -200,9 +200,9 @@ const PlayerDashboard = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Man of the Match</p>
-              <p className="mt-1 font-display text-3xl font-bold text-accent">{momCount}</p>
-              <p className="text-xs text-muted-foreground">Resolved from both legacy and current MOM identity formats.</p>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Linked certificates</p>
+              <p className="mt-1 font-display text-3xl font-bold text-primary">{certificates.length}</p>
+              <p className="text-xs text-muted-foreground">Certified documents linked to your player profile.</p>
             </CardContent>
           </Card>
           <Card>
@@ -438,6 +438,14 @@ const PlayerDashboard = () => {
           </TabsContent>
 
           <TabsContent value="certificates" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Your linked certificates</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Only fully certified certificates linked to your player identity are shown here.</p>
+              </CardContent>
+            </Card>
             {certificates.length === 0 && <p className="text-sm text-muted-foreground">No certified player certificates yet.</p>}
             {certificates.map((certificate) => (
               <CertificatePreview
