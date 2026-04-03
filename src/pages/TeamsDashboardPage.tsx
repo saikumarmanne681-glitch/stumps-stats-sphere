@@ -129,11 +129,26 @@ export default function TeamsDashboardPage() {
 
   const enforcedTeam = isTeam ? (user?.team_name || user?.name || '') : '';
   const resolvedSelectedTeam = isTeam ? enforcedTeam : selectedTeam;
+  const selectedTeamAliases = useMemo(() => {
+    const base = String(resolvedSelectedTeam || '').trim();
+    if (!base || base === 'all') return new Set<string>();
+    const aliases = new Set<string>([base.toLowerCase()]);
+    const matchingProfile = profiles.find((profile) => profile.team_name === base);
+    if (matchingProfile?.short_name) aliases.add(String(matchingProfile.short_name).trim().toLowerCase());
+    if (matchingProfile?.team_id) aliases.add(String(matchingProfile.team_id).trim().toLowerCase());
+    return aliases;
+  }, [profiles, resolvedSelectedTeam]);
   const visibleCertificates = useMemo(() => (
     resolvedSelectedTeam === 'all'
       ? certificates
-      : certificates.filter((item) => certificateMatchesTeam(item, resolvedSelectedTeam))
-  ), [certificates, resolvedSelectedTeam]);
+      : certificates.filter((item) => {
+        if (certificateMatchesTeam(item, resolvedSelectedTeam)) return true;
+        const recipientId = String(item.recipient_id || '').trim().toLowerCase();
+        const recipientName = String(item.recipient_name || '').trim().toLowerCase();
+        const linkedTeamName = String(item.linked_team_name || '').trim().toLowerCase();
+        return selectedTeamAliases.has(recipientId) || selectedTeamAliases.has(recipientName) || selectedTeamAliases.has(linkedTeamName);
+      })
+  ), [certificates, resolvedSelectedTeam, selectedTeamAliases]);
 
   const visibleTeams = resolvedSelectedTeam === 'all' ? teamSummaries : teamSummaries.filter((entry) => entry.name === resolvedSelectedTeam);
   const visibleTickets = resolvedSelectedTeam === 'all'

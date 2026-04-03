@@ -52,21 +52,40 @@ export function parseDepartmentAssignments(config: BoardConfiguration | null): D
 
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) throw new Error('Invalid assignments payload');
-
     const map = new Map<string, DepartmentAssignment>();
-    parsed.forEach((entry) => {
-      const row = entry as Partial<DepartmentAssignment>;
+    const registerAssignment = (row: Partial<DepartmentAssignment>) => {
       if (!row.department_id) return;
       const teamIds = Array.isArray(row.team_ids)
         ? row.team_ids.map((id) => String(id || '').trim()).filter(Boolean)
-        : [];
+        : String((row as { team_ids?: unknown }).team_ids || '')
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean);
       map.set(String(row.department_id), {
         department_id: String(row.department_id),
         head_id: String(row.head_id || '').trim(),
         team_ids: Array.from(new Set(teamIds)),
       });
-    });
+    };
+
+    if (Array.isArray(parsed)) {
+      parsed.forEach((entry) => registerAssignment(entry as Partial<DepartmentAssignment>));
+    } else if (parsed && typeof parsed === 'object') {
+      Object.entries(parsed as Record<string, unknown>).forEach(([departmentId, value]) => {
+        const row = (value || {}) as Partial<DepartmentAssignment> & { team_id?: string };
+        registerAssignment({
+          department_id: departmentId,
+          head_id: row.head_id || '',
+          team_ids: Array.isArray(row.team_ids)
+            ? row.team_ids
+            : row.team_id
+              ? [row.team_id]
+              : [],
+        });
+      });
+    } else {
+      throw new Error('Invalid assignments payload');
+    }
 
     return BOARD_DEPARTMENTS.map((department) => map.get(department.id) || {
       department_id: department.id,
