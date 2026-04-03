@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils';
 import { CertificateRecord } from '@/lib/certificates';
 import { QRCodeSVG } from 'qrcode.react';
 import { CheckCircle2, Download, ShieldCheck } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { downloadCertificatePdf } from '@/lib/certificatePdf';
 
 interface Props {
   certificate: Partial<CertificateRecord>;
@@ -21,32 +22,9 @@ const fitClass = (text: string) => {
   return 'text-2xl md:text-3xl';
 };
 
-function downloadCertificateAsPdf(element: HTMLElement, filename: string) {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-  const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-    .map((item) => item.outerHTML)
-    .join('');
-  const html = `<!DOCTYPE html><html><head><title>${filename}</title>${cssLinks}<style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; background: white; }
-    body { display: flex; justify-content: center; align-items: center; }
-    .cert-page { width: 297mm; height: 210mm; padding: 10mm; }
-    .cert-wrapper { width: 100%; height: 100%; }
-    .cert-download-bar { display: none !important; }
-    @page { size: A4 landscape; margin: 0; }
-    @media print {
-      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      body { margin: 0; padding: 0; }
-    }
-  </style></head><body><div class="cert-page"><div class="cert-wrapper">${element.innerHTML}</div></div>
-  <script>setTimeout(()=>{window.print();window.close();},250)<\/script></body></html>`;
-  printWindow.document.write(html);
-  printWindow.document.close();
-}
-
 export function CertificatePreview({ certificate, template, verificationUrl, watermark = false, showDownload = true }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
   const title = certificate.type || 'Certificate of Excellence';
   const recipient = certificate.recipient_name || 'Recipient Name';
   const match = certificate.match_id || 'N/A';
@@ -59,13 +37,24 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
   const verificationCode = certificate.verification_code || '';
   const certifiedBy = certificate.certified_by || 'Portal Authority';
 
+  const handleDownload = async () => {
+    if (!ref.current || exporting) return;
+    setExporting(true);
+    try {
+      await downloadCertificatePdf(ref.current, `Certificate_${id}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Card className="overflow-hidden border border-amber-500/30 bg-background">
       <CardContent className="p-0">
         <div
           ref={ref}
-          className="relative min-h-[560px] p-6 md:p-10"
+          className="relative mx-auto w-full max-w-[1120px] overflow-hidden p-6 md:p-10"
           style={{
+            aspectRatio: '297 / 210',
             backgroundImage: template?.image_url
               ? `linear-gradient(rgba(252,250,245,.97),rgba(255,255,255,.97)),url(${template.image_url})`
               : 'radial-gradient(circle at top right,#fffbeb 0,#fff 42%,#f8fafc 100%)',
@@ -187,7 +176,9 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
             <Button
               size="sm"
               variant="outline"
-              onClick={() => ref.current && downloadCertificateAsPdf(ref.current, `Certificate_${id}`)}
+              onClick={handleDownload}
+              loading={exporting}
+              loadingText="Generating PDF..."
             >
               <Download className="h-3 w-3 mr-1" /> Download PDF
             </Button>

@@ -36,7 +36,12 @@ export function ApprovalPanel({ mode }: Props) {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const handleCertificatesChanged = () => { load(); };
+    window.addEventListener('certificates:changed', handleCertificatesChanged);
+    return () => window.removeEventListener('certificates:changed', handleCertificatesChanged);
+  }, []);
 
   const rows = useMemo(() => {
     if (mode === 'admin') return certificates.filter((item) => {
@@ -55,6 +60,7 @@ export function ApprovalPanel({ mode }: Props) {
     if (!myRole || mode !== 'approver') return;
     setActionLoading(`${certificate.id}:${decision}`);
     try {
+      const existingApproval = approvals.find((item) => item.certificate_id === certificate.id && item.role === myRole);
       const payload: CertificateApprovalRecord = {
         certificate_id: certificate.id,
         role: myRole,
@@ -63,7 +69,9 @@ export function ApprovalPanel({ mode }: Props) {
         approved_at: new Date().toISOString(),
         remarks: '',
       };
-      const ok = await v2api.updateCertificateApproval(payload);
+      const ok = existingApproval
+        ? await v2api.updateCertificateApproval(payload)
+        : await v2api.addCertificateApproval(payload);
       if (!ok) {
         toast({ title: 'Action failed', description: 'Unable to update approval.', variant: 'destructive' });
         return;
@@ -83,6 +91,7 @@ export function ApprovalPanel({ mode }: Props) {
       }
       logAudit(user?.management_id || user?.username || 'management', `certificate_${decision}`, 'certificate', certificate.id, JSON.stringify({ role: myRole }));
       toast({ title: `Certificate ${decision}` });
+      window.dispatchEvent(new CustomEvent('certificates:changed'));
       await load();
     } finally {
       setActionLoading(null);
@@ -109,6 +118,7 @@ export function ApprovalPanel({ mode }: Props) {
         await sendSystemEmail({ to: adminRecipient, subject: `Certificate certified: ${certificate.id}`, htmlBody: `<p>Certificate <strong>${certificate.id}</strong> has been fully certified.</p>` });
       }
       toast({ title: 'Certificate finalized', description: `${certificate.id} is now certified.` });
+      window.dispatchEvent(new CustomEvent('certificates:changed'));
       await load();
     } finally {
       setActionLoading(null);

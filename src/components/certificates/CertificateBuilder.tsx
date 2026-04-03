@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { generateId } from '@/lib/utils';
-import { CERTIFICATE_TYPES, CertificateRecord, CertificateTemplateRecord } from '@/lib/certificates';
+import { APPROVER_ROLES, CERTIFICATE_TYPES, CertificateApprovalRecord, CertificateRecord, CertificateTemplateRecord } from '@/lib/certificates';
 import { CertificatePreview } from './CertificatePreview';
 import { isCertificateCertified } from '@/lib/certificates';
 
@@ -31,7 +31,7 @@ export function CertificateBuilder() {
     type: CERTIFICATE_TYPES[0],
     recipient_type: 'player',
     template_id: 'TPL_CLASSIC_GOLD',
-    status: 'CERTIFIED',
+    status: 'PENDING_APPROVAL',
     match_id: '',
     recipient_name: '',
     linked_player_id: '',
@@ -107,14 +107,14 @@ export function CertificateBuilder() {
       linked_player_id: linkedPlayerId,
       linked_team_name: linkedTeamName,
       template_id: form.template_id || selectedTemplate?.template_id || FALLBACK_TEMPLATES[0].template_id,
-      status: 'CERTIFIED',
+      status: 'PENDING_APPROVAL',
       created_by: user?.username || 'admin',
       created_at: now,
       details_json: form.details_json || '',
       performance_json: form.performance_json || '',
       verification_code: generateId('VERIFY'),
-      certified_at: now,
-      certified_by: user?.username || 'admin',
+      certified_at: '',
+      certified_by: '',
     };
 
     setSaving(true);
@@ -124,9 +124,28 @@ export function CertificateBuilder() {
       const ok = found ? await v2api.updateCertificate(payload) : await v2api.addCertificate(payload);
       if (!ok) throw new Error('Could not save certificate');
 
-      logAudit(user?.username || 'admin', 'certificate_certified', 'certificate', id, JSON.stringify(payload));
-      toast({ title: 'Certificate saved', description: `Certificate ${id} is certified and ready for download.` });
+      const approvalRows = await v2api.getCertificateApprovals();
+      await Promise.all(APPROVER_ROLES.map(async (role) => {
+        const approvalPayload: CertificateApprovalRecord = {
+          certificate_id: id,
+          role,
+          status: 'pending',
+          approved_by: '',
+          approved_at: '',
+          remarks: '',
+        };
+        const existingApproval = approvalRows.find((item) => item.certificate_id === id && item.role === role);
+        if (existingApproval) {
+          await v2api.updateCertificateApproval(approvalPayload);
+          return;
+        }
+        await v2api.addCertificateApproval(approvalPayload);
+      }));
+
+      logAudit(user?.username || 'admin', 'certificate_submitted_for_approval', 'certificate', id, JSON.stringify(payload));
+      toast({ title: 'Certificate submitted', description: `Certificate ${id} is now waiting for approvals.` });
       setForm((prev) => ({ ...prev, id, status: payload.status }));
+      window.dispatchEvent(new CustomEvent('certificates:changed'));
       await loadLibrary();
     } catch (error) {
       toast({ title: 'Save failed', description: error instanceof Error ? error.message : 'Unexpected error', variant: 'destructive' });
@@ -253,9 +272,9 @@ export function CertificateBuilder() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button disabled={saving} onClick={() => createCertificate()}>Save & Certify</Button>
+            <Button disabled={saving} onClick={() => createCertificate()}>Send for Approval</Button>
           </div>
-          <p className="text-xs text-muted-foreground">No approval workflow: certificates are certified immediately by admin and available for preview/download.</p>
+          <p className="text-xs text-muted-foreground">Certificates now enter the approval queue first, and appear in player/team dashboards only after full certification.</p>
         </CardContent>
       </Card>
 

@@ -21,6 +21,7 @@ import { compareTimestampsDesc, formatInIST } from '@/lib/time';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember } from '@/lib/boardDepartments';
+import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
 
 interface TeamSummary {
   name: string;
@@ -69,7 +70,7 @@ export default function TeamsDashboardPage() {
       if (cancelled) return;
       setTickets(ticketRows);
       setProfiles(profileRows);
-      setBoardConfig(boardRows[0] || null);
+      setBoardConfig(selectLatestBoardConfiguration(boardRows));
       setBoardMembers(mgmtRows.filter((member) => String(member.status || '').trim().toLowerCase() !== 'inactive'));
       setCertificates(certificateRows.filter((item) => (
         isCertificateCertified(item)

@@ -57,7 +57,7 @@
 // NEWS_ROOM_POSTS: "post_id",
 // MAIL_DIAGNOSTICS: "mail_log_id",
 // CERTIFICATES: "id",
-// CERTIFICATE_APPROVALS: "certificate_id",
+// CERTIFICATE_APPROVALS: "certificate_id|role",
 // CERTIFICATE_TEMPLATES: "template_id",
 // CANVA_CERTIFICATE_JOBS: "job_id",
 // OFFICIAL_DOCUMENTS: "document_id",
@@ -81,3 +81,13 @@
 //   MailApp.sendEmail(String(email), "Your Cricket Club OTP", "Your verification code is: " + String(otp) + "\n\nThis code expires in 10 minutes.");
 //   return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
 // }
+
+// IMPORTANT: For CERTIFICATE_APPROVALS, use a composite key in your Apps Script CRUD logic.
+// Example helper:
+// function getCompositeKey(tabName, payload) {
+//   if (tabName === "CERTIFICATE_APPROVALS") return [payload.certificate_id, payload.role].join("|");
+//   const keyCol = getKeyColumn(tabName);
+//   return payload[keyCol];
+// }
+// Then use that composite value when locating/updating rows so Treasurer / Referee /
+// Tournament Director approvals never overwrite each other.
