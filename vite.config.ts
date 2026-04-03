@@ -3,8 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-const rootDir = path.resolve(__dirname);
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const enableComponentTagger = mode === "development" && process.env.LOVABLE_COMPONENT_TAGGER === "true";
@@ -21,14 +19,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       dedupe: ["react", "react-dom"],
       alias: {
-        "@": path.resolve(rootDir, "./src"),
-        react: path.resolve(rootDir, "./node_modules/react"),
-        "react-dom": path.resolve(rootDir, "./node_modules/react-dom"),
+        "@": path.resolve(__dirname, "./src"),
       },
-    },
-    optimizeDeps: {
-      include: ["react", "react-dom", "react/jsx-runtime", "@tanstack/react-query"],
-      force: true,
     },
   };
 });
