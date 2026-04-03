@@ -17,10 +17,13 @@ function isSafeAssetUrl(url: string): boolean {
 function sanitizeCloneForPdf(root: HTMLElement) {
   const nodes = [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))];
   nodes.forEach((node) => {
-    if (node.style.backgroundImage) {
-      const match = node.style.backgroundImage.match(/url\((['"]?)(.*?)\1\)/i);
-      const candidate = match?.[2] || '';
-      if (!isSafeAssetUrl(candidate)) node.style.backgroundImage = 'none';
+    const inlineBackground = node.style.backgroundImage;
+    const computedBackground = window.getComputedStyle(node).backgroundImage;
+    const backgroundSource = inlineBackground || computedBackground;
+    if (backgroundSource && backgroundSource !== 'none') {
+      const urls = [...backgroundSource.matchAll(/url\((['"]?)(.*?)\1\)/gi)].map((match) => match[2] || '');
+      const unsafeFound = urls.some((candidate) => !isSafeAssetUrl(candidate));
+      if (unsafeFound) node.style.backgroundImage = 'none';
     }
 
     if (node instanceof HTMLImageElement) {
@@ -74,6 +77,8 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
   });
 
   try {
+    // Prevent avoidable cross-origin tainting issues before first render attempt.
+    sanitizeCloneForPdf(clone);
     let canvas;
     try {
       canvas = await renderCanvas();
