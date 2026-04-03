@@ -17,6 +17,8 @@ const SHEETS = [
   'CERTIFICATES',
   'CERTIFICATE_APPROVALS',
   'CERTIFICATE_TEMPLATES',
+  'FORM_DEFINITIONS',
+  'FORM_ENTRIES',
   'schedules',
   'approvals',
 ] as const;
@@ -56,6 +58,8 @@ export function AdminSheetsConsole({ initialSheet, lockSheetSelection = false }:
       'scorelist_id',
       'certificate_id',
       'template_id',
+      'form_id',
+      'entry_id',
       'schedule_id',
       'approval_id',
       'id',

@@ -98,6 +98,8 @@ const TABS = {
   TEAM_PROFILES: ["team_id","team_name","short_name","captain_name","coach_name","home_ground","founded_year","primary_color","secondary_color","status","created_at","updated_at"],
   TEAM_TITLES: ["title_id","team_id","team_name","competition_name","tournament_id","season_id","season_label","result_type","won_on","notes","created_at"],
   TEAM_ACCESS_USERS: ["team_access_id","team_id","team_name","username","password","status","created_at","updated_at","linked_by_admin"],
+  FORM_DEFINITIONS: ["form_id","title","slug","description","status","audience","schema_json","settings_json","created_by","updated_by","created_at","updated_at","published_at"],
+  FORM_ENTRIES: ["entry_id","form_id","form_title","submitted_by_id","submitted_by_name","submitted_by_role","payload_json","status","notes","submitted_at","reviewed_at","reviewed_by"],
   // Governance & competition workflow modules
   tournaments_v2: ["tournament_id","name","format","venue","start_date","end_date","registration_deadline","created_by","created_at","status","notes","season_id","season_year","source_type","public_page_path"],
   schedules: ["schedule_id","tournament_id","tournament_name","version_number","matches_json","created_by","created_by_name","timestamp","change_log","status","parent_schedule_id","hash","rejection_reason"],
@@ -197,6 +199,8 @@ function getKeyColumn(tabName) {
     TEAM_PROFILES: "team_id",
     TEAM_TITLES: "title_id",
     TEAM_ACCESS_USERS: "team_access_id",
+    FORM_DEFINITIONS: "form_id",
+    FORM_ENTRIES: "entry_id",
     tournaments_v2: "tournament_id",
     schedules: "schedule_id",
     approvals: "approval_id",

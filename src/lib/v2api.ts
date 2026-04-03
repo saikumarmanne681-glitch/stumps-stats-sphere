@@ -1,4 +1,4 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, TeamProfile, TeamTitleRecord, TeamAccessUser, CertificateRecord, CertificateApprovalRecord, CertificateTemplateRecord } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, TeamProfile, TeamTitleRecord, TeamAccessUser, CertificateRecord, CertificateApprovalRecord, CertificateTemplateRecord, DynamicFormDefinition, DynamicFormEntry } from './v2types';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 import { normalizeCertificateRecord } from './certificates';
@@ -166,6 +166,18 @@ export const v2api = {
   addTeamAccessUser: (teamUser: TeamAccessUser) => writeV2Sheet('TEAM_ACCESS_USERS', 'add', teamUser),
   updateTeamAccessUser: (teamUser: TeamAccessUser) => writeV2Sheet('TEAM_ACCESS_USERS', 'update', teamUser),
   deleteTeamAccessUser: (teamAccessId: string) => writeV2Sheet('TEAM_ACCESS_USERS', 'delete', { team_access_id: teamAccessId }),
+
+  // Dynamic forms (Fluent Forms-like module)
+  getFormDefinitions: () => fetchV2Sheet<DynamicFormDefinition>('FORM_DEFINITIONS'),
+  addFormDefinition: (form: DynamicFormDefinition) => writeV2Sheet('FORM_DEFINITIONS', 'add', form),
+  updateFormDefinition: (form: DynamicFormDefinition) => writeV2Sheet('FORM_DEFINITIONS', 'update', form),
+  deleteFormDefinition: (formId: string) => writeV2Sheet('FORM_DEFINITIONS', 'delete', { form_id: formId }),
+
+  getFormEntries: () => fetchV2Sheet<DynamicFormEntry>('FORM_ENTRIES'),
+  addFormEntry: (entry: DynamicFormEntry) => writeV2Sheet('FORM_ENTRIES', 'add', entry),
+  updateFormEntry: (entry: DynamicFormEntry) => writeV2Sheet('FORM_ENTRIES', 'update', entry),
+  deleteFormEntry: (entryId: string) => writeV2Sheet('FORM_ENTRIES', 'delete', { entry_id: entryId }),
+
 
   // Certificates
   getCertificates: async () => {

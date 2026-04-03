@@ -280,6 +280,75 @@ export interface OfficialDocumentRecord {
   updated_at: string;
 }
 
+
+export type DynamicFormFieldType =
+  | 'short_text'
+  | 'long_text'
+  | 'number'
+  | 'email'
+  | 'phone'
+  | 'date'
+  | 'time'
+  | 'datetime'
+  | 'checkbox'
+  | 'select'
+  | 'radio'
+  | 'multi_select';
+
+export interface DynamicFormCondition {
+  field_key: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'is_empty' | 'is_not_empty';
+  value: string;
+}
+
+export interface DynamicFormFieldOption {
+  label: string;
+  value: string;
+}
+
+export interface DynamicFormField {
+  key: string;
+  type: DynamicFormFieldType;
+  label: string;
+  required: boolean;
+  placeholder?: string;
+  help_text?: string;
+  default_value?: string;
+  options?: DynamicFormFieldOption[];
+  conditions?: DynamicFormCondition[];
+}
+
+export interface DynamicFormDefinition {
+  form_id: string;
+  title: string;
+  slug: string;
+  description: string;
+  status: 'draft' | 'published' | 'archived';
+  audience: 'players' | 'teams' | 'management' | 'all_logged_in';
+  schema_json: string;
+  settings_json: string;
+  created_by: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+  published_at?: string;
+}
+
+export interface DynamicFormEntry {
+  entry_id: string;
+  form_id: string;
+  form_title: string;
+  submitted_by_id: string;
+  submitted_by_name: string;
+  submitted_by_role: string;
+  payload_json: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  notes: string;
+  submitted_at: string;
+  reviewed_at: string;
+  reviewed_by: string;
+}
+
 // SLA config
 export const SLA_CONFIG = {
   low: { firstResponse: 24, resolution: 72 },

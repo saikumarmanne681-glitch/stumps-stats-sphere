@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search, FileText } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
 
 export function Navbar() {
@@ -40,6 +40,12 @@ export function Navbar() {
         {user && (
           <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
             <Link to="/management"><Users className="h-4 w-4 mr-1" /> Board</Link>
+          </Button>
+        )}
+
+        {user && (
+          <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
+            <Link to="/forms"><FileText className="h-4 w-4 mr-1" /> Forms</Link>
           </Button>
         )}
 
