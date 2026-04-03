@@ -51,14 +51,21 @@ export function parseDepartmentAssignments(config: BoardConfiguration | null): D
   }
 
   try {
-    const parsed = JSON.parse(raw);
+    const firstPass = JSON.parse(raw);
+    const parsed = typeof firstPass === 'string' ? JSON.parse(firstPass) : firstPass;
     const map = new Map<string, DepartmentAssignment>();
     const registerAssignment = (row: Partial<DepartmentAssignment>) => {
       if (!row.department_id) return;
-      const teamIds = Array.isArray(row.team_ids)
-        ? row.team_ids.map((id) => String(id || '').trim()).filter(Boolean)
-        : String((row as { team_ids?: unknown }).team_ids || '')
-          .split(',')
+      const legacy = row as Partial<DepartmentAssignment> & {
+        team_id?: string;
+        team_members?: unknown;
+        member_ids?: unknown;
+      };
+      const multiValue = legacy.team_ids ?? legacy.team_members ?? legacy.member_ids ?? legacy.team_id ?? '';
+      const teamIds = Array.isArray(multiValue)
+        ? multiValue.map((id) => String(id || '').trim()).filter(Boolean)
+        : String(multiValue)
+          .split(/[,\n|]/)
           .map((id) => id.trim())
           .filter(Boolean);
       map.set(String(row.department_id), {
@@ -72,15 +79,23 @@ export function parseDepartmentAssignments(config: BoardConfiguration | null): D
       parsed.forEach((entry) => registerAssignment(entry as Partial<DepartmentAssignment>));
     } else if (parsed && typeof parsed === 'object') {
       Object.entries(parsed as Record<string, unknown>).forEach(([departmentId, value]) => {
-        const row = (value || {}) as Partial<DepartmentAssignment> & { team_id?: string };
+        const row = (value || {}) as Partial<DepartmentAssignment> & {
+          team_id?: string;
+          team_members?: unknown;
+          member_ids?: unknown;
+        };
         registerAssignment({
           department_id: departmentId,
           head_id: row.head_id || '',
           team_ids: Array.isArray(row.team_ids)
             ? row.team_ids
-            : row.team_id
-              ? [row.team_id]
-              : [],
+            : row.team_members
+              ? (Array.isArray(row.team_members) ? row.team_members : String(row.team_members).split(/[,\n|]/))
+              : row.member_ids
+                ? (Array.isArray(row.member_ids) ? row.member_ids : String(row.member_ids).split(/[,\n|]/))
+                : row.team_id
+                  ? [row.team_id]
+                  : [],
         });
       });
     } else {

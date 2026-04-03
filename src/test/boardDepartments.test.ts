@@ -43,4 +43,23 @@ describe('board department assignments parsing', () => {
       team_ids: ['M7', 'M8'],
     });
   });
+
+  it('parses double-encoded and delimited team member payloads', () => {
+    const config: BoardConfiguration = {
+      config_id: 'BRCFG3',
+      current_period: '2026',
+      administration_team_ids: 'M1,M2',
+      department_assignments_json: JSON.stringify(JSON.stringify([
+        { department_id: 'media_community', head_id: 'M9', team_members: 'M10|M11, M12' },
+      ])),
+      updated_at: '2026-04-03T00:00:00.000Z',
+      updated_by: 'admin',
+    };
+
+    const parsed = parseDepartmentAssignments(config);
+    expect(parsed.find((item) => item.department_id === 'media_community')).toMatchObject({
+      head_id: 'M9',
+      team_ids: ['M10', 'M11', 'M12'],
+    });
+  });
 });

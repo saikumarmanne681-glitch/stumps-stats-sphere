@@ -1,5 +1,37 @@
 const A4_LANDSCAPE_WIDTH_MM = 297;
 const A4_LANDSCAPE_HEIGHT_MM = 210;
+const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
+function isSafeAssetUrl(url: string): boolean {
+  const value = String(url || '').trim();
+  if (!value) return true;
+  if (value.startsWith('data:') || value.startsWith('blob:')) return true;
+  try {
+    const parsed = new URL(value, window.location.href);
+    return parsed.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeCloneForPdf(root: HTMLElement) {
+  const nodes = [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))];
+  nodes.forEach((node) => {
+    if (node.style.backgroundImage) {
+      const match = node.style.backgroundImage.match(/url\((['"]?)(.*?)\1\)/i);
+      const candidate = match?.[2] || '';
+      if (!isSafeAssetUrl(candidate)) node.style.backgroundImage = 'none';
+    }
+
+    if (node instanceof HTMLImageElement) {
+      const source = node.currentSrc || node.src || '';
+      if (!isSafeAssetUrl(source)) {
+        node.crossOrigin = 'anonymous';
+        node.src = TRANSPARENT_PIXEL;
+      }
+    }
+  });
+}
 
 export async function downloadCertificatePdf(element: HTMLElement, filename: string) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
@@ -45,12 +77,10 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
     let canvas;
     try {
       canvas = await renderCanvas();
+      canvas.toDataURL('image/png');
     } catch {
-      // Fallback path: remove external background images that can taint canvas and block export.
-      clone.style.backgroundImage = 'none';
-      clone.querySelectorAll<HTMLElement>('*').forEach((node) => {
-        if (node.style.backgroundImage) node.style.backgroundImage = 'none';
-      });
+      // Fallback path: remove external assets that can taint canvas and block export.
+      sanitizeCloneForPdf(clone);
       canvas = await renderCanvas();
     }
 
