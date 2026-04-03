@@ -1,10 +1,12 @@
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
-
 const A4_LANDSCAPE_WIDTH_MM = 297;
 const A4_LANDSCAPE_HEIGHT_MM = 210;
 
 export async function downloadCertificatePdf(element: HTMLElement, filename: string) {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ]);
+
   const mount = document.createElement('div');
   const clone = element.cloneNode(true) as HTMLElement;
 

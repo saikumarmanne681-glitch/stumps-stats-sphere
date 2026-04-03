@@ -36,7 +36,12 @@ export function ApprovalPanel({ mode }: Props) {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const handleCertificatesChanged = () => { load(); };
+    window.addEventListener('certificates:changed', handleCertificatesChanged);
+    return () => window.removeEventListener('certificates:changed', handleCertificatesChanged);
+  }, []);
 
   const rows = useMemo(() => {
     if (mode === 'admin') return certificates.filter((item) => {
@@ -86,6 +91,7 @@ export function ApprovalPanel({ mode }: Props) {
       }
       logAudit(user?.management_id || user?.username || 'management', `certificate_${decision}`, 'certificate', certificate.id, JSON.stringify({ role: myRole }));
       toast({ title: `Certificate ${decision}` });
+      window.dispatchEvent(new CustomEvent('certificates:changed'));
       await load();
     } finally {
       setActionLoading(null);
@@ -112,6 +118,7 @@ export function ApprovalPanel({ mode }: Props) {
         await sendSystemEmail({ to: adminRecipient, subject: `Certificate certified: ${certificate.id}`, htmlBody: `<p>Certificate <strong>${certificate.id}</strong> has been fully certified.</p>` });
       }
       toast({ title: 'Certificate finalized', description: `${certificate.id} is now certified.` });
+      window.dispatchEvent(new CustomEvent('certificates:changed'));
       await load();
     } finally {
       setActionLoading(null);

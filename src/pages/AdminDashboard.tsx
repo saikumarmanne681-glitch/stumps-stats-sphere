@@ -32,7 +32,7 @@ const AdminDashboard = () => {
   const [pendingCertificates, setPendingCertificates] = useState(0);
 
   useEffect(() => {
-    Promise.all([v2api.getScorelists(), v2api.getCertificates()]).then(([scorelistRows, certificateRows]) => {
+    const loadCounts = () => Promise.all([v2api.getScorelists(), v2api.getCertificates()]).then(([scorelistRows, certificateRows]) => {
       setPendingScorelists(scorelistRows.filter((item) => !item.locked && item.certification_status !== 'official_certified').length);
       setPendingCertificates(certificateRows.filter((item) => {
         const status = normalizeCertificateStatus(item.status);
@@ -42,6 +42,11 @@ const AdminDashboard = () => {
       setPendingScorelists(0);
       setPendingCertificates(0);
     });
+
+    loadCounts();
+    const handleCertificatesChanged = () => { void loadCounts(); };
+    window.addEventListener('certificates:changed', handleCertificatesChanged);
+    return () => window.removeEventListener('certificates:changed', handleCertificatesChanged);
   }, []);
 
   if (!isAdmin) return <Navigate to="/login" />;

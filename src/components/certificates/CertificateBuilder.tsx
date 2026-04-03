@@ -145,6 +145,7 @@ export function CertificateBuilder() {
       logAudit(user?.username || 'admin', 'certificate_submitted_for_approval', 'certificate', id, JSON.stringify(payload));
       toast({ title: 'Certificate submitted', description: `Certificate ${id} is now waiting for approvals.` });
       setForm((prev) => ({ ...prev, id, status: payload.status }));
+      window.dispatchEvent(new CustomEvent('certificates:changed'));
       await loadLibrary();
     } catch (error) {
       toast({ title: 'Save failed', description: error instanceof Error ? error.message : 'Unexpected error', variant: 'destructive' });
