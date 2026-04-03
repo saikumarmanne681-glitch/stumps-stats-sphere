@@ -81,11 +81,18 @@ export function mapDesignationToApproverRole(designation?: string, role?: string
 
 export function normalizeCertificateStatus(value?: string | null): CertificateStatus | null {
   const normalized = String(value || '').trim().toUpperCase();
+  const compact = normalized.replace(/[\s-]+/g, '_');
   if (normalized === 'DRAFT') return 'DRAFT';
   if (normalized === 'PENDING_APPROVAL') return 'PENDING_APPROVAL';
   if (normalized === 'REJECTED') return 'REJECTED';
   if (normalized === 'APPROVED') return 'APPROVED';
   if (normalized === 'CERTIFIED') return 'CERTIFIED';
+  if (compact === 'PENDING_APPROVAL') return 'PENDING_APPROVAL';
+  if (compact === 'IN_REVIEW') return 'PENDING_APPROVAL';
+  if (compact === 'CERTIFICATE_CERTIFIED' || compact === 'FULLY_CERTIFIED') return 'CERTIFIED';
+  if (normalized.includes('CERTIFIED')) return 'CERTIFIED';
+  if (normalized.includes('APPROVED')) return 'APPROVED';
+  if (normalized.includes('REJECTED')) return 'REJECTED';
   return null;
 }
 
@@ -137,7 +144,7 @@ export function normalizeCertificateId(value?: string | null): string {
 }
 
 export function isCertificateCertified(certificate?: Partial<CertificateRecord> | null): boolean {
-  return String(certificate?.status || '').trim().toUpperCase() === 'CERTIFIED';
+  return normalizeCertificateStatus(String(certificate?.status || '')) === 'CERTIFIED';
 }
 
 export function isCertificateAuthentic(certificate?: Partial<CertificateRecord> | null): boolean {
@@ -202,24 +209,33 @@ export function normalizeCertificateRecord(raw: Partial<CertificateRecord> | Gen
 
 export function certificateMatchesPlayer(certificate: Partial<CertificateRecord>, playerId: string): boolean {
   const normalized = normalizeCertificateRecord(certificate);
-  const target = String(playerId || '').trim().toLowerCase();
+  const target = normalizeCertificateIdentity(playerId);
+  const recipientId = normalizeCertificateIdentity(normalized.recipient_id);
+  const linkedPlayerId = normalizeCertificateIdentity(normalized.linked_player_id);
   return Boolean(target) && (
-    (normalized.recipient_type === 'player' && normalized.recipient_id.trim().toLowerCase() === target)
-    || String(normalized.linked_player_id || '').trim().toLowerCase() === target
+    (normalized.recipient_type === 'player' && recipientId === target)
+    || linkedPlayerId === target
   );
 }
 
 export function certificateMatchesTeam(certificate: Partial<CertificateRecord>, teamName: string): boolean {
   const normalized = normalizeCertificateRecord(certificate);
-  const target = String(teamName || '').trim().toLowerCase();
+  const target = normalizeCertificateIdentity(teamName);
   if (!target) return false;
-  const recipientId = String(normalized.recipient_id || '').trim().toLowerCase();
-  const recipientName = String(normalized.recipient_name || '').trim().toLowerCase();
-  const linkedTeam = String(normalized.linked_team_name || '').trim().toLowerCase();
+  const recipientId = normalizeCertificateIdentity(normalized.recipient_id);
+  const recipientName = normalizeCertificateIdentity(normalized.recipient_name);
+  const linkedTeam = normalizeCertificateIdentity(normalized.linked_team_name);
   if (linkedTeam === target) return true;
   return normalized.recipient_type === 'team' && (
     recipientName === target
     || recipientId === target
     || linkedTeam === target
   );
+}
+
+function normalizeCertificateIdentity(value?: string | null): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCertificateAuthentic, isCertificateCertified, normalizeCertificateId, normalizeCertificateRecord } from '@/lib/certificates';
+import { certificateMatchesPlayer, certificateMatchesTeam, isCertificateAuthentic, isCertificateCertified, normalizeCertificateId, normalizeCertificateRecord } from '@/lib/certificates';
 
 describe('certificate verification helpers', () => {
   it('normalizes ids for resilient lookup', () => {
@@ -10,6 +10,7 @@ describe('certificate verification helpers', () => {
   it('treats certified status case-insensitively', () => {
     expect(isCertificateCertified({ status: 'CERTIFIED' })).toBe(true);
     expect(isCertificateCertified({ status: 'certified' as never })).toBe(true);
+    expect(isCertificateCertified({ status: 'Certificate Certified' as never })).toBe(true);
     expect(isCertificateCertified({ status: 'APPROVED' })).toBe(false);
   });
 
@@ -35,5 +36,20 @@ describe('certificate verification helpers', () => {
       approval_status: 'certified',
       recipient_name: 'Legacy Recipient',
     }).status).toBe('CERTIFIED');
+  });
+
+  it('matches players and teams even with id/name formatting differences', () => {
+    expect(certificateMatchesPlayer({
+      recipient_type: 'player',
+      recipient_id: 'PLR-001',
+      linked_player_id: '',
+    }, 'plr 001')).toBe(true);
+
+    expect(certificateMatchesTeam({
+      recipient_type: 'team',
+      recipient_id: 'Warriors-XI',
+      recipient_name: 'Warriors XI',
+      linked_team_name: '',
+    }, 'warriors xi')).toBe(true);
   });
 });
