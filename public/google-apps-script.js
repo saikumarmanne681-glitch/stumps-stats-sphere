@@ -916,6 +916,15 @@ function doPost(e) {
 
   function normalizeSheetValue(header, value) {
     if (value === null || value === undefined) return "";
+    if (Array.isArray(value)) {
+      if (/_ids$/.test(header)) return value.map((entry) => String(entry || "").trim()).filter(Boolean).join(",");
+      if (/_json$/.test(header) || header === "metadata" || header === "payload") return JSON.stringify(value);
+      return JSON.stringify(value);
+    }
+    if (typeof value === "object") {
+      if (/_json$/.test(header) || header === "metadata" || header === "payload") return JSON.stringify(value);
+      return JSON.stringify(value);
+    }
     if (value instanceof Date) {
       if (["date", "start_date", "end_date"].indexOf(header) !== -1) {
         return Utilities.formatDate(value, spreadsheetTimeZone, "yyyy-MM-dd");
