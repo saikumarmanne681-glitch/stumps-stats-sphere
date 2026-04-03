@@ -13,15 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api } from '@/lib/v2api';
-import { BoardConfiguration, ManagementUser, SupportTicket, TeamProfile } from '@/lib/v2types';
+import { SupportTicket, TeamProfile } from '@/lib/v2types';
 import { CertificateRecord, certificateMatchesTeam, isCertificateCertified } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 import { Announcement } from '@/lib/types';
 import { compareTimestampsDesc, formatInIST } from '@/lib/time';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { BOARD_DEPARTMENTS, parseDepartmentAssignments, resolveDepartmentMember } from '@/lib/boardDepartments';
-import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
 
 interface TeamSummary {
   name: string;
@@ -48,10 +46,8 @@ export default function TeamsDashboardPage() {
   const { toast } = useToast();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [profiles, setProfiles] = useState<TeamProfile[]>([]);
-  const [boardMembers, setBoardMembers] = useState<ManagementUser[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [loading, setLoading] = useState(true);
-  const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [ticketForm, setTicketForm] = useState({ category: 'general', priority: 'medium' as SupportTicket['priority'], subject: '', description: '' });
@@ -60,18 +56,14 @@ export default function TeamsDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const [ticketRows, profileRows, boardRows, mgmtRows, certificateRows] = await Promise.all([
+      const [ticketRows, profileRows, certificateRows] = await Promise.all([
         v2api.getTickets(),
         v2api.getTeamProfiles(),
-        v2api.getBoardConfiguration(),
-        v2api.getManagementUsers(),
         v2api.getCertificates(),
       ]);
       if (cancelled) return;
       setTickets(ticketRows);
       setProfiles(profileRows);
-      setBoardConfig(selectLatestBoardConfiguration(boardRows));
-      setBoardMembers(mgmtRows.filter((member) => String(member.status || '').trim().toLowerCase() !== 'inactive'));
       setCertificates(certificateRows.filter((item) => (
         isCertificateCertified(item)
         && (
@@ -221,8 +213,6 @@ export default function TeamsDashboardPage() {
     return fromAnnouncements.sort((a, b) => compareTimestampsDesc(a.date, b.date)).slice(0, 8);
   }, [announcements]);
 
-  const departmentAssignments = useMemo(() => parseDepartmentAssignments(boardConfig), [boardConfig]);
-
   const handleRaiseTicket = async () => {
     if (!ticketForm.subject.trim() || !ticketForm.description.trim()) {
       toast({ title: 'Missing details', description: 'Subject and description are required.', variant: 'destructive' });
@@ -294,35 +284,6 @@ export default function TeamsDashboardPage() {
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Open tickets</p><p className="text-2xl font-bold">{openTickets}</p></CardContent></Card>
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Resolved tickets</p><p className="text-2xl font-bold text-emerald-700">{resolvedTickets}</p></CardContent></Card>
         </div>
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Five-Department Leadership Directory</CardTitle>
-            <p className="text-sm text-muted-foreground">Admin-defined department heads and teams are shared with the Management Board page for a single source of truth.</p>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {BOARD_DEPARTMENTS.map((department) => {
-              const assignment = departmentAssignments.find((item) => item.department_id === department.id) || { head_id: '', team_ids: [] };
-              const head = assignment.head_id ? resolveDepartmentMember(assignment.head_id, boardMembers) : null;
-              const members = assignment.team_ids
-                .map((id) => resolveDepartmentMember(id, boardMembers))
-                .filter((member): member is NonNullable<typeof member> => Boolean(member));
-              return (
-                <div key={`team-dashboard:${department.id}`} className="rounded-xl border bg-card p-3">
-                  <p className="font-semibold">{department.name}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{department.description}</p>
-                  <p className="text-sm mt-2"><span className="font-medium">Head:</span> {head ? `${head.name} (${head.designation})` : 'Not assigned'}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {members.length === 0 && <Badge variant="secondary">No team members</Badge>}
-                    {members.map((member) => (
-                      <Badge key={`${department.id}:${member.management_id}`} variant="outline">{member.name}</Badge>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-
         <Tabs defaultValue="insights" className="space-y-4">
           <TabsList className="grid w-full grid-cols-2 gap-2 md:grid-cols-5">
             <TabsTrigger value="insights" className="gap-1"><BarChart3 className="h-4 w-4" /> Insights</TabsTrigger>
@@ -537,6 +498,14 @@ export default function TeamsDashboardPage() {
           </TabsContent>
 
           <TabsContent value="certificates" className="space-y-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Linked team certificates</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Certified certificates linked to the selected team are available below with PDF download support.</p>
+              </CardContent>
+            </Card>
             {visibleCertificates.map((certificate) => (
               <CertificatePreview
                 key={certificate.id}
@@ -570,13 +539,6 @@ export default function TeamsDashboardPage() {
 
         {loading && <p className="text-sm text-muted-foreground">Loading dashboard datasets…</p>}
 
-        <Card className="border-dashed bg-muted/30">
-          <CardContent className="p-4 text-sm text-muted-foreground">
-            <p className="font-medium">Data source note:</p>
-            <p className="mt-1">Team honors are now computed directly from Seasons winner/runner-up fields to keep dashboard totals aligned with the Seasons module.</p>
-            <p className="mt-1">Tournaments loaded: {tournaments.length}. Team login credentials are maintained via TEAM_ACCESS_USERS sheet.</p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

@@ -21,8 +21,14 @@ const SHEETS = [
   'approvals',
 ] as const;
 
-export function AdminSheetsConsole() {
-  const [sheet, setSheet] = useState<string>(SHEETS[0]);
+interface AdminSheetsConsoleProps {
+  initialSheet?: string;
+  lockSheetSelection?: boolean;
+}
+
+export function AdminSheetsConsole({ initialSheet, lockSheetSelection = false }: AdminSheetsConsoleProps = {}) {
+  const initialValue = initialSheet && SHEETS.includes(initialSheet as (typeof SHEETS)[number]) ? initialSheet : SHEETS[0];
+  const [sheet, setSheet] = useState<string>(initialValue);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const [jsonValue, setJsonValue] = useState('{}');
@@ -86,7 +92,7 @@ export function AdminSheetsConsole() {
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <Label>Sheet</Label>
-              <Select value={sheet} onValueChange={setSheet}>
+              <Select value={sheet} onValueChange={setSheet} disabled={lockSheetSelection}>
                 <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
                 <SelectContent>{SHEETS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
               </Select>

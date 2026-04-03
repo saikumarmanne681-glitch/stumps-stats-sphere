@@ -147,6 +147,23 @@ function findRowIndex(sheet, keyCol, keyVal) {
   return -1;
 }
 
+function findCertificateRowIndex(sheet, payload) {
+  const data = sheet.getDataRange().getValues();
+  if (!data || data.length <= 1) return -1;
+  const headers = data[0] || [];
+  const idIdx = headers.indexOf("id");
+  const certificateIdIdx = headers.indexOf("certificate_id");
+  const incomingId = String((payload && (payload.id || payload.certificate_id)) || "");
+  if (!incomingId) return -1;
+
+  for (let i = 1; i < data.length; i++) {
+    const rowId = idIdx !== -1 ? String(data[i][idIdx] || "") : "";
+    const legacyId = certificateIdIdx !== -1 ? String(data[i][certificateIdIdx] || "") : "";
+    if (rowId === incomingId || legacyId === incomingId) return i + 1; // 1-indexed
+  }
+  return -1;
+}
+
 function getKeyColumn(tabName) {
   const map = {
     Players: "player_id",
@@ -975,6 +992,40 @@ function doPost(e) {
         );
       }
       sheet.deleteRow(rowIdx + 1);
+      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  if (tabName === "CERTIFICATES") {
+    const row = headers.map((h) => normalizeSheetValue(h, data[h]));
+    const rowIdx = findCertificateRowIndex(sheet, data || {});
+
+    if (action === "add") {
+      if (rowIdx !== -1) {
+        sheet.getRange(rowIdx, 1, 1, headers.length).setValues([row]);
+        return ContentService.createTextOutput(JSON.stringify({ success: true, mode: "overwrite" })).setMimeType(ContentService.MimeType.JSON);
+      }
+      sheet.appendRow(row);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, mode: "insert" })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "update") {
+      if (rowIdx === -1) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" })).setMimeType(
+          ContentService.MimeType.JSON,
+        );
+      }
+      sheet.getRange(rowIdx, 1, 1, headers.length).setValues([row]);
+      return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "delete") {
+      if (rowIdx === -1) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" })).setMimeType(
+          ContentService.MimeType.JSON,
+        );
+      }
+      sheet.deleteRow(rowIdx);
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
     }
   }

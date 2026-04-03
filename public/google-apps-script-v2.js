@@ -91,3 +91,8 @@
 // }
 // Then use that composite value when locating/updating rows so Treasurer / Referee /
 // Tournament Director approvals never overwrite each other.
+//
+// CERTIFICATES compatibility tip:
+// - Keep "id" as the canonical key column.
+// - If legacy data includes "certificate_id", your CRUD logic should treat either
+//   id/certificate_id as the same key during update/delete so old rows continue to work.

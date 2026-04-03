@@ -15,7 +15,7 @@ import { AdminSupportDashboard } from '@/components/admin/AdminSupport';
 import { AdminPresence } from '@/components/admin/AdminPresence';
 import { AdminScorelists } from '@/components/admin/AdminScorelists';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
-import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Newspaper, ListTodo, MailSearch, Award } from 'lucide-react';
+import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Newspaper, ListTodo, MailSearch, Award, Database } from 'lucide-react';
 import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
 import { AdminMailDiagnostics } from '@/components/admin/AdminMailDiagnostics';
 import { AdminSheetsConsole } from '@/components/admin/AdminSheetsConsole';
@@ -162,6 +162,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="certificates" className="flex items-center gap-1 text-xs">
               <Award className="h-3 w-3" /> Certificates
             </TabsTrigger>
+            <TabsTrigger value="certificate-sheet" className="flex items-center gap-1 text-xs">
+              <Database className="h-3 w-3" /> Certificate Sheet
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="matches"><AdminMatches /></TabsContent>
@@ -184,6 +187,9 @@ const AdminDashboard = () => {
               <ApprovalPanel mode="admin" />
               <CertificateBuilder />
             </div>
+          </TabsContent>
+          <TabsContent value="certificate-sheet">
+            <AdminSheetsConsole initialSheet="CERTIFICATES" lockSheetSelection />
           </TabsContent>
         </Tabs>
       </div>
