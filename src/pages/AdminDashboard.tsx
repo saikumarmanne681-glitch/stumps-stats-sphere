@@ -15,7 +15,7 @@ import { AdminSupportDashboard } from '@/components/admin/AdminSupport';
 import { AdminPresence } from '@/components/admin/AdminPresence';
 import { AdminScorelists } from '@/components/admin/AdminScorelists';
 import { AdminAuditLog } from '@/components/admin/AdminAuditLog';
-import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Newspaper, ListTodo, MailSearch, Award, Database } from 'lucide-react';
+import { Megaphone, Trophy, Calendar, Users, Gamepad2, MessageSquare, Settings, Headphones, Wifi, Shield, ScrollText, Zap, Newspaper, ListTodo, MailSearch, Award, Database, FileCheck2 } from 'lucide-react';
 import { AdminNewsRoom } from '@/components/admin/AdminNewsRoom';
 import { AdminMailDiagnostics } from '@/components/admin/AdminMailDiagnostics';
 import { AdminSheetsConsole } from '@/components/admin/AdminSheetsConsole';
@@ -25,6 +25,7 @@ import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { CertificateBuilder } from '@/components/certificates/CertificateBuilder';
 import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
 import { normalizeCertificateStatus } from '@/lib/certificates';
+import { AdminForms } from '@/components/admin/AdminForms';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -165,6 +166,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="certificate-sheet" className="flex items-center gap-1 text-xs">
               <Database className="h-3 w-3" /> Certificate Sheet
             </TabsTrigger>
+            <TabsTrigger value="forms" className="flex items-center gap-1 text-xs">
+              <FileCheck2 className="h-3 w-3" /> Forms Empire
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="matches"><AdminMatches /></TabsContent>
@@ -190,6 +194,13 @@ const AdminDashboard = () => {
           </TabsContent>
           <TabsContent value="certificate-sheet">
             <AdminSheetsConsole initialSheet="CERTIFICATES" lockSheetSelection />
+          </TabsContent>
+          <TabsContent value="forms">
+            <div className="space-y-6">
+              <AdminForms />
+              <AdminSheetsConsole initialSheet="FORM_DEFINITIONS" lockSheetSelection />
+              <AdminSheetsConsole initialSheet="FORM_ENTRIES" lockSheetSelection />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
