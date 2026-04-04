@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Lock } from "lucide-react";
+import { CalendarDays, Filter, Lock, Sparkles, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SessionFingerprint, SecurityShieldBadge } from "@/components/SecurityBadge";
 import { VerticalAnnouncementsBox } from "@/components/VerticalAnnouncementsBox";
@@ -79,42 +79,62 @@ const Home = () => {
             You are offline. Showing last available data snapshot.
           </div>
         )}
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="font-display text-lg font-semibold">Filters:</span>
-          <Select value={filterTournament} onValueChange={(v) => { setFilterTournament(v); setFilterSeason("all"); }}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Tournament" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Tournaments</SelectItem>
-              {tournaments.map((t) => (
-                <SelectItem key={t.tournament_id} value={t.tournament_id}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterSeason} onValueChange={setFilterSeason}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Season Year" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Seasons</SelectItem>
-              {relevantSeasons.map((s) => (
-                <SelectItem key={s.season_id} value={s.season_id}>
-                  {s.year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         <VerticalAnnouncementsBox />
 
         {/* Leaderboards */}
-        <section>
-          <h2 className="font-display text-2xl font-bold mb-4">🏆 Leaderboards</h2>
+        <section className="rounded-3xl border border-primary/10 bg-gradient-to-br from-background via-primary/5 to-accent/5 p-5 md:p-6">
+          <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <h2 className="font-display text-2xl font-bold">🏆 Leaderboards</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-none bg-primary/10 text-primary">
+                <Filter className="mr-1 h-3.5 w-3.5" /> Filter standings
+              </Badge>
+              {(filterTournament !== "all" || filterSeason !== "all") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFilterTournament("all");
+                    setFilterSeason("all");
+                  }}
+                >
+                  <X className="mr-1 h-4 w-4" /> Clear filters
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="mb-5 grid gap-3 rounded-2xl border border-primary/15 bg-background/80 p-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+            <Select value={filterTournament} onValueChange={(v) => { setFilterTournament(v); setFilterSeason("all"); }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tournament" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tournaments</SelectItem>
+                {tournaments.map((t) => (
+                  <SelectItem key={t.tournament_id} value={t.tournament_id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterSeason} onValueChange={setFilterSeason}>
+              <SelectTrigger>
+                <SelectValue placeholder="Season Year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Seasons</SelectItem>
+                {relevantSeasons.map((s) => (
+                  <SelectItem key={s.season_id} value={s.season_id}>
+                    {s.year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex h-full items-center gap-2 text-xs text-muted-foreground">
+              <Sparkles className="h-4 w-4 text-primary" />
+              {filteredMatchIds.length} filtered matches
+            </div>
+          </div>
           <Leaderboard
             batting={batting}
             bowling={bowling}
@@ -137,9 +157,15 @@ const Home = () => {
         </section>
 
         {/* Matches */}
-        <section>
+        <section className="rounded-3xl border border-primary/10 bg-gradient-to-br from-background via-background to-primary/5 p-5 md:p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-            <h2 className="font-display text-2xl font-bold">📅 {showAllMatches ? "All Matches" : "Latest Matches"}</h2>
+            <div>
+              <h2 className="font-display text-2xl font-bold">📅 {showAllMatches ? "All Matches" : "Latest Matches"}</h2>
+              <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Showing {displayMatches.length} match{displayMatches.length === 1 ? "" : "es"} in the current view.
+              </p>
+            </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 value={matchSearch}
@@ -151,6 +177,24 @@ const Home = () => {
                 {showAllMatches ? "Show Latest" : "More"}
               </Button>
             </div>
+          </div>
+          <div className="mb-4 inline-flex rounded-full border border-primary/20 bg-primary/5 p-1">
+            <Button
+              size="sm"
+              variant={!showAllMatches ? "default" : "ghost"}
+              className="rounded-full"
+              onClick={() => setShowAllMatches(false)}
+            >
+              Latest Matches
+            </Button>
+            <Button
+              size="sm"
+              variant={showAllMatches ? "default" : "ghost"}
+              className="rounded-full"
+              onClick={() => setShowAllMatches(true)}
+            >
+              All Matches
+            </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayMatches.map((match) => (

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useData } from '@/lib/DataContext';
-import { Sparkles, Volume2, ChevronRight, Shield } from 'lucide-react';
+import { Sparkles, Volume2, ChevronRight, Shield, PauseCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DataIntegrityBadge } from '@/components/SecurityBadge';
 import { formatSheetDate } from '@/lib/dataUtils';
@@ -28,7 +28,7 @@ export function AnnouncementTicker() {
       return `📢 ${announcement.title}: ${announcement.message} • ${publishedOn}`;
     })
     .join('   ✦   ');
-  const animationDuration = `${Math.max(28, activeAnnouncements.length * 10)}s`;
+  const animationDuration = `${Math.max(24, activeAnnouncements.length * 9)}s`;
 
   return (
     <div className="group relative overflow-hidden bg-gradient-to-r from-primary via-accent to-primary border-b border-primary/40">
@@ -74,6 +74,9 @@ export function AnnouncementTicker() {
           </Badge>
           <Badge className="border-none bg-primary-foreground/15 text-primary-foreground text-[10px]">
             <Shield className="mr-1 h-3 w-3" /> Verified
+          </Badge>
+          <Badge className="border-none bg-primary-foreground/15 text-primary-foreground text-[10px]">
+            <PauseCircle className="mr-1 h-3 w-3" /> Hover to pause
           </Badge>
           <DataIntegrityBadge
             data={activeAnnouncements.map((announcement) => `${announcement.id}:${announcement.date}`).join('|')}
