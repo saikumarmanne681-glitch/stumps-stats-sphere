@@ -359,15 +359,20 @@ const ManagementPage = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-6 md:py-8 space-y-6 md:space-y-8">
         {/* Enhanced Header */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-primary to-accent mb-2">
-            <Crown className="h-8 w-8 md:h-10 md:w-10 text-primary-foreground" />
-          </div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold">Management Board</h1>
-          <p className="text-muted-foreground text-sm max-w-md mx-auto">Club Leadership & Tournament Governance</p>
-          <div className="flex items-center justify-center gap-2">
-            <SecurityShieldBadge label="Governance Portal" variant="certified" />
-            <SessionFingerprint />
+        <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-6 text-slate-100 md:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(250,204,21,0.18)_0%,transparent_35%),radial-gradient(circle_at_100%_20%,rgba(168,85,247,0.22)_0%,transparent_40%),radial-gradient(circle_at_50%_100%,rgba(59,130,246,0.16)_0%,transparent_45%)]" />
+          <div className="relative z-10 flex flex-col items-center text-center space-y-3">
+            <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-amber-400 to-violet-500 mb-1 shadow-lg">
+              <Crown className="h-8 w-8 md:h-10 md:w-10 text-slate-950" />
+            </div>
+            <h1 className="font-display text-3xl md:text-5xl font-bold text-white">Management Board</h1>
+            <p className="text-slate-200 text-sm md:text-base max-w-2xl">
+              Unified governance workspace for leadership approvals, coordination, and board directory visibility across all devices.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <SecurityShieldBadge label="Governance Portal" variant="certified" />
+              <SessionFingerprint />
+            </div>
           </div>
         </div>
 
@@ -711,30 +716,31 @@ const ManagementPage = () => {
         )}
 
         <section className="space-y-4">
-          <div className="rounded-2xl border bg-gradient-to-r from-primary/10 via-accent/5 to-background p-5 md:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/15 via-violet-500/10 to-background p-5 md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Board Directory</p>
                 <h2 className="font-display text-2xl md:text-3xl font-bold mt-1 flex items-center gap-2">
                   <Crown className="h-6 w-6 text-primary" /> Management Board Members
                 </h2>
-                <p className="text-sm text-muted-foreground mt-2">A cleaner governance directory with quick filtering, clear team tagging, and department ownership visibility.</p>
+                <p className="text-sm text-muted-foreground mt-2">A full responsive redesign with clearer hierarchy, quick search, and role-based grouping for easier governance access.</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                 <Badge className="bg-primary text-primary-foreground">Total Board Members: {boardMembers.length}</Badge>
                 <Badge variant="outline">Configured Team: {configuredBoardTeam.length}</Badge>
+                <Badge variant="outline">Leadership: {leadership.length}</Badge>
                 <Badge variant="outline">Period: {boardConfig?.current_period || 'Not set'}</Badge>
               </div>
             </div>
           </div>
 
-          <Card className="shadow-sm">
+          <Card className="shadow-sm border-primary/20">
             <CardHeader className="pb-3 space-y-3">
               <div>
                 <CardTitle className="font-display text-lg flex items-center gap-2">
                   <BriefcaseBusiness className="h-5 w-5 text-accent" /> Board Roster
                 </CardTitle>
-                <p className="text-xs text-muted-foreground">Unified list of all active management users with configuration highlighting.</p>
+                <p className="text-xs text-muted-foreground">Filter by designation and search any member by name, email, role, or designation.</p>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 <div className="relative">
@@ -759,38 +765,86 @@ const ManagementPage = () => {
                 </Select>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+            <CardContent className="space-y-5 max-h-[620px] overflow-y-auto pr-1">
               {filteredBoardMembers.length === 0 && (
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                   No board members matched your current filters.
                 </div>
               )}
-              {filteredBoardMembers.map((member) => {
-                const highlighted = administrationTeamIds.includes(member.management_id);
-                return (
-                  <div key={member.management_id} className={`rounded-xl border p-3 flex items-center gap-3 ${highlighted ? 'border-primary/40 bg-primary/5' : 'bg-background'}`}>
-                    <div className="h-11 w-11 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      {member.signature_image ? (
-                        <img src={member.signature_image} alt={member.name} className="h-11 w-11 rounded-lg object-cover" />
-                      ) : (
-                        <User className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold truncate">{member.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{member.email || 'No email configured'}</p>
-                      <div className="mt-1 flex items-center gap-2 flex-wrap">
-                        <Badge variant={highlighted ? 'default' : 'outline'} className="text-[10px]">{member.designation}</Badge>
-                        {member.role && <Badge variant="outline" className="text-[10px]">{member.role}</Badge>}
-                        <DepartmentBadge department={inferDepartmentFromManagementUser(member)} className="text-[10px]" />
-                        {highlighted && <Badge className="bg-accent/20 text-accent-foreground text-[10px]">Configured Team</Badge>}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-semibold">Filtered Members</h4>
+                  <Badge variant="secondary" className="text-[10px]">{filteredBoardMembers.length} shown</Badge>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {filteredBoardMembers.map((member) => {
+                    const highlighted = administrationTeamIds.includes(member.management_id);
+                    const isLeadership = ['President', 'Vice President', 'Secretary', 'Treasurer'].includes(member.designation);
+                    return (
+                      <div
+                        key={member.management_id}
+                        className={`group rounded-2xl border p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${
+                          highlighted
+                            ? 'border-primary/35 bg-gradient-to-br from-primary/10 via-background to-accent/10'
+                            : 'border-border bg-background'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                            {member.signature_image ? (
+                              <img src={member.signature_image} alt={member.name} className="h-12 w-12 rounded-xl object-cover" />
+                            ) : (
+                              <User className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold truncate">{member.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{member.email || 'No email configured'}</p>
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                              <Badge variant={highlighted ? 'default' : 'outline'} className="text-[10px]">{member.designation}</Badge>
+                              {member.role && <Badge variant="outline" className="text-[10px]">{member.role}</Badge>}
+                              <DepartmentBadge department={inferDepartmentFromManagementUser(member)} className="text-[10px]" />
+                              {isLeadership && <Badge className="bg-amber-500/20 text-amber-700 text-[10px]">Leadership</Badge>}
+                              {highlighted && <Badge className="bg-accent/20 text-accent-foreground text-[10px]">Configured Team</Badge>}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {configuredBoardTeam.length > 0 && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Configured Board Team</p>
+                  <div className="flex flex-wrap gap-2">
+                    {configuredBoardTeam.map((member) => (
+                      <Badge key={member.management_id} variant="outline" className="bg-background">
+                        {member.name} · {member.designation}
+                      </Badge>
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+              )}
+
+              {otherBoardMembers.length > 0 && (
+                <div className="rounded-xl border border-dashed p-4">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Other Active Members</p>
+                  <div className="flex flex-wrap gap-2">
+                    {otherBoardMembers.map((member) => (
+                      <Badge key={member.management_id} variant="secondary">
+                        {member.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {otherBoardMembers.length === 0 && boardMembers.length > 0 && (
-                <p className="text-xs text-muted-foreground">All board members are currently part of the configured team.</p>
+                <p className="text-xs text-muted-foreground">
+                  All board members are currently part of the configured team.
+                </p>
               )}
             </CardContent>
           </Card>
