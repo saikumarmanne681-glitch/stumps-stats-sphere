@@ -198,7 +198,7 @@ function getKeyColumn(tabName) {
     NEWS_ROOM_POSTS: "post_id",
     MAIL_DIAGNOSTICS: "mail_log_id",
     CERTIFICATES: "id",
-    CERTIFICATE_APPROVALS: "certificate_id",
+    CERTIFICATE_APPROVALS: "certificate_id|role",
     CERTIFICATE_TEMPLATES: "template_id",
     CANVA_CERTIFICATE_JOBS: "job_id",
     OFFICIAL_DOCUMENTS: "document_id",
@@ -212,6 +212,40 @@ function getKeyColumn(tabName) {
     approvals: "approval_id",
   };
   return map[tabName] || "id";
+}
+
+function getCompositeKey(tabName, payload) {
+  if (tabName === "CERTIFICATE_APPROVALS") {
+    return [payload && payload.certificate_id, payload && payload.role]
+      .map((value) => normalizeKeyValue(value))
+      .join("|");
+  }
+  const keyCol = getKeyColumn(tabName);
+  if (!keyCol || keyCol.indexOf("|") !== -1) return "";
+  return normalizeKeyValue(payload && payload[keyCol]);
+}
+
+function findRowIndexByTabKey(sheet, tabName, payload) {
+  if (!payload) return -1;
+  if (tabName === "CERTIFICATE_APPROVALS") {
+    const rows = sheet.getDataRange().getValues();
+    if (!rows || rows.length <= 1) return -1;
+    const headers = rows[0] || [];
+    const certificateIdx = headers.indexOf("certificate_id");
+    const roleIdx = headers.indexOf("role");
+    if (certificateIdx === -1 || roleIdx === -1) return -1;
+    const incomingKey = getCompositeKey(tabName, payload);
+    if (!incomingKey) return -1;
+    for (let i = 1; i < rows.length; i++) {
+      const rowKey = `${normalizeKeyValue(rows[i][certificateIdx])}|${normalizeKeyValue(rows[i][roleIdx])}`;
+      if (rowKey === incomingKey) return i + 1; // 1-indexed
+    }
+    return -1;
+  }
+  if (tabName === "CERTIFICATES") return findCertificateRowIndex(sheet, payload);
+  const keyCol = getKeyColumn(tabName);
+  if (!keyCol || keyCol.indexOf("|") !== -1) return -1;
+  return findRowIndex(sheet, keyCol, payload[keyCol]);
 }
 
 
@@ -968,27 +1002,19 @@ function doPost(e) {
   }
 
   if (tabName === "CERTIFICATE_APPROVALS") {
-    const certificateId = String((data && data.certificate_id) || "");
-    const role = String((data && data.role) || "");
+    const certificateId = normalizeKeyValue((data && data.certificate_id) || "");
+    const role = normalizeKeyValue((data && data.role) || "");
     if (!certificateId || !role) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing certificate_id/role" })).setMimeType(
         ContentService.MimeType.JSON,
       );
     }
-
-    const rows = sheet.getDataRange().getValues();
-    const sheetHeaders = rows[0] || headers;
-    const certificateIdx = sheetHeaders.indexOf("certificate_id");
-    const roleIdx = sheetHeaders.indexOf("role");
-    const rowIdx = rows.findIndex((row, index) => {
-      if (index === 0) return false;
-      return String(row[certificateIdx] || "") === certificateId && String(row[roleIdx] || "") === role;
-    });
+    const rowIdx = findRowIndexByTabKey(sheet, tabName, data || {});
     const next = headers.map((h) => normalizeSheetValue(h, data[h]));
 
     if (action === "add" || action === "update") {
       if (rowIdx !== -1) {
-        sheet.getRange(rowIdx + 1, 1, 1, headers.length).setValues([next]);
+        sheet.getRange(rowIdx, 1, 1, headers.length).setValues([next]);
         return ContentService.createTextOutput(JSON.stringify({ success: true, mode: "overwrite" })).setMimeType(ContentService.MimeType.JSON);
       }
       sheet.appendRow(next);
@@ -1001,14 +1027,14 @@ function doPost(e) {
           ContentService.MimeType.JSON,
         );
       }
-      sheet.deleteRow(rowIdx + 1);
+      sheet.deleteRow(rowIdx);
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
     }
   }
 
   if (tabName === "CERTIFICATES") {
     const row = headers.map((h) => normalizeSheetValue(h, data[h]));
-    const rowIdx = findCertificateRowIndex(sheet, data || {});
+    const rowIdx = findRowIndexByTabKey(sheet, tabName, data || {});
 
     if (action === "add") {
       if (rowIdx !== -1) {
@@ -1041,8 +1067,7 @@ function doPost(e) {
   }
 
   if (action === "add") {
-    const incomingKey = keyCol ? data[keyCol] : "";
-    const existingRowIdx = incomingKey ? findRowIndex(sheet, keyCol, incomingKey) : -1;
+    const existingRowIdx = findRowIndexByTabKey(sheet, tabName, data || {});
     const row = headers.map((h) => normalizeSheetValue(h, data[h]));
     if (existingRowIdx !== -1) {
       // Global upsert behavior:
@@ -1055,8 +1080,7 @@ function doPost(e) {
   }
 
   if (action === "update") {
-    const keyVal = data[keyCol];
-    const rowIdx = findRowIndex(sheet, keyCol, keyVal);
+    const rowIdx = findRowIndexByTabKey(sheet, tabName, data || {});
     if (rowIdx === -1) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" })).setMimeType(
         ContentService.MimeType.JSON,
@@ -1068,8 +1092,7 @@ function doPost(e) {
   }
 
   if (action === "delete") {
-    const keyVal = data[keyCol];
-    const rowIdx = findRowIndex(sheet, keyCol, keyVal);
+    const rowIdx = findRowIndexByTabKey(sheet, tabName, data || {});
     if (rowIdx === -1) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Row not found" })).setMimeType(
         ContentService.MimeType.JSON,

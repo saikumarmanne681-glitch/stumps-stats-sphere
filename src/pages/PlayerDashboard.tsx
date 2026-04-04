@@ -75,8 +75,7 @@ const PlayerDashboard = () => {
       const normalizedUsername = String(user?.username || '').trim().toLowerCase();
       setCertificateTemplates(Object.fromEntries(templates.map((item) => [item.template_id, item])));
       setCertificates(rows.filter((item) => (
-        isCertificateCertified(item)
-        && !!normalizedPlayerId
+        !!normalizedPlayerId
         && (
           certificateMatchesPlayer(item, normalizedPlayerId)
           || String(item.recipient_id || '').trim().toLowerCase() === normalizedUsername
@@ -204,7 +203,9 @@ const PlayerDashboard = () => {
             <CardContent className="p-4">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Linked certificates</p>
               <p className="mt-1 font-display text-3xl font-bold text-primary">{certificates.length}</p>
-              <p className="text-xs text-muted-foreground">Certified documents linked to your player profile.</p>
+              <p className="text-xs text-muted-foreground">
+                {certificates.filter((item) => isCertificateCertified(item)).length} certified documents linked to your player profile.
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -445,10 +446,10 @@ const PlayerDashboard = () => {
                 <CardTitle className="text-base">Your linked certificates</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Only fully certified certificates linked to your player identity are shown here.</p>
+                <p className="text-sm text-muted-foreground">All linked certificates are shown here (draft, pending, approved, and certified) with PDF download support.</p>
               </CardContent>
             </Card>
-            {certificates.length === 0 && <p className="text-sm text-muted-foreground">No certified player certificates yet.</p>}
+            {certificates.length === 0 && <p className="text-sm text-muted-foreground">No linked player certificates yet.</p>}
             {certificates.map((certificate) => (
               <CertificatePreview
                 key={certificate.id}
