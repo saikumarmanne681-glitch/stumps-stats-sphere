@@ -138,13 +138,19 @@ function sheetToJson(sheet) {
   });
 }
 
+function normalizeKeyValue(value) {
+  return String(value === null || value === undefined ? "" : value).trim();
+}
+
 function findRowIndex(sheet, keyCol, keyVal) {
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
   const colIdx = headers.indexOf(keyCol);
   if (colIdx === -1) return -1;
+  const target = normalizeKeyValue(keyVal);
+  if (!target) return -1;
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][colIdx]) === String(keyVal)) return i + 1; // 1-indexed
+    if (normalizeKeyValue(data[i][colIdx]) === target) return i + 1; // 1-indexed
   }
   return -1;
 }
@@ -155,12 +161,12 @@ function findCertificateRowIndex(sheet, payload) {
   const headers = data[0] || [];
   const idIdx = headers.indexOf("id");
   const certificateIdIdx = headers.indexOf("certificate_id");
-  const incomingId = String((payload && (payload.id || payload.certificate_id)) || "");
+  const incomingId = normalizeKeyValue((payload && (payload.id || payload.certificate_id)) || "");
   if (!incomingId) return -1;
 
   for (let i = 1; i < data.length; i++) {
-    const rowId = idIdx !== -1 ? String(data[i][idIdx] || "") : "";
-    const legacyId = certificateIdIdx !== -1 ? String(data[i][certificateIdIdx] || "") : "";
+    const rowId = idIdx !== -1 ? normalizeKeyValue(data[i][idIdx] || "") : "";
+    const legacyId = certificateIdIdx !== -1 ? normalizeKeyValue(data[i][certificateIdIdx] || "") : "";
     if (rowId === incomingId || legacyId === incomingId) return i + 1; // 1-indexed
   }
   return -1;

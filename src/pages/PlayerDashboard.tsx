@@ -21,7 +21,7 @@ import { logAudit, v2api } from '@/lib/v2api';
 import { resolvePlayerIdFromIdentity } from '@/lib/dataUtils';
 import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { formatDateInIST, formatInIST } from '@/lib/time';
-import { CertificateRecord, certificateMatchesPlayer, isCertificateCertified } from '@/lib/certificates';
+import { CertificateRecord, CertificateTemplateRecord, certificateMatchesPlayer, isCertificateCertified } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 
 const PlayerDashboard = () => {
@@ -34,6 +34,7 @@ const PlayerDashboard = () => {
   const [expandedThread, setExpandedThread] = useState<string>('');
   const [replySending, setReplySending] = useState<string | null>(null);
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
+  const [certificateTemplates, setCertificateTemplates] = useState<Record<string, CertificateTemplateRecord>>({});
 
   const player = useMemo(() => {
     if (!user?.player_id) return null;
@@ -68,10 +69,11 @@ const PlayerDashboard = () => {
 
 
   useEffect(() => {
-    v2api.getCertificates().then((rows) => {
+    Promise.all([v2api.getCertificates(), v2api.getCertificateTemplates()]).then(([rows, templates]) => {
       const normalizedPlayerId = String(user?.player_id || '').trim().toLowerCase();
       const normalizedPlayerName = String(player?.name || '').trim().toLowerCase();
       const normalizedUsername = String(user?.username || '').trim().toLowerCase();
+      setCertificateTemplates(Object.fromEntries(templates.map((item) => [item.template_id, item])));
       setCertificates(rows.filter((item) => (
         isCertificateCertified(item)
         && !!normalizedPlayerId
@@ -451,6 +453,7 @@ const PlayerDashboard = () => {
               <CertificatePreview
                 key={certificate.id}
                 certificate={certificate}
+                template={certificateTemplates[certificate.template_id]}
                 verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
                 watermark
                 showDownload

@@ -2,6 +2,15 @@ const A4_LANDSCAPE_WIDTH_MM = 297;
 const A4_LANDSCAPE_HEIGHT_MM = 210;
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
+async function waitForFonts() {
+  if (!('fonts' in document)) return;
+  try {
+    await document.fonts.ready;
+  } catch {
+    // Ignore font readiness issues and continue with render fallback.
+  }
+}
+
 function isSafeAssetUrl(url: string): boolean {
   const value = String(url || '').trim();
   if (!value) return true;
@@ -54,6 +63,7 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
   mount.style.pointerEvents = 'none';
   mount.style.overflow = 'hidden';
   mount.style.zIndex = '-1';
+  mount.style.opacity = '0';
 
   clone.style.width = '100%';
   clone.style.height = '100%';
@@ -62,31 +72,51 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
   clone.style.margin = '0';
   clone.style.borderRadius = '0';
   clone.style.boxShadow = 'none';
+  clone.style.overflow = 'hidden';
 
   mount.appendChild(clone);
   document.body.appendChild(mount);
 
-  const renderCanvas = () => html2canvas(clone, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: '#ffffff',
-    width: clone.scrollWidth,
-    height: clone.scrollHeight,
-    windowWidth: clone.scrollWidth,
-    windowHeight: clone.scrollHeight,
-  });
+  const getRenderDimensions = () => {
+    const bounds = clone.getBoundingClientRect();
+    return {
+      width: Math.max(clone.scrollWidth, Math.ceil(bounds.width), 1120),
+      height: Math.max(clone.scrollHeight, Math.ceil(bounds.height), 792),
+    };
+  };
+
+  const renderCanvas = (scale: number) => {
+    const dimensions = getRenderDimensions();
+    return html2canvas(clone, {
+      scale,
+      logging: false,
+      imageTimeout: 0,
+      removeContainer: true,
+      allowTaint: false,
+      foreignObjectRendering: false,
+      scrollX: 0,
+      scrollY: 0,
+      width: dimensions.width,
+      height: dimensions.height,
+      windowWidth: dimensions.width,
+      windowHeight: dimensions.height,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+    });
+  };
 
   try {
+    await waitForFonts();
     // Prevent avoidable cross-origin tainting issues before first render attempt.
     sanitizeCloneForPdf(clone);
     let canvas;
     try {
-      canvas = await renderCanvas();
+      canvas = await renderCanvas(2);
       canvas.toDataURL('image/png');
     } catch {
       // Fallback path: remove external assets that can taint canvas and block export.
       sanitizeCloneForPdf(clone);
-      canvas = await renderCanvas();
+      canvas = await renderCanvas(1.6);
     }
 
     if (!canvas) {
