@@ -41,6 +41,8 @@ const TABS = {
     "toss_decision",
     "result",
     "man_of_match",
+    "team_a_captain",
+    "team_b_captain",
     "team_a_score",
     "team_b_score",
     "match_stage",

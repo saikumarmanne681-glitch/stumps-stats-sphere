@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Match, Tournament, Player, BattingScorecard, Season } from "@/lib/types";
-import { Calendar, MapPin, Award, Sparkles, Trophy } from "lucide-react";
+import { Calendar, MapPin, Award, Crown, Sparkles, Trophy } from "lucide-react";
 import { formatSheetDate, resolvePlayerFromIdentity } from "@/lib/dataUtils";
 import { getTeamScoreSummary } from "@/lib/liveScoring";
 import { getMatchStageChipClass, getStableChipClass } from "@/lib/chipColors";
@@ -17,6 +17,8 @@ interface MatchCardProps {
 
 export function MatchCard({ match, tournament, season, players, batting = [], onClick }: MatchCardProps) {
   const mom = resolvePlayerFromIdentity(match.man_of_match, players);
+  const teamACaptain = resolvePlayerFromIdentity(match.team_a_captain, players);
+  const teamBCaptain = resolvePlayerFromIdentity(match.team_b_captain, players);
   const statusColors: Record<string, string> = {
     completed: "bg-primary text-primary-foreground",
     live: "bg-destructive text-destructive-foreground",
@@ -129,6 +131,12 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
             </span>
           )}
         </div>
+        {(teamACaptain || teamBCaptain) && (
+          <div className="mt-2 flex flex-wrap gap-1 text-[11px]">
+            {teamACaptain && <Badge variant="outline" className="rounded-full"><Crown className="mr-1 h-3 w-3 text-amber-500" />{match.team_a}: {teamACaptain.name}</Badge>}
+            {teamBCaptain && <Badge variant="outline" className="rounded-full"><Crown className="mr-1 h-3 w-3 text-amber-500" />{match.team_b}: {teamBCaptain.name}</Badge>}
+          </div>
+        )}
 
         {mom && (
           <div className="flex items-center gap-1 mt-2 text-xs text-accent">

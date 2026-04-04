@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, Award, Share2, ArrowLeft } from 'lucide-react';
+import { Calendar, MapPin, Award, Crown, Share2, ArrowLeft } from 'lucide-react';
 import { formatSheetDate, resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { useToast } from '@/hooks/use-toast';
 import { PageLoader } from '@/components/LoadingOverlay';
@@ -62,6 +62,8 @@ const MatchPage = () => {
   const matchBatting = liveBatting;
   const matchBowling = liveBowling;
   const mom = match ? resolvePlayerFromIdentity(match.man_of_match, players) : null;
+  const teamACaptain = match ? resolvePlayerFromIdentity(match.team_a_captain, players) : null;
+  const teamBCaptain = match ? resolvePlayerFromIdentity(match.team_b_captain, players) : null;
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
   const teamAScore = match ? getTeamScoreSummary(matchBatting, match.team_a, match.team_a_score, matchBowling) : null;
@@ -204,6 +206,7 @@ const MatchPage = () => {
             <div className="grid grid-cols-3 gap-4 my-4">
               <div className="text-center">
                 <p className="font-display text-xl font-bold">{match.team_a}</p>
+                {teamACaptain && <p className="mt-1 text-xs text-muted-foreground inline-flex items-center gap-1"><Crown className="h-3 w-3 text-amber-500" /> {teamACaptain.name}</p>}
                 <p className="text-3xl font-bold text-primary">{teamAScore?.display || '0/0 (0.0)'}</p>
               </div>
               <div className="flex items-center justify-center">
@@ -211,6 +214,7 @@ const MatchPage = () => {
               </div>
               <div className="text-center">
                 <p className="font-display text-xl font-bold">{match.team_b}</p>
+                {teamBCaptain && <p className="mt-1 text-xs text-muted-foreground inline-flex items-center gap-1"><Crown className="h-3 w-3 text-amber-500" /> {teamBCaptain.name}</p>}
                 <p className="text-3xl font-bold text-primary">{teamBScore?.display || '0/0 (0.0)'}</p>
               </div>
             </div>

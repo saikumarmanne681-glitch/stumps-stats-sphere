@@ -135,6 +135,24 @@ const PlayerDashboard = () => {
   };
 
   const unreadCount = playerMessages.filter(m => !m.read && m.from_id !== user.player_id).length;
+  const captainTitleRecords = useMemo(() => {
+    if (!user?.player_id) return [];
+    return seasons.flatMap((season) => {
+      const winnerTeam = String(season.winner_team || '').trim();
+      if (!winnerTeam) return [];
+      const seasonMatches = matches
+        .filter((match) => match.season_id === season.season_id && match.status === 'completed')
+        .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+      const winningTeamMatch = seasonMatches.find((match) => match.team_a === winnerTeam || match.team_b === winnerTeam);
+      if (!winningTeamMatch) return [];
+      const captainId = winningTeamMatch.team_a === winnerTeam ? winningTeamMatch.team_a_captain : winningTeamMatch.team_b_captain;
+      if (String(captainId || '') !== user.player_id) return [];
+      return [{
+        season: season.year || season.season_id,
+        team: winnerTeam,
+      }];
+    });
+  }, [matches, seasons, user?.player_id]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -184,7 +202,7 @@ const PlayerDashboard = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
           <Card>
             <CardContent className="p-4">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Unread messages</p>
@@ -223,6 +241,13 @@ const PlayerDashboard = () => {
               <div className="mt-2">
                 <DataIntegrityBadge data={`${player.player_id}:${player.username}:${totalMatches}:${battingStats?.totalRuns || 0}:${bowlingStats?.totalWickets || 0}`} label="Player dashboard hash" />
               </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Captaincy titles</p>
+              <p className="mt-1 font-display text-3xl font-bold text-amber-600">{captainTitleRecords.length}</p>
+              <p className="text-xs text-muted-foreground">Titles won as captain.</p>
             </CardContent>
           </Card>
         </div>
@@ -286,6 +311,22 @@ const PlayerDashboard = () => {
                 </Select>
               </div>
             </div>
+            {captainTitleRecords.length > 0 && (
+              <Card className="border-amber-500/30 bg-amber-500/5">
+                <CardHeader>
+                  <CardTitle className="font-display">Captaincy achievements</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {captainTitleRecords.map((record) => (
+                      <Badge key={`${record.team}-${record.season}`} variant="outline" className="rounded-full">
+                        {record.team} • Season {record.season} • Champion Captain
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Batting */}
             <Card className="border-l-4 border-l-primary">

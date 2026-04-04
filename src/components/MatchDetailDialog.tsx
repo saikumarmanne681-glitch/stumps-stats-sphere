@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Match, BattingScorecard, BowlingScorecard, Player, Tournament, Season } from '@/lib/types';
-import { Calendar, MapPin, Award, AlertTriangle, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Award, Crown, AlertTriangle, Loader2 } from 'lucide-react';
 import { formatSheetDate, resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -90,6 +90,8 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
   const matchBatting = batting.filter(b => b.match_id === match.match_id);
   const matchBowling = bowling.filter(b => b.match_id === match.match_id);
   const mom = resolvePlayerFromIdentity(match.man_of_match, players);
+  const teamACaptain = resolvePlayerFromIdentity(match.team_a_captain, players);
+  const teamBCaptain = resolvePlayerFromIdentity(match.team_b_captain, players);
   const getPlayerName = (id: string) => players.find(p => p.player_id === id)?.name || id;
 
   const teamAScore = match.team_a_score || calcTeamScore(matchBatting, match.team_a);
@@ -245,11 +247,13 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
           <div className="mt-2 flex items-center justify-between rounded-[1.25rem] border border-primary/10 bg-background/80 p-3 shadow-sm">
             <div className="text-center flex-1">
               <p className="font-display text-sm md:text-lg font-bold">{match.team_a}</p>
+              {teamACaptain && <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Crown className="h-3 w-3 text-amber-500" /> {teamACaptain.name}</p>}
               <p className="text-primary font-bold text-lg md:text-xl">{teamAScore}</p>
             </div>
             <span className="text-muted-foreground font-bold text-lg px-2 md:px-4">vs</span>
             <div className="text-center flex-1">
               <p className="font-display text-sm md:text-lg font-bold">{match.team_b}</p>
+              {teamBCaptain && <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Crown className="h-3 w-3 text-amber-500" /> {teamBCaptain.name}</p>}
               <p className="text-primary font-bold text-lg md:text-xl">{teamBScore}</p>
             </div>
           </div>

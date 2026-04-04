@@ -42,7 +42,7 @@ const ticketBadgeClass: Record<string, string> = {
 
 export default function TeamsDashboardPage() {
   const { isManagement, isTeam, user } = useAuth();
-  const { matches, seasons, tournaments, announcements } = useData();
+  const { matches, seasons, tournaments, announcements, players } = useData();
   const { toast } = useToast();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [profiles, setProfiles] = useState<TeamProfile[]>([]);
@@ -190,6 +190,21 @@ export default function TeamsDashboardPage() {
   const selectedTeamMatches = allMatches
     .filter((match) => resolvedSelectedTeam !== 'all' && (match.team_a === resolvedSelectedTeam || match.team_b === resolvedSelectedTeam))
     .sort((a, b) => compareTimestampsDesc(a.date, b.date));
+  const captaincyTitleTimeline = useMemo(() => {
+    if (resolvedSelectedTeam === 'all') return [];
+    return seasons.flatMap((season) => {
+      const winnerTeam = String(season.winner_team || '').trim();
+      if (winnerTeam !== resolvedSelectedTeam) return [];
+      const seasonMatches = matches
+        .filter((match) => match.season_id === season.season_id && match.status === 'completed')
+        .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+      const finalForWinner = seasonMatches.find((match) => match.team_a === winnerTeam || match.team_b === winnerTeam);
+      if (!finalForWinner) return [];
+      const captainId = finalForWinner.team_a === winnerTeam ? finalForWinner.team_a_captain : finalForWinner.team_b_captain;
+      const captainName = players.find((player) => player.player_id === captainId)?.name || captainId || 'Unknown';
+      return [{ season: season.year || season.season_id, captainName }];
+    });
+  }, [matches, players, resolvedSelectedTeam, seasons]);
   const tournamentLookup = useMemo(
     () => Object.fromEntries(tournaments.map((item) => [item.tournament_id, item.name])),
     [tournaments],
@@ -457,6 +472,19 @@ export default function TeamsDashboardPage() {
                 </CardContent>
               </Card>
             )}
+            {resolvedSelectedTeam !== 'all' && (
+              <Card className="border-amber-500/30 bg-amber-500/5">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-amber-500" /> Captain title history</CardTitle></CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  {captaincyTitleTimeline.map((row) => (
+                    <Badge key={`${row.season}-${row.captainName}`} variant="outline" className="mr-2 rounded-full">
+                      Season {row.season}: {row.captainName}
+                    </Badge>
+                  ))}
+                  {captaincyTitleTimeline.length === 0 && <p className="text-muted-foreground">No captain-linked title records found yet for this team.</p>}
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader><CardTitle>All tournament + season matches for selected team</CardTitle></CardHeader>
               <CardContent>
@@ -472,6 +500,7 @@ export default function TeamsDashboardPage() {
                           <th className="py-2 pr-3">Season</th>
                           <th className="py-2 pr-3">Fixture</th>
                           <th className="py-2 pr-3">Venue</th>
+                          <th className="py-2 pr-3">Captain</th>
                           <th className="py-2 pr-3">Status</th>
                           <th className="py-2">Result</th>
                         </tr>
@@ -484,6 +513,9 @@ export default function TeamsDashboardPage() {
                             <td className="py-2 pr-3">{seasonLookup[match.season_id] || match.season_id}</td>
                             <td className="py-2 pr-3">{match.team_a} vs {match.team_b}</td>
                             <td className="py-2 pr-3">{match.venue || 'N/A'}</td>
+                            <td className="py-2 pr-3">
+                              {match.team_a === resolvedSelectedTeam ? (players.find((p) => p.player_id === match.team_a_captain)?.name || match.team_a_captain || '-') : (players.find((p) => p.player_id === match.team_b_captain)?.name || match.team_b_captain || '-')}
+                            </td>
                             <td className="py-2 pr-3"><Badge variant="outline">{match.status}</Badge></td>
                             <td className="py-2">{match.result || 'Pending result'}</td>
                           </tr>
