@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, FileText, Eye, Download, Sparkles, LockKeyhole, Building2, CalendarClock } from 'lucide-react';
 import { formatSheetDate } from '@/lib/dataUtils';
+import { DepartmentBadge } from '@/components/DepartmentBadge';
 
 const categories = ['Governance', 'Tournament', 'Finance', 'Legal', 'Operations'] as const;
 
@@ -141,7 +142,8 @@ export default function DocumentsPortalPage() {
                 <div key={`scroll-${doc.document_id}`} className="min-w-[280px] rounded-xl border border-primary/20 bg-background/80 p-3 shadow-sm">
                   <p className="line-clamp-2 text-sm font-semibold">{doc.title}</p>
                   <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <Building2 className="h-3.5 w-3.5" /> {doc.department}
+                    <Building2 className="h-3.5 w-3.5" />
+                    <DepartmentBadge department={doc.department} className="h-6 px-2 py-0 text-[10px]" />
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
                     <CalendarClock className="h-3.5 w-3.5" /> Updated {formatSheetDate(doc.updated_at, 'dd MMM yyyy', doc.updated_at)}
@@ -186,7 +188,9 @@ export default function DocumentsPortalPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <p className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> {doc.title}</p>
-                    <p className="text-xs text-muted-foreground">{doc.department}</p>
+                    <div className="mt-1">
+                      <DepartmentBadge department={doc.department} className="text-[10px]" />
+                    </div>
                   </div>
                   <Badge variant={doc.status === 'published' ? 'default' : 'secondary'}>{doc.status}</Badge>
                 </div>

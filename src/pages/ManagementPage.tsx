@@ -30,6 +30,8 @@ import { formatInIST } from '@/lib/time';
 import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
 import { mapDesignationToApproverRole } from '@/lib/certificates';
 import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
+import { inferDepartmentFromManagementUser } from '@/lib/boardDepartments';
+import { DepartmentBadge } from '@/components/DepartmentBadge';
 
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
 const stageLabels: Record<string, string> = scorelistStageLabels;
@@ -780,6 +782,7 @@ const ManagementPage = () => {
                       <div className="mt-1 flex items-center gap-2 flex-wrap">
                         <Badge variant={highlighted ? 'default' : 'outline'} className="text-[10px]">{member.designation}</Badge>
                         {member.role && <Badge variant="outline" className="text-[10px]">{member.role}</Badge>}
+                        <DepartmentBadge department={inferDepartmentFromManagementUser(member)} className="text-[10px]" />
                         {highlighted && <Badge className="bg-accent/20 text-accent-foreground text-[10px]">Configured Team</Badge>}
                       </div>
                     </div>

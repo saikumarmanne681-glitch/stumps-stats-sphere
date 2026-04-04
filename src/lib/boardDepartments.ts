@@ -132,3 +132,14 @@ export function toDepartmentAssignmentsJson(assignments: DepartmentAssignment[])
 export function resolveDepartmentMember(id: string, users: ManagementUser[]): ManagementUser | null {
   return users.find((member) => member.management_id === id) || null;
 }
+
+export function inferDepartmentFromManagementUser(user: Partial<ManagementUser>): string {
+  const combined = `${String(user.designation || '')} ${String(user.role || '')}`.toLowerCase();
+  if (combined.includes('treasurer') || combined.includes('finance') || combined.includes('compliance')) return 'Finance & Compliance';
+  if (combined.includes('referee') || combined.includes('discipline') || combined.includes('ethics') || combined.includes('umpire')) return 'Discipline & Ethics';
+  if (combined.includes('media') || combined.includes('community') || combined.includes('communication')) return 'Media & Community Engagement';
+  if (combined.includes('welfare') || combined.includes('development')) return 'Player Welfare & Development';
+  if (combined.includes('tournament') || combined.includes('competition') || combined.includes('fixture') || combined.includes('operations')) return 'Competition Operations';
+  if (combined.includes('president') || combined.includes('secretary') || combined.includes('vice president')) return 'Executive Board';
+  return 'Executive Board';
+}
