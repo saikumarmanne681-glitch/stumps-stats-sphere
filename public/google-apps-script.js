@@ -47,6 +47,8 @@ const TABS = {
     "scorecard_version",
     "scorecard_checksum",
     "scorecard_operation_id",
+    "team_a_captain",
+    "team_b_captain",
   ],
   BattingScorecard: [
     "id",

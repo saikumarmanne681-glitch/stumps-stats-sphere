@@ -82,7 +82,7 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
       <CardContent className="p-0">
         <div
           ref={ref}
-          className="relative mx-auto w-full max-w-[1120px] overflow-hidden p-4 md:p-6"
+          className="relative mx-auto w-full max-w-[1120px] overflow-hidden p-2 sm:p-4 md:p-6"
           style={{
             aspectRatio: '297 / 210',
             backgroundImage: themeBackground,
@@ -100,11 +100,11 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
             </div>
           )}
 
-          <div className="relative z-10 flex h-full flex-col rounded-[1.35rem] border border-border/70 bg-card/60 px-5 py-5 backdrop-blur-[1px] md:px-8 md:py-7">
-            <div className="flex items-start justify-between gap-4">
+          <div className="relative z-10 flex h-full flex-col rounded-[1.35rem] border border-border/70 bg-card/60 px-3 py-3 backdrop-blur-[1px] sm:px-4 sm:py-4 md:px-8 md:py-7">
+            <div className="flex items-start justify-between gap-2 sm:gap-4">
               <div className="text-left">
                 <Badge className="bg-primary text-primary-foreground">Cricket Club Portal</Badge>
-                <p className="mt-2 text-[9px] uppercase tracking-[0.45em] text-muted-foreground">Official landscape certificate</p>
+                <p className="mt-2 text-[8px] sm:text-[9px] uppercase tracking-[0.3em] sm:tracking-[0.45em] text-muted-foreground">Official landscape certificate</p>
               </div>
               <div className="rounded-xl border border-primary/20 bg-background/80 px-3 py-2 text-right shadow-sm">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Verification Code</p>
@@ -112,7 +112,7 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
               </div>
             </div>
 
-            <div className="mt-5 grid flex-1 gap-5 md:grid-cols-[1fr_1.3fr_0.95fr]">
+            <div className="mt-3 grid flex-1 gap-3 sm:gap-4 md:mt-5 md:gap-5 md:grid-cols-[1fr_1.3fr_0.95fr]">
               <div className="flex flex-col justify-between gap-4 rounded-[1.2rem] border border-primary/15 bg-background/80 p-4 text-left shadow-sm">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.35em] text-primary">Award brief</p>
@@ -138,10 +138,10 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
 
               <div className="flex flex-col justify-center text-center">
                 <p className="text-[10px] uppercase tracking-[0.42em] text-muted-foreground">Certificate of achievement</p>
-                <h3 className="mt-3 font-display text-2xl font-semibold uppercase tracking-[0.25em] text-primary">Presented to</h3>
+                <h3 className="mt-3 font-display text-lg sm:text-2xl font-semibold uppercase tracking-[0.2em] sm:tracking-[0.25em] text-primary">Presented to</h3>
                 <h2 className={cn('mx-auto mt-4 max-w-[680px] break-words font-display font-bold text-foreground', fitClass(recipient))}>{recipient}</h2>
                 <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">This document confirms outstanding performance, contribution, and officially recorded recognition within the competition registry.</p>
-                <div className="mx-auto mt-4 inline-flex max-w-full items-center justify-center rounded-full border border-accent/35 bg-accent/10 px-5 py-2 text-center text-base font-semibold text-foreground shadow-sm">
+                <div className="mx-auto mt-4 inline-flex max-w-full items-center justify-center rounded-full border border-accent/35 bg-accent/10 px-3 py-1.5 sm:px-5 sm:py-2 text-center text-sm sm:text-base font-semibold text-foreground shadow-sm">
                   {title}
                 </div>
                 {(detailLines.length > 0 || performanceLines.length > 0) && (
@@ -193,7 +193,7 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
               </div>
             </div>
 
-            <div className="mt-5 grid w-full gap-3 border-t border-border/60 pt-4 text-left md:grid-cols-3">
+            <div className="mt-3 sm:mt-5 grid w-full gap-2 sm:gap-3 border-t border-border/60 pt-3 sm:pt-4 text-left md:grid-cols-3">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Issued</p>
                 <p className="text-xs text-foreground">{createdAt ? `${createdAt} IST` : 'Pending issue date'}</p>

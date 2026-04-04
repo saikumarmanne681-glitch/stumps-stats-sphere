@@ -46,6 +46,8 @@ export interface Match {
   scorecard_version?: number;
   scorecard_checksum?: string;
   scorecard_operation_id?: string;
+  team_a_captain?: string;
+  team_b_captain?: string;
 }
 
 export interface BattingScorecard {

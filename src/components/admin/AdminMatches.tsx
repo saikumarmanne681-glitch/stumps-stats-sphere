@@ -110,6 +110,8 @@ export function AdminMatches() {
     man_of_match: "",
     team_a_score: "",
     team_b_score: "",
+    team_a_captain: "",
+    team_b_captain: "",
     match_stage: "",
   };
 
@@ -273,6 +275,9 @@ export function AdminMatches() {
     const query = scorecardPlayerSearch.trim().toLowerCase();
     return players.filter((player) => player.status === "active" && (!query || `${player.name} ${player.player_id}`.toLowerCase().includes(query)));
   }, [players, scorecardPlayerSearch]);
+
+  const activePlayers = useMemo(() => players.filter((player) => player.status === "active"), [players]);
+  const getPlayerName = (playerId: string) => players.find((player) => player.player_id === playerId)?.name || playerId;
 
   const visibleMatches = useMemo(() => {
     const query = matchSearch.trim().toLowerCase();
@@ -617,6 +622,8 @@ export function AdminMatches() {
                       venue: latestMatchTemplate.venue,
                       team_a: latestMatchTemplate.team_a,
                       team_b: latestMatchTemplate.team_b,
+                      team_a_captain: latestMatchTemplate.team_a_captain || "",
+                      team_b_captain: latestMatchTemplate.team_b_captain || "",
                       toss_winner: latestMatchTemplate.toss_winner,
                       toss_decision: latestMatchTemplate.toss_decision,
                       match_stage: latestMatchTemplate.match_stage || "",
@@ -712,6 +719,42 @@ export function AdminMatches() {
                       value={editMatch?.team_b || ""}
                       onChange={(e) => setEditMatch((prev) => (prev ? { ...prev, team_b: e.target.value } : null))}
                     />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  <div>
+                    <Label>Team A Captain</Label>
+                    <Select
+                      value={editMatch?.team_a_captain || "__none__"}
+                      onValueChange={(value) => setEditMatch((prev) => (prev ? { ...prev, team_a_captain: value === "__none__" ? "" : value } : null))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select captain" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">No captain selected</SelectItem>
+                        {activePlayers.map((player) => (
+                          <SelectItem key={player.player_id} value={player.player_id}>{player.name} ({player.player_id})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Team B Captain</Label>
+                    <Select
+                      value={editMatch?.team_b_captain || "__none__"}
+                      onValueChange={(value) => setEditMatch((prev) => (prev ? { ...prev, team_b_captain: value === "__none__" ? "" : value } : null))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select captain" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">No captain selected</SelectItem>
+                        {activePlayers.map((player) => (
+                          <SelectItem key={player.player_id} value={player.player_id}>{player.name} ({player.player_id})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -878,7 +921,11 @@ export function AdminMatches() {
                     <TableCell className="font-mono text-xs">{m.match_id}</TableCell>
                     <TableCell>{formatSheetDate(m.date, "dd MMM yyyy", "-")}</TableCell>
                     <TableCell className="font-medium">
-                      {m.team_a} vs {m.team_b}
+                      <p>{m.team_a} vs {m.team_b}</p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {m.team_a_captain && <Badge variant="outline" className="rounded-full text-[10px]">{m.team_a}: © {getPlayerName(m.team_a_captain)}</Badge>}
+                        {m.team_b_captain && <Badge variant="outline" className="rounded-full text-[10px]">{m.team_b}: © {getPlayerName(m.team_b_captain)}</Badge>}
+                      </div>
                     </TableCell>
                     <TableCell className="text-xs">
                       {scoreA && (
