@@ -14,7 +14,7 @@ import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api } from '@/lib/v2api';
 import { SupportTicket, TeamProfile } from '@/lib/v2types';
-import { CertificateRecord, certificateMatchesTeam, isCertificateCertified } from '@/lib/certificates';
+import { CertificateRecord, CertificateTemplateRecord, certificateMatchesTeam, isCertificateCertified } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 import { Announcement } from '@/lib/types';
 import { compareTimestampsDesc, formatInIST } from '@/lib/time';
@@ -50,20 +50,23 @@ export default function TeamsDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
+  const [certificateTemplates, setCertificateTemplates] = useState<Record<string, CertificateTemplateRecord>>({});
   const [ticketForm, setTicketForm] = useState({ category: 'general', priority: 'medium' as SupportTicket['priority'], subject: '', description: '' });
   const allMatches = matches;
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const [ticketRows, profileRows, certificateRows] = await Promise.all([
+      const [ticketRows, profileRows, certificateRows, templateRows] = await Promise.all([
         v2api.getTickets(),
         v2api.getTeamProfiles(),
         v2api.getCertificates(),
+        v2api.getCertificateTemplates(),
       ]);
       if (cancelled) return;
       setTickets(ticketRows);
       setProfiles(profileRows);
+      setCertificateTemplates(Object.fromEntries(templateRows.map((item) => [item.template_id, item])));
       setCertificates(certificateRows.filter((item) => (
         isCertificateCertified(item)
         && (
@@ -510,6 +513,7 @@ export default function TeamsDashboardPage() {
               <CertificatePreview
                 key={certificate.id}
                 certificate={certificate}
+                template={certificateTemplates[certificate.template_id]}
                 verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
                 watermark
                 showDownload
