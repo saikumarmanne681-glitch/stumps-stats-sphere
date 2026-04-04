@@ -82,17 +82,17 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
       <CardContent className="p-0">
         <div
           ref={ref}
-          className="relative mx-auto w-full max-w-[1120px] overflow-hidden p-2 sm:p-4 md:p-6"
+          className="relative mx-auto box-border w-full max-w-[1120px] overflow-hidden border border-primary/20 p-3 sm:p-4"
           style={{
             aspectRatio: '297 / 210',
             backgroundImage: themeBackground,
           }}
         >
           <div className="absolute inset-0 opacity-70" style={{ backgroundImage: themePattern }} />
-          <div className="pointer-events-none absolute inset-3 rounded-[1.6rem] border border-primary/25" />
-          <div className="pointer-events-none absolute inset-6 rounded-[1.2rem] border border-accent/30" />
-          <div className="pointer-events-none absolute left-6 right-6 top-5 h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" />
-          <div className="pointer-events-none absolute left-6 right-6 bottom-5 h-px bg-gradient-to-r from-transparent via-accent/45 to-transparent" />
+          <div className="pointer-events-none absolute inset-3 rounded-[1.5rem] border border-primary/25" />
+          <div className="pointer-events-none absolute inset-5 rounded-[1.2rem] border border-accent/35" />
+          <div className="pointer-events-none absolute left-5 right-5 top-5 h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" />
+          <div className="pointer-events-none absolute left-5 right-5 bottom-5 h-px bg-gradient-to-r from-transparent via-accent/45 to-transparent" />
 
           {watermark && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -100,7 +100,7 @@ export function CertificatePreview({ certificate, template, verificationUrl, wat
             </div>
           )}
 
-          <div className="relative z-10 flex h-full flex-col rounded-[1.35rem] border border-border/70 bg-card/60 px-3 py-3 backdrop-blur-[1px] sm:px-4 sm:py-4 md:px-8 md:py-7">
+          <div className="relative z-10 flex h-full flex-col rounded-[1.3rem] border border-border/70 bg-card/60 px-4 py-4 backdrop-blur-[1px] sm:px-5 sm:py-5 md:px-8 md:py-7">
             <div className="flex items-start justify-between gap-2 sm:gap-4">
               <div className="text-left">
                 <Badge className="bg-primary text-primary-foreground">Cricket Club Portal</Badge>

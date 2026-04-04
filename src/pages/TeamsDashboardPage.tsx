@@ -547,7 +547,7 @@ export default function TeamsDashboardPage() {
                 certificate={certificate}
                 template={certificateTemplates[certificate.template_id]}
                 verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
-                watermark
+                watermark={isCertificateCertified(certificate)}
                 showDownload
               />
             ))}
