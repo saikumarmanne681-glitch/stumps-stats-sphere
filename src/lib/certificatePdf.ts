@@ -1,6 +1,7 @@
 const A4_LANDSCAPE_WIDTH_MM = 297;
 const A4_LANDSCAPE_HEIGHT_MM = 210;
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+const SVG_PLACEHOLDER_TEXT = 'QR available in online verification view';
 
 async function waitForFonts() {
   if (!('fonts' in document)) return;
@@ -23,8 +24,21 @@ function isSafeAssetUrl(url: string): boolean {
   }
 }
 
-function sanitizeCloneForPdf(root: HTMLElement) {
-  const nodes = [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))];
+async function settleCloneImages(root: HTMLElement) {
+  const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
+  if (images.length === 0) return;
+  await Promise.all(images.map((image) => new Promise<void>((resolve) => {
+    if (image.complete) {
+      resolve();
+      return;
+    }
+    image.addEventListener('load', () => resolve(), { once: true });
+    image.addEventListener('error', () => resolve(), { once: true });
+  })));
+}
+
+function sanitizeCloneForPdf(root: HTMLElement, strict = false) {
+  const nodes = [root as Element, ...Array.from(root.querySelectorAll('*'))];
   nodes.forEach((node) => {
     const inlineBackground = node.style.backgroundImage;
     const computedBackground = window.getComputedStyle(node).backgroundImage;
@@ -32,15 +46,32 @@ function sanitizeCloneForPdf(root: HTMLElement) {
     if (backgroundSource && backgroundSource !== 'none') {
       const urls = [...backgroundSource.matchAll(/url\((['"]?)(.*?)\1\)/gi)].map((match) => match[2] || '');
       const unsafeFound = urls.some((candidate) => !isSafeAssetUrl(candidate));
-      if (unsafeFound) node.style.backgroundImage = 'none';
+      if (unsafeFound || strict) node.style.backgroundImage = 'none';
     }
 
     if (node instanceof HTMLImageElement) {
       const source = node.currentSrc || node.src || '';
-      if (!isSafeAssetUrl(source)) {
+      if (strict || !isSafeAssetUrl(source)) {
         node.crossOrigin = 'anonymous';
         node.src = TRANSPARENT_PIXEL;
       }
+    }
+
+    if (strict && node instanceof SVGElement) {
+      const placeholder = document.createElement('div');
+      placeholder.style.display = 'flex';
+      placeholder.style.alignItems = 'center';
+      placeholder.style.justifyContent = 'center';
+      placeholder.style.textAlign = 'center';
+      placeholder.style.fontSize = '9px';
+      placeholder.style.color = '#5b6660';
+      placeholder.style.border = '1px solid rgba(16, 24, 40, 0.15)';
+      placeholder.style.borderRadius = '8px';
+      placeholder.style.background = 'rgba(255, 255, 255, 0.8)';
+      placeholder.style.width = `${node.clientWidth || 96}px`;
+      placeholder.style.height = `${node.clientHeight || 96}px`;
+      placeholder.textContent = SVG_PLACEHOLDER_TEXT;
+      node.replaceWith(placeholder);
     }
   });
 }
@@ -107,6 +138,7 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
 
   try {
     await waitForFonts();
+    await settleCloneImages(clone);
     // Prevent avoidable cross-origin tainting issues before first render attempt.
     sanitizeCloneForPdf(clone);
     let canvas;
@@ -114,8 +146,8 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
       canvas = await renderCanvas(2);
       canvas.toDataURL('image/png');
     } catch {
-      // Fallback path: remove external assets that can taint canvas and block export.
-      sanitizeCloneForPdf(clone);
+      // Fallback path: aggressively remove risky assets and SVG nodes that can block export.
+      sanitizeCloneForPdf(clone, true);
       canvas = await renderCanvas(1.6);
     }
 

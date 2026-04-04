@@ -68,11 +68,8 @@ export default function TeamsDashboardPage() {
       setProfiles(profileRows);
       setCertificateTemplates(Object.fromEntries(templateRows.map((item) => [item.template_id, item])));
       setCertificates(certificateRows.filter((item) => (
-        isCertificateCertified(item)
-        && (
-          item.recipient_type === 'team'
-          || !!String(item.linked_team_name || '').trim()
-        )
+        item.recipient_type === 'team'
+        || !!String(item.linked_team_name || '').trim()
       )));
       setLoading(false);
     };
@@ -506,7 +503,10 @@ export default function TeamsDashboardPage() {
                 <CardTitle className="text-base">Linked team certificates</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Certified certificates linked to the selected team are available below with PDF download support.</p>
+                <p className="text-sm text-muted-foreground">
+                  All linked team certificates are shown here (draft, pending, approved, and certified) with PDF download support.
+                  Certified count: {visibleCertificates.filter((item) => isCertificateCertified(item)).length}.
+                </p>
               </CardContent>
             </Card>
             {visibleCertificates.map((certificate) => (
@@ -520,7 +520,7 @@ export default function TeamsDashboardPage() {
               />
             ))}
             {visibleCertificates.length === 0 && (
-              <p className="text-sm text-muted-foreground">No certified team certificates yet.</p>
+              <p className="text-sm text-muted-foreground">No linked team certificates yet.</p>
             )}
           </TabsContent>
 

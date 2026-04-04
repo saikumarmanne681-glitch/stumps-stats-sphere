@@ -104,6 +104,9 @@ export function AdminForms() {
   const [activeForm, setActiveForm] = useState<DynamicFormDefinition>(emptyForm());
   const [fields, setFields] = useState<DynamicFormField[]>([]);
   const [loading, setLoading] = useState(false);
+  const [entryFormFilter, setEntryFormFilter] = useState<string>('all');
+  const [entryStatusFilter, setEntryStatusFilter] = useState<'all' | DynamicFormEntry['status']>('all');
+  const [entrySearch, setEntrySearch] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -117,7 +120,21 @@ export function AdminForms() {
     void load();
   }, []);
 
-  const formEntries = useMemo(() => entries.filter((entry) => entry.form_id === activeForm.form_id), [activeForm.form_id, entries]);
+  const visibleEntries = useMemo(() => {
+    const query = entrySearch.trim().toLowerCase();
+    return entries.filter((entry) => {
+      if (entryFormFilter !== 'all' && entry.form_id !== entryFormFilter) return false;
+      if (entryStatusFilter !== 'all' && entry.status !== entryStatusFilter) return false;
+      if (!query) return true;
+      return [
+        entry.form_title,
+        entry.submitted_by_name,
+        entry.submitted_by_role,
+        entry.entry_id,
+        entry.payload_json,
+      ].some((value) => String(value || '').toLowerCase().includes(query));
+    });
+  }, [entries, entryFormFilter, entrySearch, entryStatusFilter]);
 
   const saveForm = async (publish = false) => {
     if (!activeForm.title.trim()) {
@@ -213,6 +230,16 @@ export function AdminForms() {
     }
     toast({ title: `Entry ${status}` });
     setEntries((prev) => prev.map((row) => row.entry_id === next.entry_id ? next : row));
+  };
+
+  const deleteEntry = async (entry: DynamicFormEntry) => {
+    const ok = await v2api.deleteFormEntry(entry.entry_id);
+    if (!ok) {
+      toast({ title: 'Failed to delete entry', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Entry deleted' });
+    setEntries((prev) => prev.filter((row) => row.entry_id !== entry.entry_id));
   };
 
   return (
@@ -380,22 +407,67 @@ export function AdminForms() {
         <Card>
           <CardHeader><CardTitle>Submission Review Queue</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="text-sm text-muted-foreground">Review, accept, or reject entries submitted by teams/players.</div>
+            <div className="text-sm text-muted-foreground">
+              Review, filter, and manage entries directly in the admin dashboard (similar to form inbox tooling).
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="md:col-span-2">
+                <Label>Search entries</Label>
+                <Input
+                  value={entrySearch}
+                  onChange={(event) => setEntrySearch(event.target.value)}
+                  placeholder="Search by form, submitter, entry id, or payload..."
+                />
+              </div>
+              <div>
+                <Label>Filter by form</Label>
+                <Select value={entryFormFilter} onValueChange={setEntryFormFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All forms</SelectItem>
+                    {forms.map((form) => (
+                      <SelectItem key={form.form_id} value={form.form_id}>{form.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Filter by status</Label>
+                <Select value={entryStatusFilter} onValueChange={(value) => setEntryStatusFilter(value as typeof entryStatusFilter)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="accepted">Accepted</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Showing {visibleEntries.length} of {entries.length} entries.
+            </div>
             <div className="space-y-3">
-              {formEntries.length === 0 && <p className="text-sm text-muted-foreground">No entries for selected form.</p>}
-              {formEntries.map((entry) => (
+              {visibleEntries.length === 0 && <p className="text-sm text-muted-foreground">No entries match your filters.</p>}
+              {visibleEntries.map((entry) => (
                 <div key={entry.entry_id} className="rounded-lg border p-3 space-y-2">
                   <div className="flex flex-wrap items-center gap-2 justify-between">
                     <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">{entry.form_title || entry.form_id}</p>
                       <p className="font-medium">{entry.submitted_by_name} ({entry.submitted_by_role})</p>
                       <p className="text-xs text-muted-foreground">{entry.submitted_at}</p>
                     </div>
                     <Badge>{entry.status}</Badge>
                   </div>
+                  <p className="text-xs text-muted-foreground font-mono">Entry ID: {entry.entry_id}</p>
                   <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">{entry.payload_json}</pre>
+                  {!!entry.notes?.trim() && (
+                    <p className="text-xs text-muted-foreground"><span className="font-semibold">Review note:</span> {entry.notes}</p>
+                  )}
                   <div className="flex gap-2">
                     <Button size="sm" variant="secondary" onClick={() => void updateEntryStatus(entry, 'accepted')}><Check className="h-4 w-4 mr-1" /> Accept</Button>
                     <Button size="sm" variant="destructive" onClick={() => void updateEntryStatus(entry, 'rejected')}><Trash2 className="h-4 w-4 mr-1" /> Reject</Button>
+                    <Button size="sm" variant="outline" onClick={() => void deleteEntry(entry)}>Delete entry</Button>
                   </div>
                 </div>
               ))}
