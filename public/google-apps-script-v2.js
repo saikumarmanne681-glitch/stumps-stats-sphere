@@ -15,7 +15,7 @@
 // ADD these to your existing TABS object in Code.gs:
 //
 // Seasons: ["season_id","tournament_id","year","start_date","end_date","status","winner_team","runner_up_team"],
-// Matches: ["match_id","season_id","tournament_id","date","team_a","team_b","venue","status","toss_winner","toss_decision","result","man_of_match","team_a_captain","team_b_captain","team_a_score","team_b_score","match_stage","scorecard_version","scorecard_checksum","scorecard_operation_id"],
+// Matches: ["match_id","season_id","tournament_id","date","team_a","team_b","venue","status","toss_winner","toss_decision","result","man_of_match","team_a_score","team_b_score","match_stage","scorecard_version","scorecard_checksum","scorecard_operation_id","team_a_captain","team_b_captain"],
 // SUPPORT_TICKETS: ["ticket_id","created_by_user_id","category","priority","subject","description","attachment_url","status","assigned_admin_id","created_at","first_response_due","resolution_due","resolved_at","closed_at"],
 // SUPPORT_MESSAGES: ["message_id","ticket_id","sender_id","sender_role","message_body","attachment_url","is_internal_note","created_at"],
 // SUPPORT_CSAT: ["csat_id","ticket_id","rating","feedback","submitted_at"],

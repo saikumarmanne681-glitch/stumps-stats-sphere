@@ -42,12 +42,12 @@ export interface Match {
   man_of_match: string;
   team_a_score: string;
   team_b_score: string;
-  team_a_captain?: string;
-  team_b_captain?: string;
   match_stage?: string;
   scorecard_version?: number;
   scorecard_checksum?: string;
   scorecard_operation_id?: string;
+  team_a_captain?: string;
+  team_b_captain?: string;
 }
 
 export interface BattingScorecard {
