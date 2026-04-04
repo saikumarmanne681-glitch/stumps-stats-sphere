@@ -60,6 +60,7 @@ const AdminScorelistsPage = () => {
 
   const [scorelists, setScorelists] = useState<DigitalScorelist[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [managementUsers, setManagementUsers] = useState<ManagementUser[]>([]);
   const [selectedMatch, setSelectedMatch] = useState('');
@@ -73,11 +74,18 @@ const AdminScorelistsPage = () => {
   };
 
   const refresh = async () => {
-    const [data, mgmt] = await Promise.all([v2api.getScorelists(), v2api.getManagementUsers()]);
-    const sortedScorelists = [...data].sort((a, b) => new Date(b.generated_at || 0).getTime() - new Date(a.generated_at || 0).getTime());
-    setScorelists(sortedScorelists);
-    setManagementUsers(mgmt.filter((m) => String(m.status || '').toLowerCase() === 'active' || !m.status));
-    setLoading(false);
+    try {
+      const [data, mgmt] = await Promise.all([v2api.getScorelists(), v2api.getManagementUsers()]);
+      const sortedScorelists = [...data].sort((a, b) => new Date(b.generated_at || 0).getTime() - new Date(a.generated_at || 0).getTime());
+      setScorelists(sortedScorelists);
+      setManagementUsers(mgmt.filter((m) => String(m.status || '').toLowerCase() === 'active' || !m.status));
+      setLoadError(null);
+    } catch (error) {
+      console.error('Failed to load scorelists dashboard data:', error);
+      setLoadError('Scorelists could not be loaded right now. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -555,11 +563,33 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
     </div>
   );
 
+  if (loadError && scorelists.length === 0) return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardContent className="space-y-4 p-6 text-center">
+            <p className="text-sm text-destructive">{loadError}</p>
+            <Button onClick={() => { setLoading(true); void refresh(); }}>Retry</Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6 md:py-8 space-y-6">
         <h1 className="font-display text-2xl md:text-3xl font-bold">🛡️ Digital Scorelists</h1>
+        {loadError && (
+          <Card className="border-destructive/30">
+            <CardContent className="flex flex-col gap-3 p-4 text-sm md:flex-row md:items-center md:justify-between">
+              <p className="text-destructive">{loadError}</p>
+              <Button size="sm" variant="outline" onClick={() => void refresh()}>Retry refresh</Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Generate - Admin Only */}
         {isAdmin && (

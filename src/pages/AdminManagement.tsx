@@ -23,6 +23,7 @@ const AdminManagement = () => {
   const { toast } = useToast();
   const [users, setUsers] = useState<ManagementUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [teamUsers, setTeamUsers] = useState<TeamAccessUser[]>([]);
   const [teamProfiles, setTeamProfiles] = useState<Array<{ team_id: string; team_name: string }>>([]);
   const [editTeamUser, setEditTeamUser] = useState<TeamAccessUser | null>(null);
@@ -34,20 +35,27 @@ const AdminManagement = () => {
   const [savingUser, setSavingUser] = useState(false);
 
   const refresh = async () => {
-    const [data, config, teamRows, profileRows] = await Promise.all([
-      v2api.getManagementUsers(),
-      v2api.getBoardConfiguration(),
-      v2api.getTeamAccessUsers(),
-      v2api.getTeamProfiles(),
-    ]);
-    setUsers(data);
-    setBoardConfig(selectLatestBoardConfiguration(config));
-    setTeamUsers(teamRows);
-    setTeamProfiles(profileRows.map((item) => ({ team_id: item.team_id, team_name: item.team_name })));
-    setLoading(false);
+    try {
+      const [data, config, teamRows, profileRows] = await Promise.all([
+        v2api.getManagementUsers(),
+        v2api.getBoardConfiguration(),
+        v2api.getTeamAccessUsers(),
+        v2api.getTeamProfiles(),
+      ]);
+      setUsers(data);
+      setBoardConfig(selectLatestBoardConfiguration(config));
+      setTeamUsers(teamRows);
+      setTeamProfiles(profileRows.map((item) => ({ team_id: item.team_id, team_name: item.team_name })));
+      setLoadError(null);
+    } catch (error) {
+      console.error('Failed to load admin management data:', error);
+      setLoadError('Management dashboard data could not be loaded. Please retry.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { void refresh(); }, []);
 
   if (!isAdmin) return <Navigate to="/login" />;
 
@@ -181,6 +189,14 @@ const AdminManagement = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
+        {loadError && (
+          <Card className="border-destructive/30">
+            <CardContent className="flex flex-col gap-3 p-4 text-sm md:flex-row md:items-center md:justify-between">
+              <p className="text-destructive">{loadError}</p>
+              <Button size="sm" variant="outline" onClick={() => { setLoading(true); void refresh(); }}>Retry</Button>
+            </CardContent>
+          </Card>
+        )}
         <div className="flex items-center justify-between">
           <h1 className="font-display text-3xl font-bold flex items-center gap-2"><Shield className="h-8 w-8" /> Management Users</h1>
           <Dialog open={open} onOpenChange={setOpen}>

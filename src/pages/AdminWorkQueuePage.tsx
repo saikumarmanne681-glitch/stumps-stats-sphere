@@ -49,6 +49,7 @@ function isOverdue(dateValue?: string) {
 export default function AdminWorkQueuePage() {
   const { isAdmin, user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [managementUsers, setManagementUsers] = useState<ManagementUser[]>([]);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [scorelists, setScorelists] = useState<DigitalScorelist[]>([]);
@@ -60,24 +61,31 @@ export default function AdminWorkQueuePage() {
   useEffect(() => {
     const run = async () => {
       setLoading(true);
-      await scheduleService.syncFromBackend();
-      const [ticketsData, scorelistsData, managementData, certificateData, certificateApprovalData] = await Promise.all([
-        v2api.getTickets(),
-        v2api.getScorelists(),
-        v2api.getManagementUsers(),
-        v2api.getCertificates(),
-        v2api.getCertificateApprovals(),
-      ]);
-      setSupportTickets(ticketsData);
-      setScorelists(scorelistsData);
-      setManagementUsers(managementData.filter((item) => String(item.status || '').toLowerCase() !== 'inactive'));
-      setCertificates(certificateData);
-      setCertificateApprovals(certificateApprovalData);
-      setSchedules(scheduleService.getSchedules());
-      setScheduleApprovals(scheduleService.getApprovals());
-      setLoading(false);
+      try {
+        await scheduleService.syncFromBackend();
+        const [ticketsData, scorelistsData, managementData, certificateData, certificateApprovalData] = await Promise.all([
+          v2api.getTickets(),
+          v2api.getScorelists(),
+          v2api.getManagementUsers(),
+          v2api.getCertificates(),
+          v2api.getCertificateApprovals(),
+        ]);
+        setSupportTickets(ticketsData);
+        setScorelists(scorelistsData);
+        setManagementUsers(managementData.filter((item) => String(item.status || '').toLowerCase() !== 'inactive'));
+        setCertificates(certificateData);
+        setCertificateApprovals(certificateApprovalData);
+        setSchedules(scheduleService.getSchedules());
+        setScheduleApprovals(scheduleService.getApprovals());
+        setLoadError(null);
+      } catch (error) {
+        console.error('Failed to load admin work queue:', error);
+        setLoadError('Work queue data could not be loaded. Please refresh and try again.');
+      } finally {
+        setLoading(false);
+      }
     };
-    run();
+    void run();
   }, []);
 
   const getMemberLabel = (id: string) => {
@@ -197,6 +205,11 @@ export default function AdminWorkQueuePage() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6 space-y-6">
+        {loadError && (
+          <Card className="border-destructive/30">
+            <CardContent className="p-4 text-sm text-destructive">{loadError}</CardContent>
+          </Card>
+        )}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Unified Ops Desk</p>
