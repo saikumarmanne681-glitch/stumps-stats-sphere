@@ -286,6 +286,7 @@ export function CertificateBuilder() {
           verificationUrl={verificationUrl}
           watermark={form.status === 'CERTIFIED'}
           showDownload
+          defaultExpanded
         />
       </div>
       </div>
@@ -324,6 +325,7 @@ export function CertificateBuilder() {
                 verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
                 watermark
                 showDownload
+                defaultExpanded={false}
               />
             ))}
           {library.length === 0 && <p className="text-sm text-muted-foreground">No certified certificates available yet.</p>}

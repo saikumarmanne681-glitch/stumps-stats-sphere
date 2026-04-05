@@ -89,10 +89,25 @@ function sanitizeCloneForPdf(root: HTMLElement, strict = false) {
 }
 
 export async function downloadCertificatePdf(element: HTMLElement, filename: string) {
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-    import('html2canvas'),
+  const [{ jsPDF }, canvas] = await Promise.all([
     import('jspdf'),
+    renderCertificateCanvas(element),
   ]);
+
+  const image = canvas.toDataURL('image/png');
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4',
+    compress: true,
+  });
+
+  pdf.addImage(image, 'PNG', 0, 0, A4_LANDSCAPE_WIDTH_MM, A4_LANDSCAPE_HEIGHT_MM, undefined, 'FAST');
+  pdf.save(`${filename}.pdf`);
+}
+
+async function renderCertificateCanvas(element: HTMLElement) {
+  const { default: html2canvas } = await import('html2canvas');
 
   const mount = document.createElement('div');
   const clone = element.cloneNode(true) as HTMLElement;
@@ -167,17 +182,40 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
 
     if (!canvas) throw new Error('Could not render certificate canvas');
 
-    const image = canvas.toDataURL('image/png');
-    const pdf = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4',
-      compress: true,
-    });
-
-    pdf.addImage(image, 'PNG', 0, 0, A4_LANDSCAPE_WIDTH_MM, A4_LANDSCAPE_HEIGHT_MM, undefined, 'FAST');
-    pdf.save(`${filename}.pdf`);
+    return canvas;
   } finally {
     document.body.removeChild(mount);
   }
+}
+
+export async function printCertificate(element: HTMLElement, documentTitle: string) {
+  const canvas = await renderCertificateCanvas(element);
+  const image = canvas.toDataURL('image/png');
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1400,height=900');
+  if (!printWindow) throw new Error('Could not open print window');
+  const safeTitle = String(documentTitle || 'Certificate').replace(/[<>]/g, '');
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>${safeTitle}</title>
+        <style>
+          @page { size: A4 landscape; margin: 0; }
+          body { margin: 0; background: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+          img { width: 100vw; height: auto; max-height: 100vh; object-fit: contain; display: block; }
+          @media print { body { min-height: auto; } }
+        </style>
+      </head>
+      <body>
+        <img src="${image}" alt="${safeTitle}" />
+        <script>
+          window.onload = () => {
+            setTimeout(() => {
+              window.print();
+            }, 80);
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
 }
