@@ -2,6 +2,7 @@ import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotifica
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 import { normalizeCertificateRecord } from './certificates';
+import { normalizeBoardConfigurationRow } from './boardConfig';
 
 async function fetchV2Sheet<T>(sheet: string): Promise<T[]> {
   const url = getAppsScriptUrl();
@@ -141,7 +142,10 @@ export const v2api = {
   deleteTimelineEvent: (id: string) => writeV2Sheet('MATCH_TIMELINE', 'delete', { event_id: id }),
 
   // Board configuration
-  getBoardConfiguration: () => fetchV2Sheet<BoardConfiguration>('BOARD_CONFIGURATION'),
+  getBoardConfiguration: async () => {
+    const rows = await fetchV2Sheet<BoardConfiguration>('BOARD_CONFIGURATION');
+    return rows.map((row) => normalizeBoardConfigurationRow(row));
+  },
   addBoardConfiguration: (c: BoardConfiguration) => writeV2Sheet('BOARD_CONFIGURATION', 'add', c),
   updateBoardConfiguration: (c: BoardConfiguration) => writeV2Sheet('BOARD_CONFIGURATION', 'update', c),
 

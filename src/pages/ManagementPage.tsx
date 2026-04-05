@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Search, Users2, ShieldCheck, Clock3, FileCheck2, ArrowRight, Filter } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Search, Users2, ShieldCheck, Clock3, FileCheck2, ArrowRight, Filter, Loader2 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,37 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
-
-const kpiCards = [
-  {
-    title: 'PENDING APPROVALS',
-    value: '0',
-    subtext: 'Items currently waiting for your signature or review.',
-    icon: Clock3,
-    accent: 'accent',
-  },
-  {
-    title: 'CERTIFIED SCORELISTS',
-    value: '3',
-    subtext: 'Official documents already locked in the certification chain.',
-    icon: FileCheck2,
-    accent: 'primary',
-  },
-  {
-    title: 'LEADERSHIP',
-    value: '4',
-    subtext: 'Executive governance members available for escalations.',
-    icon: Users2,
-    accent: 'primary',
-  },
-  {
-    title: 'GOVERNANCE TRAFFIC',
-    value: '10',
-    subtext: 'Integrity hash',
-    icon: ShieldCheck,
-    accent: 'primary',
-  },
-];
+import { v2api } from '@/lib/v2api';
+import { BoardConfiguration, ManagementUser } from '@/lib/v2types';
+import { BOARD_DEPARTMENTS, inferDepartmentFromManagementUser, parseDepartmentAssignments } from '@/lib/boardDepartments';
+import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
 
 const pendingActions = [
   {
@@ -52,80 +25,151 @@ const pendingActions = [
   },
 ];
 
-const boardMembers = [
-  {
-    name: 'Saikumar',
-    role: 'President',
-    email: 'skmrmdrj@gmail.com',
-    description: 'Oversees strategic governance and final executive decisions.',
-    tags: ['Executive Board', 'Leadership'],
-  },
-  {
-    name: 'Chandrashekar',
-    role: 'Vice President',
-    email: 'skmrmdrj@gmail.com',
-    description: 'Coordinates operations and supports cross-functional leadership priorities.',
-    tags: ['Competition Operations', 'Leadership'],
-  },
-  {
-    name: 'Dayakar',
-    role: 'Treasurer',
-    email: 'skmrmdrj@gmail.com',
-    description: 'Leads treasury governance, budget controls, and compliance checks.',
-    tags: ['Finance & Compliance', 'Leadership'],
-  },
-  {
-    name: 'Omprakash',
-    role: 'Scoring Official',
-    email: 'skmrmdrj@gmail.com',
-    description: 'Maintains score integrity with board-level reporting support.',
-    tags: ['Executive Board'],
-  },
-  {
-    name: 'Aarav',
-    role: 'Secretary',
-    email: 'skmrmdrj@gmail.com',
-    description: 'Handles governance records and board meeting documentation.',
-    tags: ['Executive Board', 'Operations'],
-  },
-  {
-    name: 'Rohit',
-    role: 'Compliance Lead',
-    email: 'skmrmdrj@gmail.com',
-    description: 'Monitors policy adherence and escalates integrity exceptions.',
-    tags: ['Finance & Compliance', 'Governance'],
-  },
-  {
-    name: 'Karthik',
-    role: 'Scheduling Officer',
-    email: 'skmrmdrj@gmail.com',
-    description: 'Owns schedule routing and approval chain readiness.',
-    tags: ['Competition Operations', 'Governance'],
-  },
-  {
-    name: 'Naveen',
-    role: 'Board Coordinator',
-    email: 'skmrmdrj@gmail.com',
-    description: 'Facilitates communication and board task orchestration.',
-    tags: ['Leadership', 'Operations'],
-  },
-];
+interface BoardMemberCard {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  description: string;
+  tags: string[];
+}
 
 const tagStyles: Record<string, string> = {
   Leadership: 'bg-primary/10 text-primary border-primary/20',
+  'Administration Team': 'bg-primary/10 text-primary border-primary/20',
   'Executive Board': 'bg-accent/10 text-accent-foreground border-accent/20',
   'Competition Operations': 'bg-primary/10 text-primary border-primary/20',
   'Finance & Compliance': 'bg-primary/10 text-primary border-primary/20',
+  'Player Welfare & Development': 'bg-primary/10 text-primary border-primary/20',
+  'Discipline & Ethics': 'bg-primary/10 text-primary border-primary/20',
+  'Media & Community Engagement': 'bg-accent/10 text-accent-foreground border-accent/20',
   Governance: 'bg-primary/10 text-primary border-primary/20',
   Operations: 'bg-accent/10 text-accent-foreground border-accent/20',
 };
 
-const allDesignations = ['All designations', ...new Set(boardMembers.map((m) => m.role))];
-
 const ManagementPage = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [users, setUsers] = useState<ManagementUser[]>([]);
+  const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [designationFilter, setDesignationFilter] = useState('All designations');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [managementUsers, boardConfigs] = await Promise.all([
+          v2api.getManagementUsers(),
+          v2api.getBoardConfiguration(),
+        ]);
+        if (cancelled) return;
+        setUsers(managementUsers.filter((member) => String(member.status || '').toLowerCase() !== 'inactive'));
+        setBoardConfig(selectLatestBoardConfiguration(boardConfigs));
+        setLoadError(null);
+      } catch {
+        if (cancelled) return;
+        setLoadError('Board data could not be loaded right now.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const boardMembers = useMemo<BoardMemberCard[]>(() => {
+    const adminTeamIds = new Set(
+      String(boardConfig?.administration_team_ids || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    );
+
+    const departmentLookup = new Map(BOARD_DEPARTMENTS.map((department) => [department.id, department.name]));
+    const assignments = parseDepartmentAssignments(boardConfig);
+    const departmentMap = new Map<string, Set<string>>();
+
+    assignments.forEach((assignment) => {
+      const departmentName = departmentLookup.get(assignment.department_id);
+      if (!departmentName) return;
+      [assignment.head_id, ...assignment.team_ids].filter(Boolean).forEach((memberId) => {
+        const current = departmentMap.get(memberId) || new Set<string>();
+        current.add(departmentName);
+        departmentMap.set(memberId, current);
+      });
+    });
+
+    return [...users]
+      .sort((left, right) => Number(right.authority_level || 0) - Number(left.authority_level || 0) || left.name.localeCompare(right.name))
+      .map((member) => {
+        const inferredDepartment = inferDepartmentFromManagementUser(member);
+        const departmentTags = [...(departmentMap.get(member.management_id) || new Set<string>())];
+        const tags = Array.from(new Set([
+          adminTeamIds.has(member.management_id) ? 'Administration Team' : null,
+          /president|vice president|secretary|treasurer/i.test(String(member.designation || '')) ? 'Leadership' : null,
+          ...(departmentTags.length ? departmentTags : [inferredDepartment]),
+        ].filter(Boolean) as string[]));
+
+        return {
+          id: member.management_id,
+          name: member.name || member.username || member.management_id,
+          role: member.designation || 'Board Member',
+          email: member.email || 'No email added',
+          description: String(member.role || '').trim() || `Authority level ${member.authority_level || 0} governance member.`,
+          tags,
+        };
+      });
+  }, [boardConfig, users]);
+
+  const allDesignations = useMemo(
+    () => ['All designations', ...new Set(boardMembers.map((member) => member.role))],
+    [boardMembers],
+  );
+
+  const kpiCards = useMemo(() => {
+    const adminTeamCount = String(boardConfig?.administration_team_ids || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean).length;
+    const leadershipCount = boardMembers.filter((member) => member.tags.includes('Leadership')).length;
+    const departmentCount = new Set(
+      boardMembers.flatMap((member) => member.tags.filter((tag) => BOARD_DEPARTMENTS.some((department) => department.name === tag))),
+    ).size;
+
+    return [
+      {
+        title: 'BOARD MEMBERS',
+        value: String(boardMembers.length),
+        subtext: 'Active governance users loaded from the management sheets.',
+        icon: Users2,
+      },
+      {
+        title: 'ADMIN TEAM',
+        value: String(adminTeamCount),
+        subtext: 'Executive members currently selected in board configuration.',
+        icon: ShieldCheck,
+      },
+      {
+        title: 'LEADERSHIP',
+        value: String(leadershipCount),
+        subtext: 'President, vice president, secretary, treasurer, and leadership roles.',
+        icon: Clock3,
+      },
+      {
+        title: 'DEPARTMENTS',
+        value: String(departmentCount),
+        subtext: boardConfig?.current_period || 'Department coverage inferred from the latest board configuration.',
+        icon: FileCheck2,
+      },
+    ];
+  }, [boardConfig?.administration_team_ids, boardConfig?.current_period, boardMembers]);
 
   const filteredMembers = useMemo(() => {
     return boardMembers.filter((member) => {
@@ -147,7 +191,16 @@ const ManagementPage = () => {
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
             Unified governance workspace for leadership approvals, coordination, and board directory visibility across all devices.
           </p>
+          {boardConfig?.current_period && (
+            <Badge variant="outline" className="mt-4 w-fit">Current period: {boardConfig.current_period}</Badge>
+          )}
         </div>
+
+        {loadError && (
+          <Card className="border-destructive/30">
+            <CardContent className="p-4 text-sm text-destructive">{loadError}</CardContent>
+          </Card>
+        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
@@ -229,10 +282,15 @@ const ManagementPage = () => {
             </div>
           </CardHeader>
           <CardContent>
+            {loading && (
+              <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading board members…
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredMembers.map((member) => (
                 <div
-                  key={`${member.name}-${member.role}`}
+                  key={member.id}
                   className="rounded-xl border border-border bg-gradient-to-br from-card via-background to-primary/5 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                 >
                   <div className="flex items-center gap-3">
@@ -251,7 +309,7 @@ const ManagementPage = () => {
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {member.tags.map((tag) => (
                       <span
-                        key={`${member.name}-${tag}`}
+                        key={`${member.id}-${tag}`}
                         className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${tagStyles[tag] ?? 'bg-muted text-muted-foreground border-border'}`}
                       >
                         {tag}
@@ -260,7 +318,7 @@ const ManagementPage = () => {
                   </div>
                 </div>
               ))}
-              {filteredMembers.length === 0 && (
+              {!loading && filteredMembers.length === 0 && (
                 <p className="col-span-full text-center text-sm text-muted-foreground py-8">No members match your search.</p>
               )}
             </div>
