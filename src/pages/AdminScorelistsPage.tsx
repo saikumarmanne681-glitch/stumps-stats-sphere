@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup } from 'react-dom/server.browser';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
