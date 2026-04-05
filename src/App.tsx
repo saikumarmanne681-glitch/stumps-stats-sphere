@@ -49,9 +49,9 @@ const queryClient = new QueryClient({
 
 const RouteLoader = () => (
   <div className="flex min-h-[40vh] items-center justify-center px-4">
-    <div className="glass-panel flex items-center gap-3 rounded-2xl px-6 py-4 text-sm font-semibold text-muted-foreground">
+    <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-card px-6 py-4 text-sm font-semibold text-muted-foreground shadow-sm">
       <Loader2 className="h-4 w-4 animate-spin text-primary" />
-      Loading page...
+      Loading...
     </div>
   </div>
 );

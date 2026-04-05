@@ -1,45 +1,41 @@
+import { useState, useMemo } from 'react';
 import { Search, Users2, ShieldCheck, Clock3, FileCheck2, ArrowRight, Filter } from 'lucide-react';
+import { Navbar } from '@/components/Navbar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useNavigate } from 'react-router-dom';
 
 const kpiCards = [
   {
     title: 'PENDING APPROVALS',
     value: '0',
     subtext: 'Items currently waiting for your signature or review.',
-    gradient: 'from-orange-100 via-amber-50 to-white',
-    iconBg: 'bg-orange-500/15',
-    iconColor: 'text-orange-500',
-    shadow: 'shadow-[0_18px_45px_-24px_rgba(249,115,22,0.65)]',
     icon: Clock3,
+    accent: 'accent',
   },
   {
     title: 'CERTIFIED SCORELISTS',
     value: '3',
     subtext: 'Official documents already locked in the certification chain.',
-    gradient: 'from-blue-100 via-sky-50 to-white',
-    iconBg: 'bg-blue-500/15',
-    iconColor: 'text-blue-500',
-    shadow: 'shadow-[0_18px_45px_-24px_rgba(59,130,246,0.7)]',
     icon: FileCheck2,
+    accent: 'primary',
   },
   {
     title: 'LEADERSHIP',
     value: '4',
     subtext: 'Executive governance members available for escalations.',
-    gradient: 'from-violet-100 via-fuchsia-50 to-white',
-    iconBg: 'bg-violet-500/15',
-    iconColor: 'text-violet-500',
-    shadow: 'shadow-[0_18px_45px_-24px_rgba(139,92,246,0.68)]',
     icon: Users2,
+    accent: 'primary',
   },
   {
     title: 'GOVERNANCE TRAFFIC',
     value: '10',
     subtext: 'Integrity hash',
-    gradient: 'from-emerald-100 via-teal-50 to-white',
-    iconBg: 'bg-emerald-500/15',
-    iconColor: 'text-emerald-500',
-    shadow: 'shadow-[0_18px_45px_-24px_rgba(16,185,129,0.65)]',
     icon: ShieldCheck,
+    accent: 'primary',
   },
 ];
 
@@ -47,10 +43,12 @@ const pendingActions = [
   {
     title: 'Scorelist approvals',
     description: 'Scorelists currently waiting for your designation stage approval.',
+    to: '/admin/scorelists',
   },
   {
     title: 'Schedule approvals',
     description: 'Schedules that need your governance decision.',
+    to: '/admin/work-queue',
   },
 ];
 
@@ -114,128 +112,161 @@ const boardMembers = [
 ];
 
 const tagStyles: Record<string, string> = {
-  Leadership: 'bg-violet-100 text-violet-700',
-  'Executive Board': 'bg-orange-100 text-orange-700',
-  'Competition Operations': 'bg-cyan-100 text-cyan-700',
-  'Finance & Compliance': 'bg-emerald-100 text-emerald-700',
-  Governance: 'bg-blue-100 text-blue-700',
-  Operations: 'bg-pink-100 text-pink-700',
+  Leadership: 'bg-primary/10 text-primary border-primary/20',
+  'Executive Board': 'bg-accent/10 text-accent-foreground border-accent/20',
+  'Competition Operations': 'bg-primary/10 text-primary border-primary/20',
+  'Finance & Compliance': 'bg-primary/10 text-primary border-primary/20',
+  Governance: 'bg-primary/10 text-primary border-primary/20',
+  Operations: 'bg-accent/10 text-accent-foreground border-accent/20',
 };
 
+const allDesignations = ['All designations', ...new Set(boardMembers.map((m) => m.role))];
+
 const ManagementPage = () => {
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [designationFilter, setDesignationFilter] = useState('All designations');
+
+  const filteredMembers = useMemo(() => {
+    return boardMembers.filter((member) => {
+      const query = searchQuery.trim().toLowerCase();
+      const matchesSearch = !query || [member.name, member.email, member.role, ...member.tags].some((v) => v.toLowerCase().includes(query));
+      const matchesDesignation = designationFilter === 'All designations' || member.role === designationFilter;
+      return matchesSearch && matchesDesignation;
+    });
+  }, [searchQuery, designationFilter]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-slate-50 to-blue-50 px-4 py-8 sm:px-6 lg:px-10">
-      <main className="mx-auto w-full max-w-7xl space-y-8">
-        <section className="rounded-3xl border border-slate-100 bg-white/90 p-6 shadow-[0_24px_60px_-32px_rgba(59,130,246,0.35)] sm:p-8">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Management Board</h1>
-          <p className="mt-3 max-w-4xl text-base leading-relaxed text-slate-600 sm:text-lg">
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="container mx-auto px-4 py-6 md:py-8 space-y-6">
+        {/* Hero Header */}
+        <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-background to-accent/10 p-5 sm:p-8">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Governance workspace</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mt-1">🏛️ Management Board</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
             Unified governance workspace for leadership approvals, coordination, and board directory visibility across all devices.
           </p>
-        </section>
+        </div>
 
-        <section className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
           {kpiCards.map((card) => {
             const Icon = card.icon;
             return (
-              <article
-                key={card.title}
-                className={`rounded-2xl border border-white/70 bg-gradient-to-br ${card.gradient} p-6 ${card.shadow} transition-transform duration-200 hover:-translate-y-1`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-xs font-semibold tracking-[0.14em] text-slate-600">{card.title}</p>
-                  <span className={`inline-flex rounded-xl p-2.5 ${card.iconBg}`}>
-                    <Icon className={`h-5 w-5 ${card.iconColor}`} />
-                  </span>
-                </div>
-                <p className="mt-5 text-4xl font-bold text-slate-900">{card.value}</p>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">{card.subtext}</p>
-              </article>
+              <Card key={card.title} className="border-primary/15 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-95">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[10px] sm:text-xs font-semibold tracking-[0.12em] uppercase text-muted-foreground">{card.title}</p>
+                    <span className="inline-flex rounded-xl bg-primary/10 p-2">
+                      <Icon className="h-4 w-4 text-primary" />
+                    </span>
+                  </div>
+                  <p className="mt-3 text-2xl sm:text-3xl font-bold text-foreground">{card.value}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{card.subtext}</p>
+                </CardContent>
+              </Card>
             );
           })}
-        </section>
+        </div>
 
-        <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_24px_55px_-30px_rgba(251,146,60,0.35)] sm:p-8">
-          <h2 className="text-2xl font-semibold text-slate-900">Pending Management Actions</h2>
-          <div className="mt-6 space-y-4">
+        {/* Pending Actions */}
+        <Card className="border-accent/20">
+          <CardHeader>
+            <CardTitle className="font-display text-lg sm:text-xl">⏳ Pending Management Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             {pendingActions.map((item) => (
               <div
                 key={item.title}
-                className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-gradient-to-r from-white via-slate-50 to-blue-50 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between"
+                className="flex flex-col gap-3 rounded-xl border border-border bg-gradient-to-r from-background via-muted/30 to-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
-                  <p className="text-lg font-semibold text-slate-900">{item.title}</p>
-                  <p className="mt-2 text-sm text-slate-600">{item.description}</p>
+                  <p className="text-sm sm:text-base font-semibold text-foreground">{item.title}</p>
+                  <p className="mt-1 text-xs sm:text-sm text-muted-foreground">{item.description}</p>
                 </div>
-                <button
-                  type="button"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_-20px_rgba(249,115,22,0.8)] transition hover:scale-[1.01] hover:from-orange-600 hover:to-amber-600 lg:w-auto"
+                <Button
+                  size="sm"
+                  onClick={() => navigate(item.to)}
+                  className="w-full gap-2 sm:w-auto"
                 >
-                  Open
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+                  Open <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
               </div>
             ))}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
-        <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-[0_26px_60px_-30px_rgba(59,130,246,0.35)] sm:p-8">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-2xl font-semibold text-slate-900">Management Board Members</h2>
-            <p className="text-sm font-medium text-slate-500">Total Board Members: 8</p>
-          </div>
-
-          <div className="mt-6 flex flex-col gap-3 lg:flex-row">
-            <label className="group flex flex-1 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-blue-300 focus-within:bg-white focus-within:shadow-[0_16px_40px_-28px_rgba(59,130,246,0.6)]">
-              <Search className="h-4 w-4 text-slate-400 group-focus-within:text-blue-500" />
-              <input
-                type="text"
-                placeholder="Search by name, email, designation, or role"
-                className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
-              />
-            </label>
-
-            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 lg:w-64">
-              <Filter className="h-4 w-4 text-blue-500" />
-              <select className="w-full bg-transparent text-sm text-slate-700 focus:outline-none">
-                <option>All designations</option>
-              </select>
+        {/* Board Members */}
+        <Card className="border-primary/15">
+          <CardHeader className="space-y-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="font-display text-lg sm:text-xl">👥 Board Members</CardTitle>
+              <Badge variant="outline" className="w-fit text-xs">{filteredMembers.length} of {boardMembers.length} members</Badge>
             </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {boardMembers.map((member) => (
-              <article
-                key={`${member.name}-${member.role}`}
-                className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white via-slate-50 to-indigo-50 p-5 shadow-[0_18px_45px_-28px_rgba(99,102,241,0.45)]"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-400 to-violet-500 text-base font-bold text-white shadow-[0_14px_30px_-20px_rgba(59,130,246,0.8)]">
-                    {member.name.slice(0, 1)}
-                  </div>
-                  <div>
-                    <p className="text-base font-semibold text-slate-900">{member.name}</p>
-                    <p className="text-xs font-medium text-blue-600">{member.role}</p>
-                  </div>
-                </div>
-
-                <p className="mt-4 text-sm text-slate-500">{member.email}</p>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">{member.description}</p>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {member.tags.map((tag) => (
-                    <span
-                      key={`${member.name}-${tag}`}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${tagStyles[tag] ?? 'bg-slate-100 text-slate-700'}`}
-                    >
-                      {tag}
-                    </span>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by name, email, designation, or role"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={designationFilter} onValueChange={setDesignationFilter}>
+                <SelectTrigger className="w-full sm:w-52">
+                  <Filter className="h-3.5 w-3.5 mr-1 text-primary" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {allDesignations.map((d) => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredMembers.map((member) => (
+                <div
+                  key={`${member.name}-${member.role}`}
+                  className="rounded-xl border border-border bg-gradient-to-br from-card via-background to-primary/5 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-sm font-bold text-primary-foreground shadow-sm">
+                      {member.name.slice(0, 1)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{member.name}</p>
+                      <p className="text-xs font-medium text-primary">{member.role}</p>
+                    </div>
+                  </div>
+
+                  <p className="mt-3 text-xs text-muted-foreground truncate">{member.email}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground line-clamp-2">{member.description}</p>
+
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {member.tags.map((tag) => (
+                      <span
+                        key={`${member.name}-${tag}`}
+                        className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${tagStyles[tag] ?? 'bg-muted text-muted-foreground border-border'}`}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      </main>
+              ))}
+              {filteredMembers.length === 0 && (
+                <p className="col-span-full text-center text-sm text-muted-foreground py-8">No members match your search.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
