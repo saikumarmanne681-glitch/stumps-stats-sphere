@@ -16,6 +16,7 @@ import { Navigate } from 'react-router-dom';
 import { Loader2, Undo2, Redo2, Play, StopCircle, RotateCcw, Trophy, Save } from 'lucide-react';
 import { generateId } from '@/lib/utils';
 import { BattingScorecard, BowlingScorecard } from '@/lib/types';
+import { PageHeader } from '@/components/PageHeader';
 
 interface ScoringAction {
   id: string;
@@ -419,7 +420,7 @@ const MatchCenter = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6 space-y-6">
-        <h1 className="font-display text-3xl font-bold">🏏 Match Center – Live Scoring</h1>
+        <PageHeader route="/admin/match-center" />
 
         {/* Match Selection */}
         <Card>

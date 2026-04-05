@@ -1,4 +1,5 @@
 import { BoardConfiguration, ManagementUser } from '@/lib/v2types';
+import { getBoardDepartments } from '@/lib/departmentCatalog';
 
 export interface DepartmentDefinition {
   id: string;
@@ -12,33 +13,11 @@ export interface DepartmentAssignment {
   team_ids: string[];
 }
 
-export const BOARD_DEPARTMENTS: DepartmentDefinition[] = [
-  {
-    id: 'competition_operations',
-    name: 'Competition Operations',
-    description: 'Fixtures, umpire coordination, venue readiness and match-day governance.',
-  },
-  {
-    id: 'player_welfare_development',
-    name: 'Player Welfare & Development',
-    description: 'Player relations, grievance support, training pathways and performance guidance.',
-  },
-  {
-    id: 'discipline_ethics',
-    name: 'Discipline & Ethics',
-    description: 'Code-of-conduct, dispute resolution, and integrity compliance reviews.',
-  },
-  {
-    id: 'finance_compliance',
-    name: 'Finance & Compliance',
-    description: 'Budget approvals, payout checks, reimbursements, and policy compliance.',
-  },
-  {
-    id: 'media_community',
-    name: 'Media & Community Engagement',
-    description: 'Announcements, fan engagement, communication workflows, and outreach.',
-  },
-];
+export const BOARD_DEPARTMENTS: DepartmentDefinition[] = getBoardDepartments().map((department) => ({
+  id: department.id,
+  name: department.name,
+  description: department.description || '',
+}));
 
 export function parseDepartmentAssignments(config: BoardConfiguration | null): DepartmentAssignment[] {
   const raw = String(config?.department_assignments_json || '').trim();

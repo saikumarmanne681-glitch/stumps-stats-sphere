@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { NewsComposer } from '@/components/news/NewsComposer';
 import { NewsHero } from '@/components/news/NewsHero';
+import { PageHeader } from '@/components/PageHeader';
 import { NewsPostCard } from '@/components/news/NewsPostCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -123,6 +124,8 @@ const NewsRoomPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto space-y-6 px-4 py-8">
+        <PageHeader route="/news-room" />
+
         <NewsHero
           postCount={visiblePosts.length}
           liveTimestamp={liveTimestamp}
