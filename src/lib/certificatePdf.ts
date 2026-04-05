@@ -38,8 +38,10 @@ async function settleCloneImages(root: HTMLElement) {
 }
 
 function sanitizeCloneForPdf(root: HTMLElement, strict = false) {
-  const nodes = [root as Element, ...Array.from(root.querySelectorAll('*'))];
-  nodes.forEach((node) => {
+  const nodes = [root, ...Array.from(root.querySelectorAll('*'))];
+  nodes.forEach((el) => {
+    const node = el as HTMLElement;
+    if (!node.style) return;
     const inlineBackground = node.style.backgroundImage;
     const computedBackground = window.getComputedStyle(node).backgroundImage;
     const backgroundSource = inlineBackground || computedBackground;
