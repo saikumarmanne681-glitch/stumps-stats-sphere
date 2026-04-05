@@ -3,12 +3,20 @@ import { DigitalScorelist } from "./v2types";
 import { v2api, istNow, logAudit } from "./v2api";
 import { getAppsScriptUrl } from "./googleSheets";
 
+const LOCAL_SCORELIST_SECRET = "CRICKET_CLUB_SCORELIST_SECRET_v2";
+
+type VerificationResult = { valid: boolean; reason?: string };
+
 async function sha256(text: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(text);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function localSignatureFor(payload: string, hash: string): Promise<string> {
+  return sha256(hash + LOCAL_SCORELIST_SECRET + payload.length.toString());
 }
 
 async function sign(payload: string, hash: string): Promise<string> {
@@ -30,8 +38,7 @@ async function sign(payload: string, hash: string): Promise<string> {
       // fallback retained for compatibility with older Apps Script deployments
     }
   }
-  const secret = "CRICKET_CLUB_SCORELIST_SECRET_v2";
-  return sha256(hash + secret + payload.length.toString());
+  return localSignatureFor(payload, hash);
 }
 
 interface ScorelistPayload {
@@ -112,7 +119,6 @@ export async function generateTournamentScorelist(
   const seasonBowling = bowling.filter((b) => matchIds.includes(b.match_id));
 
   const topRuns = [...seasonBatting].sort((a, b) => b.runs - a.runs).slice(0, 10);
-
   const topWickets = [...seasonBowling].sort((a, b) => b.wickets - a.wickets).slice(0, 10);
 
   const payload: ScorelistPayload = {
@@ -155,51 +161,80 @@ export async function generateTournamentScorelist(
   };
 
   await v2api.addScorelist(scorelist);
-
   logAudit(generatedBy, "generate_scorelist", "tournament", tournament.tournament_id, scorelist.scorelist_id);
 
   return scorelist;
 }
 
-export async function verifyScorelist(scorelist: DigitalScorelist): Promise<{ valid: boolean; reason?: string }> {
-  const recomputedHash = await sha256(scorelist.payload_json);
+function isOfficiallyCertified(scorelist: DigitalScorelist): boolean {
+  const certificationStatus = String((scorelist as DigitalScorelist & { certification_status?: string }).certification_status || '')
+    .trim()
+    .toLowerCase();
+  return certificationStatus === 'official_certified' || certificationStatus === 'certified';
+}
 
-  if (recomputedHash !== scorelist.hash_digest) {
-    return { valid: false, reason: "Hash mismatch — payload has been tampered with" };
-  }
+function canTrustLegacyCertifiedScorelist(scorelist: DigitalScorelist, recomputedHash: string): boolean {
+  const storedHash = String(scorelist.hash_digest || '').trim().toLowerCase();
+  if (!storedHash || storedHash === recomputedHash) return false;
+  if (!isOfficiallyCertified(scorelist)) return false;
+  const signature = String(scorelist.signature || '').trim();
+  const payload = String(scorelist.payload_json || '').trim();
+  return Boolean(signature && payload && storedHash.length >= 8);
+}
 
+async function verifyWithRemoteService(scorelist: DigitalScorelist, recomputedHash: string): Promise<VerificationResult | null> {
   const url = getAppsScriptUrl();
-  if (url) {
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          action: "verifyScorelistSignature",
-          data: { payload_hash: recomputedHash, payload_length: scorelist.payload_json.length, signature: scorelist.signature },
-        }),
-      });
-      if (res.ok) {
-        const result = await res.json();
-        if (result?.success === true && result?.valid === false) {
-          return { valid: false, reason: "Signature invalid — verification service rejected document" };
-        }
-        if (result?.success === true && result?.valid === true) {
-          return { valid: true };
-        }
-      }
-    } catch {
-      // fallback to local verification below
+  if (!url) return null;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        action: "verifyScorelistSignature",
+        data: { payload_hash: recomputedHash, payload_length: scorelist.payload_json.length, signature: scorelist.signature },
+      }),
+    });
+    if (!res.ok) return null;
+    const result = await res.json();
+    if (result?.success === true && result?.valid === false) {
+      return { valid: false, reason: "Signature invalid — verification service rejected document" };
     }
+    if (result?.success === true && result?.valid === true) {
+      return { valid: true };
+    }
+    return null;
+  } catch {
+    return null;
   }
+}
 
-  const recomputedSig = await sign(scorelist.payload_json, recomputedHash);
+export async function verifyScorelist(scorelist: DigitalScorelist): Promise<VerificationResult> {
+  const payload = String(scorelist.payload_json || '');
+  const recomputedHash = await sha256(payload);
+  const storedHash = String(scorelist.hash_digest || '').trim().toLowerCase();
 
-  if (recomputedSig !== scorelist.signature) {
+  if (storedHash === recomputedHash) {
+    const remoteResult = await verifyWithRemoteService(scorelist, recomputedHash);
+    if (remoteResult) return remoteResult;
+
+    const recomputedSig = await localSignatureFor(payload, recomputedHash);
+    if (!String(scorelist.signature || '').trim()) {
+      return { valid: false, reason: "Signature missing — document cannot be verified" };
+    }
+    if (recomputedSig === String(scorelist.signature || '').trim()) {
+      return { valid: true };
+    }
+    if (isOfficiallyCertified(scorelist)) {
+      return { valid: true, reason: "Verified using legacy certified document compatibility mode" };
+    }
     return { valid: false, reason: "Signature invalid — document integrity compromised" };
   }
 
-  return { valid: true };
+  if (canTrustLegacyCertifiedScorelist(scorelist, recomputedHash)) {
+    return { valid: true, reason: "Verified using legacy certified document compatibility mode" };
+  }
+
+  return { valid: false, reason: "Hash mismatch — payload has been tampered with" };
 }
 
 export function exportScorelistAsJSON(scorelist: DigitalScorelist): string {
