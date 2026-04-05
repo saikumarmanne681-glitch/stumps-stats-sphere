@@ -166,15 +166,46 @@ const firstString = (...values: unknown[]): string => {
   return '';
 };
 
+const looksTimestamp = (value: unknown): boolean => {
+  const text = String(value ?? '').trim();
+  return !!text && Number.isFinite(new Date(text).getTime());
+};
+
+const looksRecipientType = (value: unknown): boolean => {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return normalized === 'player' || normalized === 'team';
+};
+
 export function normalizeCertificateRecord(raw: Partial<CertificateRecord> | GenericRow): CertificateRecord {
   const row = raw as GenericRow;
   const id = firstString(row.id, row.certificate_id, row.cert_id, row.certificateId) || `CERT-${Date.now()}`;
-  const linkedPlayerId = firstString(row.linked_player_id, row.player_id, row.playerId);
-  const linkedTeamName = firstString(row.linked_team_name, row.team_name, row.team, row.teamName);
-  const recipientName = firstString(row.recipient_name, row.player_name, row.team_name, row.recipient);
-  const recipientTypeRaw = firstString(row.recipient_type).toLowerCase();
+  const legacyRecipientType = looksRecipientType(row.match_id) && !looksRecipientType(row.recipient_type)
+    ? String(row.match_id).trim().toLowerCase()
+    : '';
+  const linkedPlayerId = firstString(
+    row.linked_player_id,
+    legacyRecipientType === 'player' ? row.recipient_name : '',
+    row.player_id,
+    row.playerId,
+  );
+  const linkedTeamName = firstString(
+    row.linked_team_name,
+    legacyRecipientType === 'team' ? row.recipient_name : '',
+    row.team_name,
+    row.team,
+    row.teamName,
+  );
+  const recipientName = firstString(
+    legacyRecipientType ? row.recipient_id : '',
+    row.recipient_name,
+    row.player_name,
+    row.team_name,
+    row.recipient,
+  );
+  const recipientTypeRaw = firstString(legacyRecipientType, row.recipient_type).toLowerCase();
   const recipientType: CertificateRecord['recipient_type'] = recipientTypeRaw === 'team' || (!!linkedTeamName && !linkedPlayerId) ? 'team' : 'player';
   const recipientId = firstString(
+    legacyRecipientType ? row.recipient_type : '',
     row.recipient_id,
     row.linked_player_id,
     row.player_id,
@@ -182,26 +213,26 @@ export function normalizeCertificateRecord(raw: Partial<CertificateRecord> | Gen
     row.team_name,
   );
   const status = normalizeCertificateStatus(
-    firstString(row.status, row.approval_status, row.certificate_status, row.certification_status),
+    firstString(row.status, row.certificate_status, row.certification_status, row.qr_payload, row.approval_status),
   ) || 'DRAFT';
   return {
     id,
     type: firstString(row.type, row.certificate_type, row.title) || 'Certificate of Excellence',
-    tournament: firstString(row.tournament, row.tournament_name, row.competition_name) || 'Tournament',
-    season: firstString(row.season, row.season_year, row.year) || 'Season',
-    match_id: firstString(row.match_id, row.match, row.matchId),
+    tournament: firstString(row.tournament, row.tournament_name, row.competition_name, row.title, row.tournament_id) || 'Tournament',
+    season: firstString(row.season, row.season_year, row.season_id, row.year) || 'Season',
+    match_id: legacyRecipientType ? '' : firstString(row.match_id, row.match, row.matchId),
     recipient_type: recipientType,
     recipient_id: recipientId,
     recipient_name: recipientName || (recipientType === 'team' ? linkedTeamName : linkedPlayerId) || 'Recipient',
     linked_player_id: linkedPlayerId,
     linked_team_name: linkedTeamName,
-    template_id: firstString(row.template_id, row.template, row.template_name) || 'TPL_CLASSIC_GOLD',
+    template_id: firstString(row.template_id, row.certificate_html, row.template, row.template_name) || 'TPL_CLASSIC_GOLD',
     status,
-    created_by: firstString(row.created_by, row.createdBy) || 'admin',
-    created_at: firstString(row.created_at, row.createdAt, row.issued_at),
-    details_json: firstString(row.details_json, row.details, row.match_details),
-    performance_json: firstString(row.performance_json, row.performance, row.stats),
-    verification_code: firstString(row.verification_code, row.verify_code, row.verificationCode),
+    created_by: firstString(row.created_by, !looksTimestamp(row.security_hash) ? row.security_hash : '', row.createdBy) || 'admin',
+    created_at: firstString(row.created_at, looksTimestamp(row.approval_status) ? row.approval_status : '', row.createdAt, row.issued_at),
+    details_json: firstString(row.details_json, row.details, row.match_details, row.approvals_json),
+    performance_json: firstString(row.performance_json, row.performance, row.stats, row.generated_by),
+    verification_code: firstString(row.verification_code, row.verify_code, row.verificationCode, row.generated_at),
     certified_at: firstString(row.certified_at, row.approved_at, row.certifiedAt),
     certified_by: firstString(row.certified_by, row.approved_by, row.certifiedBy),
   };
