@@ -149,10 +149,11 @@ export function isCertificateCertified(certificate?: Partial<CertificateRecord> 
 
 export function isCertificateAuthentic(certificate?: Partial<CertificateRecord> | null): boolean {
   if (!certificate) return false;
-  const certified = isCertificateCertified(certificate);
-  const hasCertifiedAt = Boolean(String(certificate.certified_at || '').trim());
-  const hasCertifiedBy = Boolean(String(certificate.certified_by || '').trim());
-  const hasVerificationCode = Boolean(String(certificate.verification_code || '').trim());
+  const normalized = normalizeCertificateRecord(certificate);
+  const certified = isCertificateCertified(normalized);
+  const hasCertifiedAt = Boolean(String(normalized.certified_at || '').trim());
+  const hasCertifiedBy = Boolean(String(normalized.certified_by || '').trim());
+  const hasVerificationCode = Boolean(String(normalized.verification_code || '').trim());
   return certified && hasCertifiedAt && hasCertifiedBy && hasVerificationCode;
 }
 
@@ -212,9 +213,14 @@ export function normalizeCertificateRecord(raw: Partial<CertificateRecord> | Gen
     row.linked_team_name,
     row.team_name,
   );
-  const status = normalizeCertificateStatus(
+
+  const inferredStatus = normalizeCertificateStatus(
     firstString(row.status, row.certificate_status, row.certification_status, row.qr_payload, row.approval_status),
-  ) || 'DRAFT';
+  );
+  const hasLegacyApprovedAt = looksTimestamp(row.approved_at) || looksTimestamp(row.certified_at);
+  const hasLegacyVerificationCode = Boolean(firstString(row.verification_code, row.verify_code, row.verificationCode, row.generated_at));
+  const status = inferredStatus || (hasLegacyApprovedAt && hasLegacyVerificationCode ? 'CERTIFIED' : 'DRAFT');
+
   return {
     id,
     type: firstString(row.type, row.certificate_type, row.title) || 'Certificate of Excellence',
@@ -228,13 +234,13 @@ export function normalizeCertificateRecord(raw: Partial<CertificateRecord> | Gen
     linked_team_name: linkedTeamName,
     template_id: firstString(row.template_id, row.certificate_html, row.template, row.template_name) || 'TPL_CLASSIC_GOLD',
     status,
-    created_by: firstString(row.created_by, !looksTimestamp(row.security_hash) ? row.security_hash : '', row.createdBy) || 'admin',
+    created_by: firstString(row.created_by, !looksTimestamp(row.security_hash) ? row.security_hash : '', row.createdBy, row.delivery_status) || 'admin',
     created_at: firstString(row.created_at, looksTimestamp(row.approval_status) ? row.approval_status : '', row.createdAt, row.issued_at),
     details_json: firstString(row.details_json, row.details, row.match_details, row.approvals_json),
     performance_json: firstString(row.performance_json, row.performance, row.stats, row.generated_by),
     verification_code: firstString(row.verification_code, row.verify_code, row.verificationCode, row.generated_at),
     certified_at: firstString(row.certified_at, row.approved_at, row.certifiedAt),
-    certified_by: firstString(row.certified_by, row.approved_by, row.certifiedBy),
+    certified_by: firstString(row.certified_by, row.approved_by, row.certifiedBy, !looksTimestamp(row.delivery_status) ? row.delivery_status : ''),
   };
 }
 
