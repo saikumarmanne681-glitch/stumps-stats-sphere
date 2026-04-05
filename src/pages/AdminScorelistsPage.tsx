@@ -17,7 +17,7 @@ import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generat
 import { buildSecurePatternLayer } from '@/lib/scorelistSecurePattern';
 import { sendScorelistApprovalRequestBulk, getAdminNotificationRecipient, explainMailFailure } from '@/lib/mailer';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
+import { Loader2, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatInIST } from '@/lib/time';
 import { getPublicVerifyScorelistUrl } from '@/lib/publicUrl';
@@ -49,6 +49,16 @@ const escapeHtml = (value: unknown) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+const asDisplayText = (value: unknown, fallback = 'N/A') => {
+  const normalized = String(value ?? '').trim();
+  return normalized || fallback;
+};
+
+const truncateDisplay = (value: unknown, length: number, fallback = 'N/A') => {
+  const normalized = asDisplayText(value, fallback);
+  return normalized.length > length ? normalized.substring(0, length) : normalized;
+};
 
 const stageLabels: Record<string, string> = scorelistStageLabels;
 const stageOrder: readonly (typeof scorelistStageOrder)[number][] = scorelistStageOrder;
@@ -293,16 +303,19 @@ const AdminScorelistsPage = () => {
   const renderVerificationQrMarkup = (verifyUrl: string, scorelistId: string, hashDigest: string, size = 140) => {
     const qrSize = Math.round(size * 0.62);
     const qrOffset = Math.round((size - qrSize) / 2);
-    const qrMarkup = renderToStaticMarkup(
-      <QRCodeSVG
-        value={verifyUrl}
-        size={qrSize}
-        level="H"
-        includeMargin
-        bgColor="#ffffff"
-        fgColor="#0f5132"
-      />,
-    ).replace('<svg ', `<svg x="${qrOffset}" y="${qrOffset}" `);
+    const qrComponentAvailable = typeof QRCodeSVG === 'function';
+    const qrMarkup = qrComponentAvailable
+      ? renderToStaticMarkup(
+          <QRCodeSVG
+            value={verifyUrl}
+            size={qrSize}
+            level="H"
+            includeMargin
+            bgColor="#ffffff"
+            fgColor="#0f5132"
+          />,
+        ).replace('<svg ', `<svg x="${qrOffset}" y="${qrOffset}" `)
+      : `<g transform="translate(${qrOffset} ${qrOffset})"><rect width="${qrSize}" height="${qrSize}" rx="10" ry="10" fill="#ffffff"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="12" fill="#14532d">VERIFY</text></g>`;
 
     const seed = hashSeed(`${scorelistId}-${hashDigest}`);
     const shortHash = hashDigest.slice(0, 16).toUpperCase();
@@ -385,12 +398,13 @@ const AdminScorelistsPage = () => {
     const bowlRows = (payload?.bowlingData || []).map((b: any) =>
       `<tr><td>${escapeHtml(players.find(p => p.player_id === b.player_id)?.name || b.player_id)}</td><td>${escapeHtml(b.team)}</td><td style="text-align:right">${escapeHtml(b.overs)}</td><td style="text-align:right">${escapeHtml(b.maidens)}</td><td style="text-align:right">${escapeHtml(b.runs_conceded)}</td><td style="text-align:right;font-weight:bold">${escapeHtml(b.wickets)}</td></tr>`
     ).join('');
-    const certRows = certs.map(c => `<tr><td>${escapeHtml(c.approver_name)}</td><td>${escapeHtml(c.designation)}</td><td>${escapeHtml(stageLabels[c.stage] || c.stage.replace(/_/g, ' '))}</td><td>${escapeHtml(formatInIST(c.timestamp))}</td><td style="font-family:monospace;font-size:10px">${escapeHtml(c.token.substring(0,12))}</td></tr>`).join('');
+    const certRows = certs.map(c => `<tr><td>${escapeHtml(c.approver_name)}</td><td>${escapeHtml(c.designation)}</td><td>${escapeHtml(stageLabels[c.stage] || c.stage.replace(/_/g, ' '))}</td><td>${escapeHtml(formatInIST(c.timestamp))}</td><td style="font-family:monospace;font-size:10px">${escapeHtml(truncateDisplay(c.token, 12))}</td></tr>`).join('');
     const draftTimestamp = sl.generated_at || new Date().toISOString();
     const draftBy = sl.generated_by || 'System';
     const verifyUrl = getPublicVerifyScorelistUrl(sl.scorelist_id);
-    const qrMarkup = renderVerificationQrMarkup(verifyUrl, sl.scorelist_id, sl.hash_digest, 160);
-    const verificationIntaglioId = `${sl.scorelist_id} • ${sl.hash_digest.slice(0, 16).toUpperCase()}`;
+    const normalizedHashDigest = asDisplayText(sl.hash_digest, `NO-HASH-${sl.scorelist_id}`);
+    const qrMarkup = renderVerificationQrMarkup(verifyUrl, sl.scorelist_id, normalizedHashDigest, 160);
+    const verificationIntaglioId = `${sl.scorelist_id} • ${truncateDisplay(normalizedHashDigest, 16).toUpperCase()}`;
     const verificationIntaglioBands = Array.from({ length: 8 }, (_, index) => `${verificationIntaglioId} • INTAGLIO VERIFIED • `).join('');
     const securityFeaturesMarkup = securityFeatureItems.map((feature) => `
       <div class="security-feature-card">
@@ -439,7 +453,7 @@ const AdminScorelistsPage = () => {
 
     const securePattern = buildSecurePatternLayer({
       matchId: sl.match_id || payloadMatches[0]?.match_id || 'TOURNAMENT',
-      checksum: sl.hash_digest.substring(0, 12),
+      checksum: truncateDisplay(normalizedHashDigest, 12),
       timestamp: String(sl.generated_at || '').replace(/[^0-9A-Za-z]/g, ''),
       enableSecurePattern: true,
     });
@@ -465,7 +479,7 @@ ${securePattern.enabled ? `<div class="secure-pattern" style="${securePattern.st
 <div class="security-grid"></div>
 <div class="security-thread"></div>
 ${registrationBandMarkup}
-<div class="microtext">${`${sl.scorelist_id} • ${sl.hash_digest} • `.repeat(18)}${securePattern.enabled ? `${securePattern.microtext} • ` : ''}</div>
+<div class="microtext">${`${sl.scorelist_id} • ${normalizedHashDigest} • `.repeat(18)}${securePattern.enabled ? `${securePattern.microtext} • ` : ''}</div>
 <div class="watermark">VERIFIED MATCH RECORD</div>
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
 <h1 class="intaglio">Digital ${sl.scope_type === 'match' ? 'Match' : 'Tournament'} Scorelist</h1>
@@ -499,7 +513,7 @@ ${tournamentMatchBlocks}
 <h2>🏛️ Certification Timeline</h2><div class="cert-grid"><table><tr><th>Name</th><th>Designation</th><th>Stage</th><th>Timestamp</th><th>Token</th></tr>${certTimelineRows}</table></div>
 <h2>🧾 Pending Approvals</h2><table><tr><th>Name</th><th>Designation</th><th>Required Stage</th><th>Status</th></tr>${pendingRows || '<tr><td colspan="4" style="text-align:center;color:#1e6b3a;font-weight:bold">All required approvals completed</td></tr>'}</table>
 ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MATCH RESULT</div>' : ''}
-<div class="footer"><p>Document ID: ${escapeHtml(sl.scorelist_id)} | Hash: ${escapeHtml(sl.hash_digest.substring(0,32))}...</p><p>Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.</p></div>
+<div class="footer"><p>Document ID: ${escapeHtml(sl.scorelist_id)} | Hash: ${escapeHtml(truncateDisplay(normalizedHashDigest, 32))}...</p><p>Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.</p></div>
 </body></html>`;
 
     const printWin = window.open('', '_blank');
@@ -705,7 +719,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                       <Eye className="h-3 w-3" /> View & Verify
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => handleExportJSON(sl)} className="gap-1 text-xs">
-                      <FileJson className="h-3 w-3" /> JSON
+                      <FileText className="h-3 w-3" /> JSON
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => handleExportPDF(sl)} className="gap-1 text-xs">
                       <FileText className="h-3 w-3" /> PDF
@@ -918,12 +932,12 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                             : certs.find(c => c.stage === stage);
                           return (
                             <div key={stage} className={`flex items-center gap-3 p-2 rounded text-sm ${cert ? 'bg-primary/5 border border-primary/20' : 'opacity-40'}`}>
-                              {cert ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />}
+                              {cert ? <CheckCircle className="h-4 w-4 text-primary shrink-0" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />}
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium capitalize text-xs md:text-sm">{stageLabels[stage]}</p>
                                 {cert && <p className="text-xs text-muted-foreground truncate">{cert.approver_name} – {cert.designation} • {formatInIST(cert.timestamp)}</p>}
                               </div>
-                              {cert && <Badge variant="outline" className="text-[10px] font-mono shrink-0">{cert.token.substring(0, 10)}</Badge>}
+                              {cert && <Badge variant="outline" className="text-[10px] font-mono shrink-0">{truncateDisplay(cert.token, 10)}</Badge>}
                             </div>
                           );
                         })}
@@ -940,7 +954,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                     <details className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5">
                       <summary className="cursor-pointer list-none text-sm font-semibold text-primary">Security & QR verification details</summary>
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6">
-                        <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm" dangerouslySetInnerHTML={{ __html: renderVerificationQrMarkup(getPublicVerifyScorelistUrl(viewScorelist.scorelist_id), viewScorelist.scorelist_id, viewScorelist.hash_digest, 148) }} />
+                        <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm" dangerouslySetInnerHTML={{ __html: renderVerificationQrMarkup(getPublicVerifyScorelistUrl(viewScorelist.scorelist_id), viewScorelist.scorelist_id, asDisplayText(viewScorelist.hash_digest, `NO-HASH-${viewScorelist.scorelist_id}`), 148) }} />
                         <div className="text-sm text-center sm:text-left">
                           <p className="font-semibold">Scan to Verify</p>
                           <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{getPublicVerifyScorelistUrl(viewScorelist.scorelist_id)}</p>
@@ -964,14 +978,14 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                         <Download className="h-3 w-3" /> Download PDF
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => handleExportJSON(viewScorelist)} className="gap-1">
-                        <FileJson className="h-3 w-3" /> Download JSON
+                        <FileText className="h-3 w-3" /> Download JSON
                       </Button>
                     </div>
 
                     {/* Security Footer */}
                     <div className="space-y-1 border-t border-primary/20 pt-4 text-center">
                       <p className="text-xs text-muted-foreground font-mono">Document ID: {viewScorelist.scorelist_id}</p>
-                      <p className="text-xs text-muted-foreground font-mono">Integrity Hash: {viewScorelist.hash_digest.substring(0, 32)}...</p>
+                      <p className="text-xs text-muted-foreground font-mono">Integrity Hash: {truncateDisplay(viewScorelist.hash_digest, 32)}...</p>
                       <p className="text-[10px] text-muted-foreground/60 italic mt-2">
                         Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.
                       </p>
