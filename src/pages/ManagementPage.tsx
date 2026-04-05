@@ -178,7 +178,7 @@ const ManagementPage = () => {
       const matchesDesignation = designationFilter === 'All designations' || member.role === designationFilter;
       return matchesSearch && matchesDesignation;
     });
-  }, [searchQuery, designationFilter]);
+  }, [searchQuery, designationFilter, boardMembers]);
 
   return (
     <div className="min-h-screen bg-background">

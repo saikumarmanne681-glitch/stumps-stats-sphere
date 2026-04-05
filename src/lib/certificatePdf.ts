@@ -3,12 +3,16 @@ const A4_LANDSCAPE_HEIGHT_MM = 210;
 const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 const SVG_PLACEHOLDER_TEXT = 'QR available in online verification view';
 
+// Fixed pixel dimensions for consistent PDF rendering
+const RENDER_WIDTH = 1400;
+const RENDER_HEIGHT = Math.round(RENDER_WIDTH * (210 / 297));
+
 async function waitForFonts() {
   if (!('fonts' in document)) return;
   try {
     await document.fonts.ready;
   } catch {
-    // Ignore font readiness issues and continue with render fallback.
+    // Ignore
   }
 }
 
@@ -28,10 +32,7 @@ async function settleCloneImages(root: HTMLElement) {
   const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
   if (images.length === 0) return;
   await Promise.all(images.map((image) => new Promise<void>((resolve) => {
-    if (image.complete) {
-      resolve();
-      return;
-    }
+    if (image.complete) { resolve(); return; }
     image.addEventListener('load', () => resolve(), { once: true });
     image.addEventListener('error', () => resolve(), { once: true });
   })));
@@ -42,6 +43,15 @@ function sanitizeCloneForPdf(root: HTMLElement, strict = false) {
   nodes.forEach((el) => {
     const node = el as HTMLElement;
     if (!node.style) return;
+
+    // Remove Tailwind classes that can cause rendering issues
+    if (node.classList) {
+      const badClasses = Array.from(node.classList).filter(c =>
+        c.startsWith('backdrop-') || c.startsWith('scrollbar-') || c === 'overflow-hidden'
+      );
+      badClasses.forEach(c => node.classList.remove(c));
+    }
+
     const inlineBackground = node.style.backgroundImage;
     const computedBackground = window.getComputedStyle(node).backgroundImage;
     const backgroundSource = inlineBackground || computedBackground;
@@ -87,75 +97,75 @@ export async function downloadCertificatePdf(element: HTMLElement, filename: str
   const mount = document.createElement('div');
   const clone = element.cloneNode(true) as HTMLElement;
 
+  // Use fixed pixel dimensions instead of mm for consistent rendering
   mount.style.position = 'fixed';
   mount.style.left = '-10000px';
   mount.style.top = '0';
-  mount.style.width = '297mm';
-  mount.style.height = '210mm';
+  mount.style.width = `${RENDER_WIDTH}px`;
+  mount.style.height = `${RENDER_HEIGHT}px`;
   mount.style.background = '#ffffff';
   mount.style.pointerEvents = 'none';
-  mount.style.overflow = 'hidden';
+  mount.style.overflow = 'visible';
   mount.style.zIndex = '-1';
   mount.style.opacity = '0';
 
-  clone.style.width = '100%';
-  clone.style.height = '100%';
+  clone.style.width = `${RENDER_WIDTH}px`;
+  clone.style.height = `${RENDER_HEIGHT}px`;
   clone.style.maxWidth = 'none';
-  clone.style.aspectRatio = '297 / 210';
   clone.style.margin = '0';
   clone.style.borderRadius = '0';
   clone.style.boxShadow = 'none';
-  clone.style.overflow = 'hidden';
+  clone.style.overflow = 'visible';
+  clone.style.boxSizing = 'border-box';
 
   mount.appendChild(clone);
   document.body.appendChild(mount);
 
-  const getRenderDimensions = () => {
-    const bounds = clone.getBoundingClientRect();
-    return {
-      width: Math.max(clone.scrollWidth, Math.ceil(bounds.width), 1120),
-      height: Math.max(clone.scrollHeight, Math.ceil(bounds.height), 792),
-    };
-  };
-
-  const renderCanvas = (scale: number) => {
-    const dimensions = getRenderDimensions();
-    return html2canvas(clone, {
-      scale,
-      logging: false,
-      imageTimeout: 0,
-      removeContainer: true,
-      allowTaint: false,
-      foreignObjectRendering: false,
-      scrollX: 0,
-      scrollY: 0,
-      width: dimensions.width,
-      height: dimensions.height,
-      windowWidth: dimensions.width,
-      windowHeight: dimensions.height,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-    });
-  };
-
   try {
     await waitForFonts();
     await settleCloneImages(clone);
-    // Prevent avoidable cross-origin tainting issues before first render attempt.
     sanitizeCloneForPdf(clone);
+
     let canvas;
     try {
-      canvas = await renderCanvas(2);
+      canvas = await html2canvas(clone, {
+        scale: 2,
+        logging: false,
+        imageTimeout: 0,
+        removeContainer: true,
+        allowTaint: false,
+        foreignObjectRendering: false,
+        scrollX: 0,
+        scrollY: 0,
+        width: RENDER_WIDTH,
+        height: RENDER_HEIGHT,
+        windowWidth: RENDER_WIDTH,
+        windowHeight: RENDER_HEIGHT,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
       canvas.toDataURL('image/png');
     } catch {
-      // Fallback path: aggressively remove risky assets and SVG nodes that can block export.
       sanitizeCloneForPdf(clone, true);
-      canvas = await renderCanvas(1.6);
+      canvas = await html2canvas(clone, {
+        scale: 1.5,
+        logging: false,
+        imageTimeout: 0,
+        removeContainer: true,
+        allowTaint: false,
+        foreignObjectRendering: false,
+        scrollX: 0,
+        scrollY: 0,
+        width: RENDER_WIDTH,
+        height: RENDER_HEIGHT,
+        windowWidth: RENDER_WIDTH,
+        windowHeight: RENDER_HEIGHT,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
     }
 
-    if (!canvas) {
-      throw new Error('Could not render certificate canvas');
-    }
+    if (!canvas) throw new Error('Could not render certificate canvas');
 
     const image = canvas.toDataURL('image/png');
     const pdf = new jsPDF({
