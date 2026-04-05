@@ -549,6 +549,7 @@ export default function TeamsDashboardPage() {
                 verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
                 watermark={isCertificateCertified(certificate)}
                 showDownload
+                defaultExpanded={false}
               />
             ))}
             {visibleCertificates.length === 0 && (

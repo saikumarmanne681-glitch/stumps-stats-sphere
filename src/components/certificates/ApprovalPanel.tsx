@@ -344,6 +344,7 @@ export function ApprovalPanel({ mode }: Props) {
           template={templates[selected.template_id]}
           watermark={normalizeCertificateStatus(selected.status) === 'CERTIFIED'}
           showDownload
+          defaultExpanded
         />
       )}
     </div>
