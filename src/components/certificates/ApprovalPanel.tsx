@@ -10,6 +10,7 @@ import { ApproverRole, CertificateApprovalRecord, CertificateRecord, approverLab
 import { CertificatePreview } from './CertificatePreview';
 import { sendSystemEmail, getAdminNotificationRecipient } from '@/lib/mailer';
 import { CheckCircle2, XCircle, Eye, Loader2, ShieldCheck, Award, Clock, AlertCircle } from 'lucide-react';
+import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 
 interface Props {
   mode: 'admin' | 'approver';
@@ -340,7 +341,7 @@ export function ApprovalPanel({ mode }: Props) {
       {selected && (
         <CertificatePreview
           certificate={selected}
-          verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(selected.id)}`}
+          verificationUrl={getPublicVerifyCertificateUrl(selected.id)}
           template={templates[selected.template_id]}
           watermark={normalizeCertificateStatus(selected.status) === 'CERTIFIED'}
           showDownload

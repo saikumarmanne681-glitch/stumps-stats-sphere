@@ -21,3 +21,7 @@ export const getPublicAppOrigin = () => {
 export const getPublicVerifyScorelistUrl = (scorelistId: string) => (
   `${getPublicAppOrigin()}/verify-scorelist/${encodeURIComponent(scorelistId)}`
 );
+
+export const getPublicVerifyCertificateUrl = (certificateId: string) => (
+  `${getPublicAppOrigin()}/verify?certificate_id=${encodeURIComponent(certificateId)}`
+);
