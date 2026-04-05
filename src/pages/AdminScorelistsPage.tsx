@@ -104,7 +104,7 @@ const AdminScorelistsPage = () => {
       await refresh();
     };
     boot();
-    const id = window.setInterval(refresh, 10000);
+    const id = window.setInterval(refresh, 30000);
     return () => window.clearInterval(id);
   }, []);
 
