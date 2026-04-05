@@ -17,7 +17,7 @@ import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generat
 import { buildSecurePatternLayer } from '@/lib/scorelistSecurePattern';
 import { sendScorelistApprovalRequestBulk, getAdminNotificationRecipient, explainMailFailure } from '@/lib/mailer';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, FileJson, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle2, FileText } from 'lucide-react';
+import { Loader2, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatInIST } from '@/lib/time';
 import { getPublicVerifyScorelistUrl } from '@/lib/publicUrl';
@@ -303,16 +303,19 @@ const AdminScorelistsPage = () => {
   const renderVerificationQrMarkup = (verifyUrl: string, scorelistId: string, hashDigest: string, size = 140) => {
     const qrSize = Math.round(size * 0.62);
     const qrOffset = Math.round((size - qrSize) / 2);
-    const qrMarkup = renderToStaticMarkup(
-      <QRCodeSVG
-        value={verifyUrl}
-        size={qrSize}
-        level="H"
-        includeMargin
-        bgColor="#ffffff"
-        fgColor="#0f5132"
-      />,
-    ).replace('<svg ', `<svg x="${qrOffset}" y="${qrOffset}" `);
+    const qrComponentAvailable = typeof QRCodeSVG === 'function';
+    const qrMarkup = qrComponentAvailable
+      ? renderToStaticMarkup(
+          <QRCodeSVG
+            value={verifyUrl}
+            size={qrSize}
+            level="H"
+            includeMargin
+            bgColor="#ffffff"
+            fgColor="#0f5132"
+          />,
+        ).replace('<svg ', `<svg x="${qrOffset}" y="${qrOffset}" `)
+      : `<g transform="translate(${qrOffset} ${qrOffset})"><rect width="${qrSize}" height="${qrSize}" rx="10" ry="10" fill="#ffffff"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="12" fill="#14532d">VERIFY</text></g>`;
 
     const seed = hashSeed(`${scorelistId}-${hashDigest}`);
     const shortHash = hashDigest.slice(0, 16).toUpperCase();
@@ -716,7 +719,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                       <Eye className="h-3 w-3" /> View & Verify
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => handleExportJSON(sl)} className="gap-1 text-xs">
-                      <FileJson className="h-3 w-3" /> JSON
+                      <FileText className="h-3 w-3" /> JSON
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => handleExportPDF(sl)} className="gap-1 text-xs">
                       <FileText className="h-3 w-3" /> PDF
@@ -929,7 +932,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                             : certs.find(c => c.stage === stage);
                           return (
                             <div key={stage} className={`flex items-center gap-3 p-2 rounded text-sm ${cert ? 'bg-primary/5 border border-primary/20' : 'opacity-40'}`}>
-                              {cert ? <CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />}
+                              {cert ? <CheckCircle className="h-4 w-4 text-primary shrink-0" /> : <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 shrink-0" />}
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium capitalize text-xs md:text-sm">{stageLabels[stage]}</p>
                                 {cert && <p className="text-xs text-muted-foreground truncate">{cert.approver_name} – {cert.designation} • {formatInIST(cert.timestamp)}</p>}
@@ -975,7 +978,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                         <Download className="h-3 w-3" /> Download PDF
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => handleExportJSON(viewScorelist)} className="gap-1">
-                        <FileJson className="h-3 w-3" /> Download JSON
+                        <FileText className="h-3 w-3" /> Download JSON
                       </Button>
                     </div>
 
