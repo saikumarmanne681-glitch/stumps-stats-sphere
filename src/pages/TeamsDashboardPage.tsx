@@ -20,6 +20,7 @@ import { Announcement } from '@/lib/types';
 import { compareTimestampsDesc, formatInIST } from '@/lib/time';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 
 interface TeamSummary {
   name: string;
@@ -546,7 +547,7 @@ export default function TeamsDashboardPage() {
                 key={certificate.id}
                 certificate={certificate}
                 template={certificateTemplates[certificate.template_id]}
-                verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
+                verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
                 watermark={isCertificateCertified(certificate)}
                 showDownload
                 defaultExpanded={false}

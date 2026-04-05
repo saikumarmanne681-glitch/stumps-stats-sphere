@@ -23,6 +23,7 @@ import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { formatDateInIST, formatInIST } from '@/lib/time';
 import { CertificateRecord, CertificateTemplateRecord, certificateMatchesPlayer, isCertificateCertified } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
+import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -496,7 +497,7 @@ const PlayerDashboard = () => {
                 key={certificate.id}
                 certificate={certificate}
                 template={certificateTemplates[certificate.template_id]}
-                verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
+                verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
                 watermark={isCertificateCertified(certificate)}
                 showDownload
                 defaultExpanded={false}

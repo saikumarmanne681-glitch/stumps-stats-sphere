@@ -13,6 +13,7 @@ import { generateId } from '@/lib/utils';
 import { APPROVER_ROLES, CERTIFICATE_TYPES, CertificateApprovalRecord, CertificateRecord, CertificateTemplateRecord } from '@/lib/certificates';
 import { CertificatePreview } from './CertificatePreview';
 import { isCertificateCertified } from '@/lib/certificates';
+import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 
 const FALLBACK_TEMPLATES: CertificateTemplateRecord[] = [
   { template_id: 'TPL_CLASSIC_GOLD', type: 'all', template_name: 'Classic Gold', image_url: '', design_config: '' },
@@ -68,7 +69,7 @@ export function CertificateBuilder() {
   }, [matches]);
 
   const selectedTemplate = filteredTemplates.find((item) => item.template_id === form.template_id) || filteredTemplates[0];
-  const verificationUrl = `${window.location.origin}/verify?certificate_id=${encodeURIComponent(form.id || 'preview')}`;
+  const verificationUrl = getPublicVerifyCertificateUrl(form.id || 'preview');
 
   const updateField = (key: keyof CertificateRecord, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -322,7 +323,7 @@ export function CertificateBuilder() {
               <CertificatePreview
                 key={certificate.id}
                 certificate={certificate}
-                verificationUrl={`${window.location.origin}/verify?certificate_id=${encodeURIComponent(certificate.id)}`}
+                verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
                 watermark
                 showDownload
                 defaultExpanded={false}
