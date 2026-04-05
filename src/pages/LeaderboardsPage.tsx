@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Target, TrendingUp, Medal } from 'lucide-react';
 import { useLeaderboardData } from '@/lib/dataHooks';
+import { PageHeader } from '@/components/PageHeader';
 
 const LeaderboardsPage = () => {
   const { players, tournaments, seasons } = useData();
@@ -97,21 +98,14 @@ const LeaderboardsPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-8">
-        <h1 className="font-display text-4xl font-bold">🏆 Leaderboards</h1>
-        <p className="text-sm text-muted-foreground">
-          Showing standings for{' '}
-          <span className="font-medium text-foreground">
-            {filterTournament === 'all'
-              ? 'all tournaments'
-              : tournaments.find((t) => t.tournament_id === filterTournament)?.name || 'selected tournament'}
-          </span>
-          {' '}•{' '}
-          <span className="font-medium text-foreground">
-            {filterSeason === 'all'
-              ? 'all seasons'
-              : `season ${seasons.find((s) => s.season_id === filterSeason)?.year || 'selected'}`}
-          </span>
-        </p>
+        <PageHeader
+          route="/leaderboards"
+          subtitle={`Showing standings for ${filterTournament === 'all'
+            ? 'all tournaments'
+            : tournaments.find((t) => t.tournament_id === filterTournament)?.name || 'selected tournament'} • ${filterSeason === 'all'
+            ? 'all seasons'
+            : `season ${seasons.find((s) => s.season_id === filterSeason)?.year || 'selected'}`}`}
+        />
 
         <div className="flex flex-wrap gap-4">
           <div>

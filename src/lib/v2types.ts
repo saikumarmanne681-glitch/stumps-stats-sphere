@@ -269,6 +269,7 @@ export interface OfficialDocumentRecord {
   title: string;
   category: string;
   department: string;
+  department_id?: string;
   source_url: string;
   source_type: 'url';
   status: 'published' | 'hidden';

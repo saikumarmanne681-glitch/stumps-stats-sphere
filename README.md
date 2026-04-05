@@ -11,8 +11,8 @@ Stumps Stats Sphere is a cricket operations portal for running tournaments, scor
 - **Testing:** Vitest + Testing Library
 
 ## Prerequisites
-- **Node.js** 18+ (or Bun, optional)
-- **npm** 9+ (or Bun)
+- **Node.js** 18+
+- **npm** 9+
 - A deployed **Google Apps Script** endpoint connected to your Sheets backend
 
 ## Install / run / build / test
@@ -80,7 +80,7 @@ Auth constraints and guardrails:
   6. Run `?action=cleanupSchema&dryRun=true` first to audit extra tabs/columns, then `dryRun=false` to safely prune only empty unknown tabs and trailing empty columns.
 
 ### Common local setup failures
-- **`npm install` fails:** remove `node_modules` and lockfile mismatch artifacts, then reinstall with a single package manager.
+- **`npm install` fails:** remove `node_modules` and `package-lock.json`, then reinstall with npm.
 - **Port already in use:** run `npm run dev -- --port <new-port>`.
 - **Build/type errors:** run `npm run lint` and `npm run test`, then fix failing imports/types before rebuilding.
 - **Login works but data missing:** verify backend sheet data exists and identities/status are valid (active users, matching credentials).

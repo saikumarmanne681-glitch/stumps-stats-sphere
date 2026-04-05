@@ -14,11 +14,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, FileText, Eye, Download, Sparkles, LockKeyhole, Building2, CalendarClock } from 'lucide-react';
+import { FileText, Eye, Download, Sparkles, LockKeyhole, Building2, CalendarClock } from 'lucide-react';
 import { formatSheetDate } from '@/lib/dataUtils';
 import { DepartmentBadge } from '@/components/DepartmentBadge';
+import { DEPARTMENT_CATALOG, getDepartmentById, getDepartmentByName } from '@/lib/departmentCatalog';
+import { PageHeader } from '@/components/PageHeader';
 
 const categories = ['Governance', 'Tournament', 'Finance', 'Legal', 'Operations'] as const;
+
+const documentDepartmentOptions = DEPARTMENT_CATALOG.map((entry) => ({ id: entry.id, name: entry.name }));
 
 export default function DocumentsPortalPage() {
   const { user, isAdmin, isManagement } = useAuth();
@@ -27,7 +31,7 @@ export default function DocumentsPortalPage() {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [category, setCategory] = useState<(typeof categories)[number]>('Governance');
-  const [department, setDepartment] = useState('Executive Board');
+  const [departmentId, setDepartmentId] = useState('executive_board');
   const [accessList, setAccessList] = useState('all_management');
 
   const refresh = async () => {
@@ -67,6 +71,11 @@ export default function DocumentsPortalPage() {
   }, [docs, isAdmin, isManagement, user]);
   const latestVisibleDocs = useMemo(() => visibleDocs.slice(0, 10), [visibleDocs]);
 
+  const resolveDocDepartmentId = (doc: OfficialDocumentRecord) => {
+    if (doc.department_id) return doc.department_id;
+    return getDepartmentByName(doc.department)?.id || 'general';
+  };
+
   const addDocument = async () => {
     if (!isAdmin) return;
     if (!title.trim() || !url.trim()) {
@@ -77,7 +86,8 @@ export default function DocumentsPortalPage() {
       document_id: generateId('DOC'),
       title: title.trim(),
       category,
-      department: department.trim() || 'General',
+      department_id: departmentId,
+      department: getDepartmentById(departmentId)?.name || 'General',
       source_url: url.trim(),
       source_type: 'url',
       status: 'published',
@@ -93,7 +103,7 @@ export default function DocumentsPortalPage() {
       toast({ title: 'Unable to save document', description: 'Please check OFFICIAL_DOCUMENTS sheet mapping.', variant: 'destructive' });
       return;
     }
-    logAudit(user?.username || 'admin', 'document_create', 'document', row.document_id, JSON.stringify({ category, department, allowed: row.allowed_management_ids }));
+    logAudit(user?.username || 'admin', 'document_create', 'document', row.document_id, JSON.stringify({ category, department_id: row.department_id, allowed: row.allowed_management_ids }));
     setTitle('');
     setUrl('');
     toast({ title: 'Document added to official library' });
@@ -118,10 +128,9 @@ export default function DocumentsPortalPage() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-background to-accent/10">
             <CardHeader>
-              <CardTitle className="font-display flex items-center gap-2"><Shield className="h-5 w-5" /> Official Documents Portal</CardTitle>
+              <PageHeader route="/documents-portal" />
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">Secure library for governance records, circulars, and approved tournament files with role-based access control.</p>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline" className="bg-background/80">Visible for you: {visibleDocs.length}</Badge>
                 <Badge variant="outline" className="bg-background/80">Total records: {docs.length}</Badge>
@@ -143,7 +152,7 @@ export default function DocumentsPortalPage() {
                   <p className="line-clamp-2 text-sm font-semibold">{doc.title}</p>
                   <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                     <Building2 className="h-3.5 w-3.5" />
-                    <DepartmentBadge department={doc.department} className="h-6 px-2 py-0 text-[10px]" />
+                    <DepartmentBadge department={doc.department} departmentId={resolveDocDepartmentId(doc)} className="h-6 px-2 py-0 text-[10px]" />
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
                     <CalendarClock className="h-3.5 w-3.5" /> Updated {formatSheetDate(doc.updated_at, 'dd MMM yyyy', doc.updated_at)}
@@ -174,7 +183,7 @@ export default function DocumentsPortalPage() {
               <div className="md:col-span-2"><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Board circular / policy / schedule" /></div>
               <div><Label>Category</Label><Select value={category} onValueChange={(v) => setCategory(v as (typeof categories)[number])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></div>
               <div className="md:col-span-2"><Label>Document URL</Label><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Drive/Sharepoint URL (pdf, docx, png, jpeg...)" /></div>
-              <div><Label>Department</Label><Input value={department} onChange={(e) => setDepartment(e.target.value)} /></div>
+              <div><Label>Department</Label><Select value={departmentId} onValueChange={setDepartmentId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documentDepartmentOptions.map((option) => <SelectItem value={option.id} key={option.id}>{option.name}</SelectItem>)}</SelectContent></Select></div>
               <div className="md:col-span-2"><Label>Access</Label><Input value={accessList} onChange={(e) => setAccessList(e.target.value)} placeholder="all_management, management_id, username, designation:treasurer, authority>=7" /></div>
               <div className="md:col-span-1 flex items-end"><Button onClick={addDocument} className="w-full">Publish to Library</Button></div>
             </CardContent>
@@ -189,7 +198,7 @@ export default function DocumentsPortalPage() {
                   <div>
                     <p className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> {doc.title}</p>
                     <div className="mt-1">
-                      <DepartmentBadge department={doc.department} className="text-[10px]" />
+                      <DepartmentBadge department={doc.department} departmentId={resolveDocDepartmentId(doc)} className="text-[10px]" />
                     </div>
                   </div>
                   <Badge variant={doc.status === 'published' ? 'default' : 'secondary'}>{doc.status}</Badge>

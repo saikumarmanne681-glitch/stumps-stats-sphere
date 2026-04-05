@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import { Crown, Medal, Sparkles, Star, Swords, Trophy } from 'lucide-react';
+import { Crown, Medal, Sparkles, Star, Swords } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useData } from '@/lib/DataContext';
 import { formatSheetDate, hasSheetDate } from '@/lib/dataUtils';
+import { PageHeader } from '@/components/PageHeader';
 
 interface ClubDefinition {
   key: string;
@@ -111,8 +112,9 @@ export default function TournamentHonorsPage() {
         <section className="relative overflow-hidden rounded-2xl border bg-gradient-to-r from-primary/10 via-accent/10 to-transparent p-6 shadow-sm">
           <Sparkles className="absolute -right-3 -top-3 h-24 w-24 text-primary/15" />
           <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Public honours portal</p>
-          <h1 className="mt-2 flex items-center gap-2 font-display text-3xl font-bold text-primary"><Trophy className="h-7 w-7" /> Hall of Glory</h1>
-          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">No login required. Explore tournament champions and milestone clubs built from full career records across every season.</p>
+          <div className="mt-2">
+            <PageHeader route="/hall-of-glory" className="[&>div>div>h1]:text-primary" />
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Badge className="bg-primary text-primary-foreground">{championsData.length} Honours seasons</Badge>
             <Badge variant="secondary">{clubs.reduce((sum, item) => sum + item.entries.length, 0)} Total club entries</Badge>
