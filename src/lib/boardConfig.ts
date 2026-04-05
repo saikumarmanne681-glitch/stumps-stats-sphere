@@ -27,15 +27,19 @@ export function normalizeBoardConfigurationRow(raw: Partial<BoardConfiguration> 
   const shiftedDepartmentAssignments = looksJson(String(row.updated_at || '')) ? String(row.updated_at || '').trim() : '';
   const shiftedUpdatedAt = looksTimestamp(String(row.updated_by || '')) ? String(row.updated_by || '').trim() : '';
   const shiftedUpdatedBy = !looksTimestamp(String(row.elections_closed || '')) ? String(row.elections_closed || '').trim() : '';
+  const directUpdatedAt = looksTimestamp(String(row.updated_at || '')) ? String(row.updated_at || '').trim() : '';
+  const directUpdatedBy = !looksTimestamp(String(row.updated_by || '')) && !looksJson(String(row.updated_by || ''))
+    ? String(row.updated_by || '').trim()
+    : '';
 
   return {
     config_id: firstString(row.config_id, row.id) || `BRCFG_${Date.now()}`,
     current_period: firstString(row.current_period),
     administration_team_ids: firstString(row.administration_team_ids),
     department_assignments_json: firstString(row.department_assignments_json, shiftedDepartmentAssignments),
-    updated_at: firstString(row.updated_at, shiftedUpdatedAt),
+    updated_at: firstString(directUpdatedAt, shiftedUpdatedAt),
     updated_by: firstString(
-      !looksTimestamp(String(row.updated_by || '')) ? row.updated_by : '',
+      directUpdatedBy,
       shiftedUpdatedBy,
       'admin',
     ),
