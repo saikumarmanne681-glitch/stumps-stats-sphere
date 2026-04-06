@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Plus, Save, Send, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Copy, Eye, EyeOff, Plus, Save, Send, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DynamicFormDefinition, DynamicFormEntry, DynamicFormField, DynamicFormFieldOption, DynamicFormFieldType } from '@/lib/v2types';
+import { DynamicFormDefinition, DynamicFormEntry, DynamicFormField, DynamicFormFieldOption, DynamicFormFieldType, DynamicFormSettings } from '@/lib/v2types';
 import { v2api } from '@/lib/v2api';
 import { generateId } from '@/lib/utils';
 import { nowIso } from '@/lib/time';
-import { parseFields, stringifyFields } from '@/lib/forms';
+import { defaultFormSettings, parseFields, parseFormSettings, stringifyFields } from '@/lib/forms';
 import { useToast } from '@/hooks/use-toast';
 
 const emptyForm = (): DynamicFormDefinition => ({
@@ -25,7 +25,7 @@ const emptyForm = (): DynamicFormDefinition => ({
   status: 'draft',
   audience: 'all_logged_in',
   schema_json: '[]',
-  settings_json: JSON.stringify({ allow_multiple_submissions: true, require_login: true }),
+  settings_json: JSON.stringify(defaultFormSettings()),
   created_by: 'admin',
   updated_by: 'admin',
   created_at: nowIso(),
@@ -39,9 +39,15 @@ const FIELD_TYPE_OPTIONS: { value: DynamicFormFieldType; label: string }[] = [
   { value: 'number', label: 'Number' },
   { value: 'email', label: 'Email' },
   { value: 'phone', label: 'Phone' },
+  { value: 'url', label: 'URL' },
   { value: 'date', label: 'Date' },
   { value: 'time', label: 'Time' },
   { value: 'datetime', label: 'Date & time' },
+  { value: 'yes_no', label: 'Yes/No' },
+  { value: 'rating', label: 'Rating (1-5)' },
+  { value: 'heading', label: 'Section heading' },
+  { value: 'divider', label: 'Divider' },
+  { value: 'html_block', label: 'HTML block' },
   { value: 'checkbox', label: 'Checkbox' },
   { value: 'select', label: 'Dropdown' },
   { value: 'radio', label: 'Single choice' },
@@ -103,6 +109,9 @@ export function AdminForms() {
   const [entries, setEntries] = useState<DynamicFormEntry[]>([]);
   const [activeForm, setActiveForm] = useState<DynamicFormDefinition>(emptyForm());
   const [fields, setFields] = useState<DynamicFormField[]>([]);
+  const [settings, setSettings] = useState<DynamicFormSettings>(defaultFormSettings());
+  const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({});
+  const [previewMode, setPreviewMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [entryFormFilter, setEntryFormFilter] = useState<string>('all');
   const [entryStatusFilter, setEntryStatusFilter] = useState<'all' | DynamicFormEntry['status']>('all');
@@ -153,6 +162,7 @@ export function AdminForms() {
     const next: DynamicFormDefinition = {
       ...activeForm,
       schema_json: stringifyFields(parsedSchema),
+      settings_json: JSON.stringify(settings),
       slug: activeForm.slug?.trim() || activeForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
       updated_at: nowIso(),
       updated_by: user?.name || user?.username || 'admin',
@@ -174,6 +184,8 @@ export function AdminForms() {
   const openForm = (form: DynamicFormDefinition) => {
     setActiveForm(form);
     setFields(parseFields(form.schema_json || '[]'));
+    setSettings(parseFormSettings(form.settings_json));
+    setExpandedFields({});
   };
 
   const updateField = (index: number, patch: Partial<DynamicFormField>) => {
@@ -207,6 +219,24 @@ export function AdminForms() {
 
   const addField = () => setFields((prev) => [...prev, createEmptyField(prev.length)]);
   const removeField = (index: number) => setFields((prev) => prev.filter((_, fieldIndex) => fieldIndex !== index));
+  const duplicateField = (index: number) => setFields((prev) => {
+    const source = prev[index];
+    if (!source) return prev;
+    const clone = {
+      ...source,
+      key: `${source.key || `field_${index + 1}`}_copy_${Date.now().toString().slice(-4)}`,
+      options: source.options ? [...source.options] : [],
+      conditions: source.conditions ? [...source.conditions] : [],
+    };
+    return [...prev.slice(0, index + 1), clone, ...prev.slice(index + 1)];
+  });
+  const moveField = (index: number, direction: -1 | 1) => setFields((prev) => {
+    const target = index + direction;
+    if (target < 0 || target >= prev.length) return prev;
+    const next = [...prev];
+    [next[index], next[target]] = [next[target], next[index]];
+    return next;
+  });
   const addOption = (fieldIndex: number) => setFields((prev) => prev.map((field, currentFieldIndex) => {
     if (currentFieldIndex !== fieldIndex) return field;
     return { ...field, options: [...(field.options || []), createEmptyOption()] };
@@ -215,6 +245,7 @@ export function AdminForms() {
     if (currentFieldIndex !== fieldIndex) return field;
     return { ...field, options: (field.options || []).filter((_, currentOptionIndex) => currentOptionIndex !== optionIndex) };
   }));
+  const toggleFieldExpanded = (key: string) => setExpandedFields((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const updateEntryStatus = async (entry: DynamicFormEntry, status: DynamicFormEntry['status']) => {
     const next: DynamicFormEntry = {
@@ -256,7 +287,13 @@ export function AdminForms() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => { const fresh = emptyForm(); setActiveForm(fresh); setFields([]); }}>
+              <Button variant="secondary" onClick={() => {
+                const fresh = emptyForm();
+                setActiveForm(fresh);
+                setFields([]);
+                setSettings(defaultFormSettings());
+                setExpandedFields({});
+              }}>
                 <Plus className="mr-2 h-4 w-4" /> New Form
               </Button>
               <Button onClick={() => void saveForm(false)}><Save className="mr-2 h-4 w-4" /> Save Draft</Button>
@@ -287,13 +324,66 @@ export function AdminForms() {
             </div>
             <div><Label>Description</Label><Textarea value={activeForm.description} onChange={(e) => setActiveForm((prev) => ({ ...prev, description: e.target.value }))} /></div>
 
+            <div className="grid gap-4 rounded-2xl border border-border/70 bg-muted/25 p-4 md:grid-cols-2">
+              <div className="space-y-3">
+                <Label>Availability schedule</Label>
+                <div className="grid gap-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Open at</Label>
+                    <Input
+                      type="datetime-local"
+                      value={settings.open_at || ''}
+                      onChange={(event) => setSettings((prev) => ({ ...prev, open_at: event.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Close at</Label>
+                    <Input
+                      type="datetime-local"
+                      value={settings.close_at || ''}
+                      onChange={(event) => setSettings((prev) => ({ ...prev, close_at: event.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Label>Submission settings</Label>
+                <label className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm">
+                  <Checkbox checked={settings.accepting_responses} onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, accepting_responses: Boolean(checked) }))} />
+                  Accept responses
+                </label>
+                <label className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm">
+                  <Checkbox checked={settings.allow_multiple_submissions} onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, allow_multiple_submissions: Boolean(checked) }))} />
+                  Allow multiple submissions per user
+                </label>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Maximum responses (optional)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={settings.max_responses === '' ? '' : String(settings.max_responses || '')}
+                    onChange={(event) => {
+                      const raw = event.target.value;
+                      setSettings((prev) => ({ ...prev, max_responses: raw ? Number(raw) : '' }));
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/25 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <Label>Form fields</Label>
                   <p className="text-sm text-muted-foreground">Add normal fields one by one instead of editing schema JSON manually.</p>
                 </div>
-                <Button type="button" variant="outline" onClick={addField}><Plus className="mr-2 h-4 w-4" /> Add field</Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => setPreviewMode((prev) => !prev)}>
+                    {previewMode ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                    {previewMode ? 'Hide preview' : 'Show preview'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={addField}><Plus className="mr-2 h-4 w-4" /> Add field</Button>
+                </div>
               </div>
 
               {fields.length === 0 && <p className="text-sm text-muted-foreground">No fields added yet.</p>}
@@ -301,18 +391,30 @@ export function AdminForms() {
               <div className="space-y-3">
                 {fields.map((field, index) => {
                   const supportsOptions = OPTION_FIELD_TYPES.has(field.type);
+                  const fieldStateKey = `${field.key}-${index}`;
+                  const expanded = expandedFields[fieldStateKey] ?? index < 2;
                   return (
-                    <div key={`${field.key}-${index}`} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                    <div key={fieldStateKey} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="font-medium">Field {index + 1}</p>
-                          <p className="text-xs text-muted-foreground">Column key: {field.key || 'auto-generated on save'}</p>
+                          <p className="font-medium">Field {index + 1}: {field.label || 'Untitled field'}</p>
+                          <p className="text-xs text-muted-foreground">Type: {field.type} • Column key: {field.key || 'auto-generated on save'}</p>
                         </div>
-                        <Button type="button" size="sm" variant="ghost" onClick={() => removeField(index)}>
-                          <Trash2 className="mr-1 h-4 w-4" /> Remove
-                        </Button>
+                        <div className="flex flex-wrap gap-1">
+                          <Button type="button" size="sm" variant="ghost" onClick={() => moveField(index, -1)} disabled={index === 0}><ChevronUp className="h-4 w-4" /></Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => moveField(index, 1)} disabled={index === fields.length - 1}><ChevronDown className="h-4 w-4" /></Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => duplicateField(index)}><Copy className="h-4 w-4" /></Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => toggleFieldExpanded(fieldStateKey)}>
+                            {expanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => removeField(index)}>
+                            <Trash2 className="mr-1 h-4 w-4" /> Remove
+                          </Button>
+                        </div>
                       </div>
 
+                      {expanded && (
+                        <>
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div>
                           <Label>Field label</Label>
@@ -349,7 +451,11 @@ export function AdminForms() {
                         </div>
                         <div>
                           <Label>Default value</Label>
-                          <Input value={field.default_value || ''} onChange={(e) => updateField(index, { default_value: e.target.value })} placeholder="Optional default value" />
+                          <Input
+                            value={field.default_value || ''}
+                            onChange={(e) => updateField(index, { default_value: e.target.value })}
+                            placeholder={field.type === 'html_block' ? 'HTML to render' : 'Optional default value'}
+                          />
                         </div>
                       </div>
 
@@ -383,10 +489,35 @@ export function AdminForms() {
                           ))}
                         </div>
                       )}
+                      </>
+                      )}
                     </div>
                   );
                 })}
               </div>
+              {previewMode && (
+                <div className="rounded-2xl border border-dashed border-primary/40 bg-background p-4 space-y-3">
+                  <p className="font-medium">Live preview</p>
+                  {fields.map((field, index) => (
+                    <div key={`preview-${field.key}-${index}`} className="space-y-1">
+                      {field.type === 'heading' ? (
+                        <p className="text-lg font-semibold">{field.label || 'Heading'}</p>
+                      ) : field.type === 'divider' ? (
+                        <div className="h-px w-full bg-border" />
+                      ) : field.type === 'html_block' ? (
+                        <div className="rounded bg-muted p-2 text-sm" dangerouslySetInnerHTML={{ __html: field.default_value || '<em>No HTML content yet</em>' }} />
+                      ) : (
+                        <>
+                          <p className="text-sm font-medium">{field.label || `Field ${index + 1}`}{field.required ? ' *' : ''}</p>
+                          <div className="h-9 rounded border border-border bg-muted/30 px-3 text-xs flex items-center text-muted-foreground">
+                            {field.placeholder || 'Input preview'}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -394,7 +525,11 @@ export function AdminForms() {
               <div className="flex flex-wrap gap-2">
                 {forms.map((form) => (
                   <Button key={form.form_id} size="sm" variant="outline" onClick={() => openForm(form)}>
-                    {form.title} <Badge variant="secondary" className="ml-2">{form.status}</Badge>
+                    {form.title}
+                    <Badge variant="secondary" className="ml-2">{form.status}</Badge>
+                    <Badge variant={parseFormSettings(form.settings_json).accepting_responses ? 'default' : 'outline'} className="ml-2">
+                      {parseFormSettings(form.settings_json).accepting_responses ? 'Accepting' : 'Paused'}
+                    </Badge>
                   </Button>
                 ))}
               </div>
