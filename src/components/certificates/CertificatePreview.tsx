@@ -28,6 +28,22 @@ const detailLinesFrom = (value?: string) => String(value || '')
 /* ─── 5 Premium Sports-Award Themes ─── */
 const DESIGN_THEMES = [
   {
+    id: 'tech-blue-template',
+    name: 'Tech Blue Template',
+    outerBorder: '#1f5b93',
+    innerBorder: '#3fa9e5',
+    centerBg: '#f5f7fa',
+    outerBg: '#f5f7fa',
+    titleColor: '#0f4d99',
+    recipientColor: '#102a43',
+    textColor: '#1f3a56',
+    accentColor: '#2f7ddb',
+    badgeGradient: 'linear-gradient(135deg, #0f4d99, #56b3e9)',
+    ornamentSvgColor: '#1f5b93',
+    templateBackgroundUrl: '/certificate-tech-template.svg',
+    simplifyOrnaments: true,
+  },
+  {
     id: 'classic-teal',
     name: 'Classic Teal',
     // Inspired by ref image 1: teal scalloped border, gold accents, white center
@@ -278,6 +294,9 @@ export const CertificatePreview = memo(function CertificatePreview({
   const templateName = template?.template_name || certificate.template_id || theme.name;
   const detailLines = useMemo(() => detailLinesFrom(certificate.details_json), [certificate.details_json]);
   const performanceLines = useMemo(() => detailLinesFrom(certificate.performance_json), [certificate.performance_json]);
+  const matchId = String(certificate.match_id || '').trim();
+  const recipientType = String(certificate.recipient_type || '').trim();
+  const createdBy = String(certificate.created_by || '').trim();
 
   const handleDownload = async () => {
     if (!ref.current || exporting) return;
@@ -307,6 +326,8 @@ export const CertificatePreview = memo(function CertificatePreview({
 
   /* Derive certificate sub-title label */
   const certTypeLabel = title.length <= 22 ? title : 'Achievement';
+  const safeRecipientSize = recipient.length > 42 ? '42px' : recipient.length > 30 ? '50px' : '58px';
+  const safeTitleSize = title.length > 30 ? '18px' : '21px';
 
   return (
     <Card className="overflow-hidden border border-primary/20 bg-background shadow-sm">
@@ -387,6 +408,10 @@ export const CertificatePreview = memo(function CertificatePreview({
                   maxWidth: isMobile ? 'none' : '1120px',
                   aspectRatio: '297 / 210',
                   background: theme.outerBg,
+                  backgroundImage: theme.templateBackgroundUrl ? `url(${theme.templateBackgroundUrl})` : undefined,
+                  backgroundPosition: 'center',
+                  backgroundSize: 'cover',
+                  backgroundRepeat: 'no-repeat',
                   position: 'relative',
                   fontFamily: "'Georgia', 'Times New Roman', serif",
                   color: theme.textColor,
@@ -394,29 +419,33 @@ export const CertificatePreview = memo(function CertificatePreview({
                   borderRadius: '4px',
                 }}
               >
-                {/* Scalloped decorative border */}
-                <ScallopedBorderSVG color={theme.outerBorder} />
+                {!theme.simplifyOrnaments && (
+                  <>
+                    {/* Scalloped decorative border */}
+                    <ScallopedBorderSVG color={theme.outerBorder} />
 
-                {/* Inner rectangular border */}
-                <div style={{
-                  position: 'absolute',
-                  top: '18px', left: '18px', right: '18px', bottom: '18px',
-                  border: `3px solid ${theme.outerBorder}`,
-                  borderRadius: '2px',
-                  pointerEvents: 'none',
-                }} />
-                <div style={{
-                  position: 'absolute',
-                  top: '24px', left: '24px', right: '24px', bottom: '24px',
-                  border: `1.5px solid ${theme.innerBorder}`,
-                  pointerEvents: 'none',
-                }} />
+                    {/* Inner rectangular border */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '18px', left: '18px', right: '18px', bottom: '18px',
+                      border: `3px solid ${theme.outerBorder}`,
+                      borderRadius: '2px',
+                      pointerEvents: 'none',
+                    }} />
+                    <div style={{
+                      position: 'absolute',
+                      top: '24px', left: '24px', right: '24px', bottom: '24px',
+                      border: `1.5px solid ${theme.innerBorder}`,
+                      pointerEvents: 'none',
+                    }} />
 
-                {/* Corner ornaments */}
-                <CornerOrnamentSVG color={theme.innerBorder} position="tl" />
-                <CornerOrnamentSVG color={theme.innerBorder} position="tr" />
-                <CornerOrnamentSVG color={theme.innerBorder} position="bl" />
-                <CornerOrnamentSVG color={theme.innerBorder} position="br" />
+                    {/* Corner ornaments */}
+                    <CornerOrnamentSVG color={theme.innerBorder} position="tl" />
+                    <CornerOrnamentSVG color={theme.innerBorder} position="tr" />
+                    <CornerOrnamentSVG color={theme.innerBorder} position="bl" />
+                    <CornerOrnamentSVG color={theme.innerBorder} position="br" />
+                  </>
+                )}
 
                 {/* Watermark */}
                 {watermark && (
@@ -428,14 +457,24 @@ export const CertificatePreview = memo(function CertificatePreview({
                 {/* White center panel */}
                 <div style={{
                   position: 'absolute',
-                  top: '32px', left: '32px', right: '32px', bottom: '32px',
-                  background: theme.centerBg,
+                  top: theme.simplifyOrnaments ? '48px' : '28px',
+                  left: theme.simplifyOrnaments ? '84px' : '28px',
+                  right: theme.simplifyOrnaments ? '84px' : '28px',
+                  bottom: theme.simplifyOrnaments ? '62px' : '28px',
+                  background: theme.simplifyOrnaments ? 'rgba(255,255,255,0.92)' : theme.centerBg,
                   display: 'flex',
                   flexDirection: 'column',
                   boxSizing: 'border-box',
+                  borderRadius: theme.simplifyOrnaments ? '6px' : undefined,
+                  border: theme.simplifyOrnaments ? `1px solid ${theme.outerBorder}22` : undefined,
+                  boxShadow: theme.simplifyOrnaments ? '0 8px 28px rgba(11, 61, 130, 0.08)' : undefined,
                 }}>
-                  <DiamondGridOverlay color={theme.outerBorder} />
-                  <SidePatternRails color={theme.outerBorder} />
+                  {!theme.simplifyOrnaments && (
+                    <>
+                      <DiamondGridOverlay color={theme.outerBorder} />
+                      <SidePatternRails color={theme.outerBorder} />
+                    </>
+                  )}
 
                   {/* ── Top decorative strip ── */}
                   <div style={{
@@ -445,7 +484,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                     flexShrink: 0,
                   }} />
                   <div style={{
-                    height: '18px',
+                    height: '26px',
                     width: '100%',
                     borderBottom: `1px solid ${theme.outerBorder}30`,
                     background: `linear-gradient(90deg, ${theme.outerBorder}12 0%, transparent 12%, transparent 88%, ${theme.outerBorder}12 100%)`,
@@ -455,9 +494,13 @@ export const CertificatePreview = memo(function CertificatePreview({
                     padding: '0 26px',
                     boxSizing: 'border-box',
                   }}>
-                    <TrophySVG color={theme.accentColor} size={14} />
-                    <CricketBallSVG size={13} />
-                    <TrophySVG color={theme.accentColor} size={14} />
+                    {theme.simplifyOrnaments ? <span style={{ fontSize: '12px', letterSpacing: '2.2px', color: theme.titleColor, fontWeight: 700, textTransform: 'uppercase' }}>Official Certificate</span> : (
+                      <>
+                        <TrophySVG color={theme.accentColor} size={14} />
+                        <CricketBallSVG size={13} />
+                        <TrophySVG color={theme.accentColor} size={14} />
+                      </>
+                    )}
                   </div>
 
                   {/* ── Main content area ── */}
@@ -467,21 +510,21 @@ export const CertificatePreview = memo(function CertificatePreview({
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '16px 32px 12px',
+                    padding: '20px 40px 16px',
                     textAlign: 'center',
                     minHeight: 0,
                     position: 'relative',
                     zIndex: 1,
                   }}>
                     {/* Top row: medal + title area + trophy */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '20px', width: '100%', marginBottom: '4px' }}>
-                      <MedalSVG color={theme.accentColor} size={40} />
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '20px', width: '100%', marginBottom: '6px' }}>
+                      {!theme.simplifyOrnaments && <MedalSVG color={theme.accentColor} size={40} />}
                       <div style={{ textAlign: 'center', flex: 1, maxWidth: '600px' }}>
                         {/* "CERTIFICATE" heading */}
                         <div style={{
-                          fontSize: '28px',
+                          fontSize: '52px',
                           fontWeight: 700,
-                          letterSpacing: '8px',
+                          letterSpacing: '10px',
                           textTransform: 'uppercase',
                           color: theme.titleColor,
                           fontFamily: "'Georgia', serif",
@@ -490,28 +533,28 @@ export const CertificatePreview = memo(function CertificatePreview({
                           CERTIFICATE
                         </div>
                         <div style={{
-                          fontSize: '13px',
+                          fontSize: safeTitleSize,
                           letterSpacing: '5px',
                           textTransform: 'uppercase',
                           color: theme.accentColor,
                           fontWeight: 600,
-                          marginTop: '2px',
+                          marginTop: '4px',
                           fontFamily: 'Arial, sans-serif',
                         }}>
                           OF {certTypeLabel.toUpperCase()}
                         </div>
                       </div>
-                      <TrophySVG color={theme.accentColor} size={38} />
+                      {!theme.simplifyOrnaments && <TrophySVG color={theme.accentColor} size={38} />}
                     </div>
 
                     {/* Flourish divider */}
-                    <FlourishDivider color={theme.innerBorder} width="220px" />
+                    <FlourishDivider color={theme.innerBorder} width="280px" />
 
                     {/* "This certificate is proudly presented to" */}
                     <p style={{
-                      margin: '8px 0 0',
-                      fontSize: '10px',
-                      letterSpacing: '3px',
+                      margin: '12px 0 0',
+                      fontSize: '13px',
+                      letterSpacing: '4px',
                       textTransform: 'uppercase',
                       color: theme.textColor,
                       fontFamily: 'Arial, sans-serif',
@@ -522,8 +565,8 @@ export const CertificatePreview = memo(function CertificatePreview({
 
                     {/* ─── Recipient Name ─── */}
                     <p style={{
-                      margin: '6px 0 0',
-                      fontSize: recipient.length > 28 ? '26px' : '32px',
+                      margin: '8px 0 0',
+                      fontSize: safeRecipientSize,
                       fontWeight: 700,
                       lineHeight: 1.15,
                       color: theme.recipientColor,
@@ -540,15 +583,15 @@ export const CertificatePreview = memo(function CertificatePreview({
                       width: '280px',
                       height: '2px',
                       background: `linear-gradient(90deg, transparent, ${theme.accentColor}, transparent)`,
-                      margin: '6px auto 8px',
+                      margin: '8px auto 10px',
                     }} />
 
                     {/* Description */}
                     <p style={{
                       margin: '0 auto',
-                      maxWidth: '500px',
-                      fontSize: '10px',
-                      lineHeight: 1.7,
+                      maxWidth: '840px',
+                      fontSize: '16px',
+                      lineHeight: 1.5,
                       color: theme.textColor,
                       fontFamily: "'Georgia', serif",
                       opacity: 0.85,
@@ -559,35 +602,74 @@ export const CertificatePreview = memo(function CertificatePreview({
 
                     {/* Detail & Performance pills */}
                     {(detailLines.length > 0 || performanceLines.length > 0) && (
-                      <div style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                         {detailLines.length > 0 && (
-                          <div style={{ border: `1px solid ${theme.outerBorder}33`, borderRadius: '6px', padding: '5px 10px', background: `${theme.outerBorder}08`, textAlign: 'left', maxWidth: '210px' }}>
-                            <p style={{ margin: 0, fontSize: '7px', textTransform: 'uppercase', letterSpacing: '2px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>Highlights</p>
-                            {detailLines.map((line) => <p key={line} style={{ margin: '1px 0 0', fontSize: '8px', color: theme.textColor }}>• {line}</p>)}
+                          <div style={{ border: `1px solid ${theme.outerBorder}33`, borderRadius: '8px', padding: '8px 12px', background: `${theme.outerBorder}08`, textAlign: 'left', maxWidth: '340px' }}>
+                            <p style={{ margin: 0, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>Highlights</p>
+                            {detailLines.map((line) => <p key={line} style={{ margin: '2px 0 0', fontSize: '11px', color: theme.textColor }}>• {line}</p>)}
                           </div>
                         )}
                         {performanceLines.length > 0 && (
-                          <div style={{ border: `1px solid ${theme.outerBorder}33`, borderRadius: '6px', padding: '5px 10px', background: `${theme.outerBorder}08`, textAlign: 'left', maxWidth: '210px' }}>
-                            <p style={{ margin: 0, fontSize: '7px', textTransform: 'uppercase', letterSpacing: '2px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>Performance</p>
-                            {performanceLines.map((line) => <p key={line} style={{ margin: '1px 0 0', fontSize: '8px', color: theme.textColor }}>• {line}</p>)}
+                          <div style={{ border: `1px solid ${theme.outerBorder}33`, borderRadius: '8px', padding: '8px 12px', background: `${theme.outerBorder}08`, textAlign: 'left', maxWidth: '340px' }}>
+                            <p style={{ margin: 0, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>Performance</p>
+                            {performanceLines.map((line) => <p key={line} style={{ margin: '2px 0 0', fontSize: '11px', color: theme.textColor }}>• {line}</p>)}
                           </div>
                         )}
                       </div>
                     )}
 
+                    {/* Certificate metadata block (shown on all themes) */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                      gap: '8px',
+                      width: '100%',
+                      marginTop: '12px',
+                      maxWidth: '920px',
+                    }}>
+                      {[
+                        { label: 'Certificate ID', value: id },
+                        { label: 'Status', value: status },
+                        { label: 'Recipient Type', value: recipientType || 'N/A' },
+                        { label: 'Match ID', value: matchId || 'N/A' },
+                        { label: 'Tournament', value: tournament },
+                        { label: 'Season', value: season },
+                        { label: 'Issued By', value: createdBy || certifiedBy },
+                        { label: 'Verification', value: verificationCode || id },
+                      ].map((row) => (
+                        <div
+                          key={row.label}
+                          style={{
+                            border: `1px solid ${theme.outerBorder}25`,
+                            borderRadius: '8px',
+                            padding: '6px 8px',
+                            background: `${theme.outerBorder}08`,
+                            minHeight: '48px',
+                          }}
+                        >
+                          <p style={{ margin: 0, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.3px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>{row.label}</p>
+                          <p style={{ margin: '4px 0 0', fontSize: '11px', color: theme.textColor, fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word' }}>{row.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
                     {/* Cricket ball decoration — bottom left of content area */}
-                    <div style={{ position: 'absolute', bottom: '8px', left: '16px', opacity: 0.15 }}>
-                      <CricketBallSVG size={36} />
-                    </div>
-                    <div style={{ position: 'absolute', bottom: '8px', right: '16px', opacity: 0.16 }}>
-                      <CricketStumpsSVG color={theme.outerBorder} size={36} />
-                    </div>
+                    {!theme.simplifyOrnaments && (
+                      <>
+                        <div style={{ position: 'absolute', bottom: '8px', left: '16px', opacity: 0.15 }}>
+                          <CricketBallSVG size={36} />
+                        </div>
+                        <div style={{ position: 'absolute', bottom: '8px', right: '16px', opacity: 0.16 }}>
+                          <CricketStumpsSVG color={theme.outerBorder} size={36} />
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* ── Bottom section — Date / Authority / QR ── */}
                   <div style={{
                     borderTop: `1px solid ${theme.outerBorder}30`,
-                    padding: '10px 24px',
+                    padding: '12px 24px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'flex-end',
@@ -596,30 +678,30 @@ export const CertificatePreview = memo(function CertificatePreview({
                   }}>
                     {/* Left: Date + Template */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '7px', letterSpacing: '2px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.5 }}>Date</p>
+                      <p style={{ margin: 0, fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.6, fontWeight: 700 }}>Date</p>
                       <div style={{ width: '80px', height: '1px', background: theme.outerBorder, opacity: 0.3, margin: '12px 0 3px' }} />
-                      <p style={{ margin: 0, fontSize: '9px', color: theme.textColor }}>{createdAt || 'Pending'}</p>
-                      <p style={{ margin: '3px 0 0', fontSize: '7px', color: theme.textColor, opacity: 0.6, letterSpacing: '1px', textTransform: 'uppercase' }}>{templateName}</p>
+                      <p style={{ margin: 0, fontSize: '11px', color: theme.textColor, fontWeight: 600 }}>{createdAt || 'Pending'}</p>
+                      <p style={{ margin: '3px 0 0', fontSize: '9px', color: theme.textColor, opacity: 0.75, letterSpacing: '1px', textTransform: 'uppercase' }}>{templateName}</p>
                     </div>
 
                     {/* Center: Certified by */}
                     <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: theme.recipientColor, fontFamily: "'Georgia', serif" }}>{certifiedBy}</p>
+                      <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: theme.recipientColor, fontFamily: "'Georgia', serif" }}>{certifiedBy}</p>
                       <div style={{ width: '100px', height: '1px', background: theme.outerBorder, opacity: 0.4, margin: '3px auto' }} />
-                      <p style={{ margin: 0, fontSize: '7px', letterSpacing: '2px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.5 }}>Certifying Authority</p>
-                      {certifiedAt && <p style={{ margin: '1px 0 0', fontSize: '7px', color: theme.textColor, opacity: 0.5 }}>{certifiedAt} IST</p>}
+                      <p style={{ margin: 0, fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.6, fontWeight: 700 }}>Certifying Authority</p>
+                      {certifiedAt && <p style={{ margin: '1px 0 0', fontSize: '9px', color: theme.textColor, opacity: 0.7 }}>{certifiedAt} IST</p>}
                     </div>
 
                     {/* Right: QR + Verification */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ textAlign: 'right' }}>
-                          <p style={{ margin: 0, fontSize: '7px', letterSpacing: '1px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.5 }}>Signature</p>
+                          <p style={{ margin: 0, fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.6, fontWeight: 700 }}>Signature</p>
                           <div style={{ width: '80px', height: '1px', background: theme.outerBorder, opacity: 0.3, margin: '12px 0 3px' }} />
-                          <p style={{ margin: 0, fontSize: '7px', fontFamily: "'Courier New', monospace", color: theme.textColor, opacity: 0.6, wordBreak: 'break-all', maxWidth: '100px' }}>{verificationCode || id}</p>
+                          <p style={{ margin: 0, fontSize: '9px', fontFamily: "'Courier New', monospace", color: theme.textColor, opacity: 0.7, wordBreak: 'break-all', maxWidth: '150px' }}>{verificationCode || id}</p>
                         </div>
-                        <div style={{ background: '#ffffff', padding: '3px', border: `1px solid ${theme.outerBorder}40`, borderRadius: '3px', lineHeight: 0 }}>
-                          <QRCodeSVG value={verificationUrl} size={48} />
+                        <div style={{ background: '#ffffff', padding: '4px', border: `1px solid ${theme.outerBorder}40`, borderRadius: '3px', lineHeight: 0 }}>
+                          <QRCodeSVG value={verificationUrl} size={64} />
                         </div>
                       </div>
                     </div>
@@ -627,7 +709,7 @@ export const CertificatePreview = memo(function CertificatePreview({
 
                   {/* Bottom decorative strip */}
                   <div style={{
-                    height: '18px',
+                    height: '24px',
                     width: '100%',
                     borderTop: `1px solid ${theme.outerBorder}28`,
                     borderBottom: `1px solid ${theme.outerBorder}28`,
@@ -638,11 +720,17 @@ export const CertificatePreview = memo(function CertificatePreview({
                     gap: '16px',
                     flexShrink: 0,
                   }}>
-                    <CricketBallSVG size={12} />
-                    <TrophySVG color={theme.accentColor} size={12} />
-                    <CricketStumpsSVG color={theme.outerBorder} size={14} />
-                    <TrophySVG color={theme.accentColor} size={12} />
-                    <CricketBallSVG size={12} />
+                    {theme.simplifyOrnaments ? (
+                      <span style={{ fontSize: '11px', letterSpacing: '2px', color: theme.titleColor, textTransform: 'uppercase', fontWeight: 700 }}>Verify via QR • Secure Template</span>
+                    ) : (
+                      <>
+                        <CricketBallSVG size={12} />
+                        <TrophySVG color={theme.accentColor} size={12} />
+                        <CricketStumpsSVG color={theme.outerBorder} size={14} />
+                        <TrophySVG color={theme.accentColor} size={12} />
+                        <CricketBallSVG size={12} />
+                      </>
+                    )}
                   </div>
                   <div style={{
                     height: '6px',
