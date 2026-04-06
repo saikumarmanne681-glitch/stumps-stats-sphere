@@ -9,6 +9,7 @@ import { useMemo, useRef, useState, memo } from 'react';
 import { downloadCertificatePdf, printCertificate } from '@/lib/certificatePdf';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 
 interface Props {
   certificate: Partial<CertificateRecord>;
@@ -292,6 +293,11 @@ export const CertificatePreview = memo(function CertificatePreview({
   const verificationCode = certificate.verification_code || '';
   const certifiedBy = certificate.certified_by || 'Portal Authority';
   const templateName = template?.template_name || certificate.template_id || theme.name;
+  const resolvedVerificationUrl = useMemo(() => {
+    const value = String(verificationUrl || '').trim();
+    if (value) return value;
+    return getPublicVerifyCertificateUrl(String(id));
+  }, [id, verificationUrl]);
   const detailLines = useMemo(() => detailLinesFrom(certificate.details_json), [certificate.details_json]);
   const performanceLines = useMemo(() => detailLinesFrom(certificate.performance_json), [certificate.performance_json]);
 
@@ -667,9 +673,24 @@ export const CertificatePreview = memo(function CertificatePreview({
                           <p style={{ margin: 0, fontSize: '8px', fontFamily: "'Courier New', monospace", color: theme.textColor, opacity: 0.75, wordBreak: 'break-all', maxWidth: '120px' }}>{verificationCode || id}</p>
                         </div>
                         <div style={{ background: '#ffffff', padding: '3px', border: `1px solid ${theme.outerBorder}40`, borderRadius: '3px', lineHeight: 0 }}>
-                          <QRCodeSVG value={verificationUrl} size={58} />
+                          <QRCodeSVG value={resolvedVerificationUrl} size={58} />
                         </div>
                       </div>
+                      <p
+                        style={{
+                          margin: '4px 0 0',
+                          maxWidth: '250px',
+                          textAlign: 'right',
+                          fontSize: '7px',
+                          lineHeight: 1.2,
+                          fontFamily: "'Courier New', monospace",
+                          color: theme.textColor,
+                          opacity: 0.78,
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        {resolvedVerificationUrl}
+                      </p>
                     </div>
                   </div>
 
