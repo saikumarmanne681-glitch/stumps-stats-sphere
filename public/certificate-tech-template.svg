@@ -1,0 +1,59 @@
+<svg width="1600" height="1120" viewBox="0 0 1600 1120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1120" fill="#F5F7FA"/>
+
+  <!-- Top-left layered diagonals -->
+  <polygon points="0,0 340,0 40,300 0,260" fill="#072B5B"/>
+  <polygon points="0,0 420,0 80,340 0,300" fill="#0B3D82"/>
+  <polygon points="0,0 480,0 130,370 0,330" fill="#0F4D99"/>
+  <polygon points="0,0 560,0 220,430 0,380" fill="#56B3E9"/>
+  <polygon points="0,0 520,0 280,250 240,210" fill="#EBF0F6"/>
+
+  <!-- Bottom-left layered accents -->
+  <polygon points="0,1120 0,880 160,760 460,760 300,920" fill="#56B3E9"/>
+  <polygon points="100,1120 320,900 620,1120" fill="#3C7DDA"/>
+  <polygon points="0,1080 0,1020 160,1020 100,1080" fill="#3C98E0"/>
+
+  <!-- Bottom horizontal dark banner -->
+  <polygon points="0,1120 0,940 560,940 620,1000 620,1120" fill="#173B66"/>
+
+  <!-- Top-right geometric hex pattern -->
+  <g stroke="#3FA9E5" stroke-width="4" opacity="0.95">
+    <polygon points="1180,60 1230,145 1180,230 1080,230 1030,145 1080,60"/>
+    <polygon points="1400,20 1450,105 1400,190 1300,190 1250,105 1300,20"/>
+    <polygon points="1520,140 1570,225 1520,310 1420,310 1370,225 1420,140"/>
+  </g>
+  <g stroke="#3FA9E5" stroke-width="2" opacity="0.75">
+    <polygon points="1220,0 1270,85 1220,170 1120,170 1070,85 1120,0"/>
+    <polygon points="1340,120 1390,205 1340,290 1240,290 1190,205 1240,120"/>
+    <polygon points="1490,260 1540,345 1490,430 1390,430 1340,345 1390,260"/>
+  </g>
+  <g fill="#3FA9E5">
+    <circle cx="1130" cy="145" r="8"/>
+    <circle cx="1490" cy="225" r="8"/>
+    <circle cx="1570" cy="310" r="8"/>
+  </g>
+
+  <!-- Right-side circuit traces -->
+  <g stroke="#1F5B93" stroke-width="3" opacity="0.95">
+    <path d="M1480 500V700L1540 760V1120"/>
+    <path d="M1500 500V690L1550 740V1040"/>
+    <path d="M1520 500V680L1560 730V910"/>
+  </g>
+  <g fill="#1F5B93">
+    <circle cx="1540" cy="1120" r="10"/>
+    <circle cx="1550" cy="910" r="10"/>
+    <circle cx="1520" cy="760" r="7"/>
+  </g>
+
+  <!-- Bottom-right circuit traces -->
+  <g stroke="#1F5B93" stroke-width="3" opacity="0.95">
+    <path d="M820 960H980L1030 1010H1220"/>
+    <path d="M800 975H970L1020 1030H1160"/>
+    <path d="M810 990H960L1010 1050H1140"/>
+  </g>
+  <g fill="#1F5B93">
+    <circle cx="1220" cy="1010" r="6"/>
+    <circle cx="1160" cy="1030" r="10"/>
+    <circle cx="1140" cy="1050" r="10"/>
+  </g>
+</svg>

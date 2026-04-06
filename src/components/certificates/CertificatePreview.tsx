@@ -28,6 +28,22 @@ const detailLinesFrom = (value?: string) => String(value || '')
 /* ─── 5 Premium Sports-Award Themes ─── */
 const DESIGN_THEMES = [
   {
+    id: 'tech-blue-template',
+    name: 'Tech Blue Template',
+    outerBorder: '#1f5b93',
+    innerBorder: '#3fa9e5',
+    centerBg: '#f5f7fa',
+    outerBg: '#f5f7fa',
+    titleColor: '#0f4d99',
+    recipientColor: '#102a43',
+    textColor: '#1f3a56',
+    accentColor: '#2f7ddb',
+    badgeGradient: 'linear-gradient(135deg, #0f4d99, #56b3e9)',
+    ornamentSvgColor: '#1f5b93',
+    templateBackgroundUrl: '/certificate-tech-template.svg',
+    simplifyOrnaments: true,
+  },
+  {
     id: 'classic-teal',
     name: 'Classic Teal',
     // Inspired by ref image 1: teal scalloped border, gold accents, white center
@@ -307,6 +323,8 @@ export const CertificatePreview = memo(function CertificatePreview({
 
   /* Derive certificate sub-title label */
   const certTypeLabel = title.length <= 22 ? title : 'Achievement';
+  const safeRecipientSize = recipient.length > 38 ? '21px' : recipient.length > 28 ? '25px' : '30px';
+  const safeTitleSize = title.length > 30 ? '12px' : '13px';
 
   return (
     <Card className="overflow-hidden border border-primary/20 bg-background shadow-sm">
@@ -387,6 +405,10 @@ export const CertificatePreview = memo(function CertificatePreview({
                   maxWidth: isMobile ? 'none' : '1120px',
                   aspectRatio: '297 / 210',
                   background: theme.outerBg,
+                  backgroundImage: theme.templateBackgroundUrl ? `url(${theme.templateBackgroundUrl})` : undefined,
+                  backgroundPosition: 'center',
+                  backgroundSize: 'cover',
+                  backgroundRepeat: 'no-repeat',
                   position: 'relative',
                   fontFamily: "'Georgia', 'Times New Roman', serif",
                   color: theme.textColor,
@@ -394,29 +416,33 @@ export const CertificatePreview = memo(function CertificatePreview({
                   borderRadius: '4px',
                 }}
               >
-                {/* Scalloped decorative border */}
-                <ScallopedBorderSVG color={theme.outerBorder} />
+                {!theme.simplifyOrnaments && (
+                  <>
+                    {/* Scalloped decorative border */}
+                    <ScallopedBorderSVG color={theme.outerBorder} />
 
-                {/* Inner rectangular border */}
-                <div style={{
-                  position: 'absolute',
-                  top: '18px', left: '18px', right: '18px', bottom: '18px',
-                  border: `3px solid ${theme.outerBorder}`,
-                  borderRadius: '2px',
-                  pointerEvents: 'none',
-                }} />
-                <div style={{
-                  position: 'absolute',
-                  top: '24px', left: '24px', right: '24px', bottom: '24px',
-                  border: `1.5px solid ${theme.innerBorder}`,
-                  pointerEvents: 'none',
-                }} />
+                    {/* Inner rectangular border */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '18px', left: '18px', right: '18px', bottom: '18px',
+                      border: `3px solid ${theme.outerBorder}`,
+                      borderRadius: '2px',
+                      pointerEvents: 'none',
+                    }} />
+                    <div style={{
+                      position: 'absolute',
+                      top: '24px', left: '24px', right: '24px', bottom: '24px',
+                      border: `1.5px solid ${theme.innerBorder}`,
+                      pointerEvents: 'none',
+                    }} />
 
-                {/* Corner ornaments */}
-                <CornerOrnamentSVG color={theme.innerBorder} position="tl" />
-                <CornerOrnamentSVG color={theme.innerBorder} position="tr" />
-                <CornerOrnamentSVG color={theme.innerBorder} position="bl" />
-                <CornerOrnamentSVG color={theme.innerBorder} position="br" />
+                    {/* Corner ornaments */}
+                    <CornerOrnamentSVG color={theme.innerBorder} position="tl" />
+                    <CornerOrnamentSVG color={theme.innerBorder} position="tr" />
+                    <CornerOrnamentSVG color={theme.innerBorder} position="bl" />
+                    <CornerOrnamentSVG color={theme.innerBorder} position="br" />
+                  </>
+                )}
 
                 {/* Watermark */}
                 {watermark && (
@@ -428,14 +454,24 @@ export const CertificatePreview = memo(function CertificatePreview({
                 {/* White center panel */}
                 <div style={{
                   position: 'absolute',
-                  top: '32px', left: '32px', right: '32px', bottom: '32px',
-                  background: theme.centerBg,
+                  top: theme.simplifyOrnaments ? '54px' : '32px',
+                  left: theme.simplifyOrnaments ? '120px' : '32px',
+                  right: theme.simplifyOrnaments ? '120px' : '32px',
+                  bottom: theme.simplifyOrnaments ? '76px' : '32px',
+                  background: theme.simplifyOrnaments ? 'rgba(255,255,255,0.92)' : theme.centerBg,
                   display: 'flex',
                   flexDirection: 'column',
                   boxSizing: 'border-box',
+                  borderRadius: theme.simplifyOrnaments ? '6px' : undefined,
+                  border: theme.simplifyOrnaments ? `1px solid ${theme.outerBorder}22` : undefined,
+                  boxShadow: theme.simplifyOrnaments ? '0 8px 28px rgba(11, 61, 130, 0.08)' : undefined,
                 }}>
-                  <DiamondGridOverlay color={theme.outerBorder} />
-                  <SidePatternRails color={theme.outerBorder} />
+                  {!theme.simplifyOrnaments && (
+                    <>
+                      <DiamondGridOverlay color={theme.outerBorder} />
+                      <SidePatternRails color={theme.outerBorder} />
+                    </>
+                  )}
 
                   {/* ── Top decorative strip ── */}
                   <div style={{
@@ -455,9 +491,13 @@ export const CertificatePreview = memo(function CertificatePreview({
                     padding: '0 26px',
                     boxSizing: 'border-box',
                   }}>
-                    <TrophySVG color={theme.accentColor} size={14} />
-                    <CricketBallSVG size={13} />
-                    <TrophySVG color={theme.accentColor} size={14} />
+                    {theme.simplifyOrnaments ? <span style={{ fontSize: '10px', letterSpacing: '2px', color: theme.titleColor, fontWeight: 700, textTransform: 'uppercase' }}>Official Certificate</span> : (
+                      <>
+                        <TrophySVG color={theme.accentColor} size={14} />
+                        <CricketBallSVG size={13} />
+                        <TrophySVG color={theme.accentColor} size={14} />
+                      </>
+                    )}
                   </div>
 
                   {/* ── Main content area ── */}
@@ -475,7 +515,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                   }}>
                     {/* Top row: medal + title area + trophy */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '20px', width: '100%', marginBottom: '4px' }}>
-                      <MedalSVG color={theme.accentColor} size={40} />
+                      {!theme.simplifyOrnaments && <MedalSVG color={theme.accentColor} size={40} />}
                       <div style={{ textAlign: 'center', flex: 1, maxWidth: '600px' }}>
                         {/* "CERTIFICATE" heading */}
                         <div style={{
@@ -491,6 +531,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                         </div>
                         <div style={{
                           fontSize: '13px',
+                          fontSize: safeTitleSize,
                           letterSpacing: '5px',
                           textTransform: 'uppercase',
                           color: theme.accentColor,
@@ -501,7 +542,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                           OF {certTypeLabel.toUpperCase()}
                         </div>
                       </div>
-                      <TrophySVG color={theme.accentColor} size={38} />
+                      {!theme.simplifyOrnaments && <TrophySVG color={theme.accentColor} size={38} />}
                     </div>
 
                     {/* Flourish divider */}
@@ -523,7 +564,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                     {/* ─── Recipient Name ─── */}
                     <p style={{
                       margin: '6px 0 0',
-                      fontSize: recipient.length > 28 ? '26px' : '32px',
+                      fontSize: safeRecipientSize,
                       fontWeight: 700,
                       lineHeight: 1.15,
                       color: theme.recipientColor,
@@ -576,12 +617,16 @@ export const CertificatePreview = memo(function CertificatePreview({
                     )}
 
                     {/* Cricket ball decoration — bottom left of content area */}
-                    <div style={{ position: 'absolute', bottom: '8px', left: '16px', opacity: 0.15 }}>
-                      <CricketBallSVG size={36} />
-                    </div>
-                    <div style={{ position: 'absolute', bottom: '8px', right: '16px', opacity: 0.16 }}>
-                      <CricketStumpsSVG color={theme.outerBorder} size={36} />
-                    </div>
+                    {!theme.simplifyOrnaments && (
+                      <>
+                        <div style={{ position: 'absolute', bottom: '8px', left: '16px', opacity: 0.15 }}>
+                          <CricketBallSVG size={36} />
+                        </div>
+                        <div style={{ position: 'absolute', bottom: '8px', right: '16px', opacity: 0.16 }}>
+                          <CricketStumpsSVG color={theme.outerBorder} size={36} />
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* ── Bottom section — Date / Authority / QR ── */}
@@ -638,11 +683,17 @@ export const CertificatePreview = memo(function CertificatePreview({
                     gap: '16px',
                     flexShrink: 0,
                   }}>
-                    <CricketBallSVG size={12} />
-                    <TrophySVG color={theme.accentColor} size={12} />
-                    <CricketStumpsSVG color={theme.outerBorder} size={14} />
-                    <TrophySVG color={theme.accentColor} size={12} />
-                    <CricketBallSVG size={12} />
+                    {theme.simplifyOrnaments ? (
+                      <span style={{ fontSize: '9px', letterSpacing: '2px', color: theme.titleColor, textTransform: 'uppercase', fontWeight: 700 }}>Verify via QR • Secure Template</span>
+                    ) : (
+                      <>
+                        <CricketBallSVG size={12} />
+                        <TrophySVG color={theme.accentColor} size={12} />
+                        <CricketStumpsSVG color={theme.outerBorder} size={14} />
+                        <TrophySVG color={theme.accentColor} size={12} />
+                        <CricketBallSVG size={12} />
+                      </>
+                    )}
                   </div>
                   <div style={{
                     height: '6px',
