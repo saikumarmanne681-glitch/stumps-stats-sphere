@@ -193,6 +193,20 @@ const AdminScorelistsPage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDeleteScorelist = async (sl: DigitalScorelist) => {
+    if (!isAdmin) return;
+    const confirmed = window.confirm(`Delete scorelist ${sl.scorelist_id}? This cannot be undone.`);
+    if (!confirmed) return;
+    const ok = await v2api.deleteCustomSheetRow('DIGITAL_SCORELISTS', sl);
+    if (!ok) {
+      toast({ title: 'Could not delete scorelist', variant: 'destructive' });
+      return;
+    }
+    logAudit(user?.username || 'admin', 'scorelist_delete', 'scorelist', sl.scorelist_id, JSON.stringify({ match_id: sl.match_id, tournament_id: sl.tournament_id, season_id: sl.season_id }));
+    toast({ title: 'Scorelist deleted' });
+    await refresh();
+  };
+
   const safeParsePayload = (sl: DigitalScorelist) => { try { return JSON.parse(sl.payload_json || '{}'); } catch { return null; } };
   const readCertifications = (sl: DigitalScorelist): CertificationApproval[] => {
     const direct = readScorelistCertifications(sl);
@@ -732,6 +746,11 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                     {isAdmin && !effectiveLocked && nextStage && (
                       <Button size="sm" variant="secondary" onClick={() => handleCertify(sl, nextStage)} className="gap-1 text-xs">
                         Advance to {stageLabels[nextStage]}
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <Button size="sm" variant="destructive" onClick={() => void handleDeleteScorelist(sl)} className="gap-1 text-xs">
+                        <ShieldX className="h-3 w-3" /> Delete
                       </Button>
                     )}
                   </div>
