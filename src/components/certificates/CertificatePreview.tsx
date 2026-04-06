@@ -278,7 +278,7 @@ export const CertificatePreview = memo(function CertificatePreview({
   const [printing, setPrinting] = useState(false);
   const [designIndex, setDesignIndex] = useState(0);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [mobileZoom, setMobileZoom] = useState(1);
+  const [mobileZoom, setMobileZoom] = useState(0.46);
   const isMobile = useIsMobile();
   const templateConfig = useMemo(() => {
     const raw = String(template?.design_config || '').trim();
@@ -402,7 +402,7 @@ export const CertificatePreview = memo(function CertificatePreview({
               ))}
               {isMobile && (
                 <div className="ml-auto flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-1.5 py-1">
-                  {[1, 1.1, 1.2].map((zoom) => (
+                  {[0.4, 0.46, 0.54].map((zoom) => (
                     <button
                       key={zoom}
                       onClick={() => setMobileZoom(zoom)}
@@ -411,7 +411,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                         mobileZoom === zoom ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
                       )}
                     >
-                      {Math.round(zoom * 100)}%
+                      {Math.round((zoom / 0.46) * 100)}%
                     </button>
                   ))}
                 </div>
@@ -426,18 +426,21 @@ export const CertificatePreview = memo(function CertificatePreview({
                 </p>
               )}
               <div
-                className="mx-auto w-full"
+                className="mx-auto w-full overflow-x-hidden"
                 style={{
-                  maxWidth: isMobile ? `${Math.round(1120 * mobileZoom)}px` : '1120px',
-                  transition: 'max-width 180ms ease',
+                  maxWidth: isMobile ? '100%' : '1120px',
+                  minHeight: isMobile ? `${Math.round((1120 * 210 / 297) * mobileZoom)}px` : undefined,
                 }}
               >
               <div
                 ref={ref}
-                className="certificate-pdf-root mx-auto w-full overflow-hidden"
+                className="certificate-pdf-root mx-auto overflow-hidden"
                 style={{
-                  maxWidth: '1120px',
+                  width: '1120px',
                   aspectRatio: '297 / 210',
+                  transform: isMobile ? `scale(${mobileZoom})` : undefined,
+                  transformOrigin: isMobile ? 'top center' : undefined,
+                  transition: 'transform 180ms ease',
                   background: theme.outerBg,
                   backgroundImage: templateBackgroundUrl ? `url(${templateBackgroundUrl})` : undefined,
                   backgroundPosition: 'center',
