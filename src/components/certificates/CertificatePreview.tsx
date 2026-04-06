@@ -8,6 +8,7 @@ import { Download, ChevronDown, ChevronUp, Printer, Award, Palette } from 'lucid
 import { useMemo, useRef, useState, memo } from 'react';
 import { downloadCertificatePdf, printCertificate } from '@/lib/certificatePdf';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Props {
   certificate: Partial<CertificateRecord>;
@@ -192,6 +193,45 @@ const CricketBallSVG = memo(({ size = 40 }: { size?: number }) => (
 ));
 CricketBallSVG.displayName = 'CricketBallSVG';
 
+const CricketStumpsSVG = memo(({ color, size = 44 }: { color: string; size?: number }) => (
+  <svg viewBox="0 0 72 72" width={size} height={size} style={{ flexShrink: 0 }}>
+    <rect x="18" y="18" width="6" height="40" rx="2" fill={color} opacity="0.85" />
+    <rect x="33" y="18" width="6" height="40" rx="2" fill={color} opacity="0.85" />
+    <rect x="48" y="18" width="6" height="40" rx="2" fill={color} opacity="0.85" />
+    <rect x="16" y="14" width="12" height="4" rx="2" fill={color} opacity="0.5" />
+    <rect x="31" y="14" width="12" height="4" rx="2" fill={color} opacity="0.5" />
+    <rect x="46" y="14" width="12" height="4" rx="2" fill={color} opacity="0.5" />
+    <path d="M22 58 h28" stroke={color} strokeWidth="3" opacity="0.45" />
+  </svg>
+));
+CricketStumpsSVG.displayName = 'CricketStumpsSVG';
+
+const DiamondGridOverlay = memo(({ color }: { color: string }) => (
+  <svg viewBox="0 0 1400 988" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+    {Array.from({ length: 48 }, (_, i) => (
+      <line key={`diag-a-${i}`} x1={-300 + i * 40} y1="0" x2={200 + i * 40} y2="988" stroke={color} strokeWidth="0.9" opacity="0.06" />
+    ))}
+    {Array.from({ length: 48 }, (_, i) => (
+      <line key={`diag-b-${i}`} x1={1700 - i * 40} y1="0" x2={1200 - i * 40} y2="988" stroke={color} strokeWidth="0.9" opacity="0.06" />
+    ))}
+  </svg>
+));
+DiamondGridOverlay.displayName = 'DiamondGridOverlay';
+
+const SidePatternRails = memo(({ color }: { color: string }) => (
+  <svg viewBox="0 0 1400 988" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+    <rect x="68" y="108" width="50" height="772" fill="none" stroke={color} strokeWidth="1.2" opacity="0.2" />
+    <rect x="1282" y="108" width="50" height="772" fill="none" stroke={color} strokeWidth="1.2" opacity="0.2" />
+    {Array.from({ length: 24 }, (_, i) => (
+      <g key={`left-pip-${i}`}>
+        <circle cx="93" cy={124 + i * 32} r="5" fill="none" stroke={color} strokeWidth="1" opacity="0.25" />
+        <circle cx="1307" cy={124 + i * 32} r="5" fill="none" stroke={color} strokeWidth="1" opacity="0.25" />
+      </g>
+    ))}
+  </svg>
+));
+SidePatternRails.displayName = 'SidePatternRails';
+
 /* ─── Flourish divider ─── */
 const FlourishDivider = memo(({ color, width = '240px' }: { color: string; width?: string }) => (
   <svg viewBox="0 0 240 20" style={{ width, height: 'auto', display: 'block', margin: '0 auto' }}>
@@ -221,6 +261,8 @@ export const CertificatePreview = memo(function CertificatePreview({
   const [printing, setPrinting] = useState(false);
   const [designIndex, setDesignIndex] = useState(0);
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [mobileZoom, setMobileZoom] = useState(1);
+  const isMobile = useIsMobile();
   const theme = DESIGN_THEMES[designIndex];
 
   const title = certificate.type || 'Certificate of Excellence';
@@ -305,15 +347,44 @@ export const CertificatePreview = memo(function CertificatePreview({
                   {t.name}
                 </button>
               ))}
+              {isMobile && (
+                <div className="ml-auto flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-1.5 py-1">
+                  {[0.85, 1, 1.15].map((zoom) => (
+                    <button
+                      key={zoom}
+                      onClick={() => setMobileZoom(zoom)}
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                        mobileZoom === zoom ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                      )}
+                    >
+                      {Math.round(zoom * 100)}%
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Certificate body — exported to PDF */}
-            <div className="p-2 sm:p-4">
+            <div className="overflow-x-auto p-2 sm:p-4">
+              {isMobile && (
+                <p className="mb-2 text-center text-[10px] text-muted-foreground">
+                  Swipe horizontally for full certificate • tap zoom for clarity
+                </p>
+              )}
+              <div
+                className="mx-auto"
+                style={{
+                  width: isMobile ? `${Math.round(980 * mobileZoom)}px` : '100%',
+                  minWidth: isMobile ? `${Math.round(980 * mobileZoom)}px` : '0',
+                  transition: 'width 180ms ease',
+                }}
+              >
               <div
                 ref={ref}
                 className="certificate-pdf-root mx-auto w-full overflow-hidden"
                 style={{
-                  maxWidth: '1120px',
+                  maxWidth: isMobile ? 'none' : '1120px',
                   aspectRatio: '297 / 210',
                   background: theme.outerBg,
                   position: 'relative',
@@ -363,6 +434,9 @@ export const CertificatePreview = memo(function CertificatePreview({
                   flexDirection: 'column',
                   boxSizing: 'border-box',
                 }}>
+                  <DiamondGridOverlay color={theme.outerBorder} />
+                  <SidePatternRails color={theme.outerBorder} />
+
                   {/* ── Top decorative strip ── */}
                   <div style={{
                     height: '6px',
@@ -370,6 +444,21 @@ export const CertificatePreview = memo(function CertificatePreview({
                     width: '100%',
                     flexShrink: 0,
                   }} />
+                  <div style={{
+                    height: '18px',
+                    width: '100%',
+                    borderBottom: `1px solid ${theme.outerBorder}30`,
+                    background: `linear-gradient(90deg, ${theme.outerBorder}12 0%, transparent 12%, transparent 88%, ${theme.outerBorder}12 100%)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0 26px',
+                    boxSizing: 'border-box',
+                  }}>
+                    <TrophySVG color={theme.accentColor} size={14} />
+                    <CricketBallSVG size={13} />
+                    <TrophySVG color={theme.accentColor} size={14} />
+                  </div>
 
                   {/* ── Main content area ── */}
                   <div style={{
@@ -382,6 +471,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                     textAlign: 'center',
                     minHeight: 0,
                     position: 'relative',
+                    zIndex: 1,
                   }}>
                     {/* Top row: medal + title area + trophy */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '20px', width: '100%', marginBottom: '4px' }}>
@@ -489,6 +579,9 @@ export const CertificatePreview = memo(function CertificatePreview({
                     <div style={{ position: 'absolute', bottom: '8px', left: '16px', opacity: 0.15 }}>
                       <CricketBallSVG size={36} />
                     </div>
+                    <div style={{ position: 'absolute', bottom: '8px', right: '16px', opacity: 0.16 }}>
+                      <CricketStumpsSVG color={theme.outerBorder} size={36} />
+                    </div>
                   </div>
 
                   {/* ── Bottom section — Date / Authority / QR ── */}
@@ -506,6 +599,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                       <p style={{ margin: 0, fontSize: '7px', letterSpacing: '2px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.5 }}>Date</p>
                       <div style={{ width: '80px', height: '1px', background: theme.outerBorder, opacity: 0.3, margin: '12px 0 3px' }} />
                       <p style={{ margin: 0, fontSize: '9px', color: theme.textColor }}>{createdAt || 'Pending'}</p>
+                      <p style={{ margin: '3px 0 0', fontSize: '7px', color: theme.textColor, opacity: 0.6, letterSpacing: '1px', textTransform: 'uppercase' }}>{templateName}</p>
                     </div>
 
                     {/* Center: Certified by */}
@@ -533,12 +627,31 @@ export const CertificatePreview = memo(function CertificatePreview({
 
                   {/* Bottom decorative strip */}
                   <div style={{
+                    height: '18px',
+                    width: '100%',
+                    borderTop: `1px solid ${theme.outerBorder}28`,
+                    borderBottom: `1px solid ${theme.outerBorder}28`,
+                    background: `repeating-linear-gradient(90deg, ${theme.outerBorder}12 0px, ${theme.outerBorder}12 12px, transparent 12px, transparent 24px)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '16px',
+                    flexShrink: 0,
+                  }}>
+                    <CricketBallSVG size={12} />
+                    <TrophySVG color={theme.accentColor} size={12} />
+                    <CricketStumpsSVG color={theme.outerBorder} size={14} />
+                    <TrophySVG color={theme.accentColor} size={12} />
+                    <CricketBallSVG size={12} />
+                  </div>
+                  <div style={{
                     height: '6px',
                     background: theme.badgeGradient,
                     width: '100%',
                     flexShrink: 0,
                   }} />
                 </div>
+              </div>
               </div>
             </div>
 
