@@ -37,10 +37,25 @@ export interface ButtonProps
   asChild?: boolean;
   loading?: boolean;
   loadingText?: string;
+  autoLoading?: boolean;
+  minLoadingMs?: number;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, loading = false, loadingText, children, disabled, onClick, ...props }, ref) => {
+  ({
+    className,
+    variant,
+    size,
+    asChild = false,
+    loading = false,
+    loadingText,
+    autoLoading = true,
+    minLoadingMs = 600,
+    children,
+    disabled,
+    onClick,
+    ...props
+  }, ref) => {
     const Comp = asChild ? Slot : "button";
     const [internalLoading, setInternalLoading] = React.useState(false);
 
@@ -50,14 +65,27 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       const result = onClick(event) as unknown;
       if (event.defaultPrevented) return;
 
+      if (!autoLoading) {
+        return;
+      }
+
       if (result && typeof result === "object" && result !== null && "then" in result && typeof (result as any).then === "function") {
         try {
           setInternalLoading(true);
+          const startedAt = Date.now();
           await (result as Promise<unknown>);
+          const elapsed = Date.now() - startedAt;
+          if (elapsed < minLoadingMs) {
+            await new Promise((resolve) => window.setTimeout(resolve, minLoadingMs - elapsed));
+          }
         } finally {
           setInternalLoading(false);
         }
+        return;
       }
+
+      setInternalLoading(true);
+      window.setTimeout(() => setInternalLoading(false), minLoadingMs);
     };
 
     const isLoading = loading || internalLoading;
