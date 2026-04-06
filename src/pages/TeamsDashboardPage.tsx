@@ -14,7 +14,7 @@ import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api } from '@/lib/v2api';
 import { SupportTicket, TeamProfile } from '@/lib/v2types';
-import { CertificateRecord, CertificateTemplateRecord, certificateMatchesTeam, isCertificateCertified } from '@/lib/certificates';
+import { CertificateRecord, CertificateTemplateRecord, buildCertificateTemplateMap, certificateMatchesTeam, isCertificateCertified, resolveCertificateTemplate } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 import { Announcement } from '@/lib/types';
 import { compareTimestampsDesc, formatInIST } from '@/lib/time';
@@ -51,7 +51,8 @@ export default function TeamsDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
-  const [certificateTemplates, setCertificateTemplates] = useState<Record<string, CertificateTemplateRecord>>({});
+  const [certificateTemplates, setCertificateTemplates] = useState<CertificateTemplateRecord[]>([]);
+  const certificateTemplateMap = useMemo(() => buildCertificateTemplateMap(certificateTemplates), [certificateTemplates]);
   const [ticketForm, setTicketForm] = useState({ category: 'general', priority: 'medium' as SupportTicket['priority'], subject: '', description: '' });
   const allMatches = matches;
 
@@ -67,7 +68,7 @@ export default function TeamsDashboardPage() {
       if (cancelled) return;
       setTickets(ticketRows);
       setProfiles(profileRows);
-      setCertificateTemplates(Object.fromEntries(templateRows.map((item) => [item.template_id, item])));
+      setCertificateTemplates(templateRows);
       setCertificates(certificateRows.filter((item) => (
         item.recipient_type === 'team'
         || !!String(item.linked_team_name || '').trim()
@@ -546,7 +547,7 @@ export default function TeamsDashboardPage() {
               <CertificatePreview
                 key={certificate.id}
                 certificate={certificate}
-                template={certificateTemplates[certificate.template_id]}
+                template={resolveCertificateTemplate(certificate, certificateTemplateMap)}
                 verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
                 watermark={isCertificateCertified(certificate)}
                 showDownload

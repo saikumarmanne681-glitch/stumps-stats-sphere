@@ -89,6 +89,7 @@ const App = () => (
                 <Route path="/news-room" element={<RequireAuth><NewsRoomPage /></RequireAuth>} />
                 <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
                 <Route path="/verify" element={<VerificationPage />} />
+                <Route path="/verify/:type/:id" element={<VerificationPage />} />
                 <Route path="/forms" element={<RequireAuth><FormsPortalPage /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
