@@ -112,11 +112,11 @@ export default function VerificationPage() {
     return result.item;
   }, [result]);
 
-  const runVerification = async (value: string, selectedMode: VerifyMode) => {
+  const runVerification = async (value: string, selectedMode: VerifyMode): Promise<boolean> => {
     const parsed = parseVerificationInput(value, selectedMode);
     if (!parsed?.id) {
       setResult({ kind: 'idle' });
-      return;
+      return false;
     }
 
     setVerifying(true);
@@ -126,20 +126,21 @@ export default function VerificationPage() {
         const found = certificates.find((item) => normalizeCertificateId(item.id) === id);
         if (!found) {
           setResult({ kind: 'not_found', mode: 'certificate', value: id });
-          return;
+          return false;
         }
         setResult({ kind: 'certificate', valid: isCertificateAuthentic(found), item: found });
-        return;
+        return true;
       }
 
       const scorelistId = String(parsed.id || '').trim();
       const found = scorelists.find((item) => String(item.scorelist_id || '').trim() === scorelistId);
       if (!found) {
         setResult({ kind: 'not_found', mode: 'scorelist', value: scorelistId });
-        return;
+        return false;
       }
       const verifyResult = await verifyScorelist(found);
       setResult({ kind: 'scorelist', valid: verifyResult.valid, reason: verifyResult.reason, item: found });
+      return true;
     } finally {
       setVerifying(false);
     }
@@ -147,7 +148,10 @@ export default function VerificationPage() {
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    await runVerification(inputValue, mode);
+    const isSuccess = await runVerification(inputValue, mode);
+    if (isSuccess) {
+      setInputValue('');
+    }
   };
 
   const startScanner = async () => {
@@ -185,7 +189,10 @@ export default function VerificationPage() {
           scannerStreamRef.current?.getTracks().forEach((track) => track.stop());
           scannerStreamRef.current = null;
           setScannerBusy(false);
-          await runVerification(value, mode);
+          const isSuccess = await runVerification(value, mode);
+          if (isSuccess) {
+            setInputValue('');
+          }
         } catch {
           // keep trying until qr is found
         }

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search, FileText } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search, FileText, BadgeCheck } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
 
 export function Navbar() {
@@ -35,6 +35,9 @@ export function Navbar() {
         </Button>
         <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
           <Link to="/hall-of-glory"><Crown className="h-4 w-4 mr-1" /> Hall of Glory</Link>
+        </Button>
+        <Button variant="ghost" size="sm" className={navBtnClass} asChild onClick={close}>
+          <Link to="/verify"><BadgeCheck className="h-4 w-4 mr-1" /> Verify</Link>
         </Button>
 
         {user && (
