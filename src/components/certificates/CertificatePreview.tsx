@@ -151,7 +151,7 @@ export function CertificatePreview({
     }
   };
 
-  const statusColor = status === 'CERTIFIED' ? 'bg-emerald-600 text-white' : status === 'PENDING' ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground';
+  const statusColor = status === 'APPROVED' ? 'bg-emerald-600 text-white' : status === 'PENDING_APPROVAL' ? 'bg-amber-500 text-white' : status === 'REJECTED' ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground';
 
   return (
     <Card className="overflow-hidden border border-primary/20 bg-background shadow-sm">
