@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { CertificateRecord } from '@/lib/certificates';
 import { QRCodeSVG } from 'qrcode.react';
 import { Download, ChevronDown, ChevronUp, Printer, Award, Palette } from 'lucide-react';
-import { useMemo, useRef, useState, memo } from 'react';
+import { useEffect, useMemo, useRef, useState, memo } from 'react';
 import { downloadCertificatePdf, printCertificate } from '@/lib/certificatePdf';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -280,7 +280,16 @@ export const CertificatePreview = memo(function CertificatePreview({
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [mobileZoom, setMobileZoom] = useState(1);
   const isMobile = useIsMobile();
-  const theme = DESIGN_THEMES[designIndex];
+  const templateConfig = useMemo(() => {
+    const raw = String(template?.design_config || '').trim();
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as Partial<typeof DESIGN_THEMES[number]>;
+    } catch {
+      return null;
+    }
+  }, [template?.design_config]);
+  const theme = { ...DESIGN_THEMES[designIndex], ...(templateConfig || {}) };
 
   const title = certificate.type || 'Certificate of Excellence';
   const recipient = certificate.recipient_name || 'Recipient Name';
@@ -293,6 +302,7 @@ export const CertificatePreview = memo(function CertificatePreview({
   const verificationCode = certificate.verification_code || '';
   const certifiedBy = certificate.certified_by || 'Portal Authority';
   const templateName = template?.template_name || certificate.template_id || theme.name;
+  const templateBackgroundUrl = template?.image_url || theme.templateBackgroundUrl;
   const resolvedVerificationUrl = useMemo(() => {
     const value = String(verificationUrl || '').trim();
     if (value) return value;
@@ -300,6 +310,21 @@ export const CertificatePreview = memo(function CertificatePreview({
   }, [id, verificationUrl]);
   const detailLines = useMemo(() => detailLinesFrom(certificate.details_json), [certificate.details_json]);
   const performanceLines = useMemo(() => detailLinesFrom(certificate.performance_json), [certificate.performance_json]);
+
+  useEffect(() => {
+    const templateId = String(certificate.template_id || '').trim();
+    if (templateId) {
+      const byId = DESIGN_THEMES.findIndex((item) => item.id === templateId);
+      if (byId >= 0) {
+        setDesignIndex(byId);
+        return;
+      }
+    }
+    const templateNameRaw = String(template?.template_name || '').trim().toLowerCase();
+    if (!templateNameRaw) return;
+    const byName = DESIGN_THEMES.findIndex((item) => item.name.toLowerCase() === templateNameRaw);
+    if (byName >= 0) setDesignIndex(byName);
+  }, [certificate.template_id, template?.template_name]);
 
   const handleDownload = async () => {
     if (!ref.current || exporting) return;
@@ -377,7 +402,7 @@ export const CertificatePreview = memo(function CertificatePreview({
               ))}
               {isMobile && (
                 <div className="ml-auto flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-1.5 py-1">
-                  {[0.85, 1, 1.15].map((zoom) => (
+                  {[1, 1.1, 1.2].map((zoom) => (
                     <button
                       key={zoom}
                       onClick={() => setMobileZoom(zoom)}
@@ -394,28 +419,27 @@ export const CertificatePreview = memo(function CertificatePreview({
             </div>
 
             {/* Certificate body — exported to PDF */}
-            <div className="overflow-x-auto p-2 sm:p-4">
+            <div className="p-2 sm:p-4">
               {isMobile && (
                 <p className="mb-2 text-center text-[10px] text-muted-foreground">
-                  Swipe horizontally for full certificate • tap zoom for clarity
+                  Mobile responsive preview • use zoom for readability
                 </p>
               )}
               <div
-                className="mx-auto"
+                className="mx-auto w-full"
                 style={{
-                  width: isMobile ? `${Math.round(980 * mobileZoom)}px` : '100%',
-                  minWidth: isMobile ? `${Math.round(980 * mobileZoom)}px` : '0',
-                  transition: 'width 180ms ease',
+                  maxWidth: isMobile ? `${Math.round(1120 * mobileZoom)}px` : '1120px',
+                  transition: 'max-width 180ms ease',
                 }}
               >
               <div
                 ref={ref}
                 className="certificate-pdf-root mx-auto w-full overflow-hidden"
                 style={{
-                  maxWidth: isMobile ? 'none' : '1120px',
+                  maxWidth: '1120px',
                   aspectRatio: '297 / 210',
                   background: theme.outerBg,
-                  backgroundImage: theme.templateBackgroundUrl ? `url(${theme.templateBackgroundUrl})` : undefined,
+                  backgroundImage: templateBackgroundUrl ? `url(${templateBackgroundUrl})` : undefined,
                   backgroundPosition: 'center',
                   backgroundSize: 'cover',
                   backgroundRepeat: 'no-repeat',

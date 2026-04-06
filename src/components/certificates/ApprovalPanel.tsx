@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ApproverRole, CertificateApprovalRecord, CertificateRecord, approverLabel, canFinalize, deriveApprovalStatus, mapDesignationToApproverRole, normalizeCertificateStatus } from '@/lib/certificates';
+import { ApproverRole, CertificateApprovalRecord, CertificateRecord, CertificateTemplateRecord, approverLabel, buildCertificateTemplateMap, canFinalize, deriveApprovalStatus, mapDesignationToApproverRole, normalizeCertificateStatus, resolveCertificateTemplate } from '@/lib/certificates';
 import { CertificatePreview } from './CertificatePreview';
 import { sendSystemEmail, getAdminNotificationRecipient } from '@/lib/mailer';
 import { CheckCircle2, XCircle, Eye, Loader2, ShieldCheck, Award, Clock, AlertCircle } from 'lucide-react';
@@ -21,7 +21,8 @@ export function ApprovalPanel({ mode }: Props) {
   const { toast } = useToast();
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
   const [approvals, setApprovals] = useState<CertificateApprovalRecord[]>([]);
-  const [templates, setTemplates] = useState<Record<string, { template_name?: string; image_url?: string }>>({});
+  const [templates, setTemplates] = useState<CertificateTemplateRecord[]>([]);
+  const templateMap = useMemo(() => buildCertificateTemplateMap(templates), [templates]);
   const [selected, setSelected] = useState<CertificateRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export function ApprovalPanel({ mode }: Props) {
     const [cRows, aRows, tRows] = await Promise.all([v2api.getCertificates(), v2api.getCertificateApprovals(), v2api.getCertificateTemplates()]);
     setCertificates(cRows);
     setApprovals(aRows);
-    setTemplates(Object.fromEntries(tRows.map((row) => [row.template_id, row])));
+    setTemplates(tRows);
     setSelected((prev) => cRows.find((item) => item.id === prev?.id) || null);
     setLoading(false);
   };
@@ -342,7 +343,7 @@ export function ApprovalPanel({ mode }: Props) {
         <CertificatePreview
           certificate={selected}
           verificationUrl={getPublicVerifyCertificateUrl(selected.id)}
-          template={templates[selected.template_id]}
+          template={resolveCertificateTemplate(selected, templateMap)}
           watermark={normalizeCertificateStatus(selected.status) === 'CERTIFIED'}
           showDownload
           defaultExpanded

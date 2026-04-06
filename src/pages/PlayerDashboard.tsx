@@ -21,7 +21,7 @@ import { logAudit, v2api } from '@/lib/v2api';
 import { resolvePlayerIdFromIdentity } from '@/lib/dataUtils';
 import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { formatDateInIST, formatInIST } from '@/lib/time';
-import { CertificateRecord, CertificateTemplateRecord, certificateMatchesPlayer, isCertificateCertified } from '@/lib/certificates';
+import { CertificateRecord, CertificateTemplateRecord, buildCertificateTemplateMap, certificateMatchesPlayer, isCertificateCertified, resolveCertificateTemplate } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 
@@ -35,7 +35,8 @@ const PlayerDashboard = () => {
   const [expandedThread, setExpandedThread] = useState<string>('');
   const [replySending, setReplySending] = useState<string | null>(null);
   const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
-  const [certificateTemplates, setCertificateTemplates] = useState<Record<string, CertificateTemplateRecord>>({});
+  const [certificateTemplates, setCertificateTemplates] = useState<CertificateTemplateRecord[]>([]);
+  const certificateTemplateMap = useMemo(() => buildCertificateTemplateMap(certificateTemplates), [certificateTemplates]);
 
   const player = useMemo(() => {
     if (!user?.player_id) return null;
@@ -74,7 +75,7 @@ const PlayerDashboard = () => {
       const normalizedPlayerId = String(user?.player_id || '').trim().toLowerCase();
       const normalizedPlayerName = String(player?.name || '').trim().toLowerCase();
       const normalizedUsername = String(user?.username || '').trim().toLowerCase();
-      setCertificateTemplates(Object.fromEntries(templates.map((item) => [item.template_id, item])));
+      setCertificateTemplates(templates);
       setCertificates(rows.filter((item) => (
         !!normalizedPlayerId
         && (
@@ -496,7 +497,7 @@ const PlayerDashboard = () => {
               <CertificatePreview
                 key={certificate.id}
                 certificate={certificate}
-                template={certificateTemplates[certificate.template_id]}
+                template={resolveCertificateTemplate(certificate, certificateTemplateMap)}
                 verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
                 watermark={isCertificateCertified(certificate)}
                 showDownload

@@ -53,6 +53,43 @@ export interface CertificateTemplateRecord {
   design_config: string;
 }
 
+export function normalizeCertificateTemplateId(value?: string | null): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+export function buildCertificateTemplateMap(templates: CertificateTemplateRecord[]) {
+  const exact: Record<string, CertificateTemplateRecord> = {};
+  const normalized = new Map<string, CertificateTemplateRecord>();
+  templates.forEach((template) => {
+    const key = String(template.template_id || '').trim();
+    if (key) exact[key] = template;
+    const normalizedKey = normalizeCertificateTemplateId(key);
+    if (normalizedKey && !normalized.has(normalizedKey)) {
+      normalized.set(normalizedKey, template);
+    }
+    const normalizedName = normalizeCertificateTemplateId(template.template_name);
+    if (normalizedName && !normalized.has(normalizedName)) {
+      normalized.set(normalizedName, template);
+    }
+  });
+  return { exact, normalized };
+}
+
+export function resolveCertificateTemplate(
+  certificate: Partial<CertificateRecord> | null | undefined,
+  templateMap: { exact: Record<string, CertificateTemplateRecord>; normalized: Map<string, CertificateTemplateRecord> },
+): CertificateTemplateRecord | undefined {
+  const templateId = String(certificate?.template_id || '').trim();
+  if (!templateId) return undefined;
+  return (
+    templateMap.exact[templateId]
+    || templateMap.normalized.get(normalizeCertificateTemplateId(templateId))
+  );
+}
+
 export interface ApprovalStatusByRole {
   treasurer: ApprovalDecision;
   referee: ApprovalDecision;
