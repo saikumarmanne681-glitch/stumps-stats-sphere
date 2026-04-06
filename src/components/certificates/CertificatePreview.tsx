@@ -23,7 +23,7 @@ const detailLinesFrom = (value?: string) => String(value || '')
   .split(/\n|•|\|/g)
   .map((line) => line.trim())
   .filter(Boolean)
-  .slice(0, 3);
+  .slice(0, 5);
 
 /* ─── 5 Premium Sports-Award Themes ─── */
 const DESIGN_THEMES = [
@@ -323,8 +323,12 @@ export const CertificatePreview = memo(function CertificatePreview({
 
   /* Derive certificate sub-title label */
   const certTypeLabel = title.length <= 22 ? title : 'Achievement';
-  const safeRecipientSize = recipient.length > 38 ? '21px' : recipient.length > 28 ? '25px' : '30px';
-  const safeTitleSize = title.length > 30 ? '12px' : '13px';
+  const safeRecipientSize = recipient.length > 38 ? '32px' : recipient.length > 28 ? '38px' : '44px';
+  const safeTitleSize = title.length > 30 ? '16px' : '18px';
+  const summaryPoints = [
+    ...(detailLines.length > 0 ? detailLines : []),
+    ...(performanceLines.length > 0 ? performanceLines : []),
+  ].slice(0, 6);
 
   return (
     <Card className="overflow-hidden border border-primary/20 bg-background shadow-sm">
@@ -519,9 +523,9 @@ export const CertificatePreview = memo(function CertificatePreview({
                       <div style={{ textAlign: 'center', flex: 1, maxWidth: '600px' }}>
                         {/* "CERTIFICATE" heading */}
                         <div style={{
-                          fontSize: '28px',
+                          fontSize: '42px',
                           fontWeight: 700,
-                          letterSpacing: '8px',
+                          letterSpacing: '10px',
                           textTransform: 'uppercase',
                           color: theme.titleColor,
                           fontFamily: "'Georgia', serif",
@@ -550,9 +554,9 @@ export const CertificatePreview = memo(function CertificatePreview({
 
                     {/* "This certificate is proudly presented to" */}
                     <p style={{
-                      margin: '8px 0 0',
-                      fontSize: '10px',
-                      letterSpacing: '3px',
+                      margin: '10px 0 0',
+                      fontSize: '12px',
+                      letterSpacing: '3.6px',
                       textTransform: 'uppercase',
                       color: theme.textColor,
                       fontFamily: 'Arial, sans-serif',
@@ -563,7 +567,7 @@ export const CertificatePreview = memo(function CertificatePreview({
 
                     {/* ─── Recipient Name ─── */}
                     <p style={{
-                      margin: '6px 0 0',
+                      margin: '8px 0 0',
                       fontSize: safeRecipientSize,
                       fontWeight: 700,
                       lineHeight: 1.15,
@@ -578,18 +582,18 @@ export const CertificatePreview = memo(function CertificatePreview({
 
                     {/* Underline below name */}
                     <div style={{
-                      width: '280px',
-                      height: '2px',
+                      width: '360px',
+                      height: '3px',
                       background: `linear-gradient(90deg, transparent, ${theme.accentColor}, transparent)`,
-                      margin: '6px auto 8px',
+                      margin: '8px auto 10px',
                     }} />
 
                     {/* Description */}
                     <p style={{
                       margin: '0 auto',
-                      maxWidth: '500px',
-                      fontSize: '10px',
-                      lineHeight: 1.7,
+                      maxWidth: '760px',
+                      fontSize: '14px',
+                      lineHeight: 1.65,
                       color: theme.textColor,
                       fontFamily: "'Georgia', serif",
                       opacity: 0.85,
@@ -598,21 +602,18 @@ export const CertificatePreview = memo(function CertificatePreview({
                       in <strong style={{ color: theme.titleColor }}>{tournament}</strong> — Season <strong style={{ color: theme.titleColor }}>{season}</strong>.
                     </p>
 
-                    {/* Detail & Performance pills */}
                     {(detailLines.length > 0 || performanceLines.length > 0) && (
-                      <div style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                        {detailLines.length > 0 && (
-                          <div style={{ border: `1px solid ${theme.outerBorder}33`, borderRadius: '6px', padding: '5px 10px', background: `${theme.outerBorder}08`, textAlign: 'left', maxWidth: '210px' }}>
-                            <p style={{ margin: 0, fontSize: '7px', textTransform: 'uppercase', letterSpacing: '2px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>Highlights</p>
-                            {detailLines.map((line) => <p key={line} style={{ margin: '1px 0 0', fontSize: '8px', color: theme.textColor }}>• {line}</p>)}
-                          </div>
-                        )}
-                        {performanceLines.length > 0 && (
-                          <div style={{ border: `1px solid ${theme.outerBorder}33`, borderRadius: '6px', padding: '5px 10px', background: `${theme.outerBorder}08`, textAlign: 'left', maxWidth: '210px' }}>
-                            <p style={{ margin: 0, fontSize: '7px', textTransform: 'uppercase', letterSpacing: '2px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>Performance</p>
-                            {performanceLines.map((line) => <p key={line} style={{ margin: '1px 0 0', fontSize: '8px', color: theme.textColor }}>• {line}</p>)}
-                          </div>
-                        )}
+                      <div style={{ width: '100%', maxWidth: '860px', marginTop: '12px', padding: '10px 16px', border: `1px solid ${theme.outerBorder}2f`, borderRadius: '10px', background: `${theme.outerBorder}0c`, textAlign: 'left' }}>
+                        <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '2px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>
+                          Certificate Summary
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 22px', marginTop: '8px' }}>
+                          {summaryPoints.map((line, idx) => (
+                            <p key={`${line}-${idx}`} style={{ margin: 0, fontSize: '12px', lineHeight: 1.5, color: theme.textColor }}>
+                              • {line}
+                            </p>
+                          ))}
+                        </div>
                       </div>
                     )}
 
@@ -641,30 +642,32 @@ export const CertificatePreview = memo(function CertificatePreview({
                   }}>
                     {/* Left: Date + Template */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '7px', letterSpacing: '2px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.5 }}>Date</p>
+                      <p style={{ margin: 0, fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.6 }}>Issued On</p>
                       <div style={{ width: '80px', height: '1px', background: theme.outerBorder, opacity: 0.3, margin: '12px 0 3px' }} />
-                      <p style={{ margin: 0, fontSize: '9px', color: theme.textColor }}>{createdAt || 'Pending'}</p>
-                      <p style={{ margin: '3px 0 0', fontSize: '7px', color: theme.textColor, opacity: 0.6, letterSpacing: '1px', textTransform: 'uppercase' }}>{templateName}</p>
+                      <p style={{ margin: 0, fontSize: '11px', color: theme.textColor }}>{createdAt || 'Pending'}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: '9px', color: theme.textColor, opacity: 0.8, fontFamily: 'Arial, sans-serif' }}>Certificate ID: {id}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: '9px', color: theme.textColor, opacity: 0.8, fontFamily: 'Arial, sans-serif' }}>Match Ref: {certificate.match_id || 'N/A'}</p>
+                      <p style={{ margin: '4px 0 0', fontSize: '8px', color: theme.textColor, opacity: 0.6, letterSpacing: '1px', textTransform: 'uppercase' }}>{templateName}</p>
                     </div>
 
                     {/* Center: Certified by */}
                     <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: theme.recipientColor, fontFamily: "'Georgia', serif" }}>{certifiedBy}</p>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: theme.recipientColor, fontFamily: "'Georgia', serif" }}>{certifiedBy}</p>
                       <div style={{ width: '100px', height: '1px', background: theme.outerBorder, opacity: 0.4, margin: '3px auto' }} />
-                      <p style={{ margin: 0, fontSize: '7px', letterSpacing: '2px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.5 }}>Certifying Authority</p>
-                      {certifiedAt && <p style={{ margin: '1px 0 0', fontSize: '7px', color: theme.textColor, opacity: 0.5 }}>{certifiedAt} IST</p>}
+                      <p style={{ margin: 0, fontSize: '8px', letterSpacing: '2px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.6 }}>Certifying Authority</p>
+                      {certifiedAt && <p style={{ margin: '2px 0 0', fontSize: '8px', color: theme.textColor, opacity: 0.65 }}>{certifiedAt} IST</p>}
                     </div>
 
                     {/* Right: QR + Verification */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ textAlign: 'right' }}>
-                          <p style={{ margin: 0, fontSize: '7px', letterSpacing: '1px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.5 }}>Signature</p>
+                          <p style={{ margin: 0, fontSize: '8px', letterSpacing: '1px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.6 }}>Verification Code</p>
                           <div style={{ width: '80px', height: '1px', background: theme.outerBorder, opacity: 0.3, margin: '12px 0 3px' }} />
-                          <p style={{ margin: 0, fontSize: '7px', fontFamily: "'Courier New', monospace", color: theme.textColor, opacity: 0.6, wordBreak: 'break-all', maxWidth: '100px' }}>{verificationCode || id}</p>
+                          <p style={{ margin: 0, fontSize: '8px', fontFamily: "'Courier New', monospace", color: theme.textColor, opacity: 0.75, wordBreak: 'break-all', maxWidth: '120px' }}>{verificationCode || id}</p>
                         </div>
                         <div style={{ background: '#ffffff', padding: '3px', border: `1px solid ${theme.outerBorder}40`, borderRadius: '3px', lineHeight: 0 }}>
-                          <QRCodeSVG value={verificationUrl} size={48} />
+                          <QRCodeSVG value={verificationUrl} size={58} />
                         </div>
                       </div>
                     </div>
@@ -684,7 +687,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                     flexShrink: 0,
                   }}>
                     {theme.simplifyOrnaments ? (
-                      <span style={{ fontSize: '9px', letterSpacing: '2px', color: theme.titleColor, textTransform: 'uppercase', fontWeight: 700 }}>Verify via QR • Secure Template</span>
+                      <span style={{ fontSize: '10px', letterSpacing: '1.6px', color: theme.titleColor, textTransform: 'uppercase', fontWeight: 700 }}>Verify via QR • Tamper-Protected Certificate Template</span>
                     ) : (
                       <>
                         <CricketBallSVG size={12} />
