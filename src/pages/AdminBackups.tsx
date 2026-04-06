@@ -60,7 +60,7 @@ const AdminBackups = () => {
   const exportFullBackup = async (format: 'json' | 'csv') => {
     setExporting('full');
     setExportingText(`Preparing full ${format.toUpperCase()} backup for all modules...`);
-    const [scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs, presence, managementUsers, matchTimeline, boardConfiguration, newsRoomPosts] = await Promise.all([
+    const [scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs, presence, managementUsers, matchTimeline, boardConfiguration, newsRoomPosts, certificates, certificateApprovals, certificateTemplates, formDefinitions, formEntries, officialDocuments, mailDiagnostics] = await Promise.all([
       v2api.getScorelists(),
       v2api.getAuditEvents(),
       v2api.getTickets(),
@@ -73,6 +73,13 @@ const AdminBackups = () => {
       v2api.getMatchTimeline(),
       v2api.getBoardConfiguration(),
       v2api.getNewsRoomPosts(),
+      v2api.getCertificates(),
+      v2api.getCertificateApprovals(),
+      v2api.getCertificateTemplates(),
+      v2api.getFormDefinitions(),
+      v2api.getFormEntries(),
+      v2api.getCustomSheet('OFFICIAL_DOCUMENTS'),
+      v2api.getMailDiagnostics(),
     ]);
     
     if (format === 'json') {
@@ -80,6 +87,7 @@ const AdminBackups = () => {
         players, tournaments, seasons, matches, batting, bowling, announcements, messages,
         scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs,
         presence, managementUsers, matchTimeline, boardConfiguration, newsRoomPosts,
+        certificates, certificateApprovals, certificateTemplates, formDefinitions, formEntries, officialDocuments, mailDiagnostics,
         exportDate: new Date().toISOString(),
       };
       downloadFile(backup, `cricket_full_backup_${new Date().toISOString().split('T')[0]}`, 'json');
@@ -88,6 +96,7 @@ const AdminBackups = () => {
         players, tournaments, seasons, matches, batting, bowling, announcements, messages,
         scorelists, auditEvents, tickets, supportMessages, csat, emailLinks, notifPrefs,
         presence, managementUsers, matchTimeline, boardConfiguration, newsRoomPosts,
+        certificates, certificateApprovals, certificateTemplates, formDefinitions, formEntries, officialDocuments, mailDiagnostics,
       };
       Object.entries(datasets).forEach(([name, data]) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -121,7 +130,7 @@ const AdminBackups = () => {
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <h1 className="font-display text-3xl font-bold">💾 Backup & Export</h1>
-        <p className="text-sm text-muted-foreground">Full backup includes all v2 modules: Support tickets, CSAT, Email links, Presence, Management users, Scorelists, Audit events, Timeline, board configuration, and news room posts.</p>
+        <p className="text-sm text-muted-foreground">Full backup includes all v2 modules: support, scorelists, audit logs, mail diagnostics, certificates, forms, official documents, timeline, and board configuration records.</p>
         {exportingText && <p className="text-sm text-primary animate-pulse">{exportingText}</p>}
 
         <Card className="border-2 border-primary/20">

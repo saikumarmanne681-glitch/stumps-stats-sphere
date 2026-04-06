@@ -33,6 +33,7 @@ export default function DocumentsPortalPage() {
   const [category, setCategory] = useState<(typeof categories)[number]>('Governance');
   const [departmentId, setDepartmentId] = useState('executive_board');
   const [accessList, setAccessList] = useState('all_management');
+  const [editingId, setEditingId] = useState<string>('');
 
   const refresh = async () => {
     const rows = await v2api.getCustomSheet<OfficialDocumentRecord>('OFFICIAL_DOCUMENTS');
@@ -114,6 +115,69 @@ export default function DocumentsPortalPage() {
     if (!isAdmin) return;
     const payload = { ...doc, status: doc.status === 'published' ? 'hidden' : 'published', updated_at: new Date().toISOString() };
     await v2api.updateCustomSheetRow('OFFICIAL_DOCUMENTS', payload);
+    logAudit(user?.username || 'admin', 'document_visibility_toggle', 'document', doc.document_id, JSON.stringify({ status: payload.status }));
+    refresh();
+  };
+
+  const loadForEdit = (doc: OfficialDocumentRecord) => {
+    setEditingId(doc.document_id);
+    setTitle(doc.title || '');
+    setUrl(doc.source_url || '');
+    setCategory((categories.includes(doc.category as (typeof categories)[number]) ? doc.category : 'Governance') as (typeof categories)[number]);
+    setDepartmentId(resolveDocDepartmentId(doc));
+    setAccessList(doc.allowed_management_ids || 'all_management');
+  };
+
+  const clearEditor = () => {
+    setEditingId('');
+    setTitle('');
+    setUrl('');
+    setCategory('Governance');
+    setDepartmentId('executive_board');
+    setAccessList('all_management');
+  };
+
+  const saveEditedDocument = async () => {
+    if (!isAdmin || !editingId) return;
+    const existing = docs.find((item) => item.document_id === editingId);
+    if (!existing) return;
+    if (!title.trim() || !url.trim()) {
+      toast({ title: 'Title and URL are required', variant: 'destructive' });
+      return;
+    }
+    const payload: OfficialDocumentRecord = {
+      ...existing,
+      title: title.trim(),
+      source_url: url.trim(),
+      category,
+      department_id: departmentId,
+      department: getDepartmentById(departmentId)?.name || 'General',
+      allowed_management_ids: accessList.trim() || 'all_management',
+      updated_at: new Date().toISOString(),
+    };
+    const ok = await v2api.updateCustomSheetRow('OFFICIAL_DOCUMENTS', payload);
+    if (!ok) {
+      toast({ title: 'Unable to update document', variant: 'destructive' });
+      return;
+    }
+    logAudit(user?.username || 'admin', 'document_update', 'document', payload.document_id, JSON.stringify({ category: payload.category, department_id: payload.department_id, allowed: payload.allowed_management_ids }));
+    toast({ title: 'Document updated' });
+    clearEditor();
+    refresh();
+  };
+
+  const deleteDocument = async (doc: OfficialDocumentRecord) => {
+    if (!isAdmin) return;
+    const confirmed = window.confirm(`Delete document "${doc.title}"?`);
+    if (!confirmed) return;
+    const ok = await v2api.deleteCustomSheetRow('OFFICIAL_DOCUMENTS', doc);
+    if (!ok) {
+      toast({ title: 'Unable to delete document', variant: 'destructive' });
+      return;
+    }
+    logAudit(user?.username || 'admin', 'document_delete', 'document', doc.document_id, JSON.stringify({ title: doc.title }));
+    if (editingId === doc.document_id) clearEditor();
+    toast({ title: 'Document deleted' });
     refresh();
   };
 
@@ -178,14 +242,23 @@ export default function DocumentsPortalPage() {
 
         {isAdmin && (
           <Card>
-            <CardHeader><CardTitle>Add New Document</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{editingId ? 'Edit Document' : 'Add New Document'}</CardTitle></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-3">
               <div className="md:col-span-2"><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Board circular / policy / schedule" /></div>
               <div><Label>Category</Label><Select value={category} onValueChange={(v) => setCategory(v as (typeof categories)[number])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></div>
               <div className="md:col-span-2"><Label>Document URL</Label><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Drive/Sharepoint URL (pdf, docx, png, jpeg...)" /></div>
               <div><Label>Department</Label><Select value={departmentId} onValueChange={setDepartmentId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documentDepartmentOptions.map((option) => <SelectItem value={option.id} key={option.id}>{option.name}</SelectItem>)}</SelectContent></Select></div>
               <div className="md:col-span-2"><Label>Access</Label><Input value={accessList} onChange={(e) => setAccessList(e.target.value)} placeholder="all_management, management_id, username, designation:treasurer, authority>=7" /></div>
-              <div className="md:col-span-1 flex items-end"><Button onClick={addDocument} className="w-full">Publish to Library</Button></div>
+              <div className="md:col-span-1 flex items-end gap-2">
+                {editingId ? (
+                  <>
+                    <Button onClick={saveEditedDocument} className="w-full">Save Changes</Button>
+                    <Button variant="outline" onClick={clearEditor} className="w-full">Cancel</Button>
+                  </>
+                ) : (
+                  <Button onClick={addDocument} className="w-full">Publish to Library</Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -217,6 +290,8 @@ export default function DocumentsPortalPage() {
                   {doc.allow_download && <Button size="sm" variant="outline" asChild><a href={doc.source_url} target="_blank" rel="noreferrer"><Download className="mr-1 h-3 w-3" /> Download</a></Button>}
                   {!doc.allow_preview && !doc.allow_download && <Badge variant="secondary">Restricted by admin</Badge>}
                   {isAdmin && <Button size="sm" onClick={() => toggleVisibility(doc)}>{doc.status === 'published' ? 'Hide' : 'Publish'}</Button>}
+                  {isAdmin && <Button size="sm" variant="secondary" onClick={() => loadForEdit(doc)}>Edit</Button>}
+                  {isAdmin && <Button size="sm" variant="destructive" onClick={() => void deleteDocument(doc)}>Delete</Button>}
                 </div>
               </CardContent>
             </Card>

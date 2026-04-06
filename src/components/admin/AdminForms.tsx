@@ -181,6 +181,25 @@ export function AdminForms() {
     await load();
   };
 
+  const deleteForm = async (form: DynamicFormDefinition) => {
+    const confirmed = window.confirm(`Delete form "${form.title}" (${form.form_id})? This cannot be undone.`);
+    if (!confirmed) return;
+    const ok = await v2api.deleteFormDefinition(form.form_id);
+    if (!ok) {
+      toast({ title: 'Unable to delete form', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Form deleted' });
+    if (activeForm.form_id === form.form_id) {
+      const fresh = emptyForm();
+      setActiveForm(fresh);
+      setFields(parseFields(fresh.schema_json));
+      setSettings(parseFormSettings(fresh.settings_json));
+      setExpandedFields({});
+    }
+    await load();
+  };
+
   const openForm = (form: DynamicFormDefinition) => {
     setActiveForm(form);
     setFields(parseFields(form.schema_json || '[]'));
@@ -524,13 +543,18 @@ export function AdminForms() {
               <Label>Existing forms</Label>
               <div className="flex flex-wrap gap-2">
                 {forms.map((form) => (
-                  <Button key={form.form_id} size="sm" variant="outline" onClick={() => openForm(form)}>
-                    {form.title}
-                    <Badge variant="secondary" className="ml-2">{form.status}</Badge>
-                    <Badge variant={parseFormSettings(form.settings_json).accepting_responses ? 'default' : 'outline'} className="ml-2">
-                      {parseFormSettings(form.settings_json).accepting_responses ? 'Accepting' : 'Paused'}
-                    </Badge>
-                  </Button>
+                  <div key={form.form_id} className="flex items-center gap-2 rounded-lg border p-1">
+                    <Button size="sm" variant="outline" onClick={() => openForm(form)}>
+                      {form.title}
+                      <Badge variant="secondary" className="ml-2">{form.status}</Badge>
+                      <Badge variant={parseFormSettings(form.settings_json).accepting_responses ? 'default' : 'outline'} className="ml-2">
+                        {parseFormSettings(form.settings_json).accepting_responses ? 'Accepting' : 'Paused'}
+                      </Badge>
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => void deleteForm(form)} aria-label={`Delete ${form.title}`}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             </div>

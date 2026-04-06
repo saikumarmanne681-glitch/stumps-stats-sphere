@@ -1,5 +1,7 @@
 import { getAppsScriptUrl } from './googleSheets';
 import { formatInIST } from './time';
+import { generateId } from './utils';
+import { logAudit, v2api } from './v2api';
 
 export const DEFAULT_FROM_EMAIL = 'impdocs1308@gmail.com';
 const ADMIN_MAILBOX_KEY = 'adminMailboxEmail';
@@ -110,8 +112,12 @@ function cardLayout(content: string) {
 export async function sendSystemEmail(payload: SendMailPayload): Promise<MailResult> {
   const url = getAppsScriptUrl();
   const recipient = String(payload.to || '').trim();
-  if (!url || !recipient) return { success: false, reason: 'missing_config_or_recipient' };
+  if (!url || !recipient) {
+    logAudit(payload.diagnostics?.triggeredBy || 'system', 'mail_send_failed', payload.diagnostics?.triggerEntityType || 'mail', payload.diagnostics?.triggerEntityId || recipient || 'unknown', JSON.stringify({ reason: 'missing_config_or_recipient', source: payload.diagnostics?.triggerSource || 'unknown' }));
+    return { success: false, reason: 'missing_config_or_recipient' };
+  }
   const configuredSender = getEffectiveSenderEmail();
+  const triggeredAt = new Date().toISOString();
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -135,11 +141,61 @@ export async function sendSystemEmail(payload: SendMailPayload): Promise<MailRes
     try {
       result = text ? JSON.parse(text) : {};
     } catch {
+      logAudit(payload.diagnostics?.triggeredBy || 'system', 'mail_send_failed', payload.diagnostics?.triggerEntityType || 'mail', payload.diagnostics?.triggerEntityId || recipient, JSON.stringify({ reason: 'invalid_json_response', source: payload.diagnostics?.triggerSource || 'unknown' }));
       return { success: false, reason: 'invalid_json_response', raw: text };
     }
-    if (!result.success) return { success: false, reason: 'mail_service_error', raw: result };
+    if (!result.success) {
+      logAudit(payload.diagnostics?.triggeredBy || 'system', 'mail_send_failed', payload.diagnostics?.triggerEntityType || 'mail', payload.diagnostics?.triggerEntityId || recipient, JSON.stringify({ reason: 'mail_service_error', source: payload.diagnostics?.triggerSource || 'unknown', raw: result }));
+      return { success: false, reason: 'mail_service_error', raw: result };
+    }
+    const triggeredBy = payload.diagnostics?.triggeredBy || 'system';
+    const triggerSource = payload.diagnostics?.triggerSource || 'unknown';
+    const triggerEntityType = payload.diagnostics?.triggerEntityType || 'mail';
+    const triggerEntityId = payload.diagnostics?.triggerEntityId || recipient;
+    logAudit(triggeredBy, 'mail_sent', triggerEntityType, triggerEntityId, JSON.stringify({ recipient, subject: payload.subject, source: triggerSource }));
+    void v2api.addMailDiagnostic({
+      mail_log_id: generateId('MAIL'),
+      triggered_at: triggeredAt,
+      triggered_by: triggeredBy,
+      trigger_source: triggerSource,
+      trigger_entity_type: triggerEntityType,
+      trigger_entity_id: triggerEntityId,
+      recipient,
+      subject: payload.subject,
+      body_html: payload.htmlBody,
+      body_text: payload.textBody || '',
+      from_email: payload.fromEmail || configuredSender,
+      reply_to: payload.replyTo || configuredSender,
+      mail_provider: 'google_apps_script',
+      status: 'sent',
+      failure_reason: '',
+      raw_response: JSON.stringify(result),
+    });
     return { success: true, raw: result };
   } catch {
+    const triggeredBy = payload.diagnostics?.triggeredBy || 'system';
+    const triggerSource = payload.diagnostics?.triggerSource || 'unknown';
+    const triggerEntityType = payload.diagnostics?.triggerEntityType || 'mail';
+    const triggerEntityId = payload.diagnostics?.triggerEntityId || recipient;
+    logAudit(triggeredBy, 'mail_send_failed', triggerEntityType, triggerEntityId, JSON.stringify({ reason: 'network_failure', recipient, subject: payload.subject, source: triggerSource }));
+    void v2api.addMailDiagnostic({
+      mail_log_id: generateId('MAIL'),
+      triggered_at: triggeredAt,
+      triggered_by: triggeredBy,
+      trigger_source: triggerSource,
+      trigger_entity_type: triggerEntityType,
+      trigger_entity_id: triggerEntityId,
+      recipient,
+      subject: payload.subject,
+      body_html: payload.htmlBody,
+      body_text: payload.textBody || '',
+      from_email: payload.fromEmail || configuredSender,
+      reply_to: payload.replyTo || configuredSender,
+      mail_provider: 'google_apps_script',
+      status: 'failed',
+      failure_reason: 'network_failure',
+      raw_response: '',
+    });
     return { success: false, reason: 'network_failure' };
   }
 }

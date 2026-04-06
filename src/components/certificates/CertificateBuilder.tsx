@@ -14,6 +14,8 @@ import { APPROVER_ROLES, CERTIFICATE_TYPES, CertificateApprovalRecord, Certifica
 import { CertificatePreview } from './CertificatePreview';
 import { isCertificateCertified } from '@/lib/certificates';
 import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
+import { Badge } from '@/components/ui/badge';
+import { Trash2 } from 'lucide-react';
 
 const FALLBACK_TEMPLATES: CertificateTemplateRecord[] = [
   { template_id: 'TPL_CLASSIC_GOLD', type: 'all', template_name: 'Classic Gold', image_url: '', design_config: '' },
@@ -47,7 +49,7 @@ export function CertificateBuilder() {
 
   const loadLibrary = async () => {
     const rows = await v2api.getCertificates();
-    setLibrary(rows.filter((item) => isCertificateCertified(item)));
+    setLibrary(rows);
   };
 
   useEffect(() => {
@@ -153,6 +155,37 @@ export function CertificateBuilder() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const editCertificate = (certificate: CertificateRecord) => {
+    setForm({ ...certificate });
+  };
+
+  const deleteCertificate = async (certificate: CertificateRecord) => {
+    const confirmed = window.confirm(`Delete certificate ${certificate.id}?`);
+    if (!confirmed) return;
+    const ok = await v2api.deleteCertificate(certificate.id);
+    if (!ok) {
+      toast({ title: 'Unable to delete certificate', variant: 'destructive' });
+      return;
+    }
+    logAudit(user?.username || 'admin', 'certificate_delete', 'certificate', certificate.id, JSON.stringify({ recipient: certificate.recipient_name, tournament: certificate.tournament, status: certificate.status }));
+    if (form.id === certificate.id) {
+      setForm({
+        type: CERTIFICATE_TYPES[0],
+        recipient_type: 'player',
+        template_id: 'TPL_CLASSIC_GOLD',
+        status: 'PENDING_APPROVAL',
+        match_id: '',
+        recipient_name: '',
+        linked_player_id: '',
+        linked_team_name: '',
+        details_json: '',
+        performance_json: '',
+      });
+    }
+    await loadLibrary();
+    toast({ title: 'Certificate deleted' });
   };
 
   return (
@@ -294,7 +327,7 @@ export function CertificateBuilder() {
 
       <Card>
         <CardHeader className="gap-3">
-          <CardTitle>Certified Certificate Library</CardTitle>
+          <CardTitle>Certificate Library</CardTitle>
           <Input
             placeholder="Search by certificate ID, recipient, tournament, team, player..."
             value={searchText}
@@ -320,16 +353,24 @@ export function CertificateBuilder() {
             })
             .sort((a, b) => new Date(b.certified_at || b.created_at || '').getTime() - new Date(a.certified_at || a.created_at || '').getTime())
             .map((certificate) => (
-              <CertificatePreview
-                key={certificate.id}
-                certificate={certificate}
-                verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
-                watermark
-                showDownload
-                defaultExpanded={false}
-              />
+              <div key={certificate.id} className="space-y-2 rounded-xl border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={isCertificateCertified(certificate) ? 'default' : 'secondary'}>{certificate.status || 'PENDING_APPROVAL'}</Badge>
+                  <Button size="sm" variant="secondary" onClick={() => editCertificate(certificate)}>Edit</Button>
+                  <Button size="sm" variant="destructive" onClick={() => void deleteCertificate(certificate)}>
+                    <Trash2 className="mr-1 h-3 w-3" /> Delete
+                  </Button>
+                </div>
+                <CertificatePreview
+                  certificate={certificate}
+                  verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
+                  watermark={isCertificateCertified(certificate)}
+                  showDownload
+                  defaultExpanded={false}
+                />
+              </div>
             ))}
-          {library.length === 0 && <p className="text-sm text-muted-foreground">No certified certificates available yet.</p>}
+          {library.length === 0 && <p className="text-sm text-muted-foreground">No certificates available yet.</p>}
         </CardContent>
       </Card>
     </div>
