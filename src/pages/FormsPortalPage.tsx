@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/lib/auth';
 import { DynamicFormDefinition, DynamicFormEntry } from '@/lib/v2types';
 import { v2api } from '@/lib/v2api';
-import { initializeValues, parseFields, shouldRenderField } from '@/lib/forms';
+import { initializeValues, isFormOpen, parseFields, parseFormSettings, shouldRenderField } from '@/lib/forms';
 import { generateId } from '@/lib/utils';
 import { nowIso } from '@/lib/time';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ export default function FormsPortalPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [forms, setForms] = useState<DynamicFormDefinition[]>([]);
+  const [entries, setEntries] = useState<DynamicFormEntry[]>([]);
   const [selectedFormId, setSelectedFormId] = useState('');
   const [values, setValues] = useState<Record<string, string | string[] | boolean>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -28,8 +29,10 @@ export default function FormsPortalPage() {
   useEffect(() => {
     const load = async () => {
       const rows = await v2api.getFormDefinitions();
+      const entryRows = await v2api.getFormEntries();
       const published = rows.filter((item) => item.status === 'published');
       setForms(published);
+      setEntries(entryRows);
       if (published.length) {
         setSelectedFormId((prev) => prev || published[0].form_id);
       }
@@ -39,6 +42,9 @@ export default function FormsPortalPage() {
 
   const selectedForm = useMemo(() => forms.find((form) => form.form_id === selectedFormId), [forms, selectedFormId]);
   const fields = useMemo(() => parseFields(selectedForm?.schema_json), [selectedForm?.schema_json]);
+  const selectedFormResponses = useMemo(() => entries.filter((entry) => entry.form_id === selectedFormId), [entries, selectedFormId]);
+  const selectedFormSettings = useMemo(() => selectedForm ? parseFormSettings(selectedForm.settings_json) : null, [selectedForm]);
+  const selectedFormOpenState = useMemo(() => selectedForm ? isFormOpen(selectedForm, selectedFormResponses.length) : { open: false, reason: '' }, [selectedForm, selectedFormResponses.length]);
 
   useEffect(() => {
     if (!selectedForm) return;
@@ -71,7 +77,18 @@ export default function FormsPortalPage() {
 
   const submit = async () => {
     if (!selectedForm) return;
-    const visibleRequired = fields.filter((field) => shouldRenderField(field, values) && field.required);
+    if (!selectedFormOpenState.open) {
+      toast({ title: selectedFormOpenState.reason || 'This form is currently closed.', variant: 'destructive' });
+      return;
+    }
+    if (!selectedFormSettings?.allow_multiple_submissions) {
+      const alreadySubmitted = entries.some((entry) => entry.form_id === selectedForm.form_id && entry.submitted_by_id === (user.player_id || user.team_id || user.management_id || user.username));
+      if (alreadySubmitted) {
+        toast({ title: 'You have already submitted this form.', variant: 'destructive' });
+        return;
+      }
+    }
+    const visibleRequired = fields.filter((field) => shouldRenderField(field, values) && field.required && !['heading', 'divider', 'html_block'].includes(field.type));
     const missing = visibleRequired.find((field) => {
       const value = values[field.key];
       if (Array.isArray(value)) return value.length === 0;
@@ -107,6 +124,7 @@ export default function FormsPortalPage() {
     }
     toast({ title: 'Form submitted successfully' });
     setValues(initializeValues(selectedForm));
+    setEntries((prev) => [...prev, payload]);
   };
 
   return (
@@ -134,9 +152,23 @@ export default function FormsPortalPage() {
                 <div>
                   <p className="font-medium text-lg">{selectedForm.title}</p>
                   <p className="text-sm text-muted-foreground">{selectedForm.description}</p>
+                  {!selectedFormOpenState.open && (
+                    <p className="mt-1 text-sm text-destructive">{selectedFormOpenState.reason || 'Form is currently closed.'}</p>
+                  )}
+                  {selectedFormSettings?.open_at && <p className="text-xs text-muted-foreground">Opens: {new Date(selectedFormSettings.open_at).toLocaleString()}</p>}
+                  {selectedFormSettings?.close_at && <p className="text-xs text-muted-foreground">Closes: {new Date(selectedFormSettings.close_at).toLocaleString()}</p>}
+                  {selectedFormSettings?.max_responses ? <p className="text-xs text-muted-foreground">Responses: {selectedFormResponses.length}/{selectedFormSettings.max_responses}</p> : null}
                 </div>
                 {fields.filter((field) => shouldRenderField(field, values)).map((field) => (
                   <div key={field.key} className="space-y-2">
+                    {field.type === 'heading' ? (
+                      <h3 className="text-lg font-semibold">{field.label}</h3>
+                    ) : field.type === 'divider' ? (
+                      <div className="h-px w-full bg-border" />
+                    ) : field.type === 'html_block' ? (
+                      <div className="rounded-md border bg-muted/30 p-3 text-sm" dangerouslySetInnerHTML={{ __html: field.default_value || '' }} />
+                    ) : (
+                      <>
                     <Label>{field.label}{field.required ? ' *' : ''}</Label>
                     {field.type === 'long_text' ? (
                       <Textarea value={String(values[field.key] || '')} onChange={(e) => setValue(field.key, e.target.value)} placeholder={field.placeholder || ''} />
@@ -171,18 +203,35 @@ export default function FormsPortalPage() {
                         <Checkbox checked={Boolean(values[field.key])} onCheckedChange={(next) => setValue(field.key, Boolean(next))} />
                         {field.help_text || 'Check to confirm'}
                       </label>
+                    ) : field.type === 'yes_no' ? (
+                      <Select value={String(values[field.key] || '')} onValueChange={(next) => setValue(field.key, next)}>
+                        <SelectTrigger><SelectValue placeholder={field.placeholder || 'Select'} /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="yes">Yes</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : field.type === 'rating' ? (
+                      <Select value={String(values[field.key] || '')} onValueChange={(next) => setValue(field.key, next)}>
+                        <SelectTrigger><SelectValue placeholder={field.placeholder || 'Rate 1-5'} /></SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5].map((rating) => <SelectItem key={`${field.key}-${rating}`} value={String(rating)}>{rating}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     ) : (
                       <Input
-                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : field.type === 'datetime' ? 'datetime-local' : 'text'}
+                        type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : field.type === 'url' ? 'url' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : field.type === 'datetime' ? 'datetime-local' : 'text'}
                         value={String(values[field.key] || '')}
                         onChange={(e) => setValue(field.key, e.target.value)}
                         placeholder={field.placeholder || ''}
                       />
                     )}
                     {field.help_text && field.type !== 'checkbox' && <p className="text-xs text-muted-foreground">{field.help_text}</p>}
+                      </>
+                    )}
                   </div>
                 ))}
-                <Button onClick={() => void submit()} disabled={submitting}>{submitting ? 'Submitting...' : 'Submit form'}</Button>
+                <Button onClick={() => void submit()} disabled={submitting || !selectedFormOpenState.open}>{submitting ? 'Submitting...' : selectedFormOpenState.open ? 'Submit form' : 'Form closed'}</Button>
               </div>
             )}
           </CardContent>

@@ -288,9 +288,15 @@ export type DynamicFormFieldType =
   | 'number'
   | 'email'
   | 'phone'
+  | 'url'
   | 'date'
   | 'time'
   | 'datetime'
+  | 'yes_no'
+  | 'rating'
+  | 'heading'
+  | 'divider'
+  | 'html_block'
   | 'checkbox'
   | 'select'
   | 'radio'
@@ -317,6 +323,15 @@ export interface DynamicFormField {
   default_value?: string;
   options?: DynamicFormFieldOption[];
   conditions?: DynamicFormCondition[];
+}
+
+export interface DynamicFormSettings {
+  allow_multiple_submissions: boolean;
+  require_login: boolean;
+  accepting_responses: boolean;
+  open_at?: string;
+  close_at?: string;
+  max_responses?: number | '';
 }
 
 export interface DynamicFormDefinition {
