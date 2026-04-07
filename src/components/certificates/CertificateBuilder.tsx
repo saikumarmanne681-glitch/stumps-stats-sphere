@@ -316,11 +316,11 @@ export function CertificateBuilder() {
                 const newMatchId = value === 'none' ? '' : value;
                 setForm((prev) => ({ ...prev, match_id: newMatchId, details_json: '', performance_json: '' }));
               }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="min-h-10"><SelectValue placeholder="Select match" /></SelectTrigger>
+                <SelectContent className="max-h-[min(65vh,420px)] w-[min(96vw,720px)] max-w-[96vw]">
                   <SelectItem value="none">No specific match</SelectItem>
                   {matchSelectionOptions.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                    <SelectItem key={item.value} value={item.value} className="whitespace-normal py-2 text-xs leading-5 sm:text-sm">{item.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
