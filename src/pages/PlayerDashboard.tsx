@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/lib/DataContext';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount, getPlayerMomCount } from '@/lib/calculations';
 import { generateId } from '@/lib/utils';
-import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity, Trophy } from 'lucide-react';
+import { BarChart3, MessageSquare, User, Send, CheckCheck, Clock, Headphones, Settings, TrendingUp, Target, Award, Activity, Trophy, Crown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,23 @@ import { formatDateInIST, formatInIST } from '@/lib/time';
 import { CertificateRecord, CertificateTemplateRecord, buildCertificateTemplateMap, certificateMatchesPlayer, isCertificateCertified, resolveCertificateTemplate } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
+
+interface PlayerMilestoneClub {
+  key: string;
+  label: string;
+  stat: 'runs' | 'wickets';
+  threshold: number;
+  icon: string;
+}
+
+const playerMilestoneClubs: PlayerMilestoneClub[] = [
+  { key: 'runs-300', label: '300 Runs Club', stat: 'runs', threshold: 300, icon: '🔥' },
+  { key: 'runs-500', label: '500 Runs Club', stat: 'runs', threshold: 500, icon: '🚀' },
+  { key: 'runs-1000', label: '1000 Runs Club', stat: 'runs', threshold: 1000, icon: '💎' },
+  { key: 'wickets-25', label: '25 Wickets Club', stat: 'wickets', threshold: 25, icon: '🎯' },
+  { key: 'wickets-50', label: '50 Wickets Club', stat: 'wickets', threshold: 50, icon: '⚡' },
+  { key: 'wickets-100', label: '100 Wickets Club', stat: 'wickets', threshold: 100, icon: '🛡️' },
+];
 
 const PlayerDashboard = () => {
   const { user, isPlayer } = useAuth();
@@ -155,6 +172,32 @@ const PlayerDashboard = () => {
       }];
     });
   }, [matches, seasons, user?.player_id]);
+  const hallOfGloryMilestones = useMemo(() => {
+    const dateByMatchId = new Map(matches.map((match) => [match.match_id, match.date]));
+    const runEvents = batting
+      .filter((entry) => entry.player_id === user.player_id)
+      .map((entry) => ({ matchId: entry.match_id, date: dateByMatchId.get(entry.match_id) || '', amount: entry.runs }))
+      .filter((entry) => !!entry.date)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const wicketEvents = bowling
+      .filter((entry) => entry.player_id === user.player_id)
+      .map((entry) => ({ matchId: entry.match_id, date: dateByMatchId.get(entry.match_id) || '', amount: entry.wickets }))
+      .filter((entry) => !!entry.date)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return playerMilestoneClubs.map((club) => {
+      const source = club.stat === 'runs' ? runEvents : wicketEvents;
+      let cumulative = 0;
+      for (const event of source) {
+        cumulative += event.amount;
+        if (cumulative >= club.threshold) {
+          return { ...club, reached: true, reachedOn: event.date, matchId: event.matchId, reachedValue: cumulative };
+        }
+      }
+      return { ...club, reached: false, reachedOn: '', matchId: '', reachedValue: cumulative };
+    });
+  }, [batting, bowling, matches, user.player_id]);
+  const unlockedHallOfGloryCount = hallOfGloryMilestones.filter((item) => item.reached).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -204,7 +247,7 @@ const PlayerDashboard = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-7 gap-4">
           <Card>
             <CardContent className="p-4">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Unread messages</p>
@@ -250,6 +293,13 @@ const PlayerDashboard = () => {
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Captaincy titles</p>
               <p className="mt-1 font-display text-3xl font-bold text-amber-600">{captainTitleRecords.length}</p>
               <p className="text-xs text-muted-foreground">Titles won as captain.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Hall of glory clubs</p>
+              <p className="mt-1 font-display text-3xl font-bold text-primary">{unlockedHallOfGloryCount}</p>
+              <p className="text-xs text-muted-foreground">Milestone clubs unlocked from career runs/wickets.</p>
             </CardContent>
           </Card>
         </div>
@@ -329,6 +379,26 @@ const PlayerDashboard = () => {
                 </CardContent>
               </Card>
             )}
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="font-display flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> Hall of Glory milestones</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {hallOfGloryMilestones.map((milestone) => (
+                  <div key={milestone.key} className="rounded-lg border bg-background/90 p-3">
+                    <p className="font-medium">{milestone.icon} {milestone.label}</p>
+                    {milestone.reached ? (
+                      <>
+                        <p className="text-sm text-primary">Unlocked at {milestone.reachedValue} {milestone.stat}</p>
+                        <p className="text-xs text-muted-foreground">Reached on {formatDateInIST(milestone.reachedOn)} ({milestone.matchId})</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{milestone.reachedValue}/{milestone.threshold} {milestone.stat} so far</p>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
             {/* Batting */}
             <Card className="border-l-4 border-l-primary">

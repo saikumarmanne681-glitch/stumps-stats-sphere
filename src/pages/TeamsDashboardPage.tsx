@@ -302,13 +302,13 @@ export default function TeamsDashboardPage() {
           <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Resolved tickets</p><p className="text-2xl font-bold text-emerald-700">{resolvedTickets}</p></CardContent></Card>
         </div>
         <Tabs defaultValue="insights" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 gap-2 md:grid-cols-5">
-            <TabsTrigger value="insights" className="gap-1"><BarChart3 className="h-4 w-4" /> Insights</TabsTrigger>
-            <TabsTrigger value="tickets" className="gap-1"><LifeBuoy className="h-4 w-4" /> Support tickets</TabsTrigger>
-            <TabsTrigger value="honors" className="gap-1"><Award className="h-4 w-4" /> Honors timeline</TabsTrigger>
-            <TabsTrigger value="matches" className="gap-1"><Swords className="h-4 w-4" /> Match history</TabsTrigger>
-            <TabsTrigger value="announcements" className="gap-1"><Megaphone className="h-4 w-4" /> Announcements</TabsTrigger>
-            <TabsTrigger value="certificates" className="gap-1"><FileBadge2 className="h-4 w-4" /> Certificates</TabsTrigger>
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+            <TabsTrigger value="insights" className="h-auto gap-1 px-2 py-2 text-xs sm:text-sm"><BarChart3 className="h-4 w-4" /> Insights</TabsTrigger>
+            <TabsTrigger value="tickets" className="h-auto gap-1 px-2 py-2 text-xs sm:text-sm"><LifeBuoy className="h-4 w-4" /> Support tickets</TabsTrigger>
+            <TabsTrigger value="honors" className="h-auto gap-1 px-2 py-2 text-xs sm:text-sm"><Award className="h-4 w-4" /> Honors timeline</TabsTrigger>
+            <TabsTrigger value="matches" className="h-auto gap-1 px-2 py-2 text-xs sm:text-sm"><Swords className="h-4 w-4" /> Match history</TabsTrigger>
+            <TabsTrigger value="announcements" className="h-auto gap-1 px-2 py-2 text-xs sm:text-sm"><Megaphone className="h-4 w-4" /> Announcements</TabsTrigger>
+            <TabsTrigger value="certificates" className="h-auto gap-1 px-2 py-2 text-xs sm:text-sm"><FileBadge2 className="h-4 w-4" /> Certificates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="insights" className="space-y-4">
