@@ -59,17 +59,17 @@ const Login = () => {
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'admin' | 'player' | 'management' | 'team')} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
-                <TabsTrigger value="admin" className="flex items-center gap-1">
+              <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
+                <TabsTrigger value="admin" className="flex h-auto items-center justify-center gap-1 px-2 py-2 text-xs sm:text-sm">
                   <Shield className="h-4 w-4" /> Admin
                 </TabsTrigger>
-                <TabsTrigger value="player" className="flex items-center gap-1">
+                <TabsTrigger value="player" className="flex h-auto items-center justify-center gap-1 px-2 py-2 text-xs sm:text-sm">
                   <User className="h-4 w-4" /> Player
                 </TabsTrigger>
-                <TabsTrigger value="management" className="flex items-center gap-1">
+                <TabsTrigger value="management" className="flex h-auto items-center justify-center gap-1 px-2 py-2 text-[11px] sm:text-sm">
                   <Users className="h-4 w-4" /> Management
                 </TabsTrigger>
-                <TabsTrigger value="team" className="flex items-center gap-1">
+                <TabsTrigger value="team" className="flex h-auto items-center justify-center gap-1 px-2 py-2 text-xs sm:text-sm">
                   <Trophy className="h-4 w-4" /> Team
                 </TabsTrigger>
               </TabsList>

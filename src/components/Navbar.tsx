@@ -15,10 +15,10 @@ export function Navbar() {
     const close = () => mobile && setOpen(false);
     const base = mobile
       ? 'w-full justify-start text-sm h-10'
-      : 'h-8 text-xs px-2.5';
+      : 'h-9 text-xs px-2.5 md:text-sm';
 
     return (
-      <div className={mobile ? 'flex flex-col gap-1 overflow-y-auto max-h-[78vh] pb-4' : 'flex items-center gap-0.5 flex-wrap'}>
+      <div className={mobile ? 'flex flex-col gap-1 overflow-y-auto max-h-[78vh] pb-4' : 'flex items-center gap-1 flex-wrap'}>
         {mobile && (
           <Button variant="outline" size="sm" className={base} onClick={() => { close(); window.dispatchEvent(new CustomEvent('open-command-palette')); }}>
             <Search className="h-4 w-4 mr-2" /> Search / Commands
@@ -135,7 +135,7 @@ export function Navbar() {
 
   return (
     <nav className="bg-card border-b shadow-sm sticky top-0 z-40">
-      <div className="container mx-auto px-3 md:px-4 flex items-center justify-between h-12 gap-2">
+      <div className="container mx-auto px-3 md:px-4 flex items-center justify-between min-h-14 py-2 gap-2">
         <Link to="/" className="flex items-center gap-1.5 shrink-0">
           <span className="text-xl">🏏</span>
           <span className="font-display text-lg font-bold text-primary leading-none">CRICKET CLUB</span>
@@ -144,12 +144,12 @@ export function Navbar() {
         <CommandPalette />
 
         {/* Desktop Nav */}
-        <div className="hidden lg:flex items-center gap-0.5 overflow-x-auto scrollbar-thin max-w-[72vw]">
+        <div className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-thin max-w-[72vw] py-0.5">
           <NavItems />
         </div>
 
         {/* Mobile + tablet Hamburger */}
-        <div className="lg:hidden">
+        <div className="md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Open navigation menu" title="Open navigation menu">
