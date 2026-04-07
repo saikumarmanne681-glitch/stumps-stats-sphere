@@ -279,6 +279,8 @@ export const CertificatePreview = memo(function CertificatePreview({
   const [designIndex, setDesignIndex] = useState(0);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [mobileZoom, setMobileZoom] = useState(0.46);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [autoScale, setAutoScale] = useState(1);
   const isMobile = useIsMobile();
   const templateConfig = useMemo(() => {
     const raw = String(template?.design_config || '').trim();
@@ -325,6 +327,22 @@ export const CertificatePreview = memo(function CertificatePreview({
     const byName = DESIGN_THEMES.findIndex((item) => item.name.toLowerCase() === templateNameRaw);
     if (byName >= 0) setDesignIndex(byName);
   }, [certificate.template_id, template?.template_name]);
+
+  /* Auto-scale certificate to fit container width */
+  useEffect(() => {
+    if (!expanded) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      const scale = Math.min(1, w / 1120);
+      setAutoScale(scale);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [expanded]);
 
   const handleDownload = async () => {
     if (!ref.current || exporting) return;
