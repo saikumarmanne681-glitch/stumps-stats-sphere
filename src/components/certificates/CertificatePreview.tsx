@@ -435,8 +435,8 @@ export const CertificatePreview = memo(function CertificatePreview({
                 style={{
                   width: '1120px',
                   aspectRatio: '297 / 210',
-                  transform: isMobile ? `scale(${mobileZoom})` : undefined,
-                  transformOrigin: isMobile ? 'top center' : undefined,
+                  transform: `scale(${autoScale})`,
+                  transformOrigin: 'top left',
                   transition: 'transform 180ms ease',
                   background: theme.outerBg,
                   backgroundImage: templateBackgroundUrl ? `url(${templateBackgroundUrl})` : undefined,
