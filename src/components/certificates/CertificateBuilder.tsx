@@ -72,6 +72,23 @@ export function CertificateBuilder() {
 
   const selectedTemplate = filteredTemplates.find((item) => item.template_id === form.template_id) || filteredTemplates[0];
   const verificationUrl = getPublicVerifyCertificateUrl(form.id || 'preview');
+  const tournamentNameById = useMemo(() => (
+    new Map(tournaments.map((item) => [item.tournament_id, item.name]))
+  ), [tournaments]);
+  const seasonYearById = useMemo(() => (
+    new Map(seasons.map((item) => [item.season_id, String(item.year)]))
+  ), [seasons]);
+
+  const matchSelectionOptions = useMemo(() => matches.map((item) => {
+    const tournamentLabel = tournamentNameById.get(item.tournament_id) || item.tournament_id || 'Unknown tournament';
+    const seasonLabel = seasonYearById.get(item.season_id) || item.season_id || 'Unknown season';
+    const stageLabel = item.match_stage?.trim() || 'Stage N/A';
+    const resultLabel = item.result?.trim() || 'Result pending';
+    return {
+      value: item.match_id,
+      label: `${item.match_id} · ${item.team_a} vs ${item.team_b} · ${stageLabel} · ${tournamentLabel} · ${seasonLabel} · ${resultLabel}`,
+    };
+  }), [matches, seasonYearById, tournamentNameById]);
 
   /* ── Autofill match details & performance when a match is selected ── */
   useEffect(() => {
@@ -269,7 +286,9 @@ export function CertificateBuilder() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No specific match</SelectItem>
-                  {matches.map((item) => <SelectItem key={item.match_id} value={item.match_id}>{item.match_id} · {item.team_a} vs {item.team_b}</SelectItem>)}
+                  {matchSelectionOptions.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
