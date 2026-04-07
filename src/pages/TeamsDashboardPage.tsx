@@ -34,11 +34,11 @@ interface TeamSummary {
 }
 
 const ticketBadgeClass: Record<string, string> = {
-  open: 'bg-primary/10 text-primary border-primary/30',
-  in_progress: 'bg-accent/10 text-accent border-accent/30',
-  waiting_for_user: 'bg-amber-100 text-amber-900 border-amber-300',
-  resolved: 'bg-emerald-100 text-emerald-900 border-emerald-300',
-  closed: 'bg-muted text-muted-foreground border-border',
+  open: 'border border-sky-300 bg-sky-50 text-sky-800',
+  in_progress: 'border border-violet-300 bg-violet-50 text-violet-800',
+  waiting_for_user: 'border border-amber-300 bg-amber-50 text-amber-900',
+  resolved: 'border border-emerald-300 bg-emerald-50 text-emerald-800',
+  closed: 'border border-slate-300 bg-slate-100 text-slate-700',
 };
 
 export default function TeamsDashboardPage() {
@@ -352,7 +352,7 @@ export default function TeamsDashboardPage() {
 
           <TabsContent value="tickets" className="space-y-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <Card className="lg:col-span-2">
+              <Card className="lg:col-span-2 border-primary/20 shadow-sm">
                 <CardHeader><CardTitle>Raise support ticket</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-2">
@@ -389,7 +389,7 @@ export default function TeamsDashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="border-primary/30 bg-primary/5">
+              <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-background to-primary/5">
                 <CardHeader><CardTitle className="text-base">Support standards (Admin SLA)</CardTitle></CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <p>✅ First response target: <strong>8 hours</strong></p>
@@ -408,11 +408,17 @@ export default function TeamsDashboardPage() {
               <CardHeader><CardTitle className="flex items-center gap-2"><Ticket className="h-5 w-5" /> Latest support tickets</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {visibleTickets.sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at)).slice(0, 20).map((ticket) => (
-                  <div key={ticket.ticket_id} className="rounded-lg border p-3">
+                  <div key={ticket.ticket_id} className="rounded-xl border bg-gradient-to-br from-background to-primary/5 p-3 shadow-sm">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-semibold">{ticket.subject}</p>
-                        <p className="text-xs text-muted-foreground">{ticket.ticket_id} · {ticket.category} · {ticket.priority.toUpperCase()}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{ticket.ticket_id}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="bg-background text-foreground">{ticket.category}</Badge>
+                          <Badge className={ticket.priority === 'critical' ? 'border border-rose-300 bg-rose-50 text-rose-800' : ticket.priority === 'high' ? 'border border-orange-300 bg-orange-50 text-orange-800' : ticket.priority === 'medium' ? 'border border-blue-300 bg-blue-50 text-blue-800' : 'border border-slate-300 bg-slate-50 text-slate-700'}>
+                            {ticket.priority.toUpperCase()}
+                          </Badge>
+                        </div>
                       </div>
                       <Badge className={ticketBadgeClass[ticket.status] || ticketBadgeClass.open}>{ticket.status.replace('_', ' ')}</Badge>
                     </div>

@@ -226,12 +226,12 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col rounded-[2rem] border-primary/10 p-4 md:p-6">
+      <DialogContent className="h-[100dvh] w-[100vw] max-w-[100vw] rounded-none border-0 p-3 sm:h-auto sm:max-h-[92vh] sm:w-auto sm:max-w-4xl sm:rounded-[2rem] sm:border sm:border-primary/10 sm:p-4 md:p-6">
         <DialogHeader>
           <DialogTitle className="font-display text-lg md:text-xl">{match.team_a} vs {match.team_b}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 rounded-[1.5rem] border border-primary/10 bg-gradient-to-br from-primary/5 via-background to-accent/10 p-4 pb-4">
+        <div className="space-y-3 rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/5 via-background to-accent/10 p-3 sm:rounded-[1.5rem] sm:p-4 sm:pb-4">
           {tournament && (
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               {tournament.name} • {tournament.format}{season ? ` • ${season.year}` : ''}
@@ -244,17 +244,17 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
             <Badge variant={match.status === 'completed' ? 'default' : 'secondary'}>{match.status.toUpperCase()}</Badge>
           </div>
 
-          <div className="mt-2 flex items-center justify-between rounded-[1.25rem] border border-primary/10 bg-background/80 p-3 shadow-sm">
+          <div className="mt-2 flex items-center justify-between rounded-xl border border-primary/10 bg-background/80 p-2.5 shadow-sm sm:rounded-[1.25rem] sm:p-3">
             <div className="text-center flex-1">
-              <p className="font-display text-sm md:text-lg font-bold">{match.team_a}</p>
+              <p className="font-display text-sm sm:text-base md:text-lg font-bold">{match.team_a}</p>
               {teamACaptain && <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Crown className="h-3 w-3 text-amber-500" /> {teamACaptain.name}</p>}
-              <p className="text-primary font-bold text-lg md:text-xl">{teamAScore}</p>
+              <p className="text-primary font-bold text-base sm:text-lg md:text-xl">{teamAScore}</p>
             </div>
-            <span className="text-muted-foreground font-bold text-lg px-2 md:px-4">vs</span>
+            <span className="text-muted-foreground font-bold text-sm sm:text-lg px-2 md:px-4">vs</span>
             <div className="text-center flex-1">
-              <p className="font-display text-sm md:text-lg font-bold">{match.team_b}</p>
+              <p className="font-display text-sm sm:text-base md:text-lg font-bold">{match.team_b}</p>
               {teamBCaptain && <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Crown className="h-3 w-3 text-amber-500" /> {teamBCaptain.name}</p>}
-              <p className="text-primary font-bold text-lg md:text-xl">{teamBScore}</p>
+              <p className="text-primary font-bold text-base sm:text-lg md:text-xl">{teamBScore}</p>
             </div>
           </div>
 
@@ -266,7 +266,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto scrollbar-thin" style={{ maxHeight: 'calc(90vh - 340px)' }}>
+        <div className="flex-1 overflow-y-auto scrollbar-thin" style={{ maxHeight: 'calc(100dvh - 300px)' }}>
           <Tabs defaultValue="teamA">
             <TabsList className="grid grid-cols-2 mb-4">
               <TabsTrigger value="teamA" className="text-xs md:text-sm">{match.team_a}</TabsTrigger>
