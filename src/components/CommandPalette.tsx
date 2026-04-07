@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/command';
 import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
+import { formatTimeInIST } from '@/lib/time';
 import { DigitalScorelist, NewsRoomPost } from '@/lib/v2types';
 import { logAudit, v2api } from '@/lib/v2api';
 
@@ -376,7 +377,7 @@ export function CommandPalette() {
           ))}
 
           <div className="px-3 py-2 text-xs text-muted-foreground">
-            Index refreshes every 60s and on window focus • Last data refresh: {lastRefresh ? lastRefresh.toLocaleTimeString() : 'warming up'}
+            Index refreshes every 60s and on window focus • Last data refresh: {lastRefresh ? `${formatTimeInIST(lastRefresh)} IST` : 'warming up'}
           </div>
         </CommandList>
       </CommandDialog>

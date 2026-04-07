@@ -14,7 +14,7 @@ import { DynamicFormDefinition, DynamicFormEntry } from '@/lib/v2types';
 import { v2api } from '@/lib/v2api';
 import { initializeValues, isFormOpen, parseFields, parseFormSettings, shouldRenderField } from '@/lib/forms';
 import { generateId } from '@/lib/utils';
-import { nowIso } from '@/lib/time';
+import { formatInIST, nowIso } from '@/lib/time';
 import { useToast } from '@/hooks/use-toast';
 
 export default function FormsPortalPage() {
@@ -155,8 +155,8 @@ export default function FormsPortalPage() {
                   {!selectedFormOpenState.open && (
                     <p className="mt-1 text-sm text-destructive">{selectedFormOpenState.reason || 'Form is currently closed.'}</p>
                   )}
-                  {selectedFormSettings?.open_at && <p className="text-xs text-muted-foreground">Opens: {new Date(selectedFormSettings.open_at).toLocaleString()}</p>}
-                  {selectedFormSettings?.close_at && <p className="text-xs text-muted-foreground">Closes: {new Date(selectedFormSettings.close_at).toLocaleString()}</p>}
+                  {selectedFormSettings?.open_at && <p className="text-xs text-muted-foreground">Opens: {formatInIST(selectedFormSettings.open_at)} IST</p>}
+                  {selectedFormSettings?.close_at && <p className="text-xs text-muted-foreground">Closes: {formatInIST(selectedFormSettings.close_at)} IST</p>}
                   {selectedFormSettings?.max_responses ? <p className="text-xs text-muted-foreground">Responses: {selectedFormResponses.length}/{selectedFormSettings.max_responses}</p> : null}
                 </div>
                 {fields.filter((field) => shouldRenderField(field, values)).map((field) => (

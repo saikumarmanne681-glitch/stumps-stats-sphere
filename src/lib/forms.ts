@@ -1,4 +1,5 @@
 import { DynamicFormCondition, DynamicFormDefinition, DynamicFormField, DynamicFormFieldOption, DynamicFormFieldType, DynamicFormSettings } from '@/lib/v2types';
+import { formatInIST } from '@/lib/time';
 
 const FALLBACK_FIELD_TYPES: DynamicFormFieldType[] = ['short_text', 'long_text', 'number', 'email', 'phone', 'url', 'date', 'time', 'datetime', 'yes_no', 'rating', 'heading', 'divider', 'html_block', 'checkbox', 'select', 'radio', 'multi_select'];
 
@@ -163,8 +164,8 @@ export function isFormOpen(form: DynamicFormDefinition, submittedCount = 0) {
   const now = Date.now();
   const openAt = settings.open_at ? new Date(settings.open_at).getTime() : 0;
   const closeAt = settings.close_at ? new Date(settings.close_at).getTime() : 0;
-  if (openAt && now < openAt) return { open: false, reason: `Form opens at ${new Date(openAt).toLocaleString()}.` };
-  if (closeAt && now > closeAt) return { open: false, reason: `Form closed at ${new Date(closeAt).toLocaleString()}.` };
+  if (openAt && now < openAt) return { open: false, reason: `Form opens at ${formatInIST(new Date(openAt))} IST.` };
+  if (closeAt && now > closeAt) return { open: false, reason: `Form closed at ${formatInIST(new Date(closeAt))} IST.` };
   if (settings.max_responses && Number(settings.max_responses) > 0 && submittedCount >= Number(settings.max_responses)) {
     return { open: false, reason: 'Response limit reached for this form.' };
   }
