@@ -415,6 +415,13 @@ const MatchCenter = () => {
     ));
     setLoading(false);
   };
+  const getMatchSelectLabel = (matchId: string) => {
+    const selected = matches.find((item) => item.match_id === matchId);
+    if (!selected) return '';
+    const tournamentName = tournaments.find((item) => item.tournament_id === selected.tournament_id)?.name || selected.tournament_id;
+    const seasonLabel = seasons.find((item) => item.season_id === selected.season_id)?.year || selected.season_id;
+    return `${selected.team_a} vs ${selected.team_b} • ${tournamentName} ${seasonLabel}${selected.match_stage ? ` • ${selected.match_stage}` : ''}`;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -429,13 +436,19 @@ const MatchCenter = () => {
               <div className="flex-1 min-w-[200px]">
                 <Label>Select Match</Label>
                 <Select value={selectedMatchId} onValueChange={(v) => { setSelectedMatchId(v); loadTimeline(v); setScoringHistory([]); setUndoneActions([]); }}>
-                  <SelectTrigger><SelectValue placeholder="Choose a match..." /></SelectTrigger>
-                  <SelectContent>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose a match...">
+                      {selectedMatchId ? (
+                        <span className="line-clamp-2 text-left text-xs sm:text-sm">{getMatchSelectLabel(selectedMatchId)}</span>
+                      ) : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[min(60vh,360px)] w-[min(95vw,var(--radix-select-trigger-width),680px)] max-w-[95vw]">
                     {matches.map(m => {
                       const t = tournaments.find(t => t.tournament_id === m.tournament_id);
                       const s = seasons.find(s => s.season_id === m.season_id);
                       return (
-                        <SelectItem key={m.match_id} value={m.match_id}>
+                        <SelectItem key={m.match_id} value={m.match_id} className="whitespace-normal py-2 text-xs sm:text-sm">
                           {m.team_a} vs {m.team_b} • {t?.name} {s?.year} {m.match_stage ? `• ${m.match_stage}` : ''}
                         </SelectItem>
                       );
@@ -646,9 +659,9 @@ const MatchCenter = () => {
                       await updateMatch({ ...match, man_of_match: v });
                       toast({ title: 'Man of the Match updated' });
                     }}>
-                      <SelectTrigger className="w-48"><SelectValue placeholder="Select MOM" /></SelectTrigger>
-                      <SelectContent>
-                        {players.map(p => <SelectItem key={p.player_id} value={p.player_id}>{p.name}</SelectItem>)}
+                      <SelectTrigger className="w-full sm:w-72"><SelectValue placeholder="Select MOM" /></SelectTrigger>
+                      <SelectContent className="max-h-72 w-[min(90vw,var(--radix-select-trigger-width))] max-w-[90vw]">
+                        {players.map(p => <SelectItem key={p.player_id} value={p.player_id} className="whitespace-normal">{p.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </CardContent>

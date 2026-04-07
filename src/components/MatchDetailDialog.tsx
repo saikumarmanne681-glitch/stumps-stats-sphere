@@ -247,21 +247,31 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
           <div className="mt-2 flex items-center justify-between rounded-xl border border-primary/10 bg-background/80 p-2.5 shadow-sm sm:rounded-[1.25rem] sm:p-3">
             <div className="text-center flex-1">
               <p className="font-display text-sm sm:text-base md:text-lg font-bold">{match.team_a}</p>
-              {teamACaptain && <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Crown className="h-3 w-3 text-amber-500" /> {teamACaptain.name}</p>}
+              {teamACaptain && (
+                <div className="mx-auto mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-amber-300/60 bg-amber-100/70 px-2 py-0.5 text-[11px] text-amber-900">
+                  <Crown className="h-3 w-3 shrink-0 text-amber-500" />
+                  <span className="truncate">{teamACaptain.name}</span>
+                </div>
+              )}
               <p className="text-primary font-bold text-base sm:text-lg md:text-xl">{teamAScore}</p>
             </div>
             <span className="text-muted-foreground font-bold text-sm sm:text-lg px-2 md:px-4">vs</span>
             <div className="text-center flex-1">
               <p className="font-display text-sm sm:text-base md:text-lg font-bold">{match.team_b}</p>
-              {teamBCaptain && <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Crown className="h-3 w-3 text-amber-500" /> {teamBCaptain.name}</p>}
+              {teamBCaptain && (
+                <div className="mx-auto mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-amber-300/60 bg-amber-100/70 px-2 py-0.5 text-[11px] text-amber-900">
+                  <Crown className="h-3 w-3 shrink-0 text-amber-500" />
+                  <span className="truncate">{teamBCaptain.name}</span>
+                </div>
+              )}
               <p className="text-primary font-bold text-base sm:text-lg md:text-xl">{teamBScore}</p>
             </div>
           </div>
 
           {match.result && <p className="text-sm text-primary font-semibold text-center">{match.result}</p>}
           {mom && (
-            <div className="flex items-center justify-center gap-1 text-sm text-accent">
-              <Award className="h-4 w-4" /><span className="font-semibold">MOM: {mom.name}</span>
+            <div className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full border border-emerald-300/60 bg-emerald-100/70 px-3 py-1 text-sm text-emerald-900">
+              <Award className="h-4 w-4" /><span className="truncate font-semibold">Man of the Match: {mom.name}</span>
             </div>
           )}
         </div>

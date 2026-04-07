@@ -132,16 +132,32 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
           )}
         </div>
         {(teamACaptain || teamBCaptain) && (
-          <div className="mt-2 flex flex-wrap gap-1 text-[11px]">
-            {teamACaptain && <Badge variant="outline" className="rounded-full"><Crown className="mr-1 h-3 w-3 text-amber-500" />{match.team_a}: {teamACaptain.name}</Badge>}
-            {teamBCaptain && <Badge variant="outline" className="rounded-full"><Crown className="mr-1 h-3 w-3 text-amber-500" />{match.team_b}: {teamBCaptain.name}</Badge>}
+          <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+            {teamACaptain && (
+              <div className="rounded-xl border border-amber-200/70 bg-gradient-to-r from-amber-100/80 via-background to-background px-2.5 py-1.5">
+                <p className="flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] text-amber-700">
+                  <Crown className="h-3 w-3" /> {match.team_a} captain
+                </p>
+                <p className="truncate text-xs font-semibold text-foreground">{teamACaptain.name}</p>
+              </div>
+            )}
+            {teamBCaptain && (
+              <div className="rounded-xl border border-amber-200/70 bg-gradient-to-r from-amber-100/80 via-background to-background px-2.5 py-1.5">
+                <p className="flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] text-amber-700">
+                  <Crown className="h-3 w-3" /> {match.team_b} captain
+                </p>
+                <p className="truncate text-xs font-semibold text-foreground">{teamBCaptain.name}</p>
+              </div>
+            )}
           </div>
         )}
 
         {mom && (
-          <div className="flex items-center gap-1 mt-2 text-xs text-accent">
-            <Award className="h-3 w-3" />
-            <span className="font-medium">MOM: {mom.name}</span>
+          <div className="mt-2 rounded-xl border border-emerald-300/50 bg-gradient-to-r from-emerald-100/70 via-background to-background px-2.5 py-1.5">
+            <p className="flex items-center gap-1 text-[10px] uppercase tracking-[0.15em] text-emerald-700">
+              <Award className="h-3 w-3" /> Man of the Match
+            </p>
+            <p className="truncate text-xs font-semibold text-foreground">{mom.name}</p>
           </div>
         )}
       </CardContent>
