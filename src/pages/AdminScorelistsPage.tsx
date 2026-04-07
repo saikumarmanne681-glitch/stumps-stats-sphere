@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server.browser';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
@@ -78,6 +78,11 @@ const AdminScorelistsPage = () => {
   const [selectedSeason, setSelectedSeason] = useState('');
   const [viewScorelist, setViewScorelist] = useState<DigitalScorelist | null>(null);
   const [verifyResult, setVerifyResult] = useState<{ valid: boolean; reason?: string } | null>(null);
+  const filteredMatches = useMemo(() => matches.filter((match) => {
+    const tournamentMatch = !selectedTournament || match.tournament_id === selectedTournament;
+    const seasonMatch = !selectedSeason || match.season_id === selectedSeason;
+    return tournamentMatch && seasonMatch;
+  }), [matches, selectedSeason, selectedTournament]);
   const getMomDisplayLabel = (identity: unknown) => {
     const resolved = resolvePlayerFromIdentity(identity, players);
     return resolved?.name || normalizeId(identity);
@@ -107,6 +112,12 @@ const AdminScorelistsPage = () => {
     const id = window.setInterval(refresh, 30000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!selectedMatch) return;
+    const existsInFilter = filteredMatches.some((match) => match.match_id === selectedMatch);
+    if (!existsInFilter) setSelectedMatch('');
+  }, [filteredMatches, selectedMatch]);
 
   if (!isAdmin && !isManagement) return <Navigate to="/login" />;
 
@@ -632,7 +643,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="max-h-[min(60vh,360px)] w-[min(95vw,var(--radix-select-trigger-width),760px)] max-w-[95vw]">
-                    {matches.map(m => <SelectItem key={m.match_id} value={m.match_id} className="whitespace-normal py-2 text-xs sm:text-sm">{formatMatchOptionLabel(m.match_id)}</SelectItem>)}
+                    {filteredMatches.map(m => <SelectItem key={m.match_id} value={m.match_id} className="whitespace-normal py-2 text-xs sm:text-sm">{formatMatchOptionLabel(m.match_id)}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Button
@@ -645,14 +656,17 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                   Generate Match
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Match options are filtered by the selected tournament and season.
+              </p>
               <div className="flex flex-col sm:flex-row flex-wrap gap-3">
-                <Select value={selectedTournament} onValueChange={(value) => { setSelectedTournament(value); setSelectedSeason(''); }}>
+                <Select value={selectedTournament} onValueChange={(value) => { setSelectedTournament(value); setSelectedSeason(''); setSelectedMatch(''); }}>
                   <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Tournament" /></SelectTrigger>
                   <SelectContent className="max-h-72 w-[min(90vw,var(--radix-select-trigger-width))] max-w-[90vw]">
                     {tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id} className="whitespace-normal">{t.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Select value={selectedSeason} onValueChange={setSelectedSeason}>
+                <Select value={selectedSeason} onValueChange={(value) => { setSelectedSeason(value); setSelectedMatch(''); }}>
                   <SelectTrigger className="w-full sm:w-32"><SelectValue placeholder="Season" /></SelectTrigger>
                   <SelectContent className="max-h-72 w-[min(90vw,var(--radix-select-trigger-width))] max-w-[90vw]">
                     {seasons.filter(s => s.tournament_id === selectedTournament).map(s => <SelectItem key={s.season_id} value={s.season_id}>{s.year}</SelectItem>)}
