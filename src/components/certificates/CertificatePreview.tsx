@@ -278,7 +278,6 @@ export const CertificatePreview = memo(function CertificatePreview({
   const [printing, setPrinting] = useState(false);
   const [designIndex, setDesignIndex] = useState(0);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [mobileZoom, setMobileZoom] = useState(0.46);
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState(1);
   const isMobile = useIsMobile();
@@ -328,20 +327,28 @@ export const CertificatePreview = memo(function CertificatePreview({
     if (byName >= 0) setDesignIndex(byName);
   }, [certificate.template_id, template?.template_name]);
 
-  /* Auto-scale certificate to fit container width */
+  /* Auto-scale certificate preview to current device/container width */
   useEffect(() => {
     if (!expanded) return;
     const el = containerRef.current;
     if (!el) return;
+    const BASE_WIDTH = 1120;
     const measure = () => {
-      const w = el.clientWidth;
-      const scale = Math.min(1, w / 1120);
+      const containerWidth = el.clientWidth;
+      const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : containerWidth;
+      const safeViewportWidth = Math.max(280, viewportWidth - 24);
+      const availableWidth = Math.min(containerWidth, safeViewportWidth);
+      const scale = Math.min(1, availableWidth / BASE_WIDTH);
       setAutoScale(scale);
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, [expanded]);
 
   const handleDownload = async () => {
