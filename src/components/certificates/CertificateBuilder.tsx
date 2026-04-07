@@ -23,7 +23,7 @@ const FALLBACK_TEMPLATES: CertificateTemplateRecord[] = [
 ];
 
 export function CertificateBuilder() {
-  const { tournaments, seasons, matches, players } = useData();
+  const { tournaments, seasons, matches, players, batting, bowling } = useData();
   const { user } = useAuth();
   const { toast } = useToast();
   const [templates, setTemplates] = useState<CertificateTemplateRecord[]>([]);
