@@ -224,6 +224,10 @@ export default function DocumentsPortalPage() {
 
   const selectedDoc = useMemo(() => visibleDocs.find((doc) => doc.document_id === selectedDocId) || null, [selectedDocId, visibleDocs]);
   const previewCandidates = useMemo(() => (selectedDoc ? getPreviewCandidates(selectedDoc) : []), [selectedDoc]);
+  const managementPreviewAllowed = Boolean(selectedDoc?.allow_preview);
+  const managementDownloadAllowed = Boolean(selectedDoc?.allow_download);
+  const effectivePreviewAllowed = isAdmin ? securityProfile.allowPreview : managementPreviewAllowed;
+  const effectiveDownloadAllowed = isAdmin ? (securityProfile.allowDownload && !securityProfile.viewOnly) : managementDownloadAllowed;
 
   const resolveDocDepartmentId = (doc: OfficialDocumentRecord) => {
     if (doc.department_id) return doc.department_id;
@@ -231,13 +235,19 @@ export default function DocumentsPortalPage() {
   };
 
   const loadProfileForDoc = (docId: string) => {
+    const doc = mergedDocs.find((entry) => entry.document_id === docId);
+    const docDefaults: Partial<DocumentSecurityProfile> = doc ? {
+      allowPreview: Boolean(doc.allow_preview),
+      allowDownload: Boolean(doc.allow_download),
+      viewOnly: !Boolean(doc.allow_download),
+    } : {};
     const row = securityRows.find((entry) => entry.document_id === docId);
     const raw = row?.profile_json || '';
-    if (!raw) return { ...defaultSecurityProfile };
+    if (!raw) return { ...defaultSecurityProfile, ...docDefaults };
     try {
-      return { ...defaultSecurityProfile, ...(JSON.parse(raw) as Partial<DocumentSecurityProfile>) };
+      return { ...defaultSecurityProfile, ...docDefaults, ...(JSON.parse(raw) as Partial<DocumentSecurityProfile>) };
     } catch {
-      return { ...defaultSecurityProfile };
+      return { ...defaultSecurityProfile, ...docDefaults };
     }
   };
 
@@ -482,6 +492,7 @@ export default function DocumentsPortalPage() {
   };
 
   const canOpenSelectedDocument = (doc: OfficialDocumentRecord) => {
+    if (!isAdmin) return true;
     const now = new Date();
     if (securityProfile.expiryEnabled && securityProfile.expiryAt && now > new Date(securityProfile.expiryAt)) return false;
     if (securityProfile.timeWindowEnabled) {
@@ -523,7 +534,7 @@ export default function DocumentsPortalPage() {
   }
 
   const handleSecureDownload = (doc: OfficialDocumentRecord) => {
-    if (!securityProfile.allowDownload || securityProfile.viewOnly) {
+    if (!effectiveDownloadAllowed) {
       toast({ title: 'Download blocked', description: 'Current security policy does not allow downloads.', variant: 'destructive' });
       return;
     }
@@ -715,8 +726,9 @@ export default function DocumentsPortalPage() {
                     <p className="text-xs text-muted-foreground font-mono">{selectedDoc.document_id}</p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2 text-sm">
-                    {([
+                  {isAdmin && (
+                    <div className="grid grid-cols-1 gap-2 text-sm">
+                      {([
                       ['View only mode', 'viewOnly'],
                       ['Preview allowed', 'allowPreview'],
                       ['Download allowed', 'allowDownload'],
@@ -742,51 +754,52 @@ export default function DocumentsPortalPage() {
                       ['Download requires approval hint', 'downloadRequiresApprovalHint'],
                       ['Expiry policy enabled', 'expiryEnabled'],
                       ['Max-view cap enabled', 'maxViewsEnabled'],
-                    ] as Array<[string, keyof DocumentSecurityProfile]>).map(([label, key]) => (
-                      <div key={key} className="flex items-center justify-between rounded-md border px-3 py-2">
-                        <p className="text-xs">{label}</p>
-                        <Switch checked={Boolean(securityProfile[key])} onCheckedChange={(checked) => setSecurityProfile((prev) => ({ ...prev, [key]: checked }))} disabled={!isAdmin} />
-                      </div>
-                    ))}
-                  </div>
+                      ] as Array<[string, keyof DocumentSecurityProfile]>).map(([label, key]) => (
+                        <div key={key} className="flex items-center justify-between rounded-md border px-3 py-2">
+                          <p className="text-xs">{label}</p>
+                          <Switch checked={Boolean(securityProfile[key])} onCheckedChange={(checked) => setSecurityProfile((prev) => ({ ...prev, [key]: checked }))} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                  {securityProfile.expiryEnabled && (
+                  {isAdmin && securityProfile.expiryEnabled && (
                     <div>
                       <Label>Expiry date/time (UTC)</Label>
                       <Input type="datetime-local" value={securityProfile.expiryAt} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, expiryAt: e.target.value }))} />
                     </div>
                   )}
-                  {securityProfile.maxViewsEnabled && (
+                  {isAdmin && securityProfile.maxViewsEnabled && (
                     <div>
                       <Label>Maximum opens</Label>
                       <Input type="number" min={1} value={securityProfile.maxViews} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, maxViews: Number(e.target.value || 1) }))} />
                     </div>
                   )}
-                  {securityProfile.timeWindowEnabled && (
+                  {isAdmin && securityProfile.timeWindowEnabled && (
                     <div className="grid grid-cols-2 gap-2">
                       <div><Label>Open from</Label><Input type="time" value={securityProfile.openFromHour} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, openFromHour: e.target.value }))} /></div>
                       <div><Label>Close at</Label><Input type="time" value={securityProfile.closeAtHour} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, closeAtHour: e.target.value }))} /></div>
                     </div>
                   )}
-                  {securityProfile.autoCloseOnIdle && (
+                  {isAdmin && securityProfile.autoCloseOnIdle && (
                     <div>
                       <Label>Idle timeout (minutes)</Label>
                       <Input type="number" min={1} max={60} value={securityProfile.idleMinutes} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, idleMinutes: Number(e.target.value || 5) }))} />
                     </div>
                   )}
-                  {securityProfile.requireReasonToOpen && (
+                  {isAdmin && securityProfile.requireReasonToOpen && (
                     <div>
                       <Label>Reason for access</Label>
                       <Input value={sessionReason} onChange={(e) => setSessionReason(e.target.value)} placeholder="Enter access justification" />
                     </div>
                   )}
-                  {securityProfile.forceReauthPrompt && (
+                  {isAdmin && securityProfile.forceReauthPrompt && (
                     <div className="flex items-center gap-2 text-xs">
                       <Switch checked={securityConfirmed} onCheckedChange={setSecurityConfirmed} />
                       I reconfirm this viewing is authorized.
                     </div>
                   )}
-                  {securityProfile.requireTwoStepConfirm && (
+                  {isAdmin && securityProfile.requireTwoStepConfirm && (
                     <div className="flex items-center gap-2 text-xs">
                       <Switch checked={securityStep2Confirmed} onCheckedChange={setSecurityStep2Confirmed} />
                       I understand activity is audited and traceable.
@@ -795,14 +808,14 @@ export default function DocumentsPortalPage() {
 
                   <div className="flex gap-2">
                     <Button onClick={openSelectedDocument} className="flex-1"><Eye className="mr-1 h-4 w-4" />Unlock Secure Viewer</Button>
-                    {securityProfile.allowDownload && !securityProfile.viewOnly ? (
+                    {effectiveDownloadAllowed ? (
                       <Button variant="outline" onClick={() => handleSecureDownload(selectedDoc)}><Download className="mr-1 h-4 w-4" />Download + Watermark</Button>
                     ) : (
                       <Button variant="outline" disabled>Download Blocked</Button>
                     )}
                     {isAdmin && <Button variant="secondary" onClick={() => void saveSecurityProfile()}>Save Security</Button>}
                   </div>
-                  {securityProfile.allowPreview && previewCandidates.length > 0 && (
+                  {effectivePreviewAllowed && previewCandidates.length > 0 && (
                     <div className={`relative overflow-hidden rounded-xl border ${securityProfile.blurWhenInactive ? 'transition-all' : ''}`}>
                       {securityProfile.watermark && (
                         <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center opacity-20 text-sm font-semibold rotate-[-20deg]">
@@ -818,7 +831,7 @@ export default function DocumentsPortalPage() {
                       />
                     </div>
                   )}
-                  {securityProfile.allowPreview && previewCandidates.length > 1 && (
+                  {effectivePreviewAllowed && previewCandidates.length > 1 && (
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
@@ -833,7 +846,7 @@ export default function DocumentsPortalPage() {
                       </Button>
                     </div>
                   )}
-                  {securityProfile.allowPreview && previewCandidates.length === 0 && (
+                  {effectivePreviewAllowed && previewCandidates.length === 0 && (
                     <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">Preview unavailable: missing source URL for this document.</p>
                   )}
                 </>
