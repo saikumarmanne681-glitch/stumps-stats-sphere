@@ -202,7 +202,8 @@ export default function DocumentsPortalPage() {
       .split(',')
       .map((v) => v.trim().toLowerCase())
       .filter(Boolean);
-    if (allowlist.length === 0 || allowlist.includes('all_management')) return true;
+    if (allowlist.length === 0) return false;
+    if (allowlist.includes('all_management')) return true;
 
     const designation = String(user.designation || '').toLowerCase();
     const username = String(user.username || '').toLowerCase();
@@ -684,7 +685,7 @@ export default function DocumentsPortalPage() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline">{doc.category}</Badge>
-                    <Badge variant="outline"><LockKeyhole className="mr-1 h-3 w-3" />Access: {doc.allowed_management_ids}</Badge>
+                    {isAdmin && <Badge variant="outline"><LockKeyhole className="mr-1 h-3 w-3" />Access: {doc.allowed_management_ids}</Badge>}
                     <Badge variant="outline">Source: {doc.source_type}</Badge>
                   </div>
                   <div className="flex gap-2 flex-wrap">
