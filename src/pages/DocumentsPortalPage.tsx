@@ -6,7 +6,7 @@ import { VerticalAnnouncementsBox } from '@/components/VerticalAnnouncementsBox'
 import { useAuth } from '@/lib/auth';
 import { v2api, logAudit } from '@/lib/v2api';
 import { generateId } from '@/lib/utils';
-import { OfficialDocumentRecord } from '@/lib/v2types';
+import { OfficialDocumentRecord, ManagementUser } from '@/lib/v2types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { FileText, Eye, Download, Sparkles, LockKeyhole, Building2, CalendarClock, ShieldCheck } from 'lucide-react';
 import { formatSheetDate } from '@/lib/dataUtils';
@@ -63,6 +64,13 @@ interface DocumentSecurityProfile {
   downloadRequiresApprovalHint: boolean;
 }
 
+interface DocumentSecurityProfileRow {
+  document_id: string;
+  profile_json: string;
+  updated_by: string;
+  updated_at: string;
+}
+
 const defaultSecurityProfile: DocumentSecurityProfile = {
   viewOnly: true,
   allowPreview: true,
@@ -96,7 +104,6 @@ const defaultSecurityProfile: DocumentSecurityProfile = {
   downloadRequiresApprovalHint: true,
 };
 
-const storageKeyForProfile = (docId: string) => `doc-security-profile:${docId}`;
 const storageKeyForCounter = (docId: string) => `doc-security-counter:${docId}`;
 
 export default function DocumentsPortalPage() {
@@ -106,20 +113,49 @@ export default function DocumentsPortalPage() {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<(typeof categories)[number]>('Governance');
   const [departmentId, setDepartmentId] = useState('executive_board');
-  const [accessList, setAccessList] = useState('all_management');
+  const [accessRuleMode, setAccessRuleMode] = useState<'all_management' | 'admin_only' | 'custom'>('all_management');
+  const [selectedManagementIds, setSelectedManagementIds] = useState<string[]>([]);
+  const [manualAccessTokens, setManualAccessTokens] = useState('');
   const [editingId, setEditingId] = useState<string>('');
   const [selectedDocId, setSelectedDocId] = useState<string>('');
   const [securityProfile, setSecurityProfile] = useState<DocumentSecurityProfile>(defaultSecurityProfile);
+  const [securityRows, setSecurityRows] = useState<DocumentSecurityProfileRow[]>([]);
+  const [managementUsers, setManagementUsers] = useState<ManagementUser[]>([]);
   const [sessionReason, setSessionReason] = useState('');
   const [securityConfirmed, setSecurityConfirmed] = useState(false);
   const [securityStep2Confirmed, setSecurityStep2Confirmed] = useState(false);
+  const [previewCandidateIndex, setPreviewCandidateIndex] = useState(0);
 
   const refresh = async () => {
     const rows = await v2api.getCustomSheet<OfficialDocumentRecord>('OFFICIAL_DOCUMENTS');
     setDocs(rows.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || '')));
   };
 
-  useEffect(() => { refresh(); }, []);
+  const refreshSecurityProfiles = async () => {
+    const rows = await v2api.getCustomSheet<DocumentSecurityProfileRow>('DOCUMENT_SECURITY_PROFILES');
+    setSecurityRows(rows);
+  };
+
+  const refreshManagementUsers = async () => {
+    const rows = await v2api.getManagementUsers();
+    setManagementUsers(rows.filter((entry) => String(entry.status || 'active').toLowerCase() === 'active'));
+  };
+
+  useEffect(() => {
+    void refresh();
+    void refreshSecurityProfiles();
+    void refreshManagementUsers();
+  }, []);
+
+  const buildAccessList = () => {
+    if (accessRuleMode === 'all_management') return 'all_management';
+    if (accessRuleMode === 'admin_only') return 'admin_only';
+    const customTokens = manualAccessTokens
+      .split(',')
+      .map((token) => token.trim())
+      .filter(Boolean);
+    return [...selectedManagementIds, ...customTokens].join(',');
+  };
 
   const repoDocRows = useMemo<OfficialDocumentRecord[]>(() => {
     const now = new Date().toISOString();
@@ -168,7 +204,7 @@ export default function DocumentsPortalPage() {
     const designation = String(user.designation || '').toLowerCase();
     const username = String(user.username || '').toLowerCase();
     const managementId = String(user.management_id || '').toLowerCase();
-    const authorityLevel = Number((user as any).authority_level || 0);
+    const authorityLevel = Number(user.authority_level || 0);
 
     return allowlist.some((entry) => (
       entry === managementId
@@ -183,6 +219,7 @@ export default function DocumentsPortalPage() {
   const latestVisibleDocs = useMemo(() => visibleDocs.slice(0, 10), [visibleDocs]);
 
   const selectedDoc = useMemo(() => visibleDocs.find((doc) => doc.document_id === selectedDocId) || null, [selectedDocId, visibleDocs]);
+  const previewCandidates = useMemo(() => (selectedDoc ? getPreviewCandidates(selectedDoc) : []), [selectedDoc]);
 
   const resolveDocDepartmentId = (doc: OfficialDocumentRecord) => {
     if (doc.department_id) return doc.department_id;
@@ -190,7 +227,8 @@ export default function DocumentsPortalPage() {
   };
 
   const loadProfileForDoc = (docId: string) => {
-    const raw = localStorage.getItem(storageKeyForProfile(docId));
+    const row = securityRows.find((entry) => entry.document_id === docId);
+    const raw = row?.profile_json || '';
     if (!raw) return { ...defaultSecurityProfile };
     try {
       return { ...defaultSecurityProfile, ...(JSON.parse(raw) as Partial<DocumentSecurityProfile>) };
@@ -205,12 +243,33 @@ export default function DocumentsPortalPage() {
     setSecurityConfirmed(false);
     setSecurityStep2Confirmed(false);
     setSessionReason('');
-  }, [selectedDocId]);
+    setPreviewCandidateIndex(0);
+  }, [selectedDocId, securityRows]);
 
   useEffect(() => {
+    if (previewCandidateIndex < previewCandidates.length) return;
+    setPreviewCandidateIndex(0);
+  }, [previewCandidateIndex, previewCandidates.length]);
+
+  const saveSecurityProfile = async () => {
     if (!selectedDocId || !isAdmin) return;
-    localStorage.setItem(storageKeyForProfile(selectedDocId), JSON.stringify(securityProfile));
-  }, [selectedDocId, securityProfile, isAdmin]);
+    const payload: DocumentSecurityProfileRow = {
+      document_id: selectedDocId,
+      profile_json: JSON.stringify(securityProfile),
+      updated_by: user?.username || 'admin',
+      updated_at: new Date().toISOString(),
+    };
+    const exists = securityRows.some((entry) => entry.document_id === selectedDocId);
+    const ok = exists
+      ? await v2api.updateCustomSheetRow('DOCUMENT_SECURITY_PROFILES', payload)
+      : await v2api.addCustomSheetRow('DOCUMENT_SECURITY_PROFILES', payload);
+    if (ok) {
+      toast({ title: 'Security profile saved' });
+      await refreshSecurityProfiles();
+    } else {
+      toast({ title: 'Unable to save security profile', variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     const onContext = (event: MouseEvent) => {
@@ -271,7 +330,7 @@ export default function DocumentsPortalPage() {
       source_url: '',
       source_type: 'repository',
       status: 'published',
-      allowed_management_ids: accessList.trim() || 'all_management',
+      allowed_management_ids: buildAccessList() || 'all_management',
       allow_preview: true,
       allow_download: false,
       created_by: user?.username || 'admin',
@@ -285,6 +344,9 @@ export default function DocumentsPortalPage() {
     }
     logAudit(user?.username || 'admin', 'document_create', 'document', row.document_id, JSON.stringify({ category, department_id: row.department_id, allowed: row.allowed_management_ids }));
     setTitle('');
+    setSelectedManagementIds([]);
+    setManualAccessTokens('');
+    setAccessRuleMode('all_management');
     toast({ title: 'Document policy added' });
     refresh();
   };
@@ -302,7 +364,23 @@ export default function DocumentsPortalPage() {
     setTitle(doc.title || '');
     setCategory((categories.includes(doc.category as (typeof categories)[number]) ? doc.category : 'Governance') as (typeof categories)[number]);
     setDepartmentId(resolveDocDepartmentId(doc));
-    setAccessList(doc.allowed_management_ids || 'all_management');
+    const tokens = String(doc.allowed_management_ids || 'all_management').split(',').map((token) => token.trim()).filter(Boolean);
+    if (tokens.includes('all_management') || tokens.length === 0) {
+      setAccessRuleMode('all_management');
+      setSelectedManagementIds([]);
+      setManualAccessTokens('');
+    } else if (tokens.includes('admin_only')) {
+      setAccessRuleMode('admin_only');
+      setSelectedManagementIds([]);
+      setManualAccessTokens('');
+    } else {
+      const knownIds = new Set(managementUsers.map((entry) => String(entry.management_id || '').trim()).filter(Boolean));
+      const pickedIds = tokens.filter((token) => knownIds.has(token));
+      const manual = tokens.filter((token) => !knownIds.has(token)).join(', ');
+      setAccessRuleMode('custom');
+      setSelectedManagementIds(pickedIds);
+      setManualAccessTokens(manual);
+    }
   };
 
   const clearEditor = () => {
@@ -310,7 +388,9 @@ export default function DocumentsPortalPage() {
     setTitle('');
     setCategory('Governance');
     setDepartmentId('executive_board');
-    setAccessList('all_management');
+    setAccessRuleMode('all_management');
+    setSelectedManagementIds([]);
+    setManualAccessTokens('');
   };
 
   const saveEditedDocument = async () => {
@@ -327,7 +407,7 @@ export default function DocumentsPortalPage() {
       category,
       department_id: departmentId,
       department: getDepartmentById(departmentId)?.name || 'General',
-      allowed_management_ids: accessList.trim() || 'all_management',
+      allowed_management_ids: buildAccessList() || 'all_management',
       updated_at: new Date().toISOString(),
     };
     const ok = await v2api.updateCustomSheetRow('OFFICIAL_DOCUMENTS', payload);
@@ -392,8 +472,54 @@ export default function DocumentsPortalPage() {
     toast({ title: 'Secure viewer unlocked', description: 'Document opened with current security controls.' });
   };
 
+  function getPreviewCandidates(doc: OfficialDocumentRecord) {
+    const raw = String(doc.source_url || '').trim();
+    if (!raw) return [];
+    const absolute = raw.startsWith('http') ? raw : `${window.location.origin}${raw}`;
+    const candidates = [absolute];
+    if (absolute.startsWith('http')) {
+      candidates.push(`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(absolute)}`);
+    }
+    if (/\.(doc|docx|ppt|pptx|xls|xlsx)$/i.test(absolute) && absolute.startsWith('http')) {
+      candidates.push(`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absolute)}`);
+    }
+    return [...new Set(candidates)];
+  }
+
+  const handleSecureDownload = (doc: OfficialDocumentRecord) => {
+    if (!securityProfile.allowDownload || securityProfile.viewOnly) {
+      toast({ title: 'Download blocked', description: 'Current security policy does not allow downloads.', variant: 'destructive' });
+      return;
+    }
+    const source = String(doc.source_url || '').trim();
+    if (!source) {
+      toast({ title: 'Missing document source', variant: 'destructive' });
+      return;
+    }
+    const absolute = source.startsWith('http') ? source : `${window.location.origin}${source}`;
+    const actor = user?.management_id || user?.username || 'unknown-user';
+    const watermark = `${actor} • ${new Date().toISOString()} • ${doc.document_id}`;
+    const link = document.createElement('a');
+    link.href = absolute;
+    link.target = '_blank';
+    link.rel = 'noreferrer';
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=960,height=720');
+    if (printWindow) {
+      printWindow.document.write(`<!doctype html><html><head><title>Secured Document Print</title><style>body{margin:0;font-family:sans-serif}.wm{position:fixed;inset:0;display:grid;place-items:center;font-size:18px;opacity:.14;transform:rotate(-24deg);pointer-events:none}.top{padding:8px 12px;background:#111;color:#fff;font-size:12px}iframe{border:0;width:100%;height:calc(100vh - 34px)}</style></head><body><div class="top">Protected copy • ${watermark}</div><div class="wm">${watermark}</div><iframe src="${absolute}"></iframe></body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 1200);
+    }
+    logAudit(user?.username || 'unknown', 'document_download', 'document', doc.document_id, JSON.stringify({ watermark }));
+  };
+
   if (!user) return <Navigate to="/login" />;
-  if (!isAdmin) return <Navigate to="/" />;
+  if (!isAdmin && !isManagement) return <Navigate to="/" />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -456,7 +582,43 @@ export default function DocumentsPortalPage() {
               <div className="md:col-span-2"><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Board circular / policy / schedule" /></div>
               <div><Label>Category</Label><Select value={category} onValueChange={(v) => setCategory(v as (typeof categories)[number])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></div>
               <div><Label>Department</Label><Select value={departmentId} onValueChange={setDepartmentId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documentDepartmentOptions.map((option) => <SelectItem value={option.id} key={option.id}>{option.name}</SelectItem>)}</SelectContent></Select></div>
-              <div className="md:col-span-2"><Label>Access</Label><Input value={accessList} onChange={(e) => setAccessList(e.target.value)} placeholder="admin_only, management_id, username, designation:treasurer, authority>=7" /></div>
+              <div>
+                <Label>Access Mode</Label>
+                <Select value={accessRuleMode} onValueChange={(value) => setAccessRuleMode(value as 'all_management' | 'admin_only' | 'custom')}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_management">All Management</SelectItem>
+                    <SelectItem value="admin_only">Admin Only</SelectItem>
+                    <SelectItem value="custom">Custom Selection</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {accessRuleMode === 'custom' && (
+                <>
+                  <div className="md:col-span-3 rounded-md border p-3 space-y-2">
+                    <p className="text-xs font-medium">Select management users with access</p>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {managementUsers.map((entry) => {
+                        const key = String(entry.management_id);
+                        const checked = selectedManagementIds.includes(key);
+                        return (
+                          <label key={entry.management_id} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(next) => setSelectedManagementIds((prev) => (next ? [...prev, key] : prev.filter((id) => id !== key)))}
+                            />
+                            <span>{entry.name} · {entry.designation} <span className="text-muted-foreground">({entry.management_id})</span></span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="md:col-span-3">
+                    <Label>Extra Access Rules (optional)</Label>
+                    <Input value={manualAccessTokens} onChange={(e) => setManualAccessTokens(e.target.value)} placeholder="username, designation:treasurer, authority>=7" />
+                  </div>
+                </>
+              )}
               <div className="md:col-span-3 text-xs text-muted-foreground rounded-md border p-3">Repository documents are loaded automatically from <code>/docs</code>. This form manages permission policy metadata.</div>
               <div className="md:col-span-1 flex items-end gap-2">
                 {editingId ? (
@@ -597,12 +759,13 @@ export default function DocumentsPortalPage() {
                   <div className="flex gap-2">
                     <Button onClick={openSelectedDocument} className="flex-1"><Eye className="mr-1 h-4 w-4" />Unlock Secure Viewer</Button>
                     {securityProfile.allowDownload && !securityProfile.viewOnly ? (
-                      <Button variant="outline" asChild><a href={selectedDoc.source_url} target="_blank" rel="noreferrer"><Download className="mr-1 h-4 w-4" />Download</a></Button>
+                      <Button variant="outline" onClick={() => handleSecureDownload(selectedDoc)}><Download className="mr-1 h-4 w-4" />Download + Watermark</Button>
                     ) : (
                       <Button variant="outline" disabled>Download Blocked</Button>
                     )}
+                    {isAdmin && <Button variant="secondary" onClick={() => void saveSecurityProfile()}>Save Security</Button>}
                   </div>
-                  {securityProfile.allowPreview && (
+                  {securityProfile.allowPreview && previewCandidates.length > 0 && (
                     <div className={`relative overflow-hidden rounded-xl border ${securityProfile.blurWhenInactive ? 'transition-all' : ''}`}>
                       {securityProfile.watermark && (
                         <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center opacity-20 text-sm font-semibold rotate-[-20deg]">
@@ -611,11 +774,30 @@ export default function DocumentsPortalPage() {
                       )}
                       <iframe
                         title={`${selectedDoc.title} preview`}
-                        src={selectedDoc.source_url}
-                        className={`h-72 w-full ${securityProfile.disableCopy ? 'select-none' : ''}`}
+                        src={previewCandidates[previewCandidateIndex] || previewCandidates[0]}
+                        className={`w-full ${securityProfile.disableCopy ? 'select-none' : ''}`}
+                        style={{ height: 'min(78vh, calc(100vw * 1.2))', minHeight: 420 }}
                         sandbox={securityProfile.openInSandboxedFrame ? 'allow-same-origin allow-scripts' : undefined}
                       />
                     </div>
+                  )}
+                  {securityProfile.allowPreview && previewCandidates.length > 1 && (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPreviewCandidateIndex((idx) => (idx + 1) % previewCandidates.length)}
+                      >
+                        Try alternate preview
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" asChild>
+                        <a href={previewCandidates[previewCandidateIndex] || previewCandidates[0]} target="_blank" rel="noreferrer">Open preview in new tab</a>
+                      </Button>
+                    </div>
+                  )}
+                  {securityProfile.allowPreview && previewCandidates.length === 0 && (
+                    <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">Preview unavailable: missing source URL for this document.</p>
                   )}
                 </>
               )}
