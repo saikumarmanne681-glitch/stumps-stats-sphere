@@ -271,7 +271,7 @@ export interface OfficialDocumentRecord {
   department: string;
   department_id?: string;
   source_url: string;
-  source_type: 'url';
+  source_type: 'url' | 'repository';
   status: 'published' | 'hidden';
   allowed_management_ids: string;
   allow_preview: boolean;

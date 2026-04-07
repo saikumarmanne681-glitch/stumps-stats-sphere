@@ -10,10 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth';
 import { useData } from '@/lib/DataContext';
 import { v2api } from '@/lib/v2api';
-import { SupportTicket, TeamProfile } from '@/lib/v2types';
+import { ManagementUser, SupportMessage, SupportTicket, TeamProfile } from '@/lib/v2types';
 import { CertificateRecord, CertificateTemplateRecord, buildCertificateTemplateMap, certificateMatchesTeam, isCertificateCertified, resolveCertificateTemplate } from '@/lib/certificates';
 import { CertificatePreview } from '@/components/certificates/CertificatePreview';
 import { Announcement } from '@/lib/types';
@@ -46,6 +47,11 @@ export default function TeamsDashboardPage() {
   const { matches, seasons, tournaments, announcements, players } = useData();
   const { toast } = useToast();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [ticketMessages, setTicketMessages] = useState<SupportMessage[]>([]);
+  const [managementUsers, setManagementUsers] = useState<ManagementUser[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const [ticketReply, setTicketReply] = useState('');
+  const [ticketReplySubmitting, setTicketReplySubmitting] = useState(false);
   const [profiles, setProfiles] = useState<TeamProfile[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -59,14 +65,18 @@ export default function TeamsDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const [ticketRows, profileRows, certificateRows, templateRows] = await Promise.all([
+      const [ticketRows, ticketMessageRows, managementRows, profileRows, certificateRows, templateRows] = await Promise.all([
         v2api.getTickets(),
+        v2api.getTicketMessages(),
+        v2api.getManagementUsers(),
         v2api.getTeamProfiles(),
         v2api.getCertificates(),
         v2api.getCertificateTemplates(),
       ]);
       if (cancelled) return;
       setTickets(ticketRows);
+      setTicketMessages(ticketMessageRows);
+      setManagementUsers(managementRows);
       setProfiles(profileRows);
       setCertificateTemplates(templateRows);
       setCertificates(certificateRows.filter((item) => (
@@ -229,6 +239,21 @@ export default function TeamsDashboardPage() {
     const fromAnnouncements: Announcement[] = announcements.filter((item) => item.active);
     return fromAnnouncements.sort((a, b) => compareTimestampsDesc(a.date, b.date)).slice(0, 8);
   }, [announcements]);
+  const selectedTicketMessages = useMemo(
+    () => (selectedTicket
+      ? ticketMessages
+        .filter((msg) => msg.ticket_id === selectedTicket.ticket_id && !msg.is_internal_note)
+        .sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at))
+      : []),
+    [selectedTicket, ticketMessages],
+  );
+
+  const resolveActorName = (actorId: string) => {
+    const match = managementUsers.find((entry) => entry.management_id === actorId || entry.username === actorId);
+    if (match?.name) return match.name;
+    if (actorId === user?.team_id || actorId === user?.username) return 'You';
+    return actorId || 'Support Team';
+  };
 
   const handleRaiseTicket = async () => {
     if (!ticketForm.subject.trim() || !ticketForm.description.trim()) {
@@ -266,6 +291,37 @@ export default function TeamsDashboardPage() {
       toast({ title: 'Ticket failed', description: 'Could not raise ticket right now.', variant: 'destructive' });
     } finally {
       setSubmittingTicket(false);
+    }
+  };
+
+  const handleTicketReply = async () => {
+    if (!selectedTicket || !ticketReply.trim()) return;
+    setTicketReplySubmitting(true);
+    try {
+      await v2api.addTicketMessage({
+        message_id: generateId('SM'),
+        ticket_id: selectedTicket.ticket_id,
+        sender_id: user?.team_id || user?.username || 'team',
+        sender_role: 'player',
+        message_body: ticketReply.trim(),
+        attachment_url: '',
+        is_internal_note: false,
+        created_at: new Date().toISOString(),
+      });
+      if (selectedTicket.status === 'waiting_for_user') {
+        await v2api.updateTicket({ ...selectedTicket, status: 'in_progress' });
+      }
+      toast({ title: 'Reply sent', description: 'Support desk received your update.' });
+      const [latestTickets, latestMessages] = await Promise.all([v2api.getTickets(), v2api.getTicketMessages()]);
+      setTickets(latestTickets);
+      setTicketMessages(latestMessages);
+      setSelectedTicket(latestTickets.find((item) => item.ticket_id === selectedTicket.ticket_id) || null);
+      setTicketReply('');
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Reply failed', description: 'Unable to send message right now.', variant: 'destructive' });
+    } finally {
+      setTicketReplySubmitting(false);
     }
   };
 
@@ -408,7 +464,7 @@ export default function TeamsDashboardPage() {
               <CardHeader><CardTitle className="flex items-center gap-2"><Ticket className="h-5 w-5" /> Latest support tickets</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {visibleTickets.sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at)).slice(0, 20).map((ticket) => (
-                  <div key={ticket.ticket_id} className="rounded-2xl border border-primary/15 bg-gradient-to-br from-background via-background to-primary/5 p-3 shadow-sm sm:p-4">
+                  <button type="button" key={ticket.ticket_id} onClick={() => setSelectedTicket(ticket)} className="w-full rounded-2xl border border-primary/15 bg-gradient-to-br from-background via-background to-primary/5 p-3 text-left shadow-sm transition hover:border-primary/40 sm:p-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-semibold text-sm sm:text-base">{ticket.subject}</p>
@@ -429,11 +485,50 @@ export default function TeamsDashboardPage() {
                       <p className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />Due: {formatInIST(ticket.resolution_due)}</p>
                       <p className="inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />SLA: {ticket.status === 'resolved' || ticket.status === 'closed' ? 'Completed' : 'In progress'}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
                 {visibleTickets.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No tickets for this selection.</p>}
               </CardContent>
             </Card>
+            <Dialog open={!!selectedTicket} onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}>
+              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+                {selectedTicket && (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle>{selectedTicket.subject}</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className={ticketBadgeClass[selectedTicket.status] || ticketBadgeClass.open}>{selectedTicket.status.replace('_', ' ')}</Badge>
+                      <Badge variant="outline">{selectedTicket.category}</Badge>
+                      <Badge variant="outline">{selectedTicket.priority}</Badge>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">Created {formatInIST(selectedTicket.created_at)} IST</p>
+                      <p className="mt-2 text-sm whitespace-pre-wrap">{selectedTicket.description}</p>
+                    </div>
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-base">Conversation timeline</CardTitle></CardHeader>
+                      <CardContent className="space-y-3">
+                        {selectedTicketMessages.map((msg) => (
+                          <div key={msg.message_id} className={`rounded-lg border p-3 ${msg.sender_id === (user?.team_id || user?.username) ? 'border-primary/30 bg-primary/5' : 'bg-muted/20'}`}>
+                            <p className="text-xs text-muted-foreground">{resolveActorName(msg.sender_id)} · {formatInIST(msg.created_at)} IST</p>
+                            <p className="mt-1 text-sm whitespace-pre-wrap">{msg.message_body}</p>
+                          </div>
+                        ))}
+                        {selectedTicketMessages.length === 0 && <p className="text-sm text-muted-foreground">No replies yet. You can send details to expedite support.</p>}
+                      </CardContent>
+                    </Card>
+                    <div className="space-y-2">
+                      <Label>Reply to support desk</Label>
+                      <Textarea value={ticketReply} onChange={(e) => setTicketReply(e.target.value)} placeholder="Share logs, screenshots links, and expected outcome." />
+                      <Button onClick={handleTicketReply} disabled={ticketReplySubmitting || !ticketReply.trim()}>
+                        {ticketReplySubmitting ? 'Sending...' : 'Send reply'}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="honors" className="space-y-4">
