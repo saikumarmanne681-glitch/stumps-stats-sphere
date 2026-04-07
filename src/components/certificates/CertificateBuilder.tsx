@@ -262,7 +262,10 @@ export function CertificateBuilder() {
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <Label>Match (optional)</Label>
-              <Select value={form.match_id || 'none'} onValueChange={(value) => updateField('match_id', value === 'none' ? '' : value)}>
+              <Select value={form.match_id || 'none'} onValueChange={(value) => {
+                const newMatchId = value === 'none' ? '' : value;
+                setForm((prev) => ({ ...prev, match_id: newMatchId, details_json: '', performance_json: '' }));
+              }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No specific match</SelectItem>
