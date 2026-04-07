@@ -126,11 +126,31 @@ export function AdminMatches() {
     };
     if (editMatch.match_id) {
       await updateMatch(normalizedMatch);
-      logAudit("admin", "admin_save_match", "match", editMatch.match_id, JSON.stringify({ teams: `${editMatch.team_a} vs ${editMatch.team_b}`, status: editMatch.status, stage: editMatch.match_stage || "" }));
+      logAudit(
+        "admin",
+        "admin_save_match",
+        "match",
+        editMatch.match_id,
+        JSON.stringify({
+          teams: `${editMatch.team_a} vs ${editMatch.team_b}`,
+          status: editMatch.status,
+          stage: editMatch.match_stage || "",
+        }),
+      );
     } else {
       const newId = generateId("M");
       await addMatch({ ...normalizedMatch, match_id: newId });
-      logAudit("admin", "admin_add_match", "match", newId, JSON.stringify({ teams: `${editMatch.team_a} vs ${editMatch.team_b}`, status: editMatch.status, stage: editMatch.match_stage || "" }));
+      logAudit(
+        "admin",
+        "admin_add_match",
+        "match",
+        newId,
+        JSON.stringify({
+          teams: `${editMatch.team_a} vs ${editMatch.team_b}`,
+          status: editMatch.status,
+          stage: editMatch.match_stage || "",
+        }),
+      );
     }
     toast({ title: "Match Saved" });
     setMatchOpen(false);
@@ -191,7 +211,13 @@ export function AdminMatches() {
     setScorecardEntryMode("detailed");
     setScorecardPlayerSearch("");
     setScorecardOpen(true);
-    logAudit("admin", "open_scorecard_entry", "match", matchId, JSON.stringify({ teamAPlayers: allTeamAIds.length, teamBPlayers: allTeamBIds.length }));
+    logAudit(
+      "admin",
+      "open_scorecard_entry",
+      "match",
+      matchId,
+      JSON.stringify({ teamAPlayers: allTeamAIds.length, teamBPlayers: allTeamBIds.length }),
+    );
   };
 
   const togglePlayer = (playerId: string, team: "A" | "B") => {
@@ -252,28 +278,38 @@ export function AdminMatches() {
     const teamName = team === "A" ? match.team_a : match.team_b;
     const recentLineup = getRecentTeamLineup(teamName);
     if (recentLineup.length === 0) {
-      toast({ title: "No previous lineup found", description: `No recent scorecard data is available yet for ${teamName}.` });
+      toast({
+        title: "No previous lineup found",
+        description: `No recent scorecard data is available yet for ${teamName}.`,
+      });
       return;
     }
 
     const setPlayers = team === "A" ? setTeamAPlayers : setTeamBPlayers;
     const existingTeamRows = performances.filter((item) => item.team === teamName);
     const existingIds = new Set(existingTeamRows.map((item) => item.player_id));
-    const newRows = recentLineup.filter((playerId) => !existingIds.has(playerId)).map((playerId) => emptyPerformance(playerId, teamName));
+    const newRows = recentLineup
+      .filter((playerId) => !existingIds.has(playerId))
+      .map((playerId) => emptyPerformance(playerId, teamName));
 
     setPlayers(Array.from(new Set([...recentLineup])));
-    setPerformances((prev) => [
-      ...prev.filter((item) => item.team !== teamName),
-      ...existingTeamRows,
-      ...newRows,
-    ]);
-    logAudit("admin", "apply_recent_lineup", "match", scorecardMatchId, JSON.stringify({ team: teamName, players: recentLineup.length }));
+    setPerformances((prev) => [...prev.filter((item) => item.team !== teamName), ...existingTeamRows, ...newRows]);
+    logAudit(
+      "admin",
+      "apply_recent_lineup",
+      "match",
+      scorecardMatchId,
+      JSON.stringify({ team: teamName, players: recentLineup.length }),
+    );
     toast({ title: "Recent lineup applied", description: `${recentLineup.length} players loaded for ${teamName}.` });
   };
 
   const filteredPlayers = useMemo(() => {
     const query = scorecardPlayerSearch.trim().toLowerCase();
-    return players.filter((player) => player.status === "active" && (!query || `${player.name} ${player.player_id}`.toLowerCase().includes(query)));
+    return players.filter(
+      (player) =>
+        player.status === "active" && (!query || `${player.name} ${player.player_id}`.toLowerCase().includes(query)),
+    );
   }, [players, scorecardPlayerSearch]);
 
   const activePlayers = useMemo(() => players.filter((player) => player.status === "active"), [players]);
@@ -384,7 +420,19 @@ export function AdminMatches() {
       setSavingProgress(100);
       setSaveSuccess(true);
 
-      logAudit("admin", "admin_save_scorecard", "match", scorecardMatchId, JSON.stringify({ battingEntries: newBatting.length, bowlingEntries: newBowling.length, teamAScore, teamBScore, atomicOperationId: atomicSave.operationId }));
+      logAudit(
+        "admin",
+        "admin_save_scorecard",
+        "match",
+        scorecardMatchId,
+        JSON.stringify({
+          battingEntries: newBatting.length,
+          bowlingEntries: newBowling.length,
+          teamAScore,
+          teamBScore,
+          atomicOperationId: atomicSave.operationId,
+        }),
+      );
 
       toast({
         title: "✅ Scorecard Saved Successfully!",
@@ -446,69 +494,69 @@ export function AdminMatches() {
                 />
               </div>
               {scorecardEntryMode === "detailed" && (
-              <div>
-                <Label className="text-xs">Balls</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-sm"
-                  value={perf.bat_balls}
-                  onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_balls", Number(e.target.value))}
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Balls</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-sm"
+                    value={perf.bat_balls}
+                    onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_balls", Number(e.target.value))}
+                  />
+                </div>
               )}
               {scorecardEntryMode === "detailed" && (
-              <div>
-                <Label className="text-xs">4s</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-sm"
-                  value={perf.bat_fours}
-                  onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_fours", Number(e.target.value))}
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">4s</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-sm"
+                    value={perf.bat_fours}
+                    onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_fours", Number(e.target.value))}
+                  />
+                </div>
               )}
               {scorecardEntryMode === "detailed" && (
-              <div>
-                <Label className="text-xs">6s</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-sm"
-                  value={perf.bat_sixes}
-                  onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_sixes", Number(e.target.value))}
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">6s</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-sm"
+                    value={perf.bat_sixes}
+                    onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_sixes", Number(e.target.value))}
+                  />
+                </div>
               )}
               {scorecardEntryMode === "detailed" && (
-              <div>
-                <Label className="text-xs">How Out</Label>
-                <Input
-                  className="h-8 text-sm"
-                  value={perf.bat_how_out}
-                  onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_how_out", e.target.value)}
-                  placeholder="caught, not out..."
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">How Out</Label>
+                  <Input
+                    className="h-8 text-sm"
+                    value={perf.bat_how_out}
+                    onChange={(e) => updatePerf(perf.player_id, perf.team, "bat_how_out", e.target.value)}
+                    placeholder="caught, not out..."
+                  />
+                </div>
               )}
               {scorecardEntryMode === "detailed" && (
-              <div>
-                <Label className="text-xs">Bowler</Label>
-                <Select
-                  value={perf.bat_bowler_id}
-                  onValueChange={(v) => updatePerf(perf.player_id, perf.team, "bat_bowler_id", v)}
-                >
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="-" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value=" ">N/A</SelectItem>
-                    {players.map((p) => (
-                      <SelectItem key={p.player_id} value={p.player_id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div>
+                  <Label className="text-xs">Bowler</Label>
+                  <Select
+                    value={perf.bat_bowler_id}
+                    onValueChange={(v) => updatePerf(perf.player_id, perf.team, "bat_bowler_id", v)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="-" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value=" ">N/A</SelectItem>
+                      {players.map((p) => (
+                        <SelectItem key={p.player_id} value={p.player_id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </div>
           )}
@@ -524,38 +572,38 @@ export function AdminMatches() {
           {perf.did_bowl && (
             <div className="grid grid-cols-3 gap-2 pl-6">
               {scorecardEntryMode === "detailed" && (
-              <div>
-                <Label className="text-xs">Overs</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  className="h-8 text-sm"
-                  value={perf.bowl_overs}
-                  onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_overs", Number(e.target.value))}
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Overs</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    className="h-8 text-sm"
+                    value={perf.bowl_overs}
+                    onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_overs", Number(e.target.value))}
+                  />
+                </div>
               )}
               {scorecardEntryMode === "detailed" && (
-              <div>
-                <Label className="text-xs">Maidens</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-sm"
-                  value={perf.bowl_maidens}
-                  onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_maidens", Number(e.target.value))}
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Maidens</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-sm"
+                    value={perf.bowl_maidens}
+                    onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_maidens", Number(e.target.value))}
+                  />
+                </div>
               )}
               {scorecardEntryMode === "detailed" && (
-              <div>
-                <Label className="text-xs">Runs</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-sm"
-                  value={perf.bowl_runs}
-                  onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_runs", Number(e.target.value))}
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Runs</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-sm"
+                    value={perf.bowl_runs}
+                    onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_runs", Number(e.target.value))}
+                  />
+                </div>
               )}
               <div>
                 <Label className="text-xs">Wickets</Label>
@@ -567,15 +615,15 @@ export function AdminMatches() {
                 />
               </div>
               {scorecardEntryMode === "detailed" && (
-              <div>
-                <Label className="text-xs">Extras</Label>
-                <Input
-                  type="number"
-                  className="h-8 text-sm"
-                  value={perf.bowl_extras}
-                  onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_extras", Number(e.target.value))}
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Extras</Label>
+                  <Input
+                    type="number"
+                    className="h-8 text-sm"
+                    value={perf.bowl_extras}
+                    onChange={(e) => updatePerf(perf.player_id, perf.team, "bowl_extras", Number(e.target.value))}
+                  />
+                </div>
               )}
             </div>
           )}
@@ -596,21 +644,49 @@ export function AdminMatches() {
             </div>
             <div>
               <h2 className="section-heading">Make daily match entry dramatically faster.</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Search fixtures instantly, reuse recent team lineups, and keep scorecard entry focused on speed without changing any match logic.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Search fixtures instantly, reuse recent team lineups, and keep scorecard entry focused on speed without
+                changing any match logic.
+              </p>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
-              <div className="metric-tile"><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Total matches</p><p className="mt-2 text-3xl font-bold text-primary">{matches.length}</p><p className="mt-1 text-sm text-muted-foreground">All scheduled, live, and completed fixtures.</p></div>
-              <div className="metric-tile"><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live now</p><p className="mt-2 text-3xl font-bold text-foreground">{matches.filter((m) => m.status === "live").length}</p><p className="mt-1 text-sm text-muted-foreground">Matches currently open for scoring.</p></div>
-              <div className="metric-tile"><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Completed</p><p className="mt-2 text-3xl font-bold text-foreground">{matches.filter((m) => m.status === "completed").length}</p><p className="mt-1 text-sm text-muted-foreground">Finished fixtures with scorecards available.</p></div>
+              <div className="metric-tile">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Total matches</p>
+                <p className="mt-2 text-3xl font-bold text-primary">{matches.length}</p>
+                <p className="mt-1 text-sm text-muted-foreground">All scheduled, live, and completed fixtures.</p>
+              </div>
+              <div className="metric-tile">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live now</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">
+                  {matches.filter((m) => m.status === "live").length}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">Matches currently open for scoring.</p>
+              </div>
+              <div className="metric-tile">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Completed</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">
+                  {matches.filter((m) => m.status === "completed").length}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">Finished fixtures with scorecards available.</p>
+              </div>
             </div>
           </div>
           <div className="glass-panel rounded-[1.75rem] p-5">
-            <div className="flex items-center gap-2 text-sm font-semibold text-primary"><Wand2 className="h-4 w-4" /> Quick-start helper</div>
-            <p className="mt-2 text-sm text-muted-foreground">Use the latest saved match as a template for faster entry when tournaments have similar stages and venues.</p>
+            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <Wand2 className="h-4 w-4" /> Quick-start helper
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Use the latest saved match as a template for faster entry when tournaments have similar stages and venues.
+            </p>
             {latestMatchTemplate ? (
               <div className="mt-4 rounded-[1.25rem] border border-primary/10 bg-background/80 p-4">
-                <p className="font-semibold">{latestMatchTemplate.team_a} vs {latestMatchTemplate.team_b}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{latestMatchTemplate.match_stage || "No stage"} • {latestMatchTemplate.venue || "Venue pending"} • {latestMatchTemplate.date || "Date pending"}</p>
+                <p className="font-semibold">
+                  {latestMatchTemplate.team_a} vs {latestMatchTemplate.team_b}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {latestMatchTemplate.match_stage || "No stage"} • {latestMatchTemplate.venue || "Venue pending"} •{" "}
+                  {latestMatchTemplate.date || "Date pending"}
+                </p>
                 <Button
                   variant="outline"
                   className="mt-4 w-full rounded-xl"
@@ -635,7 +711,9 @@ export function AdminMatches() {
                 </Button>
               </div>
             ) : (
-              <div className="mt-4 rounded-[1.25rem] border border-dashed border-primary/20 bg-muted/30 p-6 text-center text-sm text-muted-foreground">Add your first match to unlock one-click templates.</div>
+              <div className="mt-4 rounded-[1.25rem] border border-dashed border-primary/20 bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                Add your first match to unlock one-click templates.
+              </div>
             )}
           </div>
         </div>
@@ -645,7 +723,10 @@ export function AdminMatches() {
         <CardHeader className="flex flex-col gap-4 border-b border-primary/10 bg-gradient-to-r from-background to-primary/5 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle className="font-display text-xl">🏏 Matches & Scorecards</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">Filter fixtures quickly, jump into score entry, and push atomic scorecard saves to Sheets in one fast submit.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Filter fixtures quickly, jump into score entry, and push atomic scorecard saves to Sheets in one fast
+              submit.
+            </p>
           </div>
           <Dialog open={matchOpen} onOpenChange={setMatchOpen}>
             <DialogTrigger asChild>
@@ -726,7 +807,11 @@ export function AdminMatches() {
                     <Label>Team A Captain</Label>
                     <Select
                       value={editMatch?.team_a_captain || "__none__"}
-                      onValueChange={(value) => setEditMatch((prev) => (prev ? { ...prev, team_a_captain: value === "__none__" ? "" : value } : null))}
+                      onValueChange={(value) =>
+                        setEditMatch((prev) =>
+                          prev ? { ...prev, team_a_captain: value === "__none__" ? "" : value } : null,
+                        )
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select captain" />
@@ -734,7 +819,9 @@ export function AdminMatches() {
                       <SelectContent>
                         <SelectItem value="__none__">No captain selected</SelectItem>
                         {activePlayers.map((player) => (
-                          <SelectItem key={player.player_id} value={player.player_id}>{player.name} ({player.player_id})</SelectItem>
+                          <SelectItem key={player.player_id} value={player.player_id}>
+                            {player.name} ({player.player_id})
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -743,7 +830,11 @@ export function AdminMatches() {
                     <Label>Team B Captain</Label>
                     <Select
                       value={editMatch?.team_b_captain || "__none__"}
-                      onValueChange={(value) => setEditMatch((prev) => (prev ? { ...prev, team_b_captain: value === "__none__" ? "" : value } : null))}
+                      onValueChange={(value) =>
+                        setEditMatch((prev) =>
+                          prev ? { ...prev, team_b_captain: value === "__none__" ? "" : value } : null,
+                        )
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select captain" />
@@ -751,7 +842,9 @@ export function AdminMatches() {
                       <SelectContent>
                         <SelectItem value="__none__">No captain selected</SelectItem>
                         {activePlayers.map((player) => (
-                          <SelectItem key={player.player_id} value={player.player_id}>{player.name} ({player.player_id})</SelectItem>
+                          <SelectItem key={player.player_id} value={player.player_id}>
+                            {player.name} ({player.player_id})
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -797,8 +890,10 @@ export function AdminMatches() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value=" ">None</SelectItem>
-                      {MATCH_STAGES.map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      {MATCH_STAGES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -838,6 +933,7 @@ export function AdminMatches() {
                 </div>
                 <div>
                   <Label>Result</Label>
+                  <p>ex format: LPL 2017 Match No: 06 | Chandrashekar Team Won</p>
                   <Input
                     value={editMatch?.result || ""}
                     onChange={(e) => setEditMatch((prev) => (prev ? { ...prev, result: e.target.value } : null))}
@@ -872,10 +968,17 @@ export function AdminMatches() {
           <div className="grid gap-3 md:grid-cols-[1fr_180px]">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input value={matchSearch} onChange={(e) => setMatchSearch(e.target.value)} placeholder="Search match ID, teams, stage, venue, or result..." className="rounded-full pl-9" />
+              <Input
+                value={matchSearch}
+                onChange={(e) => setMatchSearch(e.target.value)}
+                placeholder="Search match ID, teams, stage, venue, or result..."
+                className="rounded-full pl-9"
+              />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="rounded-full"><SelectValue placeholder="Filter status" /></SelectTrigger>
+              <SelectTrigger className="rounded-full">
+                <SelectValue placeholder="Filter status" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="scheduled">Scheduled</SelectItem>
@@ -900,31 +1003,41 @@ export function AdminMatches() {
             </TableHeader>
             <TableBody>
               {visibleMatches.map((m) => {
-                  // Auto-calc scores from batting if not saved on match
-                  const calcScore = (team: string) => {
-                    const rows = batting.filter(b => b.match_id === m.match_id && b.team === team);
-                    if (rows.length === 0) return '';
-                    const runs = rows.reduce((s, b) => s + b.runs, 0);
-                    const dismissalWickets = rows.filter(b => b.how_out && b.how_out !== 'not out').length;
-                    const bowlingWickets = bowling
-                      .filter((entry) => entry.match_id === m.match_id && entry.team !== team)
-                      .reduce((sum, entry) => sum + (entry.wickets || 0), 0);
-                    const wkts = Math.max(dismissalWickets, bowlingWickets);
-                    const balls = rows.reduce((s, b) => s + b.balls, 0);
-                    const overs = Math.floor(balls / 6) + (balls % 6) / 10;
-                    return `${runs}/${wkts} (${overs.toFixed(1)})`;
-                  };
-                  const scoreA = m.team_a_score || calcScore(m.team_a);
-                  const scoreB = m.team_b_score || calcScore(m.team_b);
-                  return (
+                // Auto-calc scores from batting if not saved on match
+                const calcScore = (team: string) => {
+                  const rows = batting.filter((b) => b.match_id === m.match_id && b.team === team);
+                  if (rows.length === 0) return "";
+                  const runs = rows.reduce((s, b) => s + b.runs, 0);
+                  const dismissalWickets = rows.filter((b) => b.how_out && b.how_out !== "not out").length;
+                  const bowlingWickets = bowling
+                    .filter((entry) => entry.match_id === m.match_id && entry.team !== team)
+                    .reduce((sum, entry) => sum + (entry.wickets || 0), 0);
+                  const wkts = Math.max(dismissalWickets, bowlingWickets);
+                  const balls = rows.reduce((s, b) => s + b.balls, 0);
+                  const overs = Math.floor(balls / 6) + (balls % 6) / 10;
+                  return `${runs}/${wkts} (${overs.toFixed(1)})`;
+                };
+                const scoreA = m.team_a_score || calcScore(m.team_a);
+                const scoreB = m.team_b_score || calcScore(m.team_b);
+                return (
                   <TableRow key={m.match_id} className={selectedMatch === m.match_id ? "bg-primary/5" : ""}>
                     <TableCell className="font-mono text-xs">{m.match_id}</TableCell>
                     <TableCell>{formatSheetDate(m.date, "dd MMM yyyy", "-")}</TableCell>
                     <TableCell className="font-medium">
-                      <p>{m.team_a} vs {m.team_b}</p>
+                      <p>
+                        {m.team_a} vs {m.team_b}
+                      </p>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {m.team_a_captain && <Badge variant="outline" className="rounded-full text-[10px]">{m.team_a}: © {getPlayerName(m.team_a_captain)}</Badge>}
-                        {m.team_b_captain && <Badge variant="outline" className="rounded-full text-[10px]">{m.team_b}: © {getPlayerName(m.team_b_captain)}</Badge>}
+                        {m.team_a_captain && (
+                          <Badge variant="outline" className="rounded-full text-[10px]">
+                            {m.team_a}: © {getPlayerName(m.team_a_captain)}
+                          </Badge>
+                        )}
+                        {m.team_b_captain && (
+                          <Badge variant="outline" className="rounded-full text-[10px]">
+                            {m.team_b}: © {getPlayerName(m.team_b_captain)}
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">
@@ -941,7 +1054,13 @@ export function AdminMatches() {
                       {!scoreA && !scoreB && "-"}
                     </TableCell>
                     <TableCell>
-                      {m.match_stage ? <Badge variant="outline" className="rounded-full">{m.match_stage}</Badge> : <span className="text-xs text-muted-foreground">-</span>}
+                      {m.match_stage ? (
+                        <Badge variant="outline" className="rounded-full">
+                          {m.match_stage}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={m.status === "completed" ? "default" : "secondary"}>{m.status}</Badge>
@@ -989,10 +1108,14 @@ export function AdminMatches() {
                       </div>
                     </TableCell>
                   </TableRow>
-                  );
-                })}
+                );
+              })}
               {visibleMatches.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">No matches found for the current filters.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                    No matches found for the current filters.
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
@@ -1006,21 +1129,30 @@ export function AdminMatches() {
             <DialogTitle className="font-display">
               📊 Scorecard Entry — {scorecardMatch?.team_a} vs {scorecardMatch?.team_b} ({scorecardMatchId})
             </DialogTitle>
-          <DialogDescription>Use search, recent lineup presets, and live score previews to finish entry faster.</DialogDescription>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Entry mode</Label>
-            <Select value={scorecardEntryMode} onValueChange={(v) => setScorecardEntryMode(v as "detailed" | "quick")}>
-              <SelectTrigger className="h-8 w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="detailed">Detailed (all scorecard fields)</SelectItem>
-                <SelectItem value="quick">Quick (bat runs + bowl wickets only)</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">{scorecardEntryMode === "quick" ? "Quick mode keeps existing full flow and lets you enter only batting runs and bowling wickets for faster admin updates." : "Detailed mode includes full batting and bowling scorecard fields."}</p>
-          </div>
-        </DialogHeader>
+            <DialogDescription>
+              Use search, recent lineup presets, and live score previews to finish entry faster.
+            </DialogDescription>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Entry mode</Label>
+              <Select
+                value={scorecardEntryMode}
+                onValueChange={(v) => setScorecardEntryMode(v as "detailed" | "quick")}
+              >
+                <SelectTrigger className="h-8 w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="detailed">Detailed (all scorecard fields)</SelectItem>
+                  <SelectItem value="quick">Quick (bat runs + bowl wickets only)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {scorecardEntryMode === "quick"
+                  ? "Quick mode keeps existing full flow and lets you enter only batting runs and bowling wickets for faster admin updates."
+                  : "Detailed mode includes full batting and bowling scorecard fields."}
+              </p>
+            </div>
+          </DialogHeader>
 
           <Tabs
             value={scorecardTeamTab}
@@ -1038,13 +1170,15 @@ export function AdminMatches() {
 
             <div className="relative mt-4">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input value={scorecardPlayerSearch} onChange={(e) => setScorecardPlayerSearch(e.target.value)} placeholder="Search players by name or ID..." className="mb-4 rounded-full pl-9" />
+              <Input
+                value={scorecardPlayerSearch}
+                onChange={(e) => setScorecardPlayerSearch(e.target.value)}
+                placeholder="Search players by name or ID..."
+                className="mb-4 rounded-full pl-9"
+              />
             </div>
 
-            <div
-              className="flex-1 overflow-y-auto pr-2 scrollbar-thin"
-              style={{ maxHeight: "calc(90vh - 220px)" }}
-            >
+            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin" style={{ maxHeight: "calc(90vh - 220px)" }}>
               <TabsContent value="teamA" className="space-y-4 mt-0">
                 <div className="border rounded-lg p-3">
                   <Label className="text-sm font-semibold mb-2 block">
@@ -1052,23 +1186,29 @@ export function AdminMatches() {
                   </Label>
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs text-muted-foreground">Same player can appear in both teams</p>
-                    <Button type="button" size="sm" variant="outline" className="rounded-full" onClick={() => applyRecentLineup("A")}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => applyRecentLineup("A")}
+                    >
                       <Sparkles className="mr-1 h-3.5 w-3.5" /> Apply recent lineup
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {filteredPlayers.map((p) => (
-                        <label
-                          key={p.player_id}
-                          className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm"
-                        >
-                          <Checkbox
-                            checked={teamAPlayers.includes(p.player_id)}
-                            onCheckedChange={() => togglePlayer(p.player_id, "A")}
-                          />
-                          {p.name}
-                        </label>
-                      ))}
+                      <label
+                        key={p.player_id}
+                        className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm"
+                      >
+                        <Checkbox
+                          checked={teamAPlayers.includes(p.player_id)}
+                          onCheckedChange={() => togglePlayer(p.player_id, "A")}
+                        />
+                        {p.name}
+                      </label>
+                    ))}
                   </div>
                 </div>
                 {performances.filter((p) => p.team === scorecardMatch?.team_a).map(renderPlayerPerformanceRow)}
@@ -1081,23 +1221,29 @@ export function AdminMatches() {
                   </Label>
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-xs text-muted-foreground">Same player can appear in both teams</p>
-                    <Button type="button" size="sm" variant="outline" className="rounded-full" onClick={() => applyRecentLineup("B")}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => applyRecentLineup("B")}
+                    >
                       <Sparkles className="mr-1 h-3.5 w-3.5" /> Apply recent lineup
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {filteredPlayers.map((p) => (
-                        <label
-                          key={p.player_id}
-                          className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm"
-                        >
-                          <Checkbox
-                            checked={teamBPlayers.includes(p.player_id)}
-                            onCheckedChange={() => togglePlayer(p.player_id, "B")}
-                          />
-                          {p.name}
-                        </label>
-                      ))}
+                      <label
+                        key={p.player_id}
+                        className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer hover:bg-muted text-sm"
+                      >
+                        <Checkbox
+                          checked={teamBPlayers.includes(p.player_id)}
+                          onCheckedChange={() => togglePlayer(p.player_id, "B")}
+                        />
+                        {p.name}
+                      </label>
+                    ))}
                   </div>
                 </div>
                 {performances.filter((p) => p.team === scorecardMatch?.team_b).map(renderPlayerPerformanceRow)}
@@ -1109,22 +1255,28 @@ export function AdminMatches() {
             {/* Auto-calculated score preview */}
             {scorecardMatch && (
               <div className="rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3 text-xs text-muted-foreground space-y-1">
-                <p>{scorecardMatch.team_a}: {(() => {
-                  const rows = performances.filter(p => p.team === scorecardMatch.team_a && p.did_bat);
-                  const runs = rows.reduce((s, r) => s + r.bat_runs, 0);
-                  const wkts = rows.filter(r => r.bat_how_out && r.bat_how_out !== "not out").length;
-                  const balls = rows.reduce((s, r) => s + r.bat_balls, 0);
-                  const ov = Math.floor(balls / 6) + (balls % 6) / 10;
-                  return `${runs}/${wkts} (${ov.toFixed(1)})`;
-                })()}</p>
-                <p>{scorecardMatch.team_b}: {(() => {
-                  const rows = performances.filter(p => p.team === scorecardMatch.team_b && p.did_bat);
-                  const runs = rows.reduce((s, r) => s + r.bat_runs, 0);
-                  const wkts = rows.filter(r => r.bat_how_out && r.bat_how_out !== "not out").length;
-                  const balls = rows.reduce((s, r) => s + r.bat_balls, 0);
-                  const ov = Math.floor(balls / 6) + (balls % 6) / 10;
-                  return `${runs}/${wkts} (${ov.toFixed(1)})`;
-                })()}</p>
+                <p>
+                  {scorecardMatch.team_a}:{" "}
+                  {(() => {
+                    const rows = performances.filter((p) => p.team === scorecardMatch.team_a && p.did_bat);
+                    const runs = rows.reduce((s, r) => s + r.bat_runs, 0);
+                    const wkts = rows.filter((r) => r.bat_how_out && r.bat_how_out !== "not out").length;
+                    const balls = rows.reduce((s, r) => s + r.bat_balls, 0);
+                    const ov = Math.floor(balls / 6) + (balls % 6) / 10;
+                    return `${runs}/${wkts} (${ov.toFixed(1)})`;
+                  })()}
+                </p>
+                <p>
+                  {scorecardMatch.team_b}:{" "}
+                  {(() => {
+                    const rows = performances.filter((p) => p.team === scorecardMatch.team_b && p.did_bat);
+                    const runs = rows.reduce((s, r) => s + r.bat_runs, 0);
+                    const wkts = rows.filter((r) => r.bat_how_out && r.bat_how_out !== "not out").length;
+                    const balls = rows.reduce((s, r) => s + r.bat_balls, 0);
+                    const ov = Math.floor(balls / 6) + (balls % 6) / 10;
+                    return `${runs}/${wkts} (${ov.toFixed(1)})`;
+                  })()}
+                </p>
               </div>
             )}
             <div className="flex gap-2 items-center">
@@ -1137,13 +1289,12 @@ export function AdminMatches() {
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Elapsed: {saveElapsedSeconds}s · Est left: {Math.max(0, Math.ceil((100 - savingProgress) / 8) * 0.2).toFixed(1)}s
+                    Elapsed: {saveElapsedSeconds}s · Est left:{" "}
+                    {Math.max(0, Math.ceil((100 - savingProgress) / 8) * 0.2).toFixed(1)}s
                   </p>
                 </div>
               )}
-              {saveSuccess && (
-                <span className="text-primary font-semibold text-sm animate-pulse">✅ Saved!</span>
-              )}
+              {saveSuccess && <span className="text-primary font-semibold text-sm animate-pulse">✅ Saved!</span>}
               <Button variant="outline" onClick={() => setScorecardOpen(false)} disabled={isSavingScorecard}>
                 Cancel
               </Button>
