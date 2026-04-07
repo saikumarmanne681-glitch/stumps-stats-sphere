@@ -626,9 +626,13 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
             <CardContent className="space-y-4">
               <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                 <Select value={selectedMatch} onValueChange={setSelectedMatch}>
-                  <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Select Match" /></SelectTrigger>
-                  <SelectContent>
-                    {matches.map(m => <SelectItem key={m.match_id} value={m.match_id}>{formatMatchOptionLabel(m.match_id)}</SelectItem>)}
+                  <SelectTrigger className="w-full sm:w-72">
+                    <SelectValue placeholder="Select Match">
+                      {selectedMatch ? <span className="line-clamp-2 text-left text-xs sm:text-sm">{formatMatchOptionLabel(selectedMatch)}</span> : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[min(60vh,360px)] w-[min(95vw,var(--radix-select-trigger-width),760px)] max-w-[95vw]">
+                    {matches.map(m => <SelectItem key={m.match_id} value={m.match_id} className="whitespace-normal py-2 text-xs sm:text-sm">{formatMatchOptionLabel(m.match_id)}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Button
@@ -643,14 +647,14 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
               </div>
               <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                 <Select value={selectedTournament} onValueChange={(value) => { setSelectedTournament(value); setSelectedSeason(''); }}>
-                  <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="Tournament" /></SelectTrigger>
-                  <SelectContent>
-                    {tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id}>{t.name}</SelectItem>)}
+                  <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Tournament" /></SelectTrigger>
+                  <SelectContent className="max-h-72 w-[min(90vw,var(--radix-select-trigger-width))] max-w-[90vw]">
+                    {tournaments.map(t => <SelectItem key={t.tournament_id} value={t.tournament_id} className="whitespace-normal">{t.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={selectedSeason} onValueChange={setSelectedSeason}>
                   <SelectTrigger className="w-full sm:w-32"><SelectValue placeholder="Season" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-72 w-[min(90vw,var(--radix-select-trigger-width))] max-w-[90vw]">
                     {seasons.filter(s => s.tournament_id === selectedTournament).map(s => <SelectItem key={s.season_id} value={s.season_id}>{s.year}</SelectItem>)}
                   </SelectContent>
                 </Select>

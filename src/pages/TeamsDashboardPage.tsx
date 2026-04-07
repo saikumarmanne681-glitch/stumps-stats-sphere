@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Award, BarChart3, Crown, LifeBuoy, Megaphone, Shield, Sparkles, Swords, Ticket, Trophy, Users, FileBadge2 } from 'lucide-react';
+import { Award, BarChart3, Crown, LifeBuoy, Megaphone, Shield, Sparkles, Swords, Ticket, Trophy, Users, FileBadge2, AlertTriangle, Clock3, CheckCircle2 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -408,22 +408,27 @@ export default function TeamsDashboardPage() {
               <CardHeader><CardTitle className="flex items-center gap-2"><Ticket className="h-5 w-5" /> Latest support tickets</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {visibleTickets.sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at)).slice(0, 20).map((ticket) => (
-                  <div key={ticket.ticket_id} className="rounded-xl border bg-gradient-to-br from-background to-primary/5 p-3 shadow-sm">
+                  <div key={ticket.ticket_id} className="rounded-2xl border border-primary/15 bg-gradient-to-br from-background via-background to-primary/5 p-3 shadow-sm sm:p-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="font-semibold">{ticket.subject}</p>
+                        <p className="font-semibold text-sm sm:text-base">{ticket.subject}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{ticket.ticket_id}</p>
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className="bg-background text-foreground">{ticket.category}</Badge>
                           <Badge className={ticket.priority === 'critical' ? 'border border-rose-300 bg-rose-50 text-rose-800' : ticket.priority === 'high' ? 'border border-orange-300 bg-orange-50 text-orange-800' : ticket.priority === 'medium' ? 'border border-blue-300 bg-blue-50 text-blue-800' : 'border border-slate-300 bg-slate-50 text-slate-700'}>
                             {ticket.priority.toUpperCase()}
                           </Badge>
+                          {ticket.priority === 'critical' && <Badge className="border border-rose-300 bg-rose-100 text-rose-900"><AlertTriangle className="mr-1 h-3 w-3" />Escalated</Badge>}
                         </div>
                       </div>
                       <Badge className={ticketBadgeClass[ticket.status] || ticketBadgeClass.open}>{ticket.status.replace('_', ' ')}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-2">{ticket.description}</p>
-                    <p className="text-xs mt-2 text-muted-foreground">Raised: {formatInIST(ticket.created_at)} · Due: {formatInIST(ticket.resolution_due)}</p>
+                    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground sm:line-clamp-none">{ticket.description}</p>
+                    <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                      <p className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />Raised: {formatInIST(ticket.created_at)}</p>
+                      <p className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />Due: {formatInIST(ticket.resolution_due)}</p>
+                      <p className="inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />SLA: {ticket.status === 'resolved' || ticket.status === 'closed' ? 'Completed' : 'In progress'}</p>
+                    </div>
                   </div>
                 ))}
                 {visibleTickets.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No tickets for this selection.</p>}

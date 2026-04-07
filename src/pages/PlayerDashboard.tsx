@@ -300,6 +300,16 @@ const PlayerDashboard = () => {
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Hall of glory clubs</p>
               <p className="mt-1 font-display text-3xl font-bold text-primary">{unlockedHallOfGloryCount}</p>
               <p className="text-xs text-muted-foreground">Milestone clubs unlocked from career runs/wickets.</p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {hallOfGloryMilestones.filter((item) => item.reached).slice(0, 4).map((item) => (
+                  <Badge key={item.key} className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-800">
+                    {item.icon} {item.threshold}
+                  </Badge>
+                ))}
+                {hallOfGloryMilestones.filter((item) => item.reached).length === 0 && (
+                  <Badge variant="outline" className="rounded-full text-[10px]">No clubs yet</Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -385,8 +395,20 @@ const PlayerDashboard = () => {
               </CardHeader>
               <CardContent className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {hallOfGloryMilestones.map((milestone) => (
-                  <div key={milestone.key} className="rounded-lg border bg-background/90 p-3">
-                    <p className="font-medium">{milestone.icon} {milestone.label}</p>
+                  <div
+                    key={milestone.key}
+                    className={`rounded-xl border p-3 transition-colors ${
+                      milestone.reached
+                        ? 'border-emerald-300/70 bg-gradient-to-br from-emerald-100/70 via-background to-background'
+                        : 'border-border bg-background/90'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium">{milestone.icon} {milestone.label}</p>
+                      <Badge className={`rounded-full text-[10px] ${milestone.reached ? 'border border-emerald-300 bg-emerald-50 text-emerald-800' : 'border border-slate-300 bg-slate-100 text-slate-700'}`}>
+                        {milestone.reached ? 'Unlocked' : 'Locked'}
+                      </Badge>
+                    </div>
                     {milestone.reached ? (
                       <>
                         <p className="text-sm text-primary">Unlocked at {milestone.reachedValue} {milestone.stat}</p>
