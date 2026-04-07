@@ -15,6 +15,7 @@ import { CalendarDays, Filter, Lock, Sparkles, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SessionFingerprint, SecurityShieldBadge } from "@/components/SecurityBadge";
 import { VerticalAnnouncementsBox } from "@/components/VerticalAnnouncementsBox";
+import { formatInIST } from "@/lib/time";
 
 const Home = () => {
   const { players, tournaments, seasons, matches, batting, bowling, loading, lastRefresh } = useData();
@@ -230,7 +231,7 @@ const Home = () => {
 
       <footer className="bg-card border-t py-6 mt-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Cricket Club Portal. All rights reserved. Last data refresh: {lastRefresh ? new Date(lastRefresh).toLocaleString() : 'N/A'}.
+          © {new Date().getFullYear()} Cricket Club Portal. All rights reserved. Last data refresh: {lastRefresh ? `${formatInIST(lastRefresh)} IST` : 'N/A'}.
         </div>
       </footer>
     </div>

@@ -75,11 +75,40 @@ export function CertificateBuilder() {
   const tournamentNameById = useMemo(() => (
     new Map(tournaments.map((item) => [item.tournament_id, item.name]))
   ), [tournaments]);
+  const tournamentIdsByName = useMemo(() => (
+    tournaments.reduce<Map<string, string[]>>((acc, item) => {
+      const key = String(item.name || '').trim();
+      if (!key) return acc;
+      const current = acc.get(key) || [];
+      current.push(item.tournament_id);
+      acc.set(key, current);
+      return acc;
+    }, new Map<string, string[]>())
+  ), [tournaments]);
   const seasonYearById = useMemo(() => (
     new Map(seasons.map((item) => [item.season_id, String(item.year)]))
   ), [seasons]);
+  const selectedTournamentIds = useMemo(() => (
+    (form.tournament ? tournamentIdsByName.get(form.tournament) : []) || []
+  ), [form.tournament, tournamentIdsByName]);
+  const availableSeasons = useMemo(() => {
+    if (!form.tournament) return seasons;
+    return seasons.filter((item) => selectedTournamentIds.includes(item.tournament_id));
+  }, [form.tournament, seasons, selectedTournamentIds]);
+  const selectedSeasonIds = useMemo(() => {
+    if (!form.season) return [];
+    return availableSeasons
+      .filter((item) => String(item.year) === String(form.season))
+      .map((item) => item.season_id);
+  }, [availableSeasons, form.season]);
 
-  const matchSelectionOptions = useMemo(() => matches.map((item) => {
+  const matchSelectionOptions = useMemo(() => matches
+    .filter((item) => {
+      const matchesTournament = !form.tournament || selectedTournamentIds.includes(item.tournament_id);
+      const matchesSeason = !form.season || selectedSeasonIds.includes(item.season_id);
+      return matchesTournament && matchesSeason;
+    })
+    .map((item) => {
     const tournamentLabel = tournamentNameById.get(item.tournament_id) || item.tournament_id || 'Unknown tournament';
     const seasonLabel = seasonYearById.get(item.season_id) || item.season_id || 'Unknown season';
     const stageLabel = item.match_stage?.trim() || 'Stage N/A';
@@ -88,7 +117,7 @@ export function CertificateBuilder() {
       value: item.match_id,
       label: `${item.match_id} · ${item.team_a} vs ${item.team_b} · ${stageLabel} · ${tournamentLabel} · ${seasonLabel} · ${resultLabel}`,
     };
-  }), [matches, seasonYearById, tournamentNameById]);
+  }), [form.season, form.tournament, matches, seasonYearById, selectedSeasonIds, selectedTournamentIds, tournamentNameById]);
 
   /* ── Autofill match details & performance when a match is selected ── */
   useEffect(() => {
@@ -258,7 +287,9 @@ export function CertificateBuilder() {
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <Label>Tournament</Label>
-              <Select value={form.tournament || ''} onValueChange={(value) => updateField('tournament', value)}>
+              <Select value={form.tournament || ''} onValueChange={(value) => {
+                setForm((prev) => ({ ...prev, tournament: value, season: '', match_id: '', details_json: '', performance_json: '' }));
+              }}>
                 <SelectTrigger><SelectValue placeholder="Select tournament" /></SelectTrigger>
                 <SelectContent>
                   {tournaments.map((item) => <SelectItem key={item.tournament_id} value={item.name}>{item.name}</SelectItem>)}
@@ -267,10 +298,12 @@ export function CertificateBuilder() {
             </div>
             <div>
               <Label>Season</Label>
-              <Select value={form.season || ''} onValueChange={(value) => updateField('season', value)}>
+              <Select value={form.season || ''} onValueChange={(value) => {
+                setForm((prev) => ({ ...prev, season: value, match_id: '', details_json: '', performance_json: '' }));
+              }}>
                 <SelectTrigger><SelectValue placeholder="Select season" /></SelectTrigger>
                 <SelectContent>
-                  {seasons.map((item) => <SelectItem key={item.season_id} value={String(item.year)}>{item.year}</SelectItem>)}
+                  {availableSeasons.map((item) => <SelectItem key={item.season_id} value={String(item.year)}>{item.year}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

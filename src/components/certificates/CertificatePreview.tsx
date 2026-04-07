@@ -10,6 +10,7 @@ import { downloadCertificatePdf, printCertificate } from '@/lib/certificatePdf';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
+import { formatInIST } from '@/lib/time';
 
 interface Props {
   certificate: Partial<CertificateRecord>;
@@ -298,8 +299,8 @@ export const CertificatePreview = memo(function CertificatePreview({
   const season = certificate.season || 'Season';
   const id = certificate.id || 'CERT-XXXX';
   const status = certificate.status || 'DRAFT';
-  const createdAt = certificate.created_at ? new Date(certificate.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '';
-  const certifiedAt = certificate.certified_at ? new Date(certificate.certified_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '';
+  const createdAt = certificate.created_at ? formatInIST(certificate.created_at) : '';
+  const certifiedAt = certificate.certified_at ? formatInIST(certificate.certified_at) : '';
   const verificationCode = certificate.verification_code || '';
   const certifiedBy = certificate.certified_by || 'Portal Authority';
   const templateName = template?.template_name || certificate.template_id || theme.name;
@@ -432,7 +433,6 @@ export const CertificatePreview = memo(function CertificatePreview({
               <div
                 className="mx-auto w-full overflow-hidden"
                 style={{
-                  maxWidth: '1120px',
                   height: `${Math.round(1120 * 210 / 297 * autoScale)}px`,
                 }}
               >
@@ -768,7 +768,7 @@ export const CertificatePreview = memo(function CertificatePreview({
             {/* Download/Print bar */}
             {showDownload && (
               <div className="cert-download-bar flex flex-col items-center justify-between gap-2 border-t bg-muted/30 px-4 py-2 sm:flex-row">
-                <p className="text-xs text-muted-foreground">{id} • {status} • {theme.name} • A4 Landscape</p>
+                <p className="text-xs text-muted-foreground">{id} • {status} • {theme.name} • Auto-scaled to device</p>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" onClick={handlePrint} disabled={printing}>
                     {printing ? 'Preparing...' : <><Printer className="mr-1 h-3 w-3" /> Print</>}

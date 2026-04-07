@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
 import { parseDepartmentAssignments, toDepartmentAssignmentsJson } from '@/lib/boardDepartments';
 import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
+import { formatInIST } from '@/lib/time';
 
 const AdminManagement = () => {
   const { isAdmin } = useAuth();
@@ -368,7 +369,7 @@ const AdminManagement = () => {
                     </TableCell>
                     <TableCell>{row.username}</TableCell>
                     <TableCell><Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge></TableCell>
-                    <TableCell>{new Date(row.updated_at || row.created_at || '').toLocaleString() || '-'}</TableCell>
+                    <TableCell>{formatInIST(row.updated_at || row.created_at || '')}</TableCell>
                     <TableCell><div className="flex gap-1"><Button size="icon" variant="ghost" onClick={() => { setEditTeamUser(row); setTeamDialogOpen(true); }}><Pencil className="h-3 w-3" /></Button><Button size="icon" variant="ghost" onClick={async () => { await v2api.deleteTeamAccessUser(row.team_access_id); logAudit('admin', 'delete_team_login', 'team_access', row.team_access_id); toast({ title: 'Deleted', description: `Removed team login for ${row.team_name}.` }); refresh(); }}><Trash2 className="h-3 w-3 text-destructive" /></Button></div></TableCell>
                   </TableRow>
                 ))}
