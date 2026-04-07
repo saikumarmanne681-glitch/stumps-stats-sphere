@@ -933,7 +933,7 @@ export function AdminMatches() {
                 </div>
                 <div>
                   <Label>Result</Label>
-                  <p className="text-sm text-muted-foreground"> ex: LPL 2017 Match No: 06 | Chandrashekar Team Won</p>
+                  <p className="text-xs text-muted-foreground"> ex: LPL 2017 Match No: 06 | Chandrashekar Team Won</p>
                   <Input
                     value={editMatch?.result || ""}
                     onChange={(e) => setEditMatch((prev) => (prev ? { ...prev, result: e.target.value } : null))}
