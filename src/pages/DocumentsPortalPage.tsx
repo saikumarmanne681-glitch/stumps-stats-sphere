@@ -13,27 +13,106 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Eye, Download, Sparkles, LockKeyhole, Building2, CalendarClock } from 'lucide-react';
+import { FileText, Eye, Download, Sparkles, LockKeyhole, Building2, CalendarClock, ShieldCheck } from 'lucide-react';
 import { formatSheetDate } from '@/lib/dataUtils';
 import { DepartmentBadge } from '@/components/DepartmentBadge';
 import { DEPARTMENT_CATALOG, getDepartmentById, getDepartmentByName } from '@/lib/departmentCatalog';
 import { PageHeader } from '@/components/PageHeader';
 
 const categories = ['Governance', 'Tournament', 'Finance', 'Legal', 'Operations'] as const;
-
 const documentDepartmentOptions = DEPARTMENT_CATALOG.map((entry) => ({ id: entry.id, name: entry.name }));
+
+const repoDocuments = import.meta.glob('../../docs/*.{pdf,PDF,doc,docx,txt,md}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
+interface DocumentSecurityProfile {
+  viewOnly: boolean;
+  allowPreview: boolean;
+  allowDownload: boolean;
+  allowPrint: boolean;
+  watermark: boolean;
+  disableCopy: boolean;
+  disableRightClick: boolean;
+  blurWhenInactive: boolean;
+  expiryEnabled: boolean;
+  expiryAt: string;
+  maxViewsEnabled: boolean;
+  maxViews: number;
+  blockScreenCaptureWarning: boolean;
+  requireReasonToOpen: boolean;
+  requireTwoStepConfirm: boolean;
+  forceReauthPrompt: boolean;
+  geoFenceHint: boolean;
+  ipAllowlistHint: boolean;
+  timeWindowEnabled: boolean;
+  openFromHour: string;
+  closeAtHour: string;
+  allowAnnotation: boolean;
+  redactSensitiveLayer: boolean;
+  pinRequiredHint: boolean;
+  tamperHashVisible: boolean;
+  autoCloseOnIdle: boolean;
+  idleMinutes: number;
+  auditEveryAction: boolean;
+  openInSandboxedFrame: boolean;
+  downloadRequiresApprovalHint: boolean;
+}
+
+const defaultSecurityProfile: DocumentSecurityProfile = {
+  viewOnly: true,
+  allowPreview: true,
+  allowDownload: false,
+  allowPrint: false,
+  watermark: true,
+  disableCopy: true,
+  disableRightClick: true,
+  blurWhenInactive: true,
+  expiryEnabled: false,
+  expiryAt: '',
+  maxViewsEnabled: false,
+  maxViews: 50,
+  blockScreenCaptureWarning: true,
+  requireReasonToOpen: true,
+  requireTwoStepConfirm: true,
+  forceReauthPrompt: true,
+  geoFenceHint: false,
+  ipAllowlistHint: false,
+  timeWindowEnabled: false,
+  openFromHour: '08:00',
+  closeAtHour: '20:00',
+  allowAnnotation: false,
+  redactSensitiveLayer: false,
+  pinRequiredHint: false,
+  tamperHashVisible: true,
+  autoCloseOnIdle: true,
+  idleMinutes: 5,
+  auditEveryAction: true,
+  openInSandboxedFrame: true,
+  downloadRequiresApprovalHint: true,
+};
+
+const storageKeyForProfile = (docId: string) => `doc-security-profile:${docId}`;
+const storageKeyForCounter = (docId: string) => `doc-security-counter:${docId}`;
 
 export default function DocumentsPortalPage() {
   const { user, isAdmin, isManagement } = useAuth();
   const { toast } = useToast();
   const [docs, setDocs] = useState<OfficialDocumentRecord[]>([]);
   const [title, setTitle] = useState('');
-  const [url, setUrl] = useState('');
   const [category, setCategory] = useState<(typeof categories)[number]>('Governance');
   const [departmentId, setDepartmentId] = useState('executive_board');
   const [accessList, setAccessList] = useState('all_management');
   const [editingId, setEditingId] = useState<string>('');
+  const [selectedDocId, setSelectedDocId] = useState<string>('');
+  const [securityProfile, setSecurityProfile] = useState<DocumentSecurityProfile>(defaultSecurityProfile);
+  const [sessionReason, setSessionReason] = useState('');
+  const [securityConfirmed, setSecurityConfirmed] = useState(false);
+  const [securityStep2Confirmed, setSecurityStep2Confirmed] = useState(false);
 
   const refresh = async () => {
     const rows = await v2api.getCustomSheet<OfficialDocumentRecord>('OFFICIAL_DOCUMENTS');
@@ -41,6 +120,39 @@ export default function DocumentsPortalPage() {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  const repoDocRows = useMemo<OfficialDocumentRecord[]>(() => {
+    const now = new Date().toISOString();
+    return Object.entries(repoDocuments)
+      .map(([path, src], index) => {
+        const filename = path.split('/').pop() || `repo-doc-${index + 1}.pdf`;
+        const titleText = filename.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+        return {
+          document_id: `REPO_${filename.replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase()}`,
+          title: titleText,
+          category: 'Governance',
+          department_id: 'executive_board',
+          department: 'Executive Board',
+          source_url: src,
+          source_type: 'repository',
+          status: 'published',
+          allowed_management_ids: 'admin_only',
+          allow_preview: true,
+          allow_download: false,
+          created_by: 'system_repo_sync',
+          created_at: now,
+          updated_at: now,
+        } satisfies OfficialDocumentRecord;
+      })
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, []);
+
+  const mergedDocs = useMemo(() => {
+    const rowById = new Map<string, OfficialDocumentRecord>();
+    repoDocRows.forEach((doc) => rowById.set(doc.document_id, doc));
+    docs.forEach((doc) => rowById.set(doc.document_id, doc));
+    return [...rowById.values()].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  }, [docs, repoDocRows]);
 
   const hasDocumentAccess = (doc: OfficialDocumentRecord) => {
     if (isAdmin) return true;
@@ -58,29 +170,96 @@ export default function DocumentsPortalPage() {
     const managementId = String(user.management_id || '').toLowerCase();
     const authorityLevel = Number((user as any).authority_level || 0);
 
-    return allowlist.some((entry) =>
-      entry === managementId ||
-      entry === username ||
-      entry === designation ||
-      (entry.startsWith('designation:') && entry.slice(12) === designation) ||
-      (entry.startsWith('authority>=') && authorityLevel >= Number(entry.replace('authority>=', ''))),
-    );
+    return allowlist.some((entry) => (
+      entry === managementId
+      || entry === username
+      || entry === designation
+      || (entry.startsWith('designation:') && entry.slice(12) === designation)
+      || (entry.startsWith('authority>=') && authorityLevel >= Number(entry.replace('authority>=', '')))
+    ));
   };
 
-  const visibleDocs = useMemo(() => {
-    return docs.filter(hasDocumentAccess);
-  }, [docs, isAdmin, isManagement, user]);
+  const visibleDocs = useMemo(() => mergedDocs.filter(hasDocumentAccess), [mergedDocs, isAdmin, isManagement, user]);
   const latestVisibleDocs = useMemo(() => visibleDocs.slice(0, 10), [visibleDocs]);
+
+  const selectedDoc = useMemo(() => visibleDocs.find((doc) => doc.document_id === selectedDocId) || null, [selectedDocId, visibleDocs]);
 
   const resolveDocDepartmentId = (doc: OfficialDocumentRecord) => {
     if (doc.department_id) return doc.department_id;
     return getDepartmentByName(doc.department)?.id || 'general';
   };
 
+  const loadProfileForDoc = (docId: string) => {
+    const raw = localStorage.getItem(storageKeyForProfile(docId));
+    if (!raw) return { ...defaultSecurityProfile };
+    try {
+      return { ...defaultSecurityProfile, ...(JSON.parse(raw) as Partial<DocumentSecurityProfile>) };
+    } catch {
+      return { ...defaultSecurityProfile };
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedDocId) return;
+    setSecurityProfile(loadProfileForDoc(selectedDocId));
+    setSecurityConfirmed(false);
+    setSecurityStep2Confirmed(false);
+    setSessionReason('');
+  }, [selectedDocId]);
+
+  useEffect(() => {
+    if (!selectedDocId || !isAdmin) return;
+    localStorage.setItem(storageKeyForProfile(selectedDocId), JSON.stringify(securityProfile));
+  }, [selectedDocId, securityProfile, isAdmin]);
+
+  useEffect(() => {
+    const onContext = (event: MouseEvent) => {
+      if (selectedDoc && securityProfile.disableRightClick) {
+        event.preventDefault();
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (!selectedDoc) return;
+      const isPrint = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p';
+      const isSave = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+      const isCopy = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c';
+      if ((!securityProfile.allowPrint && isPrint) || (securityProfile.viewOnly && isSave) || (securityProfile.disableCopy && isCopy)) {
+        event.preventDefault();
+        toast({ title: 'Security policy active', description: 'That action is blocked by document controls.', variant: 'destructive' });
+      }
+    };
+    document.addEventListener('contextmenu', onContext);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('contextmenu', onContext);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [selectedDoc, securityProfile, toast]);
+
+  useEffect(() => {
+    if (!selectedDoc || !securityProfile.autoCloseOnIdle) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const reset = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        setSelectedDocId('');
+        toast({ title: 'Session locked', description: `Viewer auto-locked after ${securityProfile.idleMinutes} min idle time.` });
+      }, securityProfile.idleMinutes * 60 * 1000);
+    };
+    reset();
+    window.addEventListener('mousemove', reset);
+    window.addEventListener('keydown', reset);
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('mousemove', reset);
+      window.removeEventListener('keydown', reset);
+    };
+  }, [selectedDoc, securityProfile.autoCloseOnIdle, securityProfile.idleMinutes, toast]);
+
   const addDocument = async () => {
     if (!isAdmin) return;
-    if (!title.trim() || !url.trim()) {
-      toast({ title: 'Title and URL are required', variant: 'destructive' });
+    if (!title.trim()) {
+      toast({ title: 'Document title is required', variant: 'destructive' });
       return;
     }
     const row: OfficialDocumentRecord = {
@@ -89,30 +268,29 @@ export default function DocumentsPortalPage() {
       category,
       department_id: departmentId,
       department: getDepartmentById(departmentId)?.name || 'General',
-      source_url: url.trim(),
-      source_type: 'url',
+      source_url: '',
+      source_type: 'repository',
       status: 'published',
       allowed_management_ids: accessList.trim() || 'all_management',
       allow_preview: true,
-      allow_download: true,
+      allow_download: false,
       created_by: user?.username || 'admin',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
     const ok = await v2api.addCustomSheetRow('OFFICIAL_DOCUMENTS', row);
     if (!ok) {
-      toast({ title: 'Unable to save document', description: 'Please check OFFICIAL_DOCUMENTS sheet mapping.', variant: 'destructive' });
+      toast({ title: 'Unable to save document policy', description: 'Please check OFFICIAL_DOCUMENTS sheet mapping.', variant: 'destructive' });
       return;
     }
     logAudit(user?.username || 'admin', 'document_create', 'document', row.document_id, JSON.stringify({ category, department_id: row.department_id, allowed: row.allowed_management_ids }));
     setTitle('');
-    setUrl('');
-    toast({ title: 'Document added to official library' });
+    toast({ title: 'Document policy added' });
     refresh();
   };
 
   const toggleVisibility = async (doc: OfficialDocumentRecord) => {
-    if (!isAdmin) return;
+    if (!isAdmin || doc.source_type === 'repository') return;
     const payload = { ...doc, status: doc.status === 'published' ? 'hidden' : 'published', updated_at: new Date().toISOString() };
     await v2api.updateCustomSheetRow('OFFICIAL_DOCUMENTS', payload);
     logAudit(user?.username || 'admin', 'document_visibility_toggle', 'document', doc.document_id, JSON.stringify({ status: payload.status }));
@@ -122,7 +300,6 @@ export default function DocumentsPortalPage() {
   const loadForEdit = (doc: OfficialDocumentRecord) => {
     setEditingId(doc.document_id);
     setTitle(doc.title || '');
-    setUrl(doc.source_url || '');
     setCategory((categories.includes(doc.category as (typeof categories)[number]) ? doc.category : 'Governance') as (typeof categories)[number]);
     setDepartmentId(resolveDocDepartmentId(doc));
     setAccessList(doc.allowed_management_ids || 'all_management');
@@ -131,7 +308,6 @@ export default function DocumentsPortalPage() {
   const clearEditor = () => {
     setEditingId('');
     setTitle('');
-    setUrl('');
     setCategory('Governance');
     setDepartmentId('executive_board');
     setAccessList('all_management');
@@ -141,14 +317,13 @@ export default function DocumentsPortalPage() {
     if (!isAdmin || !editingId) return;
     const existing = docs.find((item) => item.document_id === editingId);
     if (!existing) return;
-    if (!title.trim() || !url.trim()) {
-      toast({ title: 'Title and URL are required', variant: 'destructive' });
+    if (!title.trim()) {
+      toast({ title: 'Title is required', variant: 'destructive' });
       return;
     }
     const payload: OfficialDocumentRecord = {
       ...existing,
       title: title.trim(),
-      source_url: url.trim(),
       category,
       department_id: departmentId,
       department: getDepartmentById(departmentId)?.name || 'General',
@@ -167,7 +342,7 @@ export default function DocumentsPortalPage() {
   };
 
   const deleteDocument = async (doc: OfficialDocumentRecord) => {
-    if (!isAdmin) return;
+    if (!isAdmin || doc.source_type === 'repository') return;
     const confirmed = window.confirm(`Delete document "${doc.title}"?`);
     if (!confirmed) return;
     const ok = await v2api.deleteCustomSheetRow('OFFICIAL_DOCUMENTS', doc);
@@ -181,8 +356,44 @@ export default function DocumentsPortalPage() {
     refresh();
   };
 
+  const incrementViewCounter = (docId: string) => {
+    const next = Number(localStorage.getItem(storageKeyForCounter(docId)) || '0') + 1;
+    localStorage.setItem(storageKeyForCounter(docId), String(next));
+    return next;
+  };
+
+  const canOpenSelectedDocument = (doc: OfficialDocumentRecord) => {
+    const now = new Date();
+    if (securityProfile.expiryEnabled && securityProfile.expiryAt && now > new Date(securityProfile.expiryAt)) return false;
+    if (securityProfile.timeWindowEnabled) {
+      const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      if (hhmm < securityProfile.openFromHour || hhmm > securityProfile.closeAtHour) return false;
+    }
+    if (securityProfile.requireReasonToOpen && !sessionReason.trim()) return false;
+    if (securityProfile.requireTwoStepConfirm && !securityStep2Confirmed) return false;
+    if (securityProfile.forceReauthPrompt && !securityConfirmed) return false;
+    if (securityProfile.maxViewsEnabled) {
+      const views = Number(localStorage.getItem(storageKeyForCounter(doc.document_id)) || '0');
+      if (views >= securityProfile.maxViews) return false;
+    }
+    return true;
+  };
+
+  const openSelectedDocument = () => {
+    if (!selectedDoc) return;
+    if (!canOpenSelectedDocument(selectedDoc)) {
+      toast({ title: 'Access blocked by policy', description: 'This document is currently locked due to active security rules.', variant: 'destructive' });
+      return;
+    }
+    incrementViewCounter(selectedDoc.document_id);
+    if (securityProfile.auditEveryAction) {
+      logAudit(user?.username || 'unknown', 'document_open', 'document', selectedDoc.document_id, JSON.stringify({ reason: sessionReason || 'n/a', source_type: selectedDoc.source_type }));
+    }
+    toast({ title: 'Secure viewer unlocked', description: 'Document opened with current security controls.' });
+  };
+
   if (!user) return <Navigate to="/login" />;
-  if (!isAdmin && !isManagement) return <Navigate to="/" />;
+  if (!isAdmin) return <Navigate to="/" />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,10 +407,11 @@ export default function DocumentsPortalPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="bg-background/80">Visible for you: {visibleDocs.length}</Badge>
-                <Badge variant="outline" className="bg-background/80">Total records: {docs.length}</Badge>
-                <Badge variant="outline" className="bg-background/80">Admin mode: {isAdmin ? 'Enabled' : 'Disabled'}</Badge>
+                <Badge variant="outline" className="bg-background/80">Repository documents: {repoDocRows.length}</Badge>
+                <Badge variant="outline" className="bg-background/80">Visible for admin: {visibleDocs.length}</Badge>
+                <Badge variant="outline" className="bg-background/80">Strict admin only: Enabled</Badge>
               </div>
+              <p className="text-sm text-muted-foreground">All documents are loaded from the repository <code>/docs</code> folder. Admin can apply granular security controls per document profile.</p>
             </CardContent>
           </Card>
           <VerticalAnnouncementsBox />
@@ -207,7 +419,7 @@ export default function DocumentsPortalPage() {
 
         <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-background to-accent/10">
           <CardHeader className="pb-3">
-            <CardTitle className="font-display text-base">Horizontal Scroller · Quick Access</CardTitle>
+            <CardTitle className="font-display text-base">Quick Access · Latest Repository Documents</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
@@ -226,15 +438,12 @@ export default function DocumentsPortalPage() {
                     <Badge variant={doc.status === 'published' ? 'default' : 'secondary'}>{doc.status}</Badge>
                   </div>
                   <div className="mt-3 flex gap-2">
-                    {doc.allow_preview && <Button size="sm" variant="outline" onClick={() => window.open(doc.source_url, '_blank', 'noopener,noreferrer')}><Eye className="mr-1 h-3 w-3" />Preview</Button>}
-                    {doc.allow_download && <Button size="sm" variant="outline" asChild><a href={doc.source_url} target="_blank" rel="noreferrer"><Download className="mr-1 h-3 w-3" />Download</a></Button>}
+                    <Button size="sm" variant="outline" onClick={() => setSelectedDocId(doc.document_id)}><Eye className="mr-1 h-3 w-3" />Secure View</Button>
                   </div>
                 </div>
               ))}
               {latestVisibleDocs.length === 0 && (
-                <div className="min-w-[280px] rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
-                  No documents available for quick access.
-                </div>
+                <div className="min-w-[280px] rounded-xl border border-dashed p-5 text-sm text-muted-foreground">No documents available for quick access.</div>
               )}
             </div>
           </CardContent>
@@ -242,13 +451,13 @@ export default function DocumentsPortalPage() {
 
         {isAdmin && (
           <Card>
-            <CardHeader><CardTitle>{editingId ? 'Edit Document' : 'Add New Document'}</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{editingId ? 'Edit Document Policy' : 'Add Document Policy'}</CardTitle></CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-3">
               <div className="md:col-span-2"><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Board circular / policy / schedule" /></div>
               <div><Label>Category</Label><Select value={category} onValueChange={(v) => setCategory(v as (typeof categories)[number])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></div>
-              <div className="md:col-span-2"><Label>Document URL</Label><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Drive/Sharepoint URL (pdf, docx, png, jpeg...)" /></div>
               <div><Label>Department</Label><Select value={departmentId} onValueChange={setDepartmentId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documentDepartmentOptions.map((option) => <SelectItem value={option.id} key={option.id}>{option.name}</SelectItem>)}</SelectContent></Select></div>
-              <div className="md:col-span-2"><Label>Access</Label><Input value={accessList} onChange={(e) => setAccessList(e.target.value)} placeholder="all_management, management_id, username, designation:treasurer, authority>=7" /></div>
+              <div className="md:col-span-2"><Label>Access</Label><Input value={accessList} onChange={(e) => setAccessList(e.target.value)} placeholder="admin_only, management_id, username, designation:treasurer, authority>=7" /></div>
+              <div className="md:col-span-3 text-xs text-muted-foreground rounded-md border p-3">Repository documents are loaded automatically from <code>/docs</code>. This form manages permission policy metadata.</div>
               <div className="md:col-span-1 flex items-end gap-2">
                 {editingId ? (
                   <>
@@ -256,49 +465,162 @@ export default function DocumentsPortalPage() {
                     <Button variant="outline" onClick={clearEditor} className="w-full">Cancel</Button>
                   </>
                 ) : (
-                  <Button onClick={addDocument} className="w-full">Publish to Library</Button>
+                  <Button onClick={addDocument} className="w-full">Save Policy</Button>
                 )}
               </div>
             </CardContent>
           </Card>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {visibleDocs.map((doc) => (
-            <Card key={doc.document_id} className="border-primary/20">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> {doc.title}</p>
-                    <div className="mt-1">
-                      <DepartmentBadge department={doc.department} departmentId={resolveDocDepartmentId(doc)} className="text-[10px]" />
+        <div className="grid gap-4 lg:grid-cols-5">
+          <div className="lg:col-span-3 grid gap-4 md:grid-cols-2">
+            {visibleDocs.map((doc) => (
+              <Card key={doc.document_id} className="border-primary/20">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> {doc.title}</p>
+                      <div className="mt-1"><DepartmentBadge department={doc.department} departmentId={resolveDocDepartmentId(doc)} className="text-[10px]" /></div>
                     </div>
+                    <Badge variant={doc.status === 'published' ? 'default' : 'secondary'}>{doc.status}</Badge>
                   </div>
-                  <Badge variant={doc.status === 'published' ? 'default' : 'secondary'}>{doc.status}</Badge>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">{doc.category}</Badge>
-                  <Badge variant="outline"><LockKeyhole className="mr-1 h-3 w-3" />Access: {doc.allowed_management_ids}</Badge>
-                </div>
-                {doc.source_url.toLowerCase().includes('.pdf') && (
-                  <div className="overflow-hidden rounded-xl border bg-muted/20">
-                    <iframe title={`${doc.title} preview`} src={doc.source_url} className="h-56 w-full" />
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">{doc.category}</Badge>
+                    <Badge variant="outline"><LockKeyhole className="mr-1 h-3 w-3" />Access: {doc.allowed_management_ids}</Badge>
+                    <Badge variant="outline">Source: {doc.source_type}</Badge>
                   </div>
-                )}
-                <div className="flex gap-2 flex-wrap">
-                  {doc.allow_preview && <Button size="sm" variant="outline" onClick={() => window.open(doc.source_url, '_blank', 'noopener,noreferrer')}><Eye className="mr-1 h-3 w-3" /> Preview</Button>}
-                  {doc.allow_download && <Button size="sm" variant="outline" asChild><a href={doc.source_url} target="_blank" rel="noreferrer"><Download className="mr-1 h-3 w-3" /> Download</a></Button>}
-                  {!doc.allow_preview && !doc.allow_download && <Badge variant="secondary">Restricted by admin</Badge>}
-                  {isAdmin && <Button size="sm" onClick={() => toggleVisibility(doc)}>{doc.status === 'published' ? 'Hide' : 'Publish'}</Button>}
-                  {isAdmin && <Button size="sm" variant="secondary" onClick={() => loadForEdit(doc)}>Edit</Button>}
-                  {isAdmin && <Button size="sm" variant="destructive" onClick={() => void deleteDocument(doc)}>Delete</Button>}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          {visibleDocs.length === 0 && (
-            <Card><CardContent className="p-8 text-center text-muted-foreground"><FileText className="h-10 w-10 mx-auto mb-2" />No documents available for your permission profile.</CardContent></Card>
-          )}
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => setSelectedDocId(doc.document_id)}><Eye className="mr-1 h-3 w-3" /> Secure View</Button>
+                    {isAdmin && doc.source_type !== 'repository' && <Button size="sm" onClick={() => toggleVisibility(doc)}>{doc.status === 'published' ? 'Hide' : 'Publish'}</Button>}
+                    {isAdmin && doc.source_type !== 'repository' && <Button size="sm" variant="secondary" onClick={() => loadForEdit(doc)}>Edit</Button>}
+                    {isAdmin && doc.source_type !== 'repository' && <Button size="sm" variant="destructive" onClick={() => void deleteDocument(doc)}>Delete</Button>}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {visibleDocs.length === 0 && (
+              <Card><CardContent className="p-8 text-center text-muted-foreground"><FileText className="h-10 w-10 mx-auto mb-2" />No documents available for your permission profile.</CardContent></Card>
+            )}
+          </div>
+
+          <Card className="lg:col-span-2 border-primary/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Document Security Console</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!selectedDoc && <p className="text-sm text-muted-foreground">Select a document to configure or enforce secure-view controls.</p>}
+              {selectedDoc && (
+                <>
+                  <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                    <p className="font-medium">{selectedDoc.title}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{selectedDoc.document_id}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 text-sm">
+                    {([
+                      ['View only mode', 'viewOnly'],
+                      ['Preview allowed', 'allowPreview'],
+                      ['Download allowed', 'allowDownload'],
+                      ['Print allowed', 'allowPrint'],
+                      ['Dynamic watermark', 'watermark'],
+                      ['Disable copy shortcuts', 'disableCopy'],
+                      ['Disable right-click menu', 'disableRightClick'],
+                      ['Blur when tab inactive', 'blurWhenInactive'],
+                      ['Screen-capture warning', 'blockScreenCaptureWarning'],
+                      ['Reason required to open', 'requireReasonToOpen'],
+                      ['Two-step security confirmation', 'requireTwoStepConfirm'],
+                      ['Force re-auth confirmation', 'forceReauthPrompt'],
+                      ['Geo-fence hint flag', 'geoFenceHint'],
+                      ['IP allowlist hint flag', 'ipAllowlistHint'],
+                      ['Time-window enforcement', 'timeWindowEnabled'],
+                      ['Annotation allowed', 'allowAnnotation'],
+                      ['Redaction overlay enabled', 'redactSensitiveLayer'],
+                      ['PIN required hint flag', 'pinRequiredHint'],
+                      ['Visible tamper hash badge', 'tamperHashVisible'],
+                      ['Auto close on idle', 'autoCloseOnIdle'],
+                      ['Audit every action', 'auditEveryAction'],
+                      ['Open in sandboxed iframe', 'openInSandboxedFrame'],
+                      ['Download requires approval hint', 'downloadRequiresApprovalHint'],
+                      ['Expiry policy enabled', 'expiryEnabled'],
+                      ['Max-view cap enabled', 'maxViewsEnabled'],
+                    ] as Array<[string, keyof DocumentSecurityProfile]>).map(([label, key]) => (
+                      <div key={key} className="flex items-center justify-between rounded-md border px-3 py-2">
+                        <p className="text-xs">{label}</p>
+                        <Switch checked={Boolean(securityProfile[key])} onCheckedChange={(checked) => setSecurityProfile((prev) => ({ ...prev, [key]: checked }))} disabled={!isAdmin} />
+                      </div>
+                    ))}
+                  </div>
+
+                  {securityProfile.expiryEnabled && (
+                    <div>
+                      <Label>Expiry date/time (UTC)</Label>
+                      <Input type="datetime-local" value={securityProfile.expiryAt} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, expiryAt: e.target.value }))} />
+                    </div>
+                  )}
+                  {securityProfile.maxViewsEnabled && (
+                    <div>
+                      <Label>Maximum opens</Label>
+                      <Input type="number" min={1} value={securityProfile.maxViews} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, maxViews: Number(e.target.value || 1) }))} />
+                    </div>
+                  )}
+                  {securityProfile.timeWindowEnabled && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><Label>Open from</Label><Input type="time" value={securityProfile.openFromHour} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, openFromHour: e.target.value }))} /></div>
+                      <div><Label>Close at</Label><Input type="time" value={securityProfile.closeAtHour} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, closeAtHour: e.target.value }))} /></div>
+                    </div>
+                  )}
+                  {securityProfile.autoCloseOnIdle && (
+                    <div>
+                      <Label>Idle timeout (minutes)</Label>
+                      <Input type="number" min={1} max={60} value={securityProfile.idleMinutes} onChange={(e) => setSecurityProfile((prev) => ({ ...prev, idleMinutes: Number(e.target.value || 5) }))} />
+                    </div>
+                  )}
+                  {securityProfile.requireReasonToOpen && (
+                    <div>
+                      <Label>Reason for access</Label>
+                      <Input value={sessionReason} onChange={(e) => setSessionReason(e.target.value)} placeholder="Enter access justification" />
+                    </div>
+                  )}
+                  {securityProfile.forceReauthPrompt && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <Switch checked={securityConfirmed} onCheckedChange={setSecurityConfirmed} />
+                      I reconfirm this viewing is authorized.
+                    </div>
+                  )}
+                  {securityProfile.requireTwoStepConfirm && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <Switch checked={securityStep2Confirmed} onCheckedChange={setSecurityStep2Confirmed} />
+                      I understand activity is audited and traceable.
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button onClick={openSelectedDocument} className="flex-1"><Eye className="mr-1 h-4 w-4" />Unlock Secure Viewer</Button>
+                    {securityProfile.allowDownload && !securityProfile.viewOnly ? (
+                      <Button variant="outline" asChild><a href={selectedDoc.source_url} target="_blank" rel="noreferrer"><Download className="mr-1 h-4 w-4" />Download</a></Button>
+                    ) : (
+                      <Button variant="outline" disabled>Download Blocked</Button>
+                    )}
+                  </div>
+                  {securityProfile.allowPreview && (
+                    <div className={`relative overflow-hidden rounded-xl border ${securityProfile.blurWhenInactive ? 'transition-all' : ''}`}>
+                      {securityProfile.watermark && (
+                        <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center opacity-20 text-sm font-semibold rotate-[-20deg]">
+                          CONFIDENTIAL · {user?.username || 'admin'} · {selectedDoc.document_id}
+                        </div>
+                      )}
+                      <iframe
+                        title={`${selectedDoc.title} preview`}
+                        src={selectedDoc.source_url}
+                        className={`h-72 w-full ${securityProfile.disableCopy ? 'select-none' : ''}`}
+                        sandbox={securityProfile.openInSandboxedFrame ? 'allow-same-origin allow-scripts' : undefined}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
