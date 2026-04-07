@@ -417,7 +417,7 @@ export function CertificateBuilder() {
           verificationUrl={verificationUrl}
           watermark={form.status === 'CERTIFIED'}
           showDownload
-          defaultExpanded
+          defaultExpanded={false}
         />
       </div>
       </div>

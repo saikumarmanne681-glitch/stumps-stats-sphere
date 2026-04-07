@@ -35,16 +35,16 @@ interface BoardMemberCard {
 }
 
 const tagStyles: Record<string, string> = {
-  Leadership: 'bg-primary/10 text-primary border-primary/20',
-  'Administration Team': 'bg-primary/10 text-primary border-primary/20',
-  'Executive Board': 'bg-accent/10 text-accent-foreground border-accent/20',
-  'Competition Operations': 'bg-primary/10 text-primary border-primary/20',
-  'Finance & Compliance': 'bg-primary/10 text-primary border-primary/20',
-  'Player Welfare & Development': 'bg-primary/10 text-primary border-primary/20',
-  'Discipline & Ethics': 'bg-primary/10 text-primary border-primary/20',
-  'Media & Community Engagement': 'bg-accent/10 text-accent-foreground border-accent/20',
-  Governance: 'bg-primary/10 text-primary border-primary/20',
-  Operations: 'bg-accent/10 text-accent-foreground border-accent/20',
+  Leadership: 'border border-rose-300 bg-rose-50 text-rose-800',
+  'Administration Team': 'border border-blue-300 bg-blue-50 text-blue-800',
+  'Executive Board': 'border border-violet-300 bg-violet-50 text-violet-800',
+  'Competition Operations': 'border border-cyan-300 bg-cyan-50 text-cyan-800',
+  'Finance & Compliance': 'border border-emerald-300 bg-emerald-50 text-emerald-800',
+  'Player Welfare & Development': 'border border-indigo-300 bg-indigo-50 text-indigo-800',
+  'Discipline & Ethics': 'border border-amber-300 bg-amber-50 text-amber-900',
+  'Media & Community Engagement': 'border border-fuchsia-300 bg-fuchsia-50 text-fuchsia-800',
+  Governance: 'border border-slate-300 bg-slate-100 text-slate-800',
+  Operations: 'border border-teal-300 bg-teal-50 text-teal-800',
 };
 
 const ManagementPage = () => {

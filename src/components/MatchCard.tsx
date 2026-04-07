@@ -67,7 +67,7 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
           </div>
         </>
       )}
-      <CardContent className="p-4">
+      <CardContent className="p-3 sm:p-4">
         {isPremiumKnockout && (
           <div className="relative z-10 mb-3 rounded-xl border border-amber-300/70 bg-white/75 px-3 py-2 backdrop-blur">
             <div className="flex items-center justify-between gap-2">
@@ -77,9 +77,9 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
             <p className="mt-1 text-[11px] text-amber-900/75">Special presentation card for high-stakes matches.</p>
           </div>
         )}
-        <div className="flex items-center justify-between mb-2">
-          <span className={`text-xs font-mono ${isPremiumKnockout ? "text-amber-950/70" : "text-muted-foreground"}`}>{match.match_id}</span>
-          <div className="flex items-center gap-1">
+        <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <span className={`text-[11px] font-mono break-all ${isPremiumKnockout ? "text-amber-950/70" : "text-muted-foreground"}`}>{match.match_id}</span>
+          <div className="flex flex-wrap items-center gap-1">
             {match.match_stage && (
               <Badge className={`border text-[10px] font-display ${getMatchStageChipClass(match.match_stage)}`}>
                 {match.match_stage}
@@ -101,16 +101,16 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
           </div>
         )}
 
-        <div className="flex items-center justify-between my-3">
+        <div className="my-3 flex items-center justify-between gap-2">
           <div className="text-center flex-1">
-            <span className={`font-display text-lg font-semibold block ${isPremiumKnockout ? "text-amber-950" : ""}`}>{match.team_a}</span>
+            <span className={`font-display text-base sm:text-lg font-semibold block leading-tight ${isPremiumKnockout ? "text-amber-950" : ""}`}>{match.team_a}</span>
             {(teamAScore.display || match.status === "live") && (
               <span className="text-primary font-bold text-sm">{teamAScore.display || "0/0 (0.0)"}</span>
             )}
           </div>
-          <span className="text-muted-foreground text-sm font-bold px-2">vs</span>
+          <span className="text-muted-foreground text-xs sm:text-sm font-bold px-1 sm:px-2">vs</span>
           <div className="text-center flex-1">
-            <span className={`font-display text-lg font-semibold block ${isPremiumKnockout ? "text-amber-950" : ""}`}>{match.team_b}</span>
+            <span className={`font-display text-base sm:text-lg font-semibold block leading-tight ${isPremiumKnockout ? "text-amber-950" : ""}`}>{match.team_b}</span>
             {(teamBScore.display || match.status === "live") && (
               <span className="text-primary font-bold text-sm">{teamBScore.display || "0/0 (0.0)"}</span>
             )}
@@ -119,7 +119,7 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
 
         {match.result && <p className="text-sm text-primary font-medium mb-2 text-center">{match.result}</p>}
 
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {matchDateLabel}
