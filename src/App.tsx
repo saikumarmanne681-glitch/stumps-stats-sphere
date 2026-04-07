@@ -1,4 +1,4 @@
-import { Suspense, lazy, type ComponentType } from "react";
+import { Component, Suspense, lazy, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -83,6 +83,54 @@ const RouteLoader = () => (
   </div>
 );
 
+type RouteErrorBoundaryState = {
+  hasError: boolean;
+};
+
+class RouteErrorBoundary extends Component<{ children: ReactNode }, RouteErrorBoundaryState> {
+  state: RouteErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): RouteErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown, errorInfo: ErrorInfo): void {
+    console.error("Route rendering failed", error, errorInfo);
+  }
+
+  private handleRetry = (): void => {
+    if (typeof window !== "undefined") {
+      window.location.reload();
+      return;
+    }
+    this.setState({ hasError: false });
+  };
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="max-w-md rounded-2xl border border-destructive/20 bg-card p-6 text-center shadow-sm">
+            <h1 className="text-lg font-semibold text-foreground">We couldn't load this page</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              A temporary update issue occurred while loading the app. Please retry.
+            </p>
+            <button
+              type="button"
+              onClick={this.handleRetry}
+              className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Retry loading
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -93,35 +141,37 @@ const App = () => (
           <BrowserRouter>
             <RouteChangeIndicator />
             <GlobalActivityIndicator />
-            <Suspense fallback={<RouteLoader />}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/player" element={<PlayerDashboard />} />
-                <Route path="/admin/match-center" element={<MatchCenter />} />
-                <Route path="/admin/backups" element={<AdminBackups />} />
-                <Route path="/admin/scorelists" element={<AdminScorelistsPage />} />
-                <Route path="/admin/management" element={<AdminManagement />} />
-                <Route path="/admin/work-queue" element={<AdminWorkQueuePage />} />
-                <Route path="/leaderboards" element={<LeaderboardsPage />} />
-                <Route path="/match/:match_id" element={<MatchPage />} />
-                <Route path="/player/:player_id" element={<PlayerPage />} />
-                <Route path="/tournament/:id" element={<TournamentPage />} />
-                <Route path="/verify-scorelist/:id" element={<VerifyScorelist />} />
-                <Route path="/management" element={<ManagementPage />} />
-                <Route path="/management/teams-dashboard" element={<RequireAuth><TeamsDashboardPage /></RequireAuth>} />
-                <Route path="/live" element={<LiveMatchPage />} />
-                <Route path="/seasons" element={<SeasonsOverviewPage />} />
-                <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
-                <Route path="/news-room" element={<RequireAuth><NewsRoomPage /></RequireAuth>} />
-                <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
-                <Route path="/verify" element={<VerificationPage />} />
-                <Route path="/verify/:type/:id" element={<VerificationPage />} />
-                <Route path="/forms" element={<RequireAuth><FormsPortalPage /></RequireAuth>} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+            <RouteErrorBoundary>
+              <Suspense fallback={<RouteLoader />}>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/player" element={<PlayerDashboard />} />
+                  <Route path="/admin/match-center" element={<MatchCenter />} />
+                  <Route path="/admin/backups" element={<AdminBackups />} />
+                  <Route path="/admin/scorelists" element={<AdminScorelistsPage />} />
+                  <Route path="/admin/management" element={<AdminManagement />} />
+                  <Route path="/admin/work-queue" element={<AdminWorkQueuePage />} />
+                  <Route path="/leaderboards" element={<LeaderboardsPage />} />
+                  <Route path="/match/:match_id" element={<MatchPage />} />
+                  <Route path="/player/:player_id" element={<PlayerPage />} />
+                  <Route path="/tournament/:id" element={<TournamentPage />} />
+                  <Route path="/verify-scorelist/:id" element={<VerifyScorelist />} />
+                  <Route path="/management" element={<ManagementPage />} />
+                  <Route path="/management/teams-dashboard" element={<RequireAuth><TeamsDashboardPage /></RequireAuth>} />
+                  <Route path="/live" element={<LiveMatchPage />} />
+                  <Route path="/seasons" element={<SeasonsOverviewPage />} />
+                  <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
+                  <Route path="/news-room" element={<RequireAuth><NewsRoomPage /></RequireAuth>} />
+                  <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
+                  <Route path="/verify" element={<VerificationPage />} />
+                  <Route path="/verify/:type/:id" element={<VerificationPage />} />
+                  <Route path="/forms" element={<RequireAuth><FormsPortalPage /></RequireAuth>} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </RouteErrorBoundary>
           </BrowserRouter>
         </TooltipProvider>
       </DataProvider>
