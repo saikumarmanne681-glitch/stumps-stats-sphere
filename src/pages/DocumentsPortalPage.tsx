@@ -113,6 +113,7 @@ export default function DocumentsPortalPage() {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<(typeof categories)[number]>('Governance');
   const [departmentId, setDepartmentId] = useState('executive_board');
+  const [sourceUrl, setSourceUrl] = useState('');
   const [accessRuleMode, setAccessRuleMode] = useState<'all_management' | 'admin_only' | 'custom'>('all_management');
   const [selectedManagementIds, setSelectedManagementIds] = useState<string[]>([]);
   const [manualAccessTokens, setManualAccessTokens] = useState('');
@@ -189,6 +190,8 @@ export default function DocumentsPortalPage() {
     docs.forEach((doc) => rowById.set(doc.document_id, doc));
     return [...rowById.values()].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
   }, [docs, repoDocRows]);
+
+  const getStoredDocument = (documentId: string) => docs.find((item) => item.document_id === documentId) || null;
 
   const hasDocumentAccess = (doc: OfficialDocumentRecord) => {
     if (isAdmin) return true;
@@ -321,13 +324,17 @@ export default function DocumentsPortalPage() {
       toast({ title: 'Document title is required', variant: 'destructive' });
       return;
     }
+    if (!sourceUrl.trim()) {
+      toast({ title: 'Source URL is required for preview', variant: 'destructive' });
+      return;
+    }
     const row: OfficialDocumentRecord = {
       document_id: generateId('DOC'),
       title: title.trim(),
       category,
       department_id: departmentId,
       department: getDepartmentById(departmentId)?.name || 'General',
-      source_url: '',
+      source_url: sourceUrl.trim(),
       source_type: 'repository',
       status: 'published',
       allowed_management_ids: buildAccessList() || 'all_management',
@@ -347,14 +354,30 @@ export default function DocumentsPortalPage() {
     setSelectedManagementIds([]);
     setManualAccessTokens('');
     setAccessRuleMode('all_management');
+    setSourceUrl('');
     toast({ title: 'Document policy added' });
     refresh();
   };
 
   const toggleVisibility = async (doc: OfficialDocumentRecord) => {
-    if (!isAdmin || doc.source_type === 'repository') return;
-    const payload = { ...doc, status: doc.status === 'published' ? 'hidden' : 'published', updated_at: new Date().toISOString() };
-    await v2api.updateCustomSheetRow('OFFICIAL_DOCUMENTS', payload);
+    if (!isAdmin) return;
+    const existing = getStoredDocument(doc.document_id);
+    const payload: OfficialDocumentRecord = {
+      ...(existing || doc),
+      source_url: existing?.source_url || doc.source_url,
+      source_type: existing?.source_type || doc.source_type || 'repository',
+      status: doc.status === 'published' ? 'hidden' : 'published',
+      updated_at: new Date().toISOString(),
+      created_by: existing?.created_by || user?.username || 'admin',
+      created_at: existing?.created_at || doc.created_at || new Date().toISOString(),
+    };
+    const ok = existing
+      ? await v2api.updateCustomSheetRow('OFFICIAL_DOCUMENTS', payload)
+      : await v2api.addCustomSheetRow('OFFICIAL_DOCUMENTS', payload);
+    if (!ok) {
+      toast({ title: 'Unable to update visibility', variant: 'destructive' });
+      return;
+    }
     logAudit(user?.username || 'admin', 'document_visibility_toggle', 'document', doc.document_id, JSON.stringify({ status: payload.status }));
     refresh();
   };
@@ -364,6 +387,7 @@ export default function DocumentsPortalPage() {
     setTitle(doc.title || '');
     setCategory((categories.includes(doc.category as (typeof categories)[number]) ? doc.category : 'Governance') as (typeof categories)[number]);
     setDepartmentId(resolveDocDepartmentId(doc));
+    setSourceUrl(doc.source_url || '');
     const tokens = String(doc.allowed_management_ids || 'all_management').split(',').map((token) => token.trim()).filter(Boolean);
     if (tokens.includes('all_management') || tokens.length === 0) {
       setAccessRuleMode('all_management');
@@ -388,6 +412,7 @@ export default function DocumentsPortalPage() {
     setTitle('');
     setCategory('Governance');
     setDepartmentId('executive_board');
+    setSourceUrl('');
     setAccessRuleMode('all_management');
     setSelectedManagementIds([]);
     setManualAccessTokens('');
@@ -395,22 +420,30 @@ export default function DocumentsPortalPage() {
 
   const saveEditedDocument = async () => {
     if (!isAdmin || !editingId) return;
-    const existing = docs.find((item) => item.document_id === editingId);
-    if (!existing) return;
+    const existing = getStoredDocument(editingId);
+    const baseDoc = mergedDocs.find((item) => item.document_id === editingId);
+    if (!baseDoc) return;
     if (!title.trim()) {
       toast({ title: 'Title is required', variant: 'destructive' });
       return;
     }
+    if (!sourceUrl.trim()) {
+      toast({ title: 'Source URL is required for preview', variant: 'destructive' });
+      return;
+    }
     const payload: OfficialDocumentRecord = {
-      ...existing,
+      ...(existing || baseDoc),
       title: title.trim(),
       category,
       department_id: departmentId,
       department: getDepartmentById(departmentId)?.name || 'General',
       allowed_management_ids: buildAccessList() || 'all_management',
+      source_url: sourceUrl.trim(),
       updated_at: new Date().toISOString(),
     };
-    const ok = await v2api.updateCustomSheetRow('OFFICIAL_DOCUMENTS', payload);
+    const ok = existing
+      ? await v2api.updateCustomSheetRow('OFFICIAL_DOCUMENTS', payload)
+      : await v2api.addCustomSheetRow('OFFICIAL_DOCUMENTS', payload);
     if (!ok) {
       toast({ title: 'Unable to update document', variant: 'destructive' });
       return;
@@ -422,10 +455,15 @@ export default function DocumentsPortalPage() {
   };
 
   const deleteDocument = async (doc: OfficialDocumentRecord) => {
-    if (!isAdmin || doc.source_type === 'repository') return;
+    if (!isAdmin) return;
+    const existing = getStoredDocument(doc.document_id);
+    if (!existing) {
+      toast({ title: 'Cannot delete repository file', description: 'Delete the file from /docs in the repository to remove it.', variant: 'destructive' });
+      return;
+    }
     const confirmed = window.confirm(`Delete document "${doc.title}"?`);
     if (!confirmed) return;
-    const ok = await v2api.deleteCustomSheetRow('OFFICIAL_DOCUMENTS', doc);
+    const ok = await v2api.deleteCustomSheetRow('OFFICIAL_DOCUMENTS', existing);
     if (!ok) {
       toast({ title: 'Unable to delete document', variant: 'destructive' });
       return;
@@ -475,11 +513,8 @@ export default function DocumentsPortalPage() {
   function getPreviewCandidates(doc: OfficialDocumentRecord) {
     const raw = String(doc.source_url || '').trim();
     if (!raw) return [];
-    const absolute = raw.startsWith('http') ? raw : `${window.location.origin}${raw}`;
+    const absolute = raw.startsWith('http') ? raw : `${window.location.origin}${raw.startsWith('/') ? '' : '/'}${raw}`;
     const candidates = [absolute];
-    if (absolute.startsWith('http')) {
-      candidates.push(`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(absolute)}`);
-    }
     if (/\.(doc|docx|ppt|pptx|xls|xlsx)$/i.test(absolute) && absolute.startsWith('http')) {
       candidates.push(`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absolute)}`);
     }
@@ -582,6 +617,7 @@ export default function DocumentsPortalPage() {
               <div className="md:col-span-2"><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Board circular / policy / schedule" /></div>
               <div><Label>Category</Label><Select value={category} onValueChange={(v) => setCategory(v as (typeof categories)[number])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></div>
               <div><Label>Department</Label><Select value={departmentId} onValueChange={setDepartmentId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documentDepartmentOptions.map((option) => <SelectItem value={option.id} key={option.id}>{option.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="md:col-span-2"><Label>Source URL (required for preview)</Label><Input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="/docs/ICC 2017.pdf or https://..." /></div>
               <div>
                 <Label>Access Mode</Label>
                 <Select value={accessRuleMode} onValueChange={(value) => setAccessRuleMode(value as 'all_management' | 'admin_only' | 'custom')}>
@@ -653,9 +689,9 @@ export default function DocumentsPortalPage() {
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <Button size="sm" variant="outline" onClick={() => setSelectedDocId(doc.document_id)}><Eye className="mr-1 h-3 w-3" /> Secure View</Button>
-                    {isAdmin && doc.source_type !== 'repository' && <Button size="sm" onClick={() => toggleVisibility(doc)}>{doc.status === 'published' ? 'Hide' : 'Publish'}</Button>}
-                    {isAdmin && doc.source_type !== 'repository' && <Button size="sm" variant="secondary" onClick={() => loadForEdit(doc)}>Edit</Button>}
-                    {isAdmin && doc.source_type !== 'repository' && <Button size="sm" variant="destructive" onClick={() => void deleteDocument(doc)}>Delete</Button>}
+                    {isAdmin && <Button size="sm" onClick={() => void toggleVisibility(doc)}>{doc.status === 'published' ? 'Hide' : 'Publish'}</Button>}
+                    {isAdmin && <Button size="sm" variant="secondary" onClick={() => loadForEdit(doc)}>Edit</Button>}
+                    {isAdmin && <Button size="sm" variant="destructive" onClick={() => void deleteDocument(doc)}>Delete</Button>}
                   </div>
                 </CardContent>
               </Card>
@@ -772,12 +808,12 @@ export default function DocumentsPortalPage() {
                           CONFIDENTIAL · {user?.username || 'admin'} · {selectedDoc.document_id}
                         </div>
                       )}
+                      <p className="px-3 py-2 text-xs text-muted-foreground">Simple preview mode. If it does not load, open it in a new tab.</p>
                       <iframe
                         title={`${selectedDoc.title} preview`}
                         src={previewCandidates[previewCandidateIndex] || previewCandidates[0]}
                         className={`w-full ${securityProfile.disableCopy ? 'select-none' : ''}`}
                         style={{ height: 'min(78vh, calc(100vw * 1.2))', minHeight: 420 }}
-                        sandbox={securityProfile.openInSandboxedFrame ? 'allow-same-origin allow-scripts' : undefined}
                       />
                     </div>
                   )}
