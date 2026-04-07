@@ -354,8 +354,8 @@ export const CertificatePreview = memo(function CertificatePreview({
 
   /* Derive certificate sub-title label */
   const certTypeLabel = title.length <= 22 ? title : 'Achievement';
-  const safeRecipientSize = recipient.length > 38 ? '32px' : recipient.length > 28 ? '38px' : '44px';
-  const safeTitleSize = title.length > 30 ? '16px' : '18px';
+  const safeRecipientSize = recipient.length > 38 ? '38px' : recipient.length > 28 ? '44px' : '52px';
+  const safeTitleSize = title.length > 30 ? '20px' : '24px';
   const summaryPoints = [
     ...(detailLines.length > 0 ? detailLines : []),
     ...(performanceLines.length > 0 ? performanceLines : []),
@@ -556,7 +556,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                       <div style={{ textAlign: 'center', flex: 1, maxWidth: '640px' }}>
                         {/* "CERTIFICATE" heading */}
                         <div style={{
-                          fontSize: '46px',
+                          fontSize: '54px',
                           fontWeight: 700,
                           letterSpacing: '12px',
                           textTransform: 'uppercase',
@@ -587,9 +587,9 @@ export const CertificatePreview = memo(function CertificatePreview({
 
                     {/* "This certificate is proudly presented to" */}
                     <p style={{
-                      margin: '12px 0 0',
-                      fontSize: '11px',
-                      letterSpacing: '4px',
+                      margin: '14px 0 0',
+                      fontSize: '14px',
+                      letterSpacing: '5px',
                       textTransform: 'uppercase',
                       color: theme.textColor,
                       fontFamily: 'Arial, sans-serif',
@@ -628,7 +628,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                     <p style={{
                       margin: '0 auto',
                       maxWidth: '700px',
-                      fontSize: '13.5px',
+                      fontSize: '16px',
                       lineHeight: 1.7,
                       color: theme.textColor,
                       fontFamily: "'Georgia', serif",
@@ -640,12 +640,12 @@ export const CertificatePreview = memo(function CertificatePreview({
 
                     {(detailLines.length > 0 || performanceLines.length > 0) && (
                       <div style={{ width: '100%', maxWidth: '860px', marginTop: '12px', padding: '10px 16px', border: `1px solid ${theme.outerBorder}2f`, borderRadius: '10px', background: `${theme.outerBorder}0c`, textAlign: 'left' }}>
-                        <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '2px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>
+                        <p style={{ margin: 0, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '2px', color: theme.titleColor, fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>
                           Certificate Summary
                         </p>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 22px', marginTop: '8px' }}>
                           {summaryPoints.map((line, idx) => (
-                            <p key={`${line}-${idx}`} style={{ margin: 0, fontSize: '12px', lineHeight: 1.5, color: theme.textColor }}>
+                            <p key={`${line}-${idx}`} style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: theme.textColor }}>
                               • {line}
                             </p>
                           ))}
@@ -679,29 +679,29 @@ export const CertificatePreview = memo(function CertificatePreview({
                   }}>
                     {/* Left: Date + Template */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '9px', letterSpacing: '2.5px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.55, fontWeight: 600 }}>Issued On</p>
+                      <p style={{ margin: 0, fontSize: '11px', letterSpacing: '2.5px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.55, fontWeight: 600 }}>Issued On</p>
                       <div style={{ width: '90px', height: '1.5px', background: `linear-gradient(90deg, ${theme.outerBorder}, transparent)`, opacity: 0.4, margin: '6px 0 4px' }} />
-                      <p style={{ margin: 0, fontSize: '11px', color: theme.textColor, fontWeight: 600 }}>{createdAt || 'Pending'}</p>
-                      <p style={{ margin: '3px 0 0', fontSize: '9px', color: theme.textColor, opacity: 0.75, fontFamily: 'Arial, sans-serif' }}>Certificate ID: {id}</p>
-                      <p style={{ margin: '2px 0 0', fontSize: '9px', color: theme.textColor, opacity: 0.75, fontFamily: 'Arial, sans-serif' }}>Match Ref: {certificate.match_id || 'N/A'}</p>
-                      <p style={{ margin: '4px 0 0', fontSize: '8px', color: theme.textColor, opacity: 0.5, letterSpacing: '1.5px', textTransform: 'uppercase' }}>{templateName}</p>
+                      <p style={{ margin: 0, fontSize: '13px', color: theme.textColor, fontWeight: 600 }}>{createdAt || 'Pending'}</p>
+                      <p style={{ margin: '3px 0 0', fontSize: '11px', color: theme.textColor, opacity: 0.75, fontFamily: 'Arial, sans-serif' }}>Certificate ID: {id}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: '11px', color: theme.textColor, opacity: 0.75, fontFamily: 'Arial, sans-serif' }}>Match Ref: {certificate.match_id || 'N/A'}</p>
+                      <p style={{ margin: '4px 0 0', fontSize: '10px', color: theme.textColor, opacity: 0.5, letterSpacing: '1.5px', textTransform: 'uppercase' }}>{templateName}</p>
                     </div>
 
                     {/* Center: Certified by */}
                     <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: theme.recipientColor, fontFamily: "'Georgia', serif", letterSpacing: '0.5px' }}>{certifiedBy}</p>
+                      <p style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: theme.recipientColor, fontFamily: "'Georgia', serif", letterSpacing: '0.5px' }}>{certifiedBy}</p>
                       <div style={{ width: '110px', height: '1.5px', background: `linear-gradient(90deg, transparent, ${theme.outerBorder}, transparent)`, opacity: 0.5, margin: '4px auto' }} />
-                      <p style={{ margin: 0, fontSize: '8px', letterSpacing: '2.5px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.55, fontWeight: 600 }}>Certifying Authority</p>
-                      {certifiedAt && <p style={{ margin: '3px 0 0', fontSize: '8.5px', color: theme.textColor, opacity: 0.6 }}>{certifiedAt} IST</p>}
+                      <p style={{ margin: 0, fontSize: '10px', letterSpacing: '2.5px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.55, fontWeight: 600 }}>Certifying Authority</p>
+                      {certifiedAt && <p style={{ margin: '3px 0 0', fontSize: '10px', color: theme.textColor, opacity: 0.6 }}>{certifiedAt} IST</p>}
                     </div>
 
                     {/* Right: QR + Verification */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ textAlign: 'right' }}>
-                          <p style={{ margin: 0, fontSize: '8px', letterSpacing: '1.5px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.55, fontWeight: 600 }}>Verification Code</p>
+                          <p style={{ margin: 0, fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase', color: theme.textColor, fontFamily: 'Arial, sans-serif', opacity: 0.55, fontWeight: 600 }}>Verification Code</p>
                           <div style={{ width: '80px', height: '1.5px', background: `linear-gradient(270deg, ${theme.outerBorder}, transparent)`, opacity: 0.4, margin: '6px 0 4px', marginLeft: 'auto' }} />
-                          <p style={{ margin: 0, fontSize: '8.5px', fontFamily: "'Courier New', monospace", color: theme.textColor, opacity: 0.8, wordBreak: 'break-all', maxWidth: '130px' }}>{verificationCode || id}</p>
+                          <p style={{ margin: 0, fontSize: '10px', fontFamily: "'Courier New', monospace", color: theme.textColor, opacity: 0.8, wordBreak: 'break-all', maxWidth: '150px' }}>{verificationCode || id}</p>
                         </div>
                         <div style={{ background: '#ffffff', padding: '3px', border: `1px solid ${theme.outerBorder}40`, borderRadius: '3px', lineHeight: 0 }}>
                           <QRCodeSVG value={resolvedVerificationUrl} size={58} />
@@ -712,7 +712,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                           margin: '4px 0 0',
                           maxWidth: '250px',
                           textAlign: 'right',
-                          fontSize: '7px',
+                          fontSize: '8.5px',
                           lineHeight: 1.2,
                           fontFamily: "'Courier New', monospace",
                           color: theme.textColor,
