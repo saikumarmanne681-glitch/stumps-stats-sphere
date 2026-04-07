@@ -418,36 +418,15 @@ export const CertificatePreview = memo(function CertificatePreview({
                   {t.name}
                 </button>
               ))}
-              {isMobile && (
-                <div className="ml-auto flex shrink-0 items-center gap-1 rounded-full border border-border bg-background px-1.5 py-1">
-                  {[0.4, 0.46, 0.54].map((zoom) => (
-                    <button
-                      key={zoom}
-                      onClick={() => setMobileZoom(zoom)}
-                      className={cn(
-                        'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                        mobileZoom === zoom ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
-                      )}
-                    >
-                      {Math.round((zoom / 0.46) * 100)}%
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Certificate body — exported to PDF */}
-            <div className="p-2 sm:p-4">
-              {isMobile && (
-                <p className="mb-2 text-center text-[10px] text-muted-foreground">
-                  Mobile responsive preview • use zoom for readability
-                </p>
-              )}
+            <div className="p-2 sm:p-4" ref={containerRef}>
               <div
-                className="mx-auto w-full overflow-x-hidden"
+                className="mx-auto w-full overflow-hidden"
                 style={{
-                  maxWidth: isMobile ? '100%' : '1120px',
-                  minHeight: isMobile ? `${Math.round((1120 * 210 / 297) * mobileZoom)}px` : undefined,
+                  maxWidth: '1120px',
+                  height: `${Math.round(1120 * 210 / 297 * autoScale)}px`,
                 }}
               >
               <div
