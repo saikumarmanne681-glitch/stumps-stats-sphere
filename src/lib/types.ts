@@ -126,4 +126,5 @@ export interface AuthUser {
   name?: string;
   designation?: string;
   role?: string;
+  authority_level?: number;
 }
