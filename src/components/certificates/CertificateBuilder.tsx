@@ -73,6 +73,48 @@ export function CertificateBuilder() {
   const selectedTemplate = filteredTemplates.find((item) => item.template_id === form.template_id) || filteredTemplates[0];
   const verificationUrl = getPublicVerifyCertificateUrl(form.id || 'preview');
 
+  /* ── Autofill match details & performance when a match is selected ── */
+  useEffect(() => {
+    const matchId = form.match_id;
+    if (!matchId) return;
+    const match = matches.find((m) => m.match_id === matchId);
+    if (!match) return;
+
+    // Build match details
+    const detailParts: string[] = [];
+    if (match.date) detailParts.push(`Date: ${match.date}`);
+    if (match.venue) detailParts.push(`Venue: ${match.venue}`);
+    detailParts.push(`${match.team_a} vs ${match.team_b}`);
+    if (match.team_a_score) detailParts.push(`${match.team_a}: ${match.team_a_score}`);
+    if (match.team_b_score) detailParts.push(`${match.team_b}: ${match.team_b_score}`);
+    if (match.result) detailParts.push(`Result: ${match.result}`);
+    if (match.man_of_match) detailParts.push(`Man of the Match: ${match.man_of_match}`);
+    if (match.match_stage) detailParts.push(`Stage: ${match.match_stage}`);
+
+    // Build performance stats for the linked player
+    const perfParts: string[] = [];
+    const pid = form.linked_player_id;
+    if (pid) {
+      const batEntries = batting.filter((b) => b.match_id === matchId && b.player_id === pid);
+      const bowlEntries = bowling.filter((b) => b.match_id === matchId && b.player_id === pid);
+      batEntries.forEach((b) => {
+        perfParts.push(`Batting: ${b.runs} runs (${b.balls} balls) • ${b.fours}×4 ${b.sixes}×6`);
+        if (b.how_out && b.how_out !== 'not out') perfParts.push(`Dismissal: ${b.how_out}`);
+        else if (b.how_out === 'not out') perfParts.push('Not Out');
+      });
+      bowlEntries.forEach((b) => {
+        perfParts.push(`Bowling: ${b.wickets}/${b.runs_conceded} (${b.overs} ov) • Maidens: ${b.maidens}`);
+      });
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      details_json: prev.details_json || detailParts.join('\n'),
+      performance_json: prev.performance_json || perfParts.join('\n'),
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.match_id, form.linked_player_id]);
+
   const updateField = (key: keyof CertificateRecord, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
