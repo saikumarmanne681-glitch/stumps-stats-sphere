@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,9 +51,27 @@ export function AdminGovernance() {
   const [teamProfiles, setTeamProfiles] = useState<TeamProfile[]>([]);
   const [certificationNote, setCertificationNote] = useState('Officially certified for season release.');
 
-  useEffect(() => {
-    Promise.all([scheduleService.syncFromBackend(), tournamentService.syncFromBackend(), v2api.getTeamProfiles().then((rows) => setTeamProfiles(rows.filter((row) => String(row.status).toLowerCase() !== 'inactive')))]).finally(() => setRefreshKey((value) => value + 1));
+  const loadGovernanceData = useCallback(async () => {
+    await Promise.all([
+      scheduleService.syncFromBackend(),
+      tournamentService.syncFromBackend(),
+      v2api.getTeamProfiles().then((rows) => {
+        const activeProfiles = rows
+          .filter((row) => String(row.status || '').trim().toLowerCase() !== 'inactive' && !!String(row.team_name || '').trim())
+          .sort((a, b) => String(a.team_name || '').localeCompare(String(b.team_name || '')));
+        setTeamProfiles(activeProfiles);
+      }),
+    ]);
+    setRefreshKey((value) => value + 1);
   }, []);
+
+  useEffect(() => {
+    void loadGovernanceData();
+    const intervalId = window.setInterval(() => {
+      void loadGovernanceData();
+    }, 15000);
+    return () => window.clearInterval(intervalId);
+  }, [loadGovernanceData]);
 
   const schedules = useMemo(() => scheduleService.getSchedules(), [refreshKey]);
   const approvals = useMemo(() => scheduleService.getApprovals(), [refreshKey]);
