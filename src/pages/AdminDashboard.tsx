@@ -30,6 +30,7 @@ import { AdminForms } from '@/components/admin/AdminForms';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DEPARTMENTS } from '@/lib/departmentManagement';
+import { AdminGovernance } from '@/components/admin/AdminGovernance';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -51,6 +52,7 @@ const AdminDashboard = () => {
     { value: 'mail-diagnostics', label: 'Mail Diagnostics', icon: MailSearch },
     { value: 'approvals-live', label: 'Approvals Live', icon: Shield },
     { value: 'newsroom', label: 'News Room', icon: Newspaper },
+    { value: 'schedule-studio', label: 'Schedule Studio', icon: Calendar },
     { value: 'sheets', label: 'Sheets Console', icon: Settings },
     { value: 'settings', label: 'Settings', icon: Settings },
     { value: 'certificates', label: 'Certificates', icon: Award },
@@ -199,6 +201,7 @@ const AdminDashboard = () => {
           <TabsContent value="mail-diagnostics"><AdminMailDiagnostics /></TabsContent>
           <TabsContent value="approvals-live"><AdminApprovalsRealtime /></TabsContent>
           <TabsContent value="newsroom"><AdminNewsRoom /></TabsContent>
+          <TabsContent value="schedule-studio"><AdminGovernance /></TabsContent>
           <TabsContent value="sheets"><AdminSheetsConsole /></TabsContent>
           <TabsContent value="settings"><AdminSettings /></TabsContent>
           <TabsContent value="certificates">
