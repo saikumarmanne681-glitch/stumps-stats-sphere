@@ -48,8 +48,8 @@ export default function SeasonsOverviewPage() {
         </Select>
       </div>
       {seasonCards.length === 0 ? <p className='py-10 text-center text-muted-foreground'>No seasons found for the selected tournament.</p> : <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3'>
-        {seasonCards.map(({ season, tournament, totalMatches, completedMatches, liveMatches, teams }) => <Card key={season.season_id} className='border-l-4 border-l-primary/60 bg-gradient-to-br from-white via-primary/5 to-accent/10 shadow-sm transition-all hover:shadow-lg'>
-          <CardContent className='space-y-3 p-5'>
+        {seasonCards.map(({ season, tournament, totalMatches, completedMatches, liveMatches, teams }) => <Card key={season.season_id} className='flex h-full flex-col border-l-4 border-l-primary/60 bg-gradient-to-br from-white via-primary/5 to-accent/10 shadow-sm transition-all hover:shadow-lg'>
+          <CardContent className='flex h-full flex-col gap-3 p-5'>
             <div className='flex items-center justify-between'>
               <div className='flex items-center gap-2'><Trophy className='h-4 w-4 text-primary' /><span className='font-display text-lg font-bold'>{tournament?.name}</span></div>
               <Badge variant={season.status === 'ongoing' ? 'default' : season.status === 'upcoming' ? 'secondary' : 'outline'} className='capitalize'>{season.status}</Badge>
@@ -73,16 +73,28 @@ export default function SeasonsOverviewPage() {
                 <div><p className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>Quick access</p><p className='text-sm font-medium'>Standings, tournament page and season anchor</p></div>
                 <Shield className='h-4 w-4 text-primary' />
               </div>
-              <div className='mt-2 flex items-center justify-between gap-2'>
+              <div className='mt-2 flex flex-wrap items-center justify-between gap-2'>
                 <DataIntegrityBadge data={`${season.season_id}:${season.tournament_id}:${season.year}:${totalMatches}:${season.winner_team || ''}:${season.runner_up_team || ''}`} label='Season view hash' />
                 <Badge variant='outline' className='text-[10px]'>{tournament?.format || 'League'}</Badge>
               </div>
             </div>
-            <div className='grid grid-cols-1 gap-2 sm:grid-cols-4'>
-              <Button variant='outline' size='sm' asChild><Link to={`/leaderboards?tournament=${season.tournament_id}&season=${season.season_id}`}>View Standings →</Link></Button>
-              <Button variant='secondary' size='sm' asChild><Link to={`/tournament/${season.tournament_id}`}>Tournament Page</Link></Button>
-              <Button variant='default' size='sm' asChild><Link to={`/tournament/${season.tournament_id}#approved-schedule`}>Schedule</Link></Button>
-              <Button variant='ghost' size='sm' asChild><Link to={`/tournament/${season.tournament_id}#season-${season.season_id}`}>Open Season Hub <ExternalLink className='h-3 w-3' /></Link></Button>
+            <div className='mt-auto rounded-xl border border-border/80 bg-background/70 p-2.5'>
+              <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
+                <Button variant='outline' size='sm' className='h-auto min-h-10 justify-center whitespace-normal px-3 py-2 text-center leading-tight' asChild>
+                  <Link to={`/leaderboards?tournament=${season.tournament_id}&season=${season.season_id}`}>View Standings</Link>
+                </Button>
+                <Button variant='secondary' size='sm' className='h-auto min-h-10 justify-center whitespace-normal px-3 py-2 text-center leading-tight' asChild>
+                  <Link to={`/tournament/${season.tournament_id}`}>Tournament Page</Link>
+                </Button>
+                <Button variant='default' size='sm' className='h-auto min-h-10 justify-center whitespace-normal px-3 py-2 text-center leading-tight sm:col-span-1' asChild>
+                  <Link to={`/tournament/${season.tournament_id}#approved-schedule`}>Schedule</Link>
+                </Button>
+                <Button variant='ghost' size='sm' className='h-auto min-h-10 justify-center whitespace-normal px-3 py-2 text-center leading-tight' asChild>
+                  <Link to={`/tournament/${season.tournament_id}#season-${season.season_id}`}>
+                    <span className='inline-flex items-center gap-1'>Open Season Hub <ExternalLink className='h-3 w-3 shrink-0' /></span>
+                  </Link>
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>)}
