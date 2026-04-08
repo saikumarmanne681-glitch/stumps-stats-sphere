@@ -9,6 +9,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import { DataProvider } from "@/lib/DataContext";
 import { RequireAuth } from "@/components/RequireAuth";
+import { RequireRole } from "@/components/RequireRole";
 import { Loader2 } from "lucide-react";
 
 const CHUNK_RELOAD_STORAGE_KEY = "chunk-load-retry";
@@ -146,24 +147,24 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/login" element={<Login />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/admin" element={<RequireRole allow={['admin']}><AdminDashboard /></RequireRole>} />
                   <Route path="/player" element={<PlayerDashboard />} />
-                  <Route path="/admin/match-center" element={<MatchCenter />} />
-                  <Route path="/admin/backups" element={<AdminBackups />} />
-                  <Route path="/admin/scorelists" element={<AdminScorelistsPage />} />
-                  <Route path="/admin/management" element={<AdminManagement />} />
-                  <Route path="/admin/work-queue" element={<AdminWorkQueuePage />} />
+                  <Route path="/admin/match-center" element={<RequireRole allow={['admin']}><MatchCenter /></RequireRole>} />
+                  <Route path="/admin/backups" element={<RequireRole allow={['admin']}><AdminBackups /></RequireRole>} />
+                  <Route path="/admin/scorelists" element={<RequireRole allow={['admin']}><AdminScorelistsPage /></RequireRole>} />
+                  <Route path="/admin/management" element={<RequireRole allow={['admin']}><AdminManagement /></RequireRole>} />
+                  <Route path="/admin/work-queue" element={<RequireRole allow={['admin']}><AdminWorkQueuePage /></RequireRole>} />
                   <Route path="/leaderboards" element={<LeaderboardsPage />} />
                   <Route path="/match/:match_id" element={<MatchPage />} />
                   <Route path="/player/:player_id" element={<PlayerPage />} />
                   <Route path="/tournament/:id" element={<TournamentPage />} />
                   <Route path="/verify-scorelist/:id" element={<VerifyScorelist />} />
-                  <Route path="/management" element={<ManagementPage />} />
-                  <Route path="/management/teams-dashboard" element={<RequireAuth><TeamsDashboardPage /></RequireAuth>} />
+                  <Route path="/management" element={<RequireRole allow={['management', 'admin']}><ManagementPage /></RequireRole>} />
+                  <Route path="/management/teams-dashboard" element={<RequireRole allow={['team', 'management', 'admin']}><TeamsDashboardPage /></RequireRole>} />
                   <Route path="/live" element={<LiveMatchPage />} />
                   <Route path="/seasons" element={<SeasonsOverviewPage />} />
                   <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
-                  <Route path="/news-room" element={<RequireAuth><NewsRoomPage /></RequireAuth>} />
+                  <Route path="/news-room" element={<RequireRole allow={['admin', 'management']}><NewsRoomPage /></RequireRole>} />
                   <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
                   <Route path="/verify" element={<VerificationPage />} />
                   <Route path="/verify/:type/:id" element={<VerificationPage />} />

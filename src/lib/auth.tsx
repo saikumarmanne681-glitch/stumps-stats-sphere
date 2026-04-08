@@ -156,10 +156,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return createAdminSession(adminUser.name);
       }
 
-      // Ultimate fallback default admin credentials requested by product owner.
-      if (normalizedInput === 'admin' && normalizedSecret === '9908') {
-        return createAdminSession('Administrator');
-      }
       return false;
     }
 

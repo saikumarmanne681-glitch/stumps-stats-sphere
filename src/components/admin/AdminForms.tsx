@@ -16,6 +16,7 @@ import { generateId } from '@/lib/utils';
 import { nowIso } from '@/lib/time';
 import { defaultFormSettings, parseFields, parseFormSettings, stringifyFields } from '@/lib/forms';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeHtml } from '@/lib/sanitizeHtml';
 
 const emptyForm = (): DynamicFormDefinition => ({
   form_id: generateId('FORM'),
@@ -524,7 +525,7 @@ export function AdminForms() {
                       ) : field.type === 'divider' ? (
                         <div className="h-px w-full bg-border" />
                       ) : field.type === 'html_block' ? (
-                        <div className="rounded bg-muted p-2 text-sm" dangerouslySetInnerHTML={{ __html: field.default_value || '<em>No HTML content yet</em>' }} />
+                        <div className="rounded bg-muted p-2 text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtml(field.default_value || '<em>No HTML content yet</em>') }} />
                       ) : (
                         <>
                           <p className="text-sm font-medium">{field.label || `Field ${index + 1}`}{field.required ? ' *' : ''}</p>
