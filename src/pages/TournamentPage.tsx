@@ -280,7 +280,9 @@ const TournamentPage = () => {
                 </div>
               </CardContent>
             </Card>
-            <ApprovedSchedulePanel tournamentId={tournament.tournament_id} />
+            <div id="approved-schedule" className="scroll-mt-24">
+              <ApprovedSchedulePanel tournamentId={tournament.tournament_id} />
+            </div>
           </div>
         ) : (
           <Card className="border-dashed">

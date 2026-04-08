@@ -38,8 +38,11 @@ export function ApprovedSchedulePanel({ tournamentId }: { tournamentId: string }
               <Badge variant="outline">Hash {latest.hash.slice(0, 12)}…</Badge>
             </div>
             <div className="rounded-lg border p-4 text-sm space-y-1">
+              <p><strong>Release ID:</strong> {latest.schedule_id}</p>
               <p><strong>Approved by:</strong> {approvals.map((item) => `${item.approver_name} (${item.approver_role})`).join(', ')}</p>
+              {latest.certified_by_name && <p><strong>Certified release by:</strong> {latest.certified_by_name} on {formatInIST(latest.certified_at || latest.timestamp)}</p>}
               <p><strong>Timestamp:</strong> {formatInIST(latest.timestamp)}</p>
+              {latest.certification_note && <p><strong>Certification note:</strong> {latest.certification_note}</p>}
               <p><strong>Change log:</strong> {latest.change_log || 'No change log provided.'}</p>
             </div>
             <div className="space-y-3">
