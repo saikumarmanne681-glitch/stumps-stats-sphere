@@ -11,6 +11,9 @@ import { v2api } from '@/lib/v2api';
 import { BoardConfiguration, ManagementUser } from '@/lib/v2types';
 import { BOARD_DEPARTMENTS, inferDepartmentFromManagementUser, parseDepartmentAssignments } from '@/lib/boardDepartments';
 import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
+import { useAuth } from '@/lib/auth';
+import { canManageTournament } from '@/lib/accessControl';
+import { AdminGovernance } from '@/components/admin/AdminGovernance';
 
 const pendingActions = [
   {
@@ -48,6 +51,7 @@ const tagStyles: Record<string, string> = {
 };
 
 const ManagementPage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<ManagementUser[]>([]);
@@ -265,6 +269,17 @@ const ManagementPage = () => {
             ))}
           </CardContent>
         </Card>
+
+        {canManageTournament(user) && (
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="font-display text-lg sm:text-xl">🧠 Tournament Schedule Generator</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AdminGovernance />
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-accent/20">
           <CardHeader>

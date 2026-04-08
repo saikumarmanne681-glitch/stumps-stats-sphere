@@ -78,9 +78,10 @@ export default function SeasonsOverviewPage() {
                 <Badge variant='outline' className='text-[10px]'>{tournament?.format || 'League'}</Badge>
               </div>
             </div>
-            <div className='grid grid-cols-1 gap-2 sm:grid-cols-3'>
+            <div className='grid grid-cols-1 gap-2 sm:grid-cols-4'>
               <Button variant='outline' size='sm' asChild><Link to={`/leaderboards?tournament=${season.tournament_id}&season=${season.season_id}`}>View Standings →</Link></Button>
               <Button variant='secondary' size='sm' asChild><Link to={`/tournament/${season.tournament_id}`}>Tournament Page</Link></Button>
+              <Button variant='default' size='sm' asChild><Link to={`/tournament/${season.tournament_id}#approved-schedule`}>Schedule</Link></Button>
               <Button variant='ghost' size='sm' asChild><Link to={`/tournament/${season.tournament_id}#season-${season.season_id}`}>Open Season Hub <ExternalLink className='h-3 w-3' /></Link></Button>
             </div>
           </CardContent>

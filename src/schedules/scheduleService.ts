@@ -1,8 +1,8 @@
-import { canApproveSchedule, getActorId, getActorName, isScheduleApproverRole, scheduleApproverRoles } from '@/lib/accessControl';
+import { canApproveSchedule, canManageTournament, getActorId, getActorName, isScheduleApproverRole, scheduleApproverRoles } from '@/lib/accessControl';
 import { AuthUser } from '@/lib/types';
 import { generateId } from '@/lib/utils';
 import { logAudit, v2api } from '@/lib/v2api';
-import { ScheduleApprovalRecord, ScheduleAuditLog, ScheduleDiffEntry, ScheduleMatch, ScheduleRecord } from './types';
+import { ScheduleApprovalRecord, ScheduleAuditLog, ScheduleDiffEntry, ScheduleGenerationPolicy, ScheduleMatch, ScheduleRecord } from './types';
 import { getScheduleDetailedStatus } from '@/lib/workflowStatus';
 import { compareTimestampsDesc, formatInIST, formatScheduleSlotInIST, nowIso } from '@/lib/time';
 import { sendSystemEmail } from '@/lib/mailer';
@@ -122,7 +122,7 @@ export const scheduleService = {
   getAuditLogs() {
     return read<ScheduleAuditLog>(STORAGE.audit);
   },
-  async createVersion(input: { tournament_id: string; tournament_name: string; matches: ScheduleMatch[]; change_log: string }, user: AuthUser) {
+  async createVersion(input: { tournament_id: string; tournament_name: string; matches: ScheduleMatch[]; change_log: string; policy?: ScheduleGenerationPolicy }, user: AuthUser) {
     const previousVersions = this.getSchedules().filter((item) => item.tournament_id === input.tournament_id).sort((a, b) => b.version_number - a.version_number);
     const version_number = (previousVersions[0]?.version_number || 0) + 1;
     const hash = await digest(JSON.stringify({ tournamentId: input.tournament_id, version_number, matches: input.matches, createdBy: getActorId(user), timestamp: Date.now() }));
@@ -140,6 +140,11 @@ export const scheduleService = {
       parent_schedule_id: previousVersions[0]?.schedule_id || '',
       hash,
       rejection_reason: '',
+      generation_policy_json: input.policy ? JSON.stringify(input.policy) : '',
+      certification_note: '',
+      certified_by: '',
+      certified_by_name: '',
+      certified_at: '',
       assignee_id: getActorId(user),
       due_at: '',
       priority: 'medium',
@@ -149,6 +154,23 @@ export const scheduleService = {
     await safeSyncRow('add', SHEETS.schedules, record);
     appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: record.schedule_id, action: 'create_schedule_version', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: nowIso(), details: JSON.stringify({ tournamentId: record.tournament_id, version: version_number, matches: input.matches.length }) });
     return record;
+  },
+  async certifySchedule(scheduleId: string, note: string, user: AuthUser) {
+    if (!canManageTournament(user)) throw new Error('Only admin or tournament director can certify schedules.');
+    const updated = this.getSchedules().map((item) => item.schedule_id === scheduleId
+      ? {
+        ...item,
+        status: 'approved',
+        certification_note: note || '',
+        certified_by: getActorId(user),
+        certified_by_name: getActorName(user),
+        certified_at: nowIso(),
+      }
+      : item);
+    write(STORAGE.schedules, updated);
+    const changed = updated.find((item) => item.schedule_id === scheduleId);
+    if (changed) await safeSyncRow('update', SHEETS.schedules, changed);
+    appendAudit({ audit_id: generateId('SAUD'), module: 'schedules', entity_type: 'schedule', entity_id: scheduleId, action: 'certify_schedule_release', actor_id: getActorId(user), actor_name: getActorName(user), timestamp: nowIso(), details: JSON.stringify({ note: note || '' }) });
   },
   async submitForApproval(scheduleId: string, user: AuthUser) {
     const updated = this.getSchedules().map((item) => item.schedule_id === scheduleId
