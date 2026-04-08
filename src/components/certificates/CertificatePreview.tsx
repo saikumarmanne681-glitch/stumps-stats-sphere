@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 import { formatInIST } from '@/lib/time';
+import { Logo } from '@/components/Logo';
 
 interface Props {
   certificate: Partial<CertificateRecord>;
@@ -555,6 +556,10 @@ export const CertificatePreview = memo(function CertificatePreview({
                     position: 'relative',
                     zIndex: 1,
                   }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '10px' }}>
+                      <Logo name="main-logo" size={44} alt="Stumps Stats Sphere logo" />
+                      <Logo name="certificates" size={44} alt="Certificates and Achievements Logo" />
+                    </div>
                     {/* Top row: medal + title area + trophy */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', width: '100%', marginBottom: '6px' }}>
                       {!theme.simplifyOrnaments && <MedalSVG color={theme.accentColor} size={44} />}

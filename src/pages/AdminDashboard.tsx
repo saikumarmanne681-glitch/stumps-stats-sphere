@@ -25,6 +25,7 @@ import { PendingActionsPanel } from '@/components/PendingActionsPanel';
 import { CertificateBuilder } from '@/components/certificates/CertificateBuilder';
 import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
 import { normalizeCertificateStatus } from '@/lib/certificates';
+import { Logo } from '@/components/Logo';
 import { AdminForms } from '@/components/admin/AdminForms';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -82,9 +83,10 @@ const AdminDashboard = () => {
       <div className="container mx-auto px-3 py-4 sm:px-4 sm:py-6">
         <div className="mb-6 rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-background to-accent/10 p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
+            <div className="flex flex-col items-start gap-2">
+              <Logo name="admin" alt="System Administration Logo" className="h-[60px] w-[60px] md:h-[70px] md:w-[70px] lg:h-[80px] lg:w-[80px]" />
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Operations command center</p>
-              <h1 className="font-display text-3xl font-bold">⚙️ Admin Dashboard</h1>
+              <h1 className="font-display text-3xl font-bold">Admin Dashboard</h1>
               <p className="mt-1 text-sm text-muted-foreground">Manage tournaments, communication, support, scorelists, live scoring, and security auditing from one place.</p>
             </div>
             <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
