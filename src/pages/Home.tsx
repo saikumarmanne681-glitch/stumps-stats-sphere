@@ -12,22 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Filter, Lock, Sparkles, X } from "lucide-react";
-import { Logo, type LogoName } from "@/components/Logo";
+import { Logo } from "@/components/Logo";
 import { Link } from "react-router-dom";
 import { SessionFingerprint, SecurityShieldBadge } from "@/components/SecurityBadge";
 import { VerticalAnnouncementsBox } from "@/components/VerticalAnnouncementsBox";
 import { formatInIST } from "@/lib/time";
 
 
-
-const departmentCards: Array<{ title: string; description: string; logo: LogoName }> = [
-  { title: 'Cricket Operations', description: 'Fixtures, operations, and governance workflows.', logo: 'cricket-operations' },
-  { title: 'Player Management', description: 'Roster administration and player lifecycle workflows.', logo: 'player-management' },
-  { title: 'Match & Scoring', description: 'Live scoring controls, match events, and score validations.', logo: 'match-scoring' },
-  { title: 'Certificates & Achievements', description: 'Award templates, approvals, and publication tracking.', logo: 'certificates' },
-  { title: 'Community & Communication', description: 'Announcements, updates, and engagement channels.', logo: 'community' },
-  { title: 'System Administration', description: 'Security, audit, and platform configuration controls.', logo: 'admin' },
-];
 
 const Home = () => {
   const { players, tournaments, seasons, matches, batting, bowling, loading, lastRefresh } = useData();
@@ -93,18 +84,6 @@ const Home = () => {
           </div>
         )}
         <VerticalAnnouncementsBox />
-
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {departmentCards.map((department) => (
-            <article key={department.title} className="rounded-2xl border border-primary/10 bg-card p-4 shadow-sm">
-              <div className="mb-3 flex items-center gap-2">
-                <Logo name={department.logo} size={32} alt={`${department.title} Logo`} lazy />
-                <h3 className="font-semibold">{department.title}</h3>
-              </div>
-              <p className="text-sm text-muted-foreground">{department.description}</p>
-            </article>
-          ))}
-        </section>
 
         {/* Leaderboards */}
         <section className="rounded-3xl border border-primary/10 bg-gradient-to-br from-background via-primary/5 to-accent/5 p-5 md:p-6">
