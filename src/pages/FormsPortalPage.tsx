@@ -16,6 +16,7 @@ import { initializeValues, isFormOpen, parseFields, parseFormSettings, shouldRen
 import { generateId } from '@/lib/utils';
 import { formatInIST, nowIso } from '@/lib/time';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeHtml } from '@/lib/sanitizeHtml';
 
 export default function FormsPortalPage() {
   const { user } = useAuth();
@@ -166,7 +167,7 @@ export default function FormsPortalPage() {
                     ) : field.type === 'divider' ? (
                       <div className="h-px w-full bg-border" />
                     ) : field.type === 'html_block' ? (
-                      <div className="rounded-md border bg-muted/30 p-3 text-sm" dangerouslySetInnerHTML={{ __html: field.default_value || '' }} />
+                      <div className="rounded-md border bg-muted/30 p-3 text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtml(field.default_value || '') }} />
                     ) : (
                       <>
                     <Label>{field.label}{field.required ? ' *' : ''}</Label>
