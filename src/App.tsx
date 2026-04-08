@@ -63,6 +63,7 @@ const TeamsDashboardPage = lazyWithRetry(() => import("./pages/TeamsDashboardPag
 const VerificationPage = lazyWithRetry(() => import("./pages/VerificationPage"), "VerificationPage");
 const FormsPortalPage = lazyWithRetry(() => import("./pages/FormsPortalPage"), "FormsPortalPage");
 const DepartmentDashboardPage = lazyWithRetry(() => import("./pages/DepartmentDashboardPage"), "DepartmentDashboardPage");
+const AdminOpsCenter = lazyWithRetry(() => import("./pages/AdminOpsCenter"), "AdminOpsCenter");
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -155,6 +156,7 @@ const App = () => (
                   <Route path="/admin/scorelists" element={<RequireRole allow={['admin']}><AdminScorelistsPage /></RequireRole>} />
                   <Route path="/admin/management" element={<RequireRole allow={['admin']}><AdminManagement /></RequireRole>} />
                   <Route path="/admin/work-queue" element={<RequireRole allow={['admin']}><AdminWorkQueuePage /></RequireRole>} />
+                  <Route path="/admin/ops-center" element={<RequireRole allow={['admin', 'management']}><AdminOpsCenter /></RequireRole>} />
                   <Route path="/leaderboards" element={<LeaderboardsPage />} />
                   <Route path="/match/:match_id" element={<MatchPage />} />
                   <Route path="/player/:player_id" element={<PlayerPage />} />

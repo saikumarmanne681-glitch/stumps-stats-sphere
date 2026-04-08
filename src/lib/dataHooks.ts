@@ -174,3 +174,60 @@ export function useLeaderboardData(filters: { filterTournament: string; filterSe
 
   return { filteredMatches, filteredBatting, filteredBowling, battingLeaderboard, bowlingLeaderboard };
 }
+
+
+export function useScorelistsQuery({ refresh = false }: { refresh?: boolean } = {}) {
+  return useQuery({
+    queryKey: queryKeys.scorelists,
+    queryFn: () => v2api.getScorelists(),
+    refetchInterval: refresh ? 15_000 : false,
+    refetchIntervalInBackground: refresh,
+  });
+}
+
+export function useCertificatesQuery({ refresh = false }: { refresh?: boolean } = {}) {
+  return useQuery({
+    queryKey: queryKeys.certificates,
+    queryFn: () => v2api.getCertificates(),
+    refetchInterval: refresh ? 30_000 : false,
+    refetchIntervalInBackground: refresh,
+  });
+}
+
+export function useSupportTicketsQuery({ refresh = false }: { refresh?: boolean } = {}) {
+  return useQuery({
+    queryKey: queryKeys.supportTickets,
+    queryFn: () => v2api.getTickets(),
+    refetchInterval: refresh ? 15_000 : false,
+    refetchIntervalInBackground: refresh,
+  });
+}
+
+export function useAuditEventsQuery({ refresh = false }: { refresh?: boolean } = {}) {
+  return useQuery({
+    queryKey: queryKeys.auditEvents,
+    queryFn: () => v2api.getAuditEvents(),
+    refetchInterval: refresh ? 20_000 : false,
+    refetchIntervalInBackground: refresh,
+  });
+}
+
+export function useAdminOpsCenterData() {
+  return useQuery({
+    queryKey: ['admin', 'ops-center'],
+    queryFn: async () => {
+      const [matches, timeline, scorelists, certificates, tickets, auditEvents] = await Promise.all([
+        api.getMatches(),
+        v2api.getMatchTimeline(),
+        v2api.getScorelists(),
+        v2api.getCertificates(),
+        v2api.getTickets(),
+        v2api.getAuditEvents(),
+      ]);
+
+      return { matches, timeline, scorelists, certificates, tickets, auditEvents };
+    },
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
+  });
+}
