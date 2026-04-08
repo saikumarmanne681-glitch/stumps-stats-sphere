@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
@@ -15,7 +15,7 @@ import { BoardConfiguration, ManagementUser, MANAGEMENT_ROLES, TeamAccessUser } 
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Loader2, Shield } from 'lucide-react';
-import { parseDepartmentAssignments, toDepartmentAssignmentsJson } from '@/lib/boardDepartments';
+import { BOARD_DEPARTMENTS, parseDepartmentAssignments, toDepartmentAssignmentsJson } from '@/lib/boardDepartments';
 import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
 import { formatInIST } from '@/lib/time';
 
@@ -169,6 +169,24 @@ const AdminManagement = () => {
 
   const selectedAdminTeamIds = String(boardConfig?.administration_team_ids || '').split(',').map((v) => v.trim()).filter(Boolean);
   const departmentAssignments = parseDepartmentAssignments(boardConfig);
+  const activeManagementUsers = useMemo(() => users.filter((u) => String(u.status || '').toLowerCase() === 'active'), [users]);
+  const updateDepartmentAssignment = (departmentId: string, updates: { head_id?: string; team_ids?: string[] }) => {
+    const nextAssignments = departmentAssignments.map((assignment) => {
+      if (assignment.department_id !== departmentId) return assignment;
+      const nextHeadId = updates.head_id !== undefined ? updates.head_id : assignment.head_id;
+      const nextTeamIds = updates.team_ids !== undefined ? updates.team_ids : assignment.team_ids;
+      return {
+        ...assignment,
+        head_id: nextHeadId,
+        team_ids: Array.from(new Set(nextTeamIds.filter(Boolean).filter((memberId) => memberId !== nextHeadId))),
+      };
+    });
+
+    setBoardConfig(getConfigDraft({
+      department_assignments_json: toDepartmentAssignmentsJson(nextAssignments),
+    }));
+  };
+
   const getConfigDraft = (overrides: Partial<BoardConfiguration> = {}): BoardConfiguration => ({
     config_id: boardConfig?.config_id || generateId('BRCFG'),
     current_period: boardConfig?.current_period || '',
@@ -272,7 +290,7 @@ const AdminManagement = () => {
             <div className="space-y-2">
               <Label>Administration Team (select from board users)</Label>
               <div className="grid gap-2 md:grid-cols-2">
-                {users.filter((u) => u.status === 'active').map((u) => {
+                {activeManagementUsers.map((u) => {
                   const isSelected = selectedAdminTeamIds.includes(u.management_id);
                   return (
                     <Button
@@ -294,9 +312,59 @@ const AdminManagement = () => {
                 })}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Department directory configuration has been retired from this screen to keep governance settings focused and lightweight.
-            </p>
+            <div className="space-y-3">
+              <Label>Department Assignments</Label>
+              <p className="text-xs text-muted-foreground">
+                Select one head and supporting members for each department so management users can view accurate department ownership.
+              </p>
+              <div className="space-y-3">
+                {departmentAssignments.map((assignment) => {
+                  const departmentName = BOARD_DEPARTMENTS.find((item) => item.id === assignment.department_id)?.name || assignment.department_id;
+                  const head = users.find((u) => u.management_id === assignment.head_id);
+                  return (
+                    <div key={assignment.department_id} className="rounded-lg border p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium text-sm">{departmentName}</p>
+                        <Badge variant="outline">Head: {head?.name || 'Not selected'}</Badge>
+                      </div>
+                      <Select value={assignment.head_id || '__none__'} onValueChange={(value) => updateDepartmentAssignment(assignment.department_id, { head_id: value === '__none__' ? '' : value })}>
+                        <SelectTrigger><SelectValue placeholder="Select department head" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">No head selected</SelectItem>
+                          {activeManagementUsers.map((member) => (
+                            <SelectItem key={`${assignment.department_id}-head-${member.management_id}`} value={member.management_id}>{member.name} • {member.designation}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Members</p>
+                        <div className="flex flex-wrap gap-2">
+                          {activeManagementUsers.map((member) => {
+                            const selected = assignment.team_ids.includes(member.management_id);
+                            return (
+                              <Button
+                                key={`${assignment.department_id}-member-${member.management_id}`}
+                                type="button"
+                                size="sm"
+                                variant={selected ? 'default' : 'outline'}
+                                onClick={() => {
+                                  const next = selected
+                                    ? assignment.team_ids.filter((id) => id !== member.management_id)
+                                    : [...assignment.team_ids, member.management_id];
+                                  updateDepartmentAssignment(assignment.department_id, { team_ids: next });
+                                }}
+                              >
+                                {member.name}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
             <Button onClick={saveBoardConfig} disabled={savingBoardConfig}>
               {savingBoardConfig ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving board configuration...</> : 'Save Board Settings'}
