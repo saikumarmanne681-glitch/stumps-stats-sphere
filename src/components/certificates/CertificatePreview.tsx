@@ -282,6 +282,8 @@ export const CertificatePreview = memo(function CertificatePreview({
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState(1);
   const isMobile = useIsMobile();
+  const PREVIEW_BASE_WIDTH = 1120;
+  const PREVIEW_BASE_HEIGHT = Math.round(PREVIEW_BASE_WIDTH * 210 / 297);
   const templateConfig = useMemo(() => {
     const raw = String(template?.design_config || '').trim();
     if (!raw) return null;
@@ -333,13 +335,12 @@ export const CertificatePreview = memo(function CertificatePreview({
     if (!expanded) return;
     const el = containerRef.current;
     if (!el) return;
-    const BASE_WIDTH = 1120;
     const measure = () => {
       const containerWidth = el.clientWidth;
       const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : containerWidth;
-      const safeViewportWidth = Math.max(280, viewportWidth - 24);
+      const safeViewportWidth = Math.max(280, viewportWidth - (isMobile ? 12 : 24));
       const availableWidth = Math.min(containerWidth, safeViewportWidth);
-      const scale = Math.min(1, availableWidth / BASE_WIDTH);
+      const scale = Math.min(1, availableWidth / PREVIEW_BASE_WIDTH);
       setAutoScale(scale);
     };
     measure();
@@ -350,7 +351,7 @@ export const CertificatePreview = memo(function CertificatePreview({
       ro.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [expanded]);
+  }, [expanded, isMobile, PREVIEW_BASE_WIDTH]);
 
   const handleDownload = async () => {
     if (!ref.current || exporting) return;
@@ -431,19 +432,19 @@ export const CertificatePreview = memo(function CertificatePreview({
             {/* Certificate body — exported to PDF */}
             <div className="p-2 sm:p-4" ref={containerRef}>
               <div
-                className="mx-auto w-full overflow-hidden"
+                className="mx-auto flex w-full justify-center overflow-hidden"
                 style={{
-                  height: `${Math.round(1120 * 210 / 297 * autoScale)}px`,
+                  height: `${Math.round(PREVIEW_BASE_HEIGHT * autoScale)}px`,
                 }}
               >
               <div
                 ref={ref}
                 className="certificate-pdf-root mx-auto overflow-hidden"
                 style={{
-                  width: '1120px',
+                  width: `${PREVIEW_BASE_WIDTH}px`,
                   aspectRatio: '297 / 210',
                   transform: `scale(${autoScale})`,
-                  transformOrigin: 'top left',
+                  transformOrigin: 'top center',
                   transition: 'transform 180ms ease',
                   background: theme.outerBg,
                   backgroundImage: templateBackgroundUrl ? `url(${templateBackgroundUrl})` : undefined,

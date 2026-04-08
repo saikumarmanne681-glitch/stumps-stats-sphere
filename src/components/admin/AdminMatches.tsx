@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { MATCH_STAGES } from "@/lib/v2types";
 import { logAudit } from "@/lib/v2api";
 import { compareSheetDatesDesc, formatSheetDate, parseSheetDate } from "@/lib/dataUtils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface PlayerPerformance {
   player_id: string;
@@ -62,6 +63,7 @@ const emptyPerformance = (playerId: string, team: string): PlayerPerformance => 
 });
 
 export function AdminMatches() {
+  const isMobile = useIsMobile();
   const {
     matches,
     batting,
@@ -329,6 +331,20 @@ export function AdminMatches() {
           .includes(query);
       });
   }, [matches, matchSearch, statusFilter]);
+
+  const getMatchScore = (match: Match, team: string) => {
+    const rows = batting.filter((b) => b.match_id === match.match_id && b.team === team);
+    if (rows.length === 0) return "";
+    const runs = rows.reduce((s, b) => s + b.runs, 0);
+    const dismissalWickets = rows.filter((b) => b.how_out && b.how_out !== "not out").length;
+    const bowlingWickets = bowling
+      .filter((entry) => entry.match_id === match.match_id && entry.team !== team)
+      .reduce((sum, entry) => sum + (entry.wickets || 0), 0);
+    const wkts = Math.max(dismissalWickets, bowlingWickets);
+    const balls = rows.reduce((s, b) => s + b.balls, 0);
+    const overs = Math.floor(balls / 6) + (balls % 6) / 10;
+    return `${runs}/${wkts} (${overs.toFixed(1)})`;
+  };
 
   const latestMatchTemplate = useMemo(() => {
     return [...matches].sort((a, b) => compareSheetDatesDesc(a.date, b.date))[0] || null;
@@ -988,6 +1004,50 @@ export function AdminMatches() {
               </SelectContent>
             </Select>
           </div>
+          {isMobile ? (
+            <div className="space-y-3">
+              {visibleMatches.map((m) => {
+                const scoreA = m.team_a_score || getMatchScore(m, m.team_a);
+                const scoreB = m.team_b_score || getMatchScore(m, m.team_b);
+                return (
+                  <div key={m.match_id} className="rounded-xl border bg-card p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{m.team_a} vs {m.team_b}</p>
+                        <p className="text-xs text-muted-foreground">{m.match_id} • {formatSheetDate(m.date, "dd MMM yyyy", "-")}</p>
+                      </div>
+                      <Badge variant={m.status === "completed" ? "default" : "secondary"}>{m.status}</Badge>
+                    </div>
+                    <div className="mt-2 space-y-1 text-xs">
+                      <p>{m.team_a}: {scoreA || "-"}</p>
+                      <p>{m.team_b}: {scoreB || "-"}</p>
+                      <p className="text-muted-foreground">Stage: {m.match_stage || "-"}</p>
+                      <p className="line-clamp-2 text-muted-foreground">Result: {m.result || "-"}</p>
+                    </div>
+                    <div className="mt-3 grid grid-cols-4 gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => { setEditMatch({ ...m, date: normalizeMatchDate(m.date) }); setMatchOpen(true); }}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => openScorecardEntry(m.match_id)}>
+                        <Users className="h-3 w-3 text-primary" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => setSelectedMatch(selectedMatch === m.match_id ? "" : m.match_id)}>
+                        📊
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={async () => { await deleteMatch(m.match_id); toast({ title: "Deleted" }); }}>
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {visibleMatches.length === 0 && (
+                <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+                  No matches found for the current filters.
+                </div>
+              )}
+            </div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -1003,22 +1063,8 @@ export function AdminMatches() {
             </TableHeader>
             <TableBody>
               {visibleMatches.map((m) => {
-                // Auto-calc scores from batting if not saved on match
-                const calcScore = (team: string) => {
-                  const rows = batting.filter((b) => b.match_id === m.match_id && b.team === team);
-                  if (rows.length === 0) return "";
-                  const runs = rows.reduce((s, b) => s + b.runs, 0);
-                  const dismissalWickets = rows.filter((b) => b.how_out && b.how_out !== "not out").length;
-                  const bowlingWickets = bowling
-                    .filter((entry) => entry.match_id === m.match_id && entry.team !== team)
-                    .reduce((sum, entry) => sum + (entry.wickets || 0), 0);
-                  const wkts = Math.max(dismissalWickets, bowlingWickets);
-                  const balls = rows.reduce((s, b) => s + b.balls, 0);
-                  const overs = Math.floor(balls / 6) + (balls % 6) / 10;
-                  return `${runs}/${wkts} (${overs.toFixed(1)})`;
-                };
-                const scoreA = m.team_a_score || calcScore(m.team_a);
-                const scoreB = m.team_b_score || calcScore(m.team_b);
+                const scoreA = m.team_a_score || getMatchScore(m, m.team_a);
+                const scoreB = m.team_b_score || getMatchScore(m, m.team_b);
                 return (
                   <TableRow key={m.match_id} className={selectedMatch === m.match_id ? "bg-primary/5" : ""}>
                     <TableCell className="font-mono text-xs">{m.match_id}</TableCell>
@@ -1119,6 +1165,7 @@ export function AdminMatches() {
               )}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 

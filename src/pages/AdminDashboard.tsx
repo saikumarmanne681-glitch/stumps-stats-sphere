@@ -26,11 +26,35 @@ import { CertificateBuilder } from '@/components/certificates/CertificateBuilder
 import { ApprovalPanel } from '@/components/certificates/ApprovalPanel';
 import { normalizeCertificateStatus } from '@/lib/certificates';
 import { AdminForms } from '@/components/admin/AdminForms';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState('matches');
   const [pendingScorelists, setPendingScorelists] = useState(0);
   const [pendingCertificates, setPendingCertificates] = useState(0);
+  const dashboardTabs = [
+    { value: 'matches', label: 'Matches & Scorecards', icon: Gamepad2 },
+    { value: 'announcements', label: 'Announcements', icon: Megaphone },
+    { value: 'tournaments', label: 'Tournaments', icon: Trophy },
+    { value: 'seasons', label: 'Seasons', icon: Calendar },
+    { value: 'players', label: 'Players', icon: Users },
+    { value: 'messages', label: 'Messages', icon: MessageSquare },
+    { value: 'support', label: 'Support', icon: Headphones },
+    { value: 'presence', label: 'Presence', icon: Wifi },
+    { value: 'scorelists', label: 'Scorelists', icon: Shield },
+    { value: 'audit', label: 'Audit Log', icon: ScrollText },
+    { value: 'mail-diagnostics', label: 'Mail Diagnostics', icon: MailSearch },
+    { value: 'approvals-live', label: 'Approvals Live', icon: Shield },
+    { value: 'newsroom', label: 'News Room', icon: Newspaper },
+    { value: 'sheets', label: 'Sheets Console', icon: Settings },
+    { value: 'settings', label: 'Settings', icon: Settings },
+    { value: 'certificates', label: 'Certificates', icon: Award },
+    { value: 'certificate-sheet', label: 'Certificate Sheet', icon: Database },
+    { value: 'forms', label: 'Forms Empire', icon: FileCheck2 },
+  ];
 
   useEffect(() => {
     const loadCounts = () => Promise.all([v2api.getScorelists(), v2api.getCertificates()]).then(([scorelistRows, certificateRows]) => {
@@ -113,63 +137,30 @@ const AdminDashboard = () => {
           />
         </div>
 
-        <Tabs defaultValue="matches" className="w-full">
-          <TabsList className="mb-6 grid h-auto w-full auto-cols-max grid-flow-col justify-start gap-1 overflow-x-auto rounded-lg p-1">
-            <TabsTrigger value="matches" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Gamepad2 className="h-3 w-3" /> Matches & Scorecards
-            </TabsTrigger>
-            <TabsTrigger value="announcements" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Megaphone className="h-3 w-3" /> Announcements
-            </TabsTrigger>
-            <TabsTrigger value="tournaments" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Trophy className="h-3 w-3" /> Tournaments
-            </TabsTrigger>
-            <TabsTrigger value="seasons" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Calendar className="h-3 w-3" /> Seasons
-            </TabsTrigger>
-            <TabsTrigger value="players" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Users className="h-3 w-3" /> Players
-            </TabsTrigger>
-            <TabsTrigger value="messages" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <MessageSquare className="h-3 w-3" /> Messages
-            </TabsTrigger>
-            <TabsTrigger value="support" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Headphones className="h-3 w-3" /> Support
-            </TabsTrigger>
-            <TabsTrigger value="presence" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Wifi className="h-3 w-3" /> Presence
-            </TabsTrigger>
-            <TabsTrigger value="scorelists" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Shield className="h-3 w-3" /> Scorelists
-            </TabsTrigger>
-            <TabsTrigger value="audit" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <ScrollText className="h-3 w-3" /> Audit Log
-            </TabsTrigger>
-            <TabsTrigger value="mail-diagnostics" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <MailSearch className="h-3 w-3" /> Mail Diagnostics
-            </TabsTrigger>
-            <TabsTrigger value="approvals-live" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Shield className="h-3 w-3" /> Approvals Live
-            </TabsTrigger>
-            <TabsTrigger value="newsroom" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Newspaper className="h-3 w-3" /> News Room
-            </TabsTrigger>
-            <TabsTrigger value="sheets" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Settings className="h-3 w-3" /> Sheets Console
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Settings className="h-3 w-3" /> Settings
-            </TabsTrigger>
-            <TabsTrigger value="certificates" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Award className="h-3 w-3" /> Certificates
-            </TabsTrigger>
-            <TabsTrigger value="certificate-sheet" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <Database className="h-3 w-3" /> Certificate Sheet
-            </TabsTrigger>
-            <TabsTrigger value="forms" className="flex items-center gap-1 whitespace-nowrap text-xs">
-              <FileCheck2 className="h-3 w-3" /> Forms Empire
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          {isMobile ? (
+            <div className="mb-4 space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Admin sections</p>
+              <Select value={activeTab} onValueChange={setActiveTab}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a section" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dashboardTabs.map((tab) => (
+                    <SelectItem key={tab.value} value={tab.value}>{tab.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <TabsList className="mb-6 grid h-auto w-full auto-cols-max grid-flow-col justify-start gap-1 overflow-x-auto rounded-lg p-1">
+              {dashboardTabs.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1 whitespace-nowrap text-xs">
+                  <tab.icon className="h-3 w-3" /> {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          )}
 
           <TabsContent value="matches"><AdminMatches /></TabsContent>
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
