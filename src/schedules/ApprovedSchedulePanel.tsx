@@ -9,7 +9,15 @@ export function ApprovedSchedulePanel({ tournamentId }: { tournamentId: string }
   const schedules = scheduleService.getApprovedSchedulesForTournament(tournamentId);
   const latest = schedules[0];
   const approvals = latest ? scheduleService.getApprovals().filter((item) => item.schedule_id === latest.schedule_id && item.decision === 'approved') : [];
-  const matches: ScheduleMatch[] = latest ? JSON.parse(latest.matches_json) : [];
+  const matches: ScheduleMatch[] = (() => {
+    if (!latest) return [];
+    try {
+      const parsed = JSON.parse(latest.matches_json);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  })();
 
   return (
     <Card>

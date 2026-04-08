@@ -79,7 +79,13 @@ export function formatScheduleSlotInIST(date?: string, time?: string) {
   const timePart = String(time || '').trim();
   if (!datePart && !timePart) return '—';
   if (!datePart) return timePart;
-  const parsed = parseTimestamp(`${datePart}T${timePart || '00:00'}:00`);
+  const normalizedTime = timePart
+    ? (/^\d{2}:\d{2}$/.test(timePart) ? `${timePart}:00` : timePart)
+    : '00:00:00';
+
+  const parsed =
+    parseTimestamp(`${datePart}T${normalizedTime}`) ??
+    parseTimestamp(`${datePart}, ${timePart || '00:00'}`);
   if (!parsed) return [datePart, timePart].filter(Boolean).join(' · ');
   return `${formatDateInIST(parsed)} · ${formatTimeInIST(parsed)}`;
 }
