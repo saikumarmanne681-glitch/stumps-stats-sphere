@@ -1,5 +1,19 @@
 export type ScheduleStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected';
 
+export type ScheduleFormat = 'round_robin' | 'double_round_robin' | 'single_elimination' | 'double_elimination';
+
+export interface ScheduleGenerationPolicy {
+  format: ScheduleFormat;
+  start_date: string;
+  end_date: string;
+  matches_per_day: number;
+  match_times: string[];
+  allow_same_day_multiple_matches: boolean;
+  allow_consecutive_days: boolean;
+  venues: string[];
+  selected_teams: string[];
+}
+
 export interface ScheduleRecord {
   schedule_id: string;
   tournament_id: string;
@@ -14,6 +28,11 @@ export interface ScheduleRecord {
   parent_schedule_id: string;
   hash: string;
   rejection_reason: string;
+  generation_policy_json?: string;
+  certification_note?: string;
+  certified_by?: string;
+  certified_by_name?: string;
+  certified_at?: string;
   assignee_id?: string;
   due_at?: string;
   priority?: 'low' | 'medium' | 'high' | 'critical';

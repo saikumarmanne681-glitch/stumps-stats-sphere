@@ -109,7 +109,7 @@ const TABS = {
   DEPARTMENT_NOTIFICATIONS: ["id","department_id","title","message","created_at","is_read"],
   // Governance & competition workflow modules
   tournaments_v2: ["tournament_id","name","format","venue","start_date","end_date","registration_deadline","created_by","created_at","status","notes","season_id","season_year","source_type","public_page_path"],
-  schedules: ["schedule_id","tournament_id","tournament_name","version_number","matches_json","created_by","created_by_name","timestamp","change_log","status","parent_schedule_id","hash","rejection_reason"],
+  schedules: ["schedule_id","tournament_id","tournament_name","version_number","matches_json","created_by","created_by_name","timestamp","change_log","status","parent_schedule_id","hash","rejection_reason","generation_policy_json","certification_note","certified_by","certified_by_name","certified_at"],
   approvals: ["approval_id","schedule_id","approver_id","approver_name","approver_role","decision","comments","timestamp"],
 };
 
