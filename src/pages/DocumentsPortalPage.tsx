@@ -278,6 +278,28 @@ export default function DocumentsPortalPage() {
       ? await v2api.updateCustomSheetRow('DOCUMENT_SECURITY_PROFILES', payload)
       : await v2api.addCustomSheetRow('DOCUMENT_SECURITY_PROFILES', payload);
     if (ok) {
+      const existingDoc = getStoredDocument(selectedDocId);
+      const baseDoc = mergedDocs.find((entry) => entry.document_id === selectedDocId);
+      if (baseDoc) {
+        const policySyncPayload: OfficialDocumentRecord = {
+          ...(existingDoc || baseDoc),
+          allow_preview: securityProfile.allowPreview,
+          allow_download: securityProfile.allowDownload && !securityProfile.viewOnly,
+          updated_at: new Date().toISOString(),
+        };
+        const syncOk = existingDoc
+          ? await v2api.updateCustomSheetRow('OFFICIAL_DOCUMENTS', policySyncPayload)
+          : await v2api.addCustomSheetRow('OFFICIAL_DOCUMENTS', policySyncPayload);
+        if (!syncOk) {
+          toast({
+            title: 'Security profile saved with warning',
+            description: 'Could not sync preview/download flags to OFFICIAL_DOCUMENTS for management users.',
+            variant: 'destructive',
+          });
+        } else {
+          await refresh();
+        }
+      }
       toast({ title: 'Security profile saved' });
       await refreshSecurityProfiles();
     } else {
@@ -543,7 +565,9 @@ export default function DocumentsPortalPage() {
       toast({ title: 'Missing document source', variant: 'destructive' });
       return;
     }
-    const absolute = source.startsWith('http') ? source : `${window.location.origin}${source}`;
+    const absolute = source.startsWith('http')
+      ? source
+      : `${window.location.origin}${source.startsWith('/') ? '' : '/'}${source}`;
     const actor = user?.management_id || user?.username || 'unknown-user';
     const watermark = `${actor} • ${new Date().toISOString()} • ${doc.document_id}`;
     const link = document.createElement('a');
@@ -555,13 +579,6 @@ export default function DocumentsPortalPage() {
     link.click();
     link.remove();
 
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=960,height=720');
-    if (printWindow) {
-      printWindow.document.write(`<!doctype html><html><head><title>Secured Document Print</title><style>body{margin:0;font-family:sans-serif}.wm{position:fixed;inset:0;display:grid;place-items:center;font-size:18px;opacity:.14;transform:rotate(-24deg);pointer-events:none}.top{padding:8px 12px;background:#111;color:#fff;font-size:12px}iframe{border:0;width:100%;height:calc(100vh - 34px)}</style></head><body><div class="top">Protected copy • ${watermark}</div><div class="wm">${watermark}</div><iframe src="${absolute}"></iframe></body></html>`);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => printWindow.print(), 1200);
-    }
     logAudit(user?.username || 'unknown', 'document_download', 'document', doc.document_id, JSON.stringify({ watermark }));
   };
 
