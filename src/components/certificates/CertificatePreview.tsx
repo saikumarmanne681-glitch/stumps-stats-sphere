@@ -283,7 +283,7 @@ export const CertificatePreview = memo(function CertificatePreview({
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState(1);
   const isMobile = useIsMobile();
-  const PREVIEW_BASE_WIDTH = 1120;
+  const PREVIEW_BASE_WIDTH = isMobile ? 760 : 1120;
   const PREVIEW_BASE_HEIGHT = Math.round(PREVIEW_BASE_WIDTH * 210 / 297);
   const templateConfig = useMemo(() => {
     const raw = String(template?.design_config || '').trim();
