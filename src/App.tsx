@@ -62,6 +62,7 @@ const AdminWorkQueuePage = lazyWithRetry(() => import("./pages/AdminWorkQueuePag
 const TeamsDashboardPage = lazyWithRetry(() => import("./pages/TeamsDashboardPage"), "TeamsDashboardPage");
 const VerificationPage = lazyWithRetry(() => import("./pages/VerificationPage"), "VerificationPage");
 const FormsPortalPage = lazyWithRetry(() => import("./pages/FormsPortalPage"), "FormsPortalPage");
+const DepartmentDashboardPage = lazyWithRetry(() => import("./pages/DepartmentDashboardPage"), "DepartmentDashboardPage");
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -169,6 +170,7 @@ const App = () => (
                   <Route path="/verify" element={<VerificationPage />} />
                   <Route path="/verify/:type/:id" element={<VerificationPage />} />
                   <Route path="/forms" element={<RequireAuth><FormsPortalPage /></RequireAuth>} />
+                  <Route path="/departments/:department/dashboard" element={<RequireAuth><DepartmentDashboardPage /></RequireAuth>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>

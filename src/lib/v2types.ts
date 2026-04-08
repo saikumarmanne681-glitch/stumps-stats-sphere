@@ -95,6 +95,46 @@ export interface AuditEvent {
   timestamp: string;
 }
 
+
+
+export type DepartmentRole = 'Head' | 'Coordinator' | 'Member';
+
+export interface DepartmentMember {
+  id: string;
+  department_id: string;
+  user_id: string;
+  member_name: string;
+  role: DepartmentRole;
+  added_by: string;
+  added_date: string;
+}
+
+export interface DepartmentActivity {
+  id: string;
+  department_id: string;
+  user_id: string;
+  action_type: string;
+  description: string;
+  created_at: string;
+}
+
+export interface DepartmentAuditLog {
+  id: string;
+  department_id: string;
+  user_id: string;
+  action: string;
+  target: string;
+  timestamp: string;
+}
+
+export interface DepartmentNotification {
+  id: string;
+  department_id: string;
+  title: string;
+  message: string;
+  created_at: string;
+  is_read: boolean;
+}
 export interface MailDiagnostic {
   mail_log_id: string;
   triggered_at: string;
