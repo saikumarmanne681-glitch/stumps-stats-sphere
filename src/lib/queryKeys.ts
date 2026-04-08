@@ -15,4 +15,9 @@ export const queryKeys = {
   teams: ['teams'] as const,
   teamTitles: ['teams', 'titles'] as const,
   teamSupportTickets: ['teams', 'support-tickets'] as const,
+
+  scorelists: ['scorelists'] as const,
+  certificates: ['certificates'] as const,
+  supportTickets: ['support', 'tickets'] as const,
+  auditEvents: ['audit', 'events'] as const,
 };

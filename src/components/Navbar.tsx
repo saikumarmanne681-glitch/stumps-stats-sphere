@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search, FileText, BadgeCheck } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search, FileText, BadgeCheck, ClipboardList } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { Logo, type LogoName } from '@/components/Logo';
 
@@ -94,6 +94,9 @@ export function Navbar() {
             </Button>
             <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
               <Link to="/admin/management"><Users className="h-3.5 w-3.5 mr-1.5" /> Mgmt</Link>
+            </Button>
+            <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
+              <Link to="/admin/ops-center"><ClipboardList className="h-3.5 w-3.5 mr-1.5" /> Ops</Link>
             </Button>
             <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
               <Link to="/admin/backups"><Database className="h-3.5 w-3.5 mr-1.5" /> Backup</Link>
