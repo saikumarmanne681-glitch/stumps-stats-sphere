@@ -12,10 +12,22 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Filter, Lock, Sparkles, X } from "lucide-react";
+import { Logo, type LogoName } from "@/components/Logo";
 import { Link } from "react-router-dom";
 import { SessionFingerprint, SecurityShieldBadge } from "@/components/SecurityBadge";
 import { VerticalAnnouncementsBox } from "@/components/VerticalAnnouncementsBox";
 import { formatInIST } from "@/lib/time";
+
+
+
+const departmentCards: Array<{ title: string; description: string; logo: LogoName }> = [
+  { title: 'Cricket Operations', description: 'Fixtures, operations, and governance workflows.', logo: 'cricket-operations' },
+  { title: 'Player Management', description: 'Roster administration and player lifecycle workflows.', logo: 'player-management' },
+  { title: 'Match & Scoring', description: 'Live scoring controls, match events, and score validations.', logo: 'match-scoring' },
+  { title: 'Certificates & Achievements', description: 'Award templates, approvals, and publication tracking.', logo: 'certificates' },
+  { title: 'Community & Communication', description: 'Announcements, updates, and engagement channels.', logo: 'community' },
+  { title: 'System Administration', description: 'Security, audit, and platform configuration controls.', logo: 'admin' },
+];
 
 const Home = () => {
   const { players, tournaments, seasons, matches, batting, bowling, loading, lastRefresh } = useData();
@@ -47,10 +59,10 @@ const Home = () => {
       <section className="bg-gradient-to-br from-primary to-primary/80 py-16 px-4">
         <div className="container mx-auto text-center">
           <h1 className="font-display text-4xl md:text-6xl font-bold text-primary-foreground mb-4">
-            CRICKET CLUB PORTAL
+            Stumps Stats Sphere
           </h1>
           <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto">
-            Track tournaments, matches, player stats, and leaderboards — all in one place.
+            Unified platform for cricket operations, scoring, player management, certificates, and community workflows.
           </p>
           <div className="flex justify-center gap-2 mt-6 flex-wrap">
             {tournaments.map((t) => (
@@ -81,6 +93,18 @@ const Home = () => {
           </div>
         )}
         <VerticalAnnouncementsBox />
+
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {departmentCards.map((department) => (
+            <article key={department.title} className="rounded-2xl border border-primary/10 bg-card p-4 shadow-sm">
+              <div className="mb-3 flex items-center gap-2">
+                <Logo name={department.logo} size={32} alt={`${department.title} Logo`} lazy />
+                <h3 className="font-semibold">{department.title}</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">{department.description}</p>
+            </article>
+          ))}
+        </section>
 
         {/* Leaderboards */}
         <section className="rounded-3xl border border-primary/10 bg-gradient-to-br from-background via-primary/5 to-accent/5 p-5 md:p-6">
@@ -231,7 +255,7 @@ const Home = () => {
 
       <footer className="bg-card border-t py-6 mt-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Cricket Club Portal. All rights reserved. Last data refresh: {lastRefresh ? `${formatInIST(lastRefresh)} IST` : 'N/A'}.
+          <span className="inline-flex items-center gap-2"><Logo name="main-logo" size={24} alt="Stumps Stats Sphere logo" /> © Stumps Stats Sphere</span> · Last data refresh: {lastRefresh ? `${formatInIST(lastRefresh)} IST` : 'N/A'}.
         </div>
       </footer>
     </div>
