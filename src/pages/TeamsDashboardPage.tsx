@@ -657,7 +657,7 @@ export default function TeamsDashboardPage() {
                 verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
                 watermark={isCertificateCertified(certificate)}
                 showDownload
-                defaultExpanded={false}
+                defaultExpanded
               />
             ))}
             {visibleCertificates.length === 0 && (

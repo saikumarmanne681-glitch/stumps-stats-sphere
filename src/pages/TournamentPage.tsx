@@ -6,19 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trophy, Calendar, MapPin, Users, Shield, Lock, ExternalLink, Medal, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, MapPin, Users, Shield, ExternalLink, Medal, BarChart3 } from 'lucide-react';
 import { v2api } from '@/lib/v2api';
 import { DigitalScorelist } from '@/lib/v2types';
 import { SecurityShieldBadge, DataIntegrityBadge, SecurityWatermark } from '@/components/SecurityBadge';
 import { PageLoader } from '@/components/LoadingOverlay';
 import { compareSheetDatesDesc, findTournamentById, formatSheetDate, hasSheetDate, normalizeId } from '@/lib/dataUtils';
-import { useAuth } from '@/lib/auth';
-import { ApprovedSchedulePanel } from '@/schedules/ApprovedSchedulePanel';
-import { scheduleService } from '@/schedules/scheduleService';
 
 const TournamentPage = () => {
   const { id } = useParams();
-  const { user } = useAuth();
   const { tournaments, seasons, matches, batting, bowling, players, loading } = useData();
   const [officialScorelists, setOfficialScorelists] = useState<DigitalScorelist[]>([]);
   const [scorelistsLoading, setScorelistsLoading] = useState(true);
@@ -29,9 +25,6 @@ const TournamentPage = () => {
   const tournamentMatches = matches.filter(m => normalizeId(m.tournament_id) === tournamentId).sort((a, b) => compareSheetDatesDesc(a.date, b.date));
 
   useEffect(() => {
-    if (user) {
-      scheduleService.syncFromBackend().catch(() => undefined);
-    }
     let active = true;
     setScorelistsLoading(true);
     v2api
@@ -269,33 +262,15 @@ const TournamentPage = () => {
         </Card>
 
 
-        {user ? (
-          <div className="grid gap-6 lg:grid-cols-2"> 
-            <Card>
-              <CardHeader><CardTitle className="font-display">📝 Tournament Operations</CardTitle></CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <p className="text-muted-foreground">Approved schedule versions and governance status are available here for members.</p>
-                <div className="rounded-lg border p-4 space-y-1">
-                  <p><strong>Approved schedules:</strong> {scheduleService.getApprovedSchedulesForTournament(tournament.tournament_id).length}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <div id="approved-schedule" className="scroll-mt-24">
-              <ApprovedSchedulePanel tournamentId={tournament.tournament_id} />
-            </div>
-          </div>
-        ) : (
-          <Card className="border-dashed">
-            <CardContent className="p-6 flex items-start gap-3">
-              <Lock className="h-5 w-5 mt-0.5 text-primary" />
-              <div className="space-y-2">
-                <p className="font-semibold">Members-only tournament operations</p>
-                <p className="text-sm text-muted-foreground">Registration workflows and approved schedule downloads are available only after login, while existing public tournament details remain unchanged.</p>
-                <Button asChild size="sm"><Link to="/login">Login to access new features</Link></Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card className="border-primary/20">
+          <CardHeader><CardTitle className="font-display">🗓️ Official Schedules</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="text-muted-foreground">Public schedule PDFs are now available on the schedules page for all visitors.</p>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/schedules">Open Schedules <ExternalLink className="ml-1 h-3.5 w-3.5" /></Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Matches */}
         <Card>

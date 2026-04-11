@@ -593,7 +593,7 @@ const PlayerDashboard = () => {
                 verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
                 watermark={isCertificateCertified(certificate)}
                 showDownload
-                defaultExpanded={false}
+                defaultExpanded
               />
             ))}
           </TabsContent>

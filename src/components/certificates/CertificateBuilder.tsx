@@ -71,7 +71,6 @@ export function CertificateBuilder() {
   }, [matches]);
 
   const selectedTemplate = filteredTemplates.find((item) => item.template_id === form.template_id) || filteredTemplates[0];
-  const verificationUrl = getPublicVerifyCertificateUrl(form.id || 'preview');
   const tournamentNameById = useMemo(() => (
     new Map(tournaments.map((item) => [item.tournament_id, item.name]))
   ), [tournaments]);
@@ -278,7 +277,7 @@ export function CertificateBuilder() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4">
       <Card>
         <CardHeader>
           <CardTitle>Certificate Builder</CardTitle>
@@ -409,17 +408,6 @@ export function CertificateBuilder() {
         </CardContent>
       </Card>
 
-      <div>
-        <h4 className="mb-2 text-sm font-semibold">Live Preview</h4>
-        <CertificatePreview
-          certificate={form}
-          template={selectedTemplate}
-          verificationUrl={verificationUrl}
-          watermark={form.status === 'CERTIFIED'}
-          showDownload
-          defaultExpanded={false}
-        />
-      </div>
       </div>
 
       <Card>
@@ -463,7 +451,7 @@ export function CertificateBuilder() {
                   verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
                   watermark={isCertificateCertified(certificate)}
                   showDownload
-                  defaultExpanded={false}
+                  defaultExpanded
                 />
               </div>
             ))}

@@ -87,7 +87,7 @@ export default function SeasonsOverviewPage() {
                   <Link to={`/tournament/${season.tournament_id}`}>Tournament Page</Link>
                 </Button>
                 <Button variant='default' size='sm' className='h-auto min-h-10 justify-center whitespace-normal px-3 py-2 text-center leading-tight sm:col-span-1' asChild>
-                  <Link to={`/tournament/${season.tournament_id}#approved-schedule`}>Schedule</Link>
+                  <Link to="/schedules">Schedule</Link>
                 </Button>
                 <Button variant='ghost' size='sm' className='h-auto min-h-10 justify-center whitespace-normal px-3 py-2 text-center leading-tight' asChild>
                   <Link to={`/tournament/${season.tournament_id}#season-${season.season_id}`}>
