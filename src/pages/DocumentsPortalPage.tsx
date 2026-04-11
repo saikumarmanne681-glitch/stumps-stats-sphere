@@ -105,6 +105,26 @@ const defaultSecurityProfile: DocumentSecurityProfile = {
 };
 
 const storageKeyForCounter = (docId: string) => `doc-security-counter:${docId}`;
+const storageKeyForUnlock = (docId: string) => `doc-security-unlocked:${docId}`;
+
+const toBool = (value: unknown, fallback = false) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'n'].includes(normalized)) return false;
+  }
+  return fallback;
+};
+
+const toAbsoluteUrl = (raw: string) => {
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('//')) return `${window.location.protocol}${trimmed}`;
+  return `${window.location.origin}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
+};
 
 export default function DocumentsPortalPage() {
   const { user, isAdmin, isManagement } = useAuth();
@@ -126,6 +146,7 @@ export default function DocumentsPortalPage() {
   const [securityConfirmed, setSecurityConfirmed] = useState(false);
   const [securityStep2Confirmed, setSecurityStep2Confirmed] = useState(false);
   const [previewCandidateIndex, setPreviewCandidateIndex] = useState(0);
+  const [viewerUnlocked, setViewerUnlocked] = useState(false);
 
   const refresh = async () => {
     const rows = await v2api.getCustomSheet<OfficialDocumentRecord>('OFFICIAL_DOCUMENTS');
@@ -224,8 +245,8 @@ export default function DocumentsPortalPage() {
 
   const selectedDoc = useMemo(() => visibleDocs.find((doc) => doc.document_id === selectedDocId) || null, [selectedDocId, visibleDocs]);
   const previewCandidates = useMemo(() => (selectedDoc ? getPreviewCandidates(selectedDoc) : []), [selectedDoc]);
-  const managementPreviewAllowed = Boolean(selectedDoc?.allow_preview);
-  const managementDownloadAllowed = Boolean(selectedDoc?.allow_download);
+  const managementPreviewAllowed = toBool(selectedDoc?.allow_preview, false);
+  const managementDownloadAllowed = toBool(selectedDoc?.allow_download, false);
   const effectivePreviewAllowed = isAdmin ? securityProfile.allowPreview : managementPreviewAllowed;
   const effectiveDownloadAllowed = isAdmin ? (securityProfile.allowDownload && !securityProfile.viewOnly) : managementDownloadAllowed;
 
@@ -258,6 +279,7 @@ export default function DocumentsPortalPage() {
     setSecurityStep2Confirmed(false);
     setSessionReason('');
     setPreviewCandidateIndex(0);
+    setViewerUnlocked(toBool(localStorage.getItem(storageKeyForUnlock(selectedDocId)), false));
   }, [selectedDocId, securityRows]);
 
   useEffect(() => {
@@ -338,6 +360,7 @@ export default function DocumentsPortalPage() {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         setSelectedDocId('');
+        setViewerUnlocked(false);
         toast({ title: 'Session locked', description: `Viewer auto-locked after ${securityProfile.idleMinutes} min idle time.` });
       }, securityProfile.idleMinutes * 60 * 1000);
     };
@@ -538,6 +561,8 @@ export default function DocumentsPortalPage() {
       return;
     }
     incrementViewCounter(selectedDoc.document_id);
+    setViewerUnlocked(true);
+    localStorage.setItem(storageKeyForUnlock(selectedDoc.document_id), 'true');
     if (securityProfile.auditEveryAction) {
       logAudit(user?.username || 'unknown', 'document_open', 'document', selectedDoc.document_id, JSON.stringify({ reason: sessionReason || 'n/a', source_type: selectedDoc.source_type }));
     }
@@ -547,8 +572,17 @@ export default function DocumentsPortalPage() {
   function getPreviewCandidates(doc: OfficialDocumentRecord) {
     const raw = String(doc.source_url || '').trim();
     if (!raw) return [];
-    const absolute = raw.startsWith('http') ? raw : `${window.location.origin}${raw.startsWith('/') ? '' : '/'}${raw}`;
+    const absolute = toAbsoluteUrl(raw);
     const candidates = [absolute];
+    if (/^\/?docs\//i.test(raw)) {
+      candidates.push(toAbsoluteUrl(`/${raw.replace(/^\/+/, '')}`));
+      candidates.push(toAbsoluteUrl(`/${raw.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/')}`));
+    }
+    const filenameFromPath = raw.split('/').pop();
+    if (filenameFromPath) {
+      candidates.push(toAbsoluteUrl(`/docs/${filenameFromPath}`));
+      candidates.push(toAbsoluteUrl(`/docs/${encodeURIComponent(filenameFromPath)}`));
+    }
     if (/\.(doc|docx|ppt|pptx|xls|xlsx)$/i.test(absolute) && absolute.startsWith('http')) {
       candidates.push(`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absolute)}`);
     }
@@ -565,16 +599,13 @@ export default function DocumentsPortalPage() {
       toast({ title: 'Missing document source', variant: 'destructive' });
       return;
     }
-    const absolute = source.startsWith('http')
-      ? source
-      : `${window.location.origin}${source.startsWith('/') ? '' : '/'}${source}`;
+    const absolute = toAbsoluteUrl(source);
     const actor = user?.management_id || user?.username || 'unknown-user';
     const watermark = `${actor} • ${new Date().toISOString()} • ${doc.document_id}`;
     const link = document.createElement('a');
     link.href = absolute;
-    link.target = '_blank';
     link.rel = 'noreferrer';
-    link.download = '';
+    link.download = doc.title || '';
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -832,7 +863,10 @@ export default function DocumentsPortalPage() {
                     )}
                     {isAdmin && <Button variant="secondary" onClick={() => void saveSecurityProfile()}>Save Security</Button>}
                   </div>
-                  {effectivePreviewAllowed && previewCandidates.length > 0 && (
+                  {effectivePreviewAllowed && !viewerUnlocked && (
+                    <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">Viewer is locked. Click <strong>Unlock Secure Viewer</strong> to load the preview.</p>
+                  )}
+                  {effectivePreviewAllowed && viewerUnlocked && previewCandidates.length > 0 && (
                     <div className={`relative overflow-hidden rounded-xl border ${securityProfile.blurWhenInactive ? 'transition-all' : ''}`}>
                       {securityProfile.watermark && (
                         <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center opacity-20 text-sm font-semibold rotate-[-20deg]">
@@ -865,6 +899,9 @@ export default function DocumentsPortalPage() {
                   )}
                   {effectivePreviewAllowed && previewCandidates.length === 0 && (
                     <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">Preview unavailable: missing source URL for this document.</p>
+                  )}
+                  {!effectivePreviewAllowed && (
+                    <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">Preview disabled by policy. Ask an administrator to enable <strong>allow_preview</strong> for this document.</p>
                   )}
                 </>
               )}
