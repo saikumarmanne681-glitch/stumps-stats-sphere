@@ -29,7 +29,6 @@ import { Logo } from '@/components/Logo';
 import { AdminForms } from '@/components/admin/AdminForms';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { DEPARTMENTS } from '@/lib/departmentManagement';
 
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
@@ -138,27 +137,6 @@ const AdminDashboard = () => {
               },
             ]}
           />
-        </div>
-
-        <div className="mb-6 rounded-2xl border border-primary/15 bg-card/80 p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Department workspaces</p>
-              <h2 className="font-display text-lg font-semibold">Departments</h2>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {DEPARTMENTS.map((department) => (
-              <div key={department.id} className="rounded-xl border border-border bg-background/80 p-4">
-                <p className="text-2xl" aria-hidden>{department.logo}</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{department.name}</p>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{department.description}</p>
-                <Button asChild variant="outline" size="sm" className="mt-3 w-full">
-                  <Link to={`/departments/${department.slug}/dashboard`}>Open Department</Link>
-                </Button>
-              </div>
-            ))}
-          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

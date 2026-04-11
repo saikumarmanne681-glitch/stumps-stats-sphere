@@ -62,7 +62,6 @@ const AdminWorkQueuePage = lazyWithRetry(() => import("./pages/AdminWorkQueuePag
 const TeamsDashboardPage = lazyWithRetry(() => import("./pages/TeamsDashboardPage"), "TeamsDashboardPage");
 const VerificationPage = lazyWithRetry(() => import("./pages/VerificationPage"), "VerificationPage");
 const FormsPortalPage = lazyWithRetry(() => import("./pages/FormsPortalPage"), "FormsPortalPage");
-const DepartmentDashboardPage = lazyWithRetry(() => import("./pages/DepartmentDashboardPage"), "DepartmentDashboardPage");
 const AdminOpsCenter = lazyWithRetry(() => import("./pages/AdminOpsCenter"), "AdminOpsCenter");
 const SchedulesPage = lazyWithRetry(() => import("./pages/SchedulesPage"), "SchedulesPage");
 
@@ -174,7 +173,6 @@ const App = () => (
                   <Route path="/verify" element={<VerificationPage />} />
                   <Route path="/verify/:type/:id" element={<VerificationPage />} />
                   <Route path="/forms" element={<RequireAuth><FormsPortalPage /></RequireAuth>} />
-                  <Route path="/departments/:department/dashboard" element={<RequireAuth><DepartmentDashboardPage /></RequireAuth>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
