@@ -283,7 +283,7 @@ export const CertificatePreview = memo(function CertificatePreview({
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState(1);
   const isMobile = useIsMobile();
-  const PREVIEW_BASE_WIDTH = isMobile ? 920 : 1120;
+  const PREVIEW_BASE_WIDTH = 1120;
   const PREVIEW_BASE_HEIGHT = Math.round(PREVIEW_BASE_WIDTH * 210 / 297);
   const templateConfig = useMemo(() => {
     const raw = String(template?.design_config || '').trim();
@@ -416,18 +416,19 @@ export const CertificatePreview = memo(function CertificatePreview({
               <div
                 className="mx-auto flex w-full justify-center overflow-hidden"
                 style={{
-                  height: `${Math.round(PREVIEW_BASE_HEIGHT * autoScale)}px`,
+                  height: isMobile ? 'auto' : `${Math.round(PREVIEW_BASE_HEIGHT * autoScale)}px`,
                 }}
               >
               <div
                 ref={ref}
                 className="certificate-pdf-root mx-auto overflow-hidden"
                 style={{
-                  width: `${PREVIEW_BASE_WIDTH}px`,
+                  width: isMobile ? '100%' : `${PREVIEW_BASE_WIDTH}px`,
+                  maxWidth: `${PREVIEW_BASE_WIDTH}px`,
                   aspectRatio: '297 / 210',
-                  transform: `scale(${autoScale})`,
-                  transformOrigin: 'top center',
-                  transition: 'transform 180ms ease',
+                  transform: isMobile ? undefined : `scale(${autoScale})`,
+                  transformOrigin: isMobile ? undefined : 'top center',
+                  transition: isMobile ? undefined : 'transform 180ms ease',
                   background: theme.outerBg,
                   backgroundImage: templateBackgroundUrl ? `url(${templateBackgroundUrl})` : undefined,
                   backgroundPosition: 'center',
@@ -478,10 +479,10 @@ export const CertificatePreview = memo(function CertificatePreview({
                 {/* White center panel */}
                 <div style={{
                   position: 'absolute',
-                  top: theme.simplifyOrnaments ? '54px' : '32px',
-                  left: theme.simplifyOrnaments ? '120px' : '32px',
-                  right: theme.simplifyOrnaments ? '120px' : '32px',
-                  bottom: theme.simplifyOrnaments ? '76px' : '32px',
+                  top: theme.simplifyOrnaments ? '8%' : '32px',
+                  left: theme.simplifyOrnaments ? '6%' : '32px',
+                  right: theme.simplifyOrnaments ? '6%' : '32px',
+                  bottom: theme.simplifyOrnaments ? '10%' : '32px',
                   background: theme.simplifyOrnaments ? 'rgba(255,255,255,0.92)' : theme.centerBg,
                   display: 'flex',
                   flexDirection: 'column',

@@ -451,7 +451,7 @@ export function CertificateBuilder() {
                   verificationUrl={getPublicVerifyCertificateUrl(certificate.id)}
                   watermark={isCertificateCertified(certificate)}
                   showDownload
-                  defaultExpanded={false}
+                  defaultExpanded
                 />
               </div>
             ))}
