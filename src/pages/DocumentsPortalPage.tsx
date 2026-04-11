@@ -16,14 +16,12 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Eye, Download, Sparkles, LockKeyhole, Building2, CalendarClock, ShieldCheck } from 'lucide-react';
+import { FileText, Eye, Download, Sparkles, LockKeyhole, CalendarClock, ShieldCheck, FolderSearch, Wand2 } from 'lucide-react';
 import { formatSheetDate } from '@/lib/dataUtils';
-import { DepartmentBadge } from '@/components/DepartmentBadge';
-import { DEPARTMENT_CATALOG, getDepartmentById, getDepartmentByName } from '@/lib/departmentCatalog';
 import { PageHeader } from '@/components/PageHeader';
 
 const categories = ['Governance', 'Tournament', 'Finance', 'Legal', 'Operations'] as const;
-const documentDepartmentOptions = DEPARTMENT_CATALOG.map((entry) => ({ id: entry.id, name: entry.name }));
+const DRIVE_FOLDER_STORAGE_KEY = 'documents_portal_drive_folder_url';
 
 const repoDocuments = import.meta.glob('../../docs/*.{pdf,PDF,doc,docx,txt,md}', {
   eager: true,
@@ -132,8 +130,8 @@ export default function DocumentsPortalPage() {
   const [docs, setDocs] = useState<OfficialDocumentRecord[]>([]);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<(typeof categories)[number]>('Governance');
-  const [departmentId, setDepartmentId] = useState('executive_board');
   const [sourceUrl, setSourceUrl] = useState('');
+  const [driveFolderUrl, setDriveFolderUrl] = useState('');
   const [accessRuleMode, setAccessRuleMode] = useState<'all_management' | 'admin_only' | 'custom'>('all_management');
   const [selectedManagementIds, setSelectedManagementIds] = useState<string[]>([]);
   const [manualAccessTokens, setManualAccessTokens] = useState('');
@@ -167,6 +165,7 @@ export default function DocumentsPortalPage() {
     void refresh();
     void refreshSecurityProfiles();
     void refreshManagementUsers();
+    setDriveFolderUrl(localStorage.getItem(DRIVE_FOLDER_STORAGE_KEY) || '');
   }, []);
 
   const buildAccessList = () => {
@@ -189,8 +188,8 @@ export default function DocumentsPortalPage() {
           document_id: `REPO_${filename.replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase()}`,
           title: titleText,
           category: 'Governance',
-          department_id: 'executive_board',
-          department: 'Executive Board',
+          department_id: '',
+          department: '',
           source_url: src,
           source_type: 'repository',
           status: 'published',
@@ -250,10 +249,19 @@ export default function DocumentsPortalPage() {
   const effectivePreviewAllowed = isAdmin ? securityProfile.allowPreview : managementPreviewAllowed;
   const effectiveDownloadAllowed = isAdmin ? (securityProfile.allowDownload && !securityProfile.viewOnly) : managementDownloadAllowed;
 
-  const resolveDocDepartmentId = (doc: OfficialDocumentRecord) => {
-    if (doc.department_id) return doc.department_id;
-    return getDepartmentByName(doc.department)?.id || 'general';
+  const extractDriveFolderId = (url: string) => {
+    const value = String(url || '').trim();
+    if (!value) return '';
+    const folderMatch = value.match(/\/folders\/([a-zA-Z0-9_-]+)/i);
+    if (folderMatch?.[1]) return folderMatch[1];
+    const idMatch = value.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+    return idMatch?.[1] || '';
   };
+
+  const driveFolderId = useMemo(() => extractDriveFolderId(driveFolderUrl), [driveFolderUrl]);
+  const embeddedDriveFolderUrl = driveFolderId
+    ? `https://drive.google.com/embeddedfolderview?id=${driveFolderId}#list`
+    : '';
 
   const loadProfileForDoc = (docId: string) => {
     const doc = mergedDocs.find((entry) => entry.document_id === docId);
@@ -388,8 +396,8 @@ export default function DocumentsPortalPage() {
       document_id: generateId('DOC'),
       title: title.trim(),
       category,
-      department_id: departmentId,
-      department: getDepartmentById(departmentId)?.name || 'General',
+      department_id: '',
+      department: '',
       source_url: sourceUrl.trim(),
       source_type: 'repository',
       status: 'published',
@@ -405,7 +413,7 @@ export default function DocumentsPortalPage() {
       toast({ title: 'Unable to save document policy', description: 'Please check OFFICIAL_DOCUMENTS sheet mapping.', variant: 'destructive' });
       return;
     }
-    logAudit(user?.username || 'admin', 'document_create', 'document', row.document_id, JSON.stringify({ category, department_id: row.department_id, allowed: row.allowed_management_ids }));
+    logAudit(user?.username || 'admin', 'document_create', 'document', row.document_id, JSON.stringify({ category, allowed: row.allowed_management_ids }));
     setTitle('');
     setSelectedManagementIds([]);
     setManualAccessTokens('');
@@ -442,7 +450,6 @@ export default function DocumentsPortalPage() {
     setEditingId(doc.document_id);
     setTitle(doc.title || '');
     setCategory((categories.includes(doc.category as (typeof categories)[number]) ? doc.category : 'Governance') as (typeof categories)[number]);
-    setDepartmentId(resolveDocDepartmentId(doc));
     setSourceUrl(doc.source_url || '');
     const tokens = String(doc.allowed_management_ids || 'all_management').split(',').map((token) => token.trim()).filter(Boolean);
     if (tokens.includes('all_management') || tokens.length === 0) {
@@ -467,7 +474,6 @@ export default function DocumentsPortalPage() {
     setEditingId('');
     setTitle('');
     setCategory('Governance');
-    setDepartmentId('executive_board');
     setSourceUrl('');
     setAccessRuleMode('all_management');
     setSelectedManagementIds([]);
@@ -491,8 +497,8 @@ export default function DocumentsPortalPage() {
       ...(existing || baseDoc),
       title: title.trim(),
       category,
-      department_id: departmentId,
-      department: getDepartmentById(departmentId)?.name || 'General',
+      department_id: '',
+      department: '',
       allowed_management_ids: buildAccessList() || 'all_management',
       source_url: sourceUrl.trim(),
       updated_at: new Date().toISOString(),
@@ -504,7 +510,7 @@ export default function DocumentsPortalPage() {
       toast({ title: 'Unable to update document', variant: 'destructive' });
       return;
     }
-    logAudit(user?.username || 'admin', 'document_update', 'document', payload.document_id, JSON.stringify({ category: payload.category, department_id: payload.department_id, allowed: payload.allowed_management_ids }));
+    logAudit(user?.username || 'admin', 'document_update', 'document', payload.document_id, JSON.stringify({ category: payload.category, allowed: payload.allowed_management_ids }));
     toast({ title: 'Document updated' });
     clearEditor();
     refresh();
@@ -632,11 +638,42 @@ export default function DocumentsPortalPage() {
                 <Badge variant="outline" className="bg-background/80">Visible for admin: {visibleDocs.length}</Badge>
                 <Badge variant="outline" className="bg-background/80">Strict admin only: Enabled</Badge>
               </div>
-              <p className="text-sm text-muted-foreground">All documents are loaded from the repository <code>/docs</code> folder. Admin can apply granular security controls per document profile.</p>
+              <p className="text-sm text-muted-foreground">A beautiful, responsive document workspace for mobile, tablet, and desktop. Ask an admin to share a Google Drive folder URL to unlock instant file browsing.</p>
             </CardContent>
           </Card>
           <VerticalAnnouncementsBox />
         </div>
+
+        <Card className="border-primary/30 bg-gradient-to-br from-background via-primary/5 to-accent/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><FolderSearch className="h-4 w-4 text-primary" />Google Drive Folder View</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">Ask admin to share the Google Drive folder URL. Once added, all users with portal access can browse files directly here.</p>
+            {isAdmin && (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input value={driveFolderUrl} onChange={(e) => setDriveFolderUrl(e.target.value)} placeholder="https://drive.google.com/drive/folders/..." />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem(DRIVE_FOLDER_STORAGE_KEY, driveFolderUrl.trim());
+                    toast({ title: 'Drive folder saved', description: 'Shared folder URL has been stored for this browser session.' });
+                  }}
+                >
+                  <Wand2 className="mr-1 h-4 w-4" />Save URL
+                </Button>
+              </div>
+            )}
+            {!isAdmin && !driveFolderId && <p className="text-xs text-muted-foreground">No shared Drive folder URL yet. Please ask an admin to add it.</p>}
+            {embeddedDriveFolderUrl ? (
+              <div className="overflow-hidden rounded-xl border">
+                <iframe title="Google Drive folder files" src={embeddedDriveFolderUrl} className="w-full" style={{ minHeight: 420, height: 'min(72vh, 640px)' }} />
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Paste a valid Google Drive folder URL to display files here.</div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-background to-accent/10">
           <CardHeader className="pb-3">
@@ -647,10 +684,6 @@ export default function DocumentsPortalPage() {
               {latestVisibleDocs.map((doc) => (
                 <div key={`scroll-${doc.document_id}`} className="min-w-[280px] rounded-xl border border-primary/20 bg-background/80 p-3 shadow-sm">
                   <p className="line-clamp-2 text-sm font-semibold">{doc.title}</p>
-                  <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <Building2 className="h-3.5 w-3.5" />
-                    <DepartmentBadge department={doc.department} departmentId={resolveDocDepartmentId(doc)} className="h-6 px-2 py-0 text-[10px]" />
-                  </div>
                   <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
                     <CalendarClock className="h-3.5 w-3.5" /> Updated {formatSheetDate(doc.updated_at, 'dd MMM yyyy', doc.updated_at)}
                   </div>
@@ -676,7 +709,6 @@ export default function DocumentsPortalPage() {
             <CardContent className="grid gap-3 md:grid-cols-3">
               <div className="md:col-span-2"><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Board circular / policy / schedule" /></div>
               <div><Label>Category</Label><Select value={category} onValueChange={(v) => setCategory(v as (typeof categories)[number])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>Department</Label><Select value={departmentId} onValueChange={setDepartmentId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documentDepartmentOptions.map((option) => <SelectItem value={option.id} key={option.id}>{option.name}</SelectItem>)}</SelectContent></Select></div>
               <div className="md:col-span-2"><Label>Source URL (required for preview)</Label><Input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="/docs/ICC 2017.pdf or https://..." /></div>
               <div>
                 <Label>Access Mode</Label>
@@ -738,7 +770,6 @@ export default function DocumentsPortalPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> {doc.title}</p>
-                      <div className="mt-1"><DepartmentBadge department={doc.department} departmentId={resolveDocDepartmentId(doc)} className="text-[10px]" /></div>
                     </div>
                     <Badge variant={doc.status === 'published' ? 'default' : 'secondary'}>{doc.status}</Badge>
                   </div>

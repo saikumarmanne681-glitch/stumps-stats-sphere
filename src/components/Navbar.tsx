@@ -5,16 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search, FileText, BadgeCheck, ClipboardList, CalendarDays } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
-import { Logo, type LogoName } from '@/components/Logo';
-
-const departments: Array<{ label: string; logo: LogoName }> = [
-  { label: 'Cricket Operations', logo: 'cricket-operations' },
-  { label: 'Player Management', logo: 'player-management' },
-  { label: 'Match & Scoring', logo: 'match-scoring' },
-  { label: 'Certificates & Achievements', logo: 'certificates' },
-  { label: 'Community & Communication', logo: 'community' },
-  { label: 'System Administration', logo: 'admin' },
-];
+import { Logo } from '@/components/Logo';
 
 export function Navbar() {
   const { user, logout, isAdmin, isPlayer, isManagement, isTeam } = useAuth();
@@ -126,20 +117,6 @@ export function Navbar() {
               </Button>
             )}
           </>
-        )}
-
-        {mobile && (
-          <div className="mt-2 rounded-xl border bg-muted/25 p-2">
-            <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Departments</p>
-            <ul className="space-y-1">
-              {departments.map((department) => (
-                <li key={department.label} className="flex items-center text-xs text-foreground">
-                  <Logo name={department.logo} size={20} alt={`${department.label} Logo`} className="mr-2" lazy />
-                  {department.label}
-                </li>
-              ))}
-            </ul>
-          </div>
         )}
 
         {user && (
