@@ -321,6 +321,19 @@ export interface OfficialDocumentRecord {
   updated_at: string;
 }
 
+export interface PublicScheduleRecord {
+  schedule_id: string;
+  title: string;
+  tournament: string;
+  season: string;
+  pdf_url: string;
+  status: 'published' | 'draft';
+  published_at: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export type DynamicFormFieldType =
   | 'short_text'

@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { CertificateRecord } from '@/lib/certificates';
 import { QRCodeSVG } from 'qrcode.react';
-import { Download, ChevronDown, ChevronUp, Printer, Award, Palette } from 'lucide-react';
+import { Download, ChevronDown, ChevronUp, Printer, Award } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, memo } from 'react';
 import { downloadCertificatePdf, printCertificate } from '@/lib/certificatePdf';
 import { useToast } from '@/hooks/use-toast';
@@ -283,7 +283,7 @@ export const CertificatePreview = memo(function CertificatePreview({
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScale, setAutoScale] = useState(1);
   const isMobile = useIsMobile();
-  const PREVIEW_BASE_WIDTH = isMobile ? 760 : 1120;
+  const PREVIEW_BASE_WIDTH = isMobile ? 920 : 1120;
   const PREVIEW_BASE_HEIGHT = Math.round(PREVIEW_BASE_WIDTH * 210 / 297);
   const templateConfig = useMemo(() => {
     const raw = String(template?.design_config || '').trim();
@@ -339,7 +339,7 @@ export const CertificatePreview = memo(function CertificatePreview({
     const measure = () => {
       const containerWidth = el.clientWidth;
       const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : containerWidth;
-      const safeViewportWidth = Math.max(280, viewportWidth - (isMobile ? 12 : 24));
+      const safeViewportWidth = Math.max(280, viewportWidth - (isMobile ? 4 : 24));
       const availableWidth = Math.min(containerWidth, safeViewportWidth);
       const scale = Math.min(1, availableWidth / PREVIEW_BASE_WIDTH);
       setAutoScale(scale);
@@ -411,27 +411,8 @@ export const CertificatePreview = memo(function CertificatePreview({
 
         {expanded && (
           <>
-            {/* Theme picker */}
-            <div className="flex items-center gap-2 overflow-x-auto border-b bg-muted/20 px-3 py-2">
-              <Palette className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              {DESIGN_THEMES.map((t, idx) => (
-                <button
-                  key={t.id}
-                  onClick={() => setDesignIndex(idx)}
-                  className={cn(
-                    'shrink-0 rounded-full border px-3 py-1 text-[10px] font-semibold transition-all',
-                    idx === designIndex
-                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                      : 'border-border bg-background text-muted-foreground hover:border-primary/40'
-                  )}
-                >
-                  {t.name}
-                </button>
-              ))}
-            </div>
-
             {/* Certificate body — exported to PDF */}
-            <div className="p-2 sm:p-4" ref={containerRef}>
+            <div className="p-1 sm:p-4" ref={containerRef}>
               <div
                 className="mx-auto flex w-full justify-center overflow-hidden"
                 style={{
