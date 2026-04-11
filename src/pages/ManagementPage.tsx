@@ -11,20 +11,12 @@ import { v2api } from '@/lib/v2api';
 import { BoardConfiguration, ManagementUser } from '@/lib/v2types';
 import { BOARD_DEPARTMENTS, inferDepartmentFromManagementUser, parseDepartmentAssignments } from '@/lib/boardDepartments';
 import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
-import { useAuth } from '@/lib/auth';
-import { canManageTournament } from '@/lib/accessControl';
-import { AdminGovernance } from '@/components/admin/AdminGovernance';
 
 const pendingActions = [
   {
     title: 'Scorelist approvals',
     description: 'Scorelists currently waiting for your designation stage approval.',
     to: '/admin/scorelists',
-  },
-  {
-    title: 'Schedule approvals',
-    description: 'Schedules that need your governance decision.',
-    to: '/admin/work-queue',
   },
 ];
 
@@ -51,7 +43,6 @@ const tagStyles: Record<string, string> = {
 };
 
 const ManagementPage = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<ManagementUser[]>([]);
@@ -269,17 +260,6 @@ const ManagementPage = () => {
             ))}
           </CardContent>
         </Card>
-
-        {canManageTournament(user) && (
-          <Card className="border-primary/20">
-            <CardHeader>
-              <CardTitle className="font-display text-lg sm:text-xl">🧠 Tournament Schedule Generator</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AdminGovernance />
-            </CardContent>
-          </Card>
-        )}
 
         <Card className="border-accent/20">
           <CardHeader>

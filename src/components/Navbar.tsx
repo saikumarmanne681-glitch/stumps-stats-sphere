@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search, FileText, BadgeCheck, ClipboardList } from 'lucide-react';
+import { LogIn, LogOut, LayoutDashboard, Home, Trophy, Zap, Users, Shield, Database, Menu, Radio, Layers3, Crown, Newspaper, FolderLock, Search, FileText, BadgeCheck, ClipboardList, CalendarDays } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { Logo, type LogoName } from '@/components/Logo';
 
@@ -45,6 +45,9 @@ export function Navbar() {
         </Button>
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
           <Link to="/seasons"><Layers3 className="h-3.5 w-3.5 mr-1.5" /> Seasons</Link>
+        </Button>
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
+          <Link to="/schedules"><CalendarDays className="h-3.5 w-3.5 mr-1.5" /> Schedules</Link>
         </Button>
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
           <Link to="/hall-of-glory"><Crown className="h-3.5 w-3.5 mr-1.5" /> Glory</Link>
