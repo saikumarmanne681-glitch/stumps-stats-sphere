@@ -339,7 +339,8 @@ export const CertificatePreview = memo(function CertificatePreview({
     const measure = () => {
       const containerWidth = el.clientWidth;
       const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : containerWidth;
-      const safeViewportWidth = Math.max(280, viewportWidth - (isMobile ? 4 : 24));
+      const horizontalPadding = isMobile ? 12 : 24;
+      const safeViewportWidth = Math.max(260, viewportWidth - horizontalPadding);
       const availableWidth = Math.min(containerWidth, safeViewportWidth);
       const scale = Math.min(1, availableWidth / PREVIEW_BASE_WIDTH);
       setAutoScale(scale);
@@ -412,23 +413,23 @@ export const CertificatePreview = memo(function CertificatePreview({
         {expanded && (
           <>
             {/* Certificate body — exported to PDF */}
-            <div className="p-1 sm:p-4" ref={containerRef}>
+            <div className="overflow-x-hidden p-1 sm:p-4" ref={containerRef}>
               <div
                 className="mx-auto flex w-full justify-center overflow-hidden"
                 style={{
-                  height: isMobile ? 'auto' : `${Math.round(PREVIEW_BASE_HEIGHT * autoScale)}px`,
+                  height: `${Math.round(PREVIEW_BASE_HEIGHT * autoScale)}px`,
                 }}
               >
               <div
                 ref={ref}
                 className="certificate-pdf-root mx-auto overflow-hidden"
                 style={{
-                  width: isMobile ? '100%' : `${PREVIEW_BASE_WIDTH}px`,
+                  width: `${PREVIEW_BASE_WIDTH}px`,
                   maxWidth: `${PREVIEW_BASE_WIDTH}px`,
                   aspectRatio: '297 / 210',
-                  transform: isMobile ? undefined : `scale(${autoScale})`,
-                  transformOrigin: isMobile ? undefined : 'top center',
-                  transition: isMobile ? undefined : 'transform 180ms ease',
+                  transform: `scale(${autoScale})`,
+                  transformOrigin: 'top center',
+                  transition: 'transform 180ms ease',
                   background: theme.outerBg,
                   backgroundImage: templateBackgroundUrl ? `url(${templateBackgroundUrl})` : undefined,
                   backgroundPosition: 'center',
