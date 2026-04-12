@@ -175,6 +175,22 @@ const ManagementPage = () => {
     });
   }, [searchQuery, designationFilter, boardMembers]);
 
+  const departmentDirectory = useMemo(() => {
+    const assignments = parseDepartmentAssignments(boardConfig);
+    return BOARD_DEPARTMENTS.map((department) => {
+      const assignment = assignments.find((item) => item.department_id === department.id);
+      const head = users.find((member) => member.management_id === assignment?.head_id);
+      const team = (assignment?.team_ids || [])
+        .map((id) => users.find((member) => member.management_id === id))
+        .filter((member): member is ManagementUser => Boolean(member));
+      return {
+        ...department,
+        headName: head?.name || 'Not assigned',
+        teamNames: team.map((member) => member.name || member.management_id),
+      };
+    });
+  }, [boardConfig, users]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -242,6 +258,25 @@ const ManagementPage = () => {
                 </Button>
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-accent/20">
+          <CardHeader>
+            <CardTitle className="font-display text-lg sm:text-xl">🏢 Department Directory</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {departmentDirectory.map((department) => (
+                <div key={department.id} className="rounded-xl border bg-muted/20 p-3">
+                  <p className="font-semibold text-sm">{department.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Head: {department.headName}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Members: {department.teamNames.length ? department.teamNames.join(', ') : 'No members assigned'}
+                  </p>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
