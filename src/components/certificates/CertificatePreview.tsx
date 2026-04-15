@@ -337,19 +337,25 @@ export const CertificatePreview = memo(function CertificatePreview({
     const el = containerRef.current;
     if (!el) return;
     const measure = () => {
-      const containerWidth = el.clientWidth;
+      const containerWidth = el.getBoundingClientRect().width;
       const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : containerWidth;
       const horizontalPadding = isMobile ? 12 : 24;
       const safeViewportWidth = Math.max(260, viewportWidth - horizontalPadding);
-      const availableWidth = Math.min(containerWidth, safeViewportWidth);
+      const hasStableContainerWidth = containerWidth > 180;
+      const widthSource = hasStableContainerWidth ? Math.min(containerWidth, safeViewportWidth) : safeViewportWidth;
+      const availableWidth = Math.max(260, widthSource);
       const scale = Math.min(1, availableWidth / PREVIEW_BASE_WIDTH);
       setAutoScale(scale);
     };
     measure();
+    const raf = window.requestAnimationFrame(measure);
+    const deferredMeasure = window.setTimeout(measure, 180);
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     window.addEventListener('resize', measure);
     return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(deferredMeasure);
       ro.disconnect();
       window.removeEventListener('resize', measure);
     };
@@ -413,7 +419,7 @@ export const CertificatePreview = memo(function CertificatePreview({
         {expanded && (
           <>
             {/* Certificate body — exported to PDF */}
-            <div className="overflow-x-hidden p-1 sm:p-4" ref={containerRef}>
+            <div className="overflow-x-hidden p-1.5 sm:p-4" ref={containerRef}>
               <div
                 className="mx-auto flex w-full justify-center overflow-hidden"
                 style={{
@@ -756,13 +762,13 @@ export const CertificatePreview = memo(function CertificatePreview({
 
             {/* Download/Print bar */}
             {showDownload && (
-              <div className="cert-download-bar flex flex-col items-center justify-between gap-2 border-t bg-muted/30 px-4 py-2 sm:flex-row">
-                <p className="text-xs text-muted-foreground">{id} • {status} • {theme.name} • Auto-scaled to device</p>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={handlePrint} disabled={printing}>
+              <div className="cert-download-bar flex flex-col items-stretch justify-between gap-2 border-t bg-muted/30 px-3 py-2 sm:flex-row sm:items-center sm:px-4">
+                <p className="text-center text-xs text-muted-foreground sm:text-left">{id} • {status} • {theme.name} • Auto-scaled to device</p>
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+                  <Button size="sm" variant="outline" onClick={handlePrint} disabled={printing} className="flex-1 min-w-[120px] sm:flex-none">
                     {printing ? 'Preparing...' : <><Printer className="mr-1 h-3 w-3" /> Print</>}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleDownload} disabled={exporting}>
+                  <Button size="sm" variant="outline" onClick={handleDownload} disabled={exporting} className="flex-1 min-w-[140px] sm:flex-none">
                     {exporting ? 'Generating...' : <><Download className="mr-1 h-3 w-3" /> Download PDF</>}
                   </Button>
                 </div>
