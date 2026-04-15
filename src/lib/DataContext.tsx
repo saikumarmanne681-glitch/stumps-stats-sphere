@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useMemo, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message } from './types';
 import { api, isConnected } from './googleSheets';
-import { logAudit, v2api } from './v2api';
+import { logAudit } from './v2api';
 import {
   useAnnouncementsQuery,
   useBattingQuery,
@@ -74,10 +74,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const bowlingQuery = useBowlingQuery();
   const announcementsQuery = useAnnouncementsQuery();
   const messagesQuery = useMessagesQuery();
-
-  useEffect(() => {
-    v2api.syncHeaders().catch(console.warn);
-  }, []);
 
   const refresh = useCallback(async () => {
     await Promise.all([

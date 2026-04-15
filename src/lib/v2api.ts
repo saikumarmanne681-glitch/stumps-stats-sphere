@@ -4,11 +4,50 @@ import { nowIso } from './time';
 import { normalizeCertificateRecord } from './certificates';
 import { normalizeBoardConfigurationRow } from './boardConfig';
 
+type LoginRole = 'admin' | 'player' | 'management' | 'team';
+
+type LoginResponse = {
+  success: boolean;
+  error?: string;
+  user?: {
+    type: LoginRole;
+    username: string;
+    name?: string;
+    player_id?: string;
+    management_id?: string;
+    team_id?: string;
+    team_name?: string;
+    designation?: string;
+    role?: string;
+    authority_level?: number;
+  };
+};
+
+async function fetchWithPolicy(url: string, init: RequestInit, { timeoutMs = 12000, retries = 1 } = {}) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!response.ok && attempt < retries) continue;
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error;
+      if (attempt < retries) continue;
+      throw error;
+    }
+  }
+  throw lastError || new Error('Request failed');
+}
+
 async function fetchV2Sheet<T>(sheet: string): Promise<T[]> {
   const url = getAppsScriptUrl();
   if (!url) return [];
   try {
-    const res = await fetch(`${url}?action=get&sheet=${sheet}`);
+    const res = await fetchWithPolicy(`${url}?action=get&sheet=${sheet}`, { method: 'GET' });
     if (!res.ok) return [];
     const data = await res.json();
     return (Array.isArray(data) ? data : []) as T[];
@@ -22,7 +61,7 @@ async function writeV2Sheet<T>(sheet: string, action: 'add' | 'update' | 'delete
   if (!url) return false;
   const normalizedPayload = normalizeV2Payload(payload as Record<string, unknown>);
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithPolicy(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action, sheet, data: normalizedPayload }),
@@ -52,7 +91,7 @@ export const v2api = {
     const url = getAppsScriptUrl();
     if (!url) return false;
     try {
-      const res = await fetch(url, {
+      const res = await fetchWithPolicy(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'syncHeaders' }),
@@ -115,13 +154,29 @@ export const v2api = {
     const url = getAppsScriptUrl();
     if (!url) return { success: false, error: 'Apps Script URL is not configured' };
     try {
-      const res = await fetch(url, {
+      const res = await fetchWithPolicy(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ action: 'sendOtpEmail', data: { email, otp } }),
       });
       if (!res.ok) return { success: false, error: `HTTP ${res.status}` };
       return res.json() as Promise<{ success: boolean; error?: string }>;
+    } catch {
+      return { success: false, error: 'Network error' };
+    }
+  },
+
+  login: async (username: string, password: string, role: LoginRole): Promise<LoginResponse> => {
+    const url = getAppsScriptUrl();
+    if (!url) return { success: false, error: 'Apps Script URL is not configured' };
+    try {
+      const res = await fetchWithPolicy(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'login', data: { username, password, role } }),
+      });
+      if (!res.ok) return { success: false, error: `HTTP ${res.status}` };
+      return res.json() as Promise<LoginResponse>;
     } catch {
       return { success: false, error: 'Network error' };
     }

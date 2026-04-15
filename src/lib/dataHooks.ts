@@ -82,45 +82,50 @@ export function useHomePageData(filters: {
   const { data: matches = [] } = useMatchesQuery();
   const { data: tournaments = [] } = useTournamentsQuery();
   const { data: seasons = [] } = useSeasonsQuery();
+  const { filterTournament, filterSeason, showAllMatches, matchSearch } = filters;
 
   const latestMatches = useMemo(() => getLatestMatches(matches, 9), [matches]);
+  const tournamentNameById = useMemo(
+    () => new Map(tournaments.map((t) => [t.tournament_id, String(t.name || '').toLowerCase()])),
+    [tournaments],
+  );
 
   const relevantSeasons = useMemo(() => {
-    if (filters.filterTournament === 'all') return seasons;
-    return seasons.filter((s) => s.tournament_id === filters.filterTournament);
-  }, [filters.filterTournament, seasons]);
+    if (filterTournament === 'all') return seasons;
+    return seasons.filter((s) => s.tournament_id === filterTournament);
+  }, [filterTournament, seasons]);
 
   const filteredMatchIds = useMemo(() => {
     let filtered = matches;
-    if (filters.filterTournament !== 'all') {
-      filtered = filtered.filter((m) => m.tournament_id === filters.filterTournament);
+    if (filterTournament !== 'all') {
+      filtered = filtered.filter((m) => m.tournament_id === filterTournament);
     }
-    if (filters.filterSeason !== 'all') {
-      filtered = filtered.filter((m) => m.season_id === filters.filterSeason);
+    if (filterSeason !== 'all') {
+      filtered = filtered.filter((m) => m.season_id === filterSeason);
     }
     return filtered.map((m) => m.match_id);
-  }, [filters.filterTournament, filters.filterSeason, matches]);
+  }, [filterTournament, filterSeason, matches]);
 
   const displayMatches = useMemo(() => {
-    const sourceMatches = filters.showAllMatches ? getLatestMatches(matches, matches.length) : latestMatches;
+    const sourceMatches = showAllMatches ? getLatestMatches(matches, matches.length) : latestMatches;
     let result = sourceMatches;
-    if (filters.filterTournament !== 'all') {
-      result = result.filter((m) => m.tournament_id === filters.filterTournament);
+    if (filterTournament !== 'all') {
+      result = result.filter((m) => m.tournament_id === filterTournament);
     }
-    if (filters.filterSeason !== 'all') {
-      result = result.filter((m) => m.season_id === filters.filterSeason);
+    if (filterSeason !== 'all') {
+      result = result.filter((m) => m.season_id === filterSeason);
     }
 
-    const query = filters.matchSearch.trim().toLowerCase();
+    const query = matchSearch.trim().toLowerCase();
     if (!query) return result;
 
     return result.filter((m) => {
-      const tournamentName = tournaments.find((t) => t.tournament_id === m.tournament_id)?.name?.toLowerCase() || '';
+      const tournamentName = tournamentNameById.get(m.tournament_id) || '';
       return [m.match_id, m.team_a, m.team_b, m.venue, m.result, tournamentName].some((value) =>
         value?.toLowerCase().includes(query),
       );
     });
-  }, [filters, latestMatches, matches, tournaments]);
+  }, [showAllMatches, matches, latestMatches, filterTournament, filterSeason, matchSearch, tournamentNameById]);
 
   return { latestMatches, relevantSeasons, filteredMatchIds, displayMatches };
 }

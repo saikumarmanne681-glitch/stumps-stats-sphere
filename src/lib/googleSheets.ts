@@ -28,6 +28,26 @@ export function isConnected() {
 }
 const USE_MOCK = () => !APPS_SCRIPT_URL;
 
+async function fetchWithPolicy(url: string, init: RequestInit, { timeoutMs = 12000, retries = 1 } = {}) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!response.ok && attempt < retries) continue;
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error;
+      if (attempt < retries) continue;
+      throw error;
+    }
+  }
+  throw lastError || new Error("Request failed");
+}
+
 async function fetchSheet<T>(sheet: string): Promise<T[]> {
   if (USE_MOCK()) {
     const mockMap: Record<string, unknown[]> = {
@@ -43,7 +63,7 @@ async function fetchSheet<T>(sheet: string): Promise<T[]> {
     return (mockMap[sheet] || []) as T[];
   }
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=get&sheet=${sheet}`);
+    const res = await fetchWithPolicy(`${APPS_SCRIPT_URL}?action=get&sheet=${sheet}`, { method: "GET" });
     if (!res.ok) return [];
     const data = await res.json();
     return normalizeSheetRows(data as T[]);
@@ -56,7 +76,7 @@ async function writeSheet<T>(sheet: string, action: "add" | "update" | "delete",
   if (USE_MOCK()) return true;
   const normalizedPayload = normalizePayload(payload as Record<string, unknown>);
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const res = await fetchWithPolicy(APPS_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ action, sheet, data: normalizedPayload }),
@@ -81,7 +101,7 @@ async function replaceScorecardAtomic(payload: ScorecardReplaceRequest): Promise
   }
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const res = await fetchWithPolicy(APPS_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ action: "replaceScorecardAtomic", data: payload }),
@@ -131,7 +151,7 @@ export async function seedGoogleSheet(): Promise<{ success: boolean; message: st
       Announcements: mockAnnouncements,
       Messages: mockMessages,
     };
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const res = await fetchWithPolicy(APPS_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ action: "seed", data: seedData }),
