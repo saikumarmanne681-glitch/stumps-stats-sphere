@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,12 @@ export function Navbar() {
     const base = mobile
       ? 'w-full justify-start text-sm h-10'
       : 'h-9 text-xs px-2.5 md:text-sm';
+    const MobileSection = ({ title, children }: { title: string; children?: ReactNode }) => (
+      <>
+        <p className="px-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+        {children}
+      </>
+    );
 
     return (
       <div className={mobile ? 'flex flex-col gap-1 overflow-y-auto max-h-[78vh] pb-4' : 'flex items-center gap-1 flex-wrap'}>
@@ -25,28 +31,16 @@ export function Navbar() {
             <Search className="h-4 w-4 mr-2" /> Search / Commands
           </Button>
         )}
-        <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
-          <Link to="/"><Home className="h-3.5 w-3.5 mr-1.5" /> Home</Link>
-        </Button>
-        <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
-          <Link to="/leaderboards"><Trophy className="h-3.5 w-3.5 mr-1.5" /> Leaderboards</Link>
-        </Button>
-        <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
-          <Link to="/live"><Radio className="h-3.5 w-3.5 mr-1.5" /> Live</Link>
-        </Button>
-        <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
-          <Link to="/seasons"><Layers3 className="h-3.5 w-3.5 mr-1.5" /> Seasons</Link>
-        </Button>
-        <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
-          <Link to="/schedules"><CalendarDays className="h-3.5 w-3.5 mr-1.5" /> Schedules</Link>
-        </Button>
-        <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
-          <Link to="/hall-of-glory"><Crown className="h-3.5 w-3.5 mr-1.5" /> Glory</Link>
-        </Button>
-        <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
-          <Link to="/verify"><BadgeCheck className="h-3.5 w-3.5 mr-1.5" /> Verify</Link>
-        </Button>
+        {mobile && <MobileSection title="Public" />}
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/"><Home className="h-3.5 w-3.5 mr-1.5" /> Home</Link></Button>
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/leaderboards"><Trophy className="h-3.5 w-3.5 mr-1.5" /> Leaderboards</Link></Button>
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/live"><Radio className="h-3.5 w-3.5 mr-1.5" /> Live</Link></Button>
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/seasons"><Layers3 className="h-3.5 w-3.5 mr-1.5" /> Seasons</Link></Button>
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/schedules"><CalendarDays className="h-3.5 w-3.5 mr-1.5" /> Schedules</Link></Button>
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/hall-of-glory"><Crown className="h-3.5 w-3.5 mr-1.5" /> Glory</Link></Button>
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/verify"><BadgeCheck className="h-3.5 w-3.5 mr-1.5" /> Verify</Link></Button>
 
+        {mobile && user && <MobileSection title="Workspace" />}
         {user && (
           <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
             <Link to="/management"><Users className="h-3.5 w-3.5 mr-1.5" /> Board</Link>
@@ -76,7 +70,7 @@ export function Navbar() {
 
         {isAdmin && (
           <>
-            {mobile && <div className="border-t my-1" />}
+            {mobile && <MobileSection title="Admin" />}
             <Button variant="outline" size="sm" className={base} asChild onClick={close}>
               <Link to="/admin"><LayoutDashboard className="h-3.5 w-3.5 mr-1.5" /> Admin</Link>
             </Button>

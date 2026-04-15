@@ -149,6 +149,15 @@ function normalizeKeyValue(value) {
   return String(value === null || value === undefined ? "" : value).trim();
 }
 
+function normalizeCredential(value) {
+  return normalizeKeyValue(value).toLowerCase();
+}
+
+function isActiveStatus(status) {
+  const normalized = normalizeCredential(status);
+  return normalized === "" || normalized === "active";
+}
+
 function findRowIndex(sheet, keyCol, keyVal) {
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
@@ -415,6 +424,117 @@ function setCorsHeaders(output) {
   return output;
 }
 
+function readSheetRowsByName(ss, tabName) {
+  const sheet = getOrCreateSheet(ss, tabName);
+  ensureSheetSchema(sheet, TABS[tabName]);
+  return sheetToJson(sheet);
+}
+
+function loginResponse(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function handleLogin(ss, data) {
+  const role = normalizeCredential(data && data.role);
+  const username = normalizeCredential(data && data.username);
+  const secret = normalizeKeyValue(data && data.password);
+  if (!role || !username || !secret) {
+    return loginResponse({ success: false, error: "Missing username/password/role" });
+  }
+
+  if (role === "admin") {
+    const adminRows = readSheetRowsByName(ss, "ADMIN_CREDENTIALS");
+    const admin = adminRows.find((row) => {
+      if (!isActiveStatus(row.status)) return false;
+      return [row.username, row.admin_id].some((value) => normalizeCredential(value) === username)
+        && normalizeKeyValue(row.password) === secret;
+    });
+    if (admin) {
+      return loginResponse({
+        success: true,
+        user: { type: "admin", username: normalizeKeyValue(admin.username || admin.admin_id || "admin"), name: normalizeKeyValue(admin.name || "Administrator") },
+      });
+    }
+
+    const managementRows = readSheetRowsByName(ss, "MANAGEMENT_USERS");
+    const fallbackAdmin = managementRows.find((row) => {
+      if (!isActiveStatus(row.status)) return false;
+      const isAdminRole = normalizeCredential(row.role).indexOf("admin") !== -1;
+      if (!isAdminRole) return false;
+      return [row.username, row.management_id].some((value) => normalizeCredential(value) === username)
+        && normalizeKeyValue(row.password) === secret;
+    });
+    if (fallbackAdmin) {
+      return loginResponse({
+        success: true,
+        user: { type: "admin", username: normalizeKeyValue(fallbackAdmin.username || fallbackAdmin.management_id || "admin"), name: normalizeKeyValue(fallbackAdmin.name || "Administrator") },
+      });
+    }
+    return loginResponse({ success: false, error: "Invalid credentials" });
+  }
+
+  if (role === "player") {
+    const players = readSheetRowsByName(ss, "Players");
+    const player = players.find((row) => {
+      if (normalizeCredential(row.status) !== "active") return false;
+      return normalizeCredential(row.username) === username && normalizeKeyValue(row.password) === secret;
+    });
+    if (!player) return loginResponse({ success: false, error: "Invalid credentials" });
+    return loginResponse({
+      success: true,
+      user: {
+        type: "player",
+        username: normalizeKeyValue(player.username || player.player_id),
+        player_id: normalizeKeyValue(player.player_id),
+        name: normalizeKeyValue(player.name || player.username),
+      },
+    });
+  }
+
+  if (role === "team") {
+    const teamRows = readSheetRowsByName(ss, "TEAM_ACCESS_USERS");
+    const teamUser = teamRows.find((row) => {
+      if (!isActiveStatus(row.status)) return false;
+      const identityMatches = [row.username, row.team_name, row.team_id].some((value) => normalizeCredential(value) === username);
+      return identityMatches && normalizeKeyValue(row.password) === secret;
+    });
+    if (!teamUser) return loginResponse({ success: false, error: "Invalid credentials" });
+    return loginResponse({
+      success: true,
+      user: {
+        type: "team",
+        username: normalizeKeyValue(teamUser.username || teamUser.team_name || teamUser.team_id),
+        team_id: normalizeKeyValue(teamUser.team_id),
+        team_name: normalizeKeyValue(teamUser.team_name),
+        name: normalizeKeyValue(teamUser.team_name || teamUser.username),
+      },
+    });
+  }
+
+  const managementRows = readSheetRowsByName(ss, "MANAGEMENT_USERS");
+  const management = managementRows.find((row) => {
+    if (!isActiveStatus(row.status)) return false;
+    const identityMatches = [row.username, row.email, row.name, row.management_id, row.generated_by]
+      .some((value) => normalizeCredential(value) === username);
+    if (!identityMatches) return false;
+    const passwords = [row.password, row.generated_at, row.phone].map((value) => normalizeKeyValue(value));
+    return passwords.includes(secret);
+  });
+  if (!management) return loginResponse({ success: false, error: "Invalid credentials" });
+  return loginResponse({
+    success: true,
+    user: {
+      type: "management",
+      username: normalizeKeyValue(management.username || management.email || management.management_id),
+      management_id: normalizeKeyValue(management.management_id),
+      name: normalizeKeyValue(management.name || management.username),
+      designation: normalizeKeyValue(management.designation),
+      role: normalizeKeyValue(management.role),
+      authority_level: toSafeNumber(management.authority_level, 0),
+    },
+  });
+}
+
 function authorizeMailAccess() {
   // Run manually once after deployment or scope changes.
   GmailApp.getAliases();
@@ -513,6 +633,10 @@ function doPost(e) {
   }
 
   const { action, sheet: tabName, data } = body;
+
+  if (action === "login") {
+    return handleLogin(ss, data || {});
+  }
 
   if (action === "sendMail") {
     const diagnostics = (data && data.diagnostics) || {};

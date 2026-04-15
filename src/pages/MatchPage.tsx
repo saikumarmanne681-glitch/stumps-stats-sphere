@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { useData } from '@/lib/DataContext';
@@ -12,55 +12,24 @@ import { formatSheetDate, resolvePlayerFromIdentity } from '@/lib/dataUtils';
 import { useToast } from '@/hooks/use-toast';
 import { PageLoader } from '@/components/LoadingOverlay';
 import { SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
-import { api } from '@/lib/googleSheets';
-import { BattingScorecard, BowlingScorecard } from '@/lib/types';
 import { getTeamScoreSummary } from '@/lib/liveScoring';
+import { useBattingQuery, useBowlingQuery } from '@/lib/dataHooks';
 
 const MatchPage = () => {
   const { match_id } = useParams();
   const { matches, batting, bowling, players, tournaments, seasons, loading } = useData();
   const { toast } = useToast();
   const [sharing, setSharing] = useState(false);
-  const [liveBatting, setLiveBatting] = useState<BattingScorecard[]>([]);
-  const [liveBowling, setLiveBowling] = useState<BowlingScorecard[]>([]);
-  const [liveRefreshing, setLiveRefreshing] = useState(false);
+  const isLiveMatch = match?.status === 'live';
+  const { data: polledBatting = [], isFetching: liveBattingRefreshing } = useBattingQuery({ live: isLiveMatch });
+  const { data: polledBowling = [], isFetching: liveBowlingRefreshing } = useBowlingQuery({ live: isLiveMatch });
 
   const match = matches.find(m => m.match_id === match_id);
   const tournament = match ? tournaments.find(t => t.tournament_id === match.tournament_id) : null;
   const season = match ? seasons.find(s => s.season_id === match.season_id) : null;
-  useEffect(() => {
-    setLiveBatting(batting.filter((entry) => entry.match_id === match_id));
-    setLiveBowling(bowling.filter((entry) => entry.match_id === match_id));
-  }, [batting, bowling, match_id]);
-
-  useEffect(() => {
-    if (!match || match.status !== 'live') return;
-
-    let active = true;
-    const pullLiveData = async () => {
-      setLiveRefreshing(true);
-      try {
-        const [latestBatting, latestBowling] = await Promise.all([api.getBattingScorecard(), api.getBowlingScorecard()]);
-        if (!active) return;
-        setLiveBatting(latestBatting.filter((entry) => entry.match_id === match.match_id));
-        setLiveBowling(latestBowling.filter((entry) => entry.match_id === match.match_id));
-      } catch (error) {
-        console.warn('Unable to refresh live match score data', error);
-      } finally {
-        if (active) setLiveRefreshing(false);
-      }
-    };
-
-    pullLiveData();
-    const intervalId = window.setInterval(pullLiveData, 8000);
-    return () => {
-      active = false;
-      window.clearInterval(intervalId);
-    };
-  }, [match]);
-
-  const matchBatting = liveBatting;
-  const matchBowling = liveBowling;
+  const matchBatting = (isLiveMatch ? polledBatting : batting).filter((entry) => entry.match_id === match_id);
+  const matchBowling = (isLiveMatch ? polledBowling : bowling).filter((entry) => entry.match_id === match_id);
+  const liveRefreshing = liveBattingRefreshing || liveBowlingRefreshing;
   const mom = match ? resolvePlayerFromIdentity(match.man_of_match, players) : null;
   const teamACaptain = match ? resolvePlayerFromIdentity(match.team_a_captain, players) : null;
   const teamBCaptain = match ? resolvePlayerFromIdentity(match.team_b_captain, players) : null;

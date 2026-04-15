@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RouteChangeIndicator } from "@/components/RouteChangeIndicator";
 import { GlobalActivityIndicator } from "@/components/GlobalActivityIndicator";
+import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
@@ -144,6 +145,7 @@ const App = () => (
           <BrowserRouter>
             <RouteChangeIndicator />
             <GlobalActivityIndicator />
+            <NetworkStatusBanner />
             <RouteErrorBoundary>
               <Suspense fallback={<RouteLoader />}>
                 <Routes>

@@ -33,14 +33,24 @@ export function AdminSheetsConsole({ initialSheet, lockSheetSelection = false }:
   const [sheet, setSheet] = useState<string>(initialValue);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [jsonValue, setJsonValue] = useState('{}');
   const [deleteKey, setDeleteKey] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const refresh = async () => {
     setLoading(true);
     const data = await v2api.getCustomSheet<Record<string, unknown>>(sheet);
     setRows(data);
+    setPage(1);
     setLoading(false);
+  };
+
+  const syncHeaders = async () => {
+    setSyncing(true);
+    await v2api.syncHeaders();
+    setSyncing(false);
   };
 
   const headers = useMemo(() => {
@@ -86,6 +96,13 @@ export function AdminSheetsConsole({ initialSheet, lockSheetSelection = false }:
     }
   };
 
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return rows.slice(start, start + PAGE_SIZE);
+  }, [page, rows]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+
   return (
     <div className="space-y-4">
       <Card>
@@ -102,6 +119,9 @@ export function AdminSheetsConsole({ initialSheet, lockSheetSelection = false }:
               </Select>
             </div>
             <Button onClick={refresh} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load rows'}</Button>
+            <Button variant="outline" onClick={syncHeaders} disabled={syncing}>
+              {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sync headers'}
+            </Button>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -125,7 +145,7 @@ export function AdminSheetsConsole({ initialSheet, lockSheetSelection = false }:
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.slice(0, 100).map((row, index) => (
+                {pagedRows.map((row, index) => (
                   <TableRow key={`${index}-${String(row[keyColumn] || '')}`}>
                     {headers.map((header) => {
                       const value = row[header];
@@ -136,6 +156,16 @@ export function AdminSheetsConsole({ initialSheet, lockSheetSelection = false }:
                 {rows.length === 0 && <TableRow><TableCell colSpan={Math.max(headers.length, 1)} className="text-center text-muted-foreground">No rows loaded</TableCell></TableRow>}
               </TableBody>
             </Table>
+          </div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              Showing {rows.length === 0 ? 0 : ((page - 1) * PAGE_SIZE + 1)}-{Math.min(rows.length, page * PAGE_SIZE)} of {rows.length} rows
+            </span>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page === 1}>Prev</Button>
+              <span>Page {page} / {totalPages}</span>
+              <Button size="sm" variant="outline" onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} disabled={page >= totalPages}>Next</Button>
+            </div>
           </div>
         </CardContent>
       </Card>

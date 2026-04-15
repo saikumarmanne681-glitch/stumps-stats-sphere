@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth';
 import { generateId } from '@/lib/utils';
 import { v2api, logAudit } from '@/lib/v2api';
 import { NewsRoomPost } from '@/lib/v2types';
+import { parseTimestamp } from '@/lib/time';
 
 const NewsRoomPage = () => {
   const { user, isManagement, isPlayer, isAdmin } = useAuth();
@@ -198,13 +199,21 @@ const NewsRoomPage = () => {
                 <NewsPostCard
                   post={featuredPost}
                   featured
-                  publishedLabel={`${formatDistanceToNow(new Date(featuredPost.published_at), { addSuffix: true })} • ${format(new Date(featuredPost.published_at), 'dd MMM yyyy, hh:mm a')}`}
+                  publishedLabel={(() => {
+                    const parsed = parseTimestamp(featuredPost.published_at);
+                    if (!parsed) return 'Publication time unavailable';
+                    return `${formatDistanceToNow(parsed, { addSuffix: true })} • ${format(parsed, 'dd MMM yyyy, hh:mm a')}`;
+                  })()}
                 />
                 {otherPosts.map((post) => (
                   <NewsPostCard
                     key={post.post_id}
                     post={post}
-                    publishedLabel={`${formatDistanceToNow(new Date(post.published_at), { addSuffix: true })} • ${format(new Date(post.published_at), 'dd MMM yyyy, hh:mm a')}`}
+                    publishedLabel={(() => {
+                      const parsed = parseTimestamp(post.published_at);
+                      if (!parsed) return 'Publication time unavailable';
+                      return `${formatDistanceToNow(parsed, { addSuffix: true })} • ${format(parsed, 'dd MMM yyyy, hh:mm a')}`;
+                    })()}
                   />
                 ))}
               </div>
