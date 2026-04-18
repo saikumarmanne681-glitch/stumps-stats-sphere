@@ -25,7 +25,7 @@ export function PageHeader({ route, title, subtitle, className }: PageHeaderProp
   const Icon = meta?.icon;
   const resolvedTitle = title || meta?.title || 'Page';
   const resolvedSubtitle = subtitle || meta?.subtitle;
-  const logoName = departmentLogoById[meta?.departmentId || ''] || 'main-logo';
+  const logoName = meta?.logoName || departmentLogoById[meta?.departmentId || ''] || 'main-logo';
 
   return (
     <div className={className}>

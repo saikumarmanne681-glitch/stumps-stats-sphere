@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trophy, Calendar, MapPin, Users, Shield, ExternalLink, Medal, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Shield, ExternalLink, Medal, BarChart3 } from 'lucide-react';
 import { v2api } from '@/lib/v2api';
 import { DigitalScorelist } from '@/lib/v2types';
 import { SecurityShieldBadge, DataIntegrityBadge, SecurityWatermark } from '@/components/SecurityBadge';
 import { PageLoader } from '@/components/LoadingOverlay';
 import { compareSheetDatesDesc, findTournamentById, formatSheetDate, hasSheetDate, normalizeId } from '@/lib/dataUtils';
+import { TournamentLogoLockup } from '@/components/TournamentLogoLockup';
 
 const TournamentPage = () => {
   const { id } = useParams();
@@ -107,8 +108,8 @@ const TournamentPage = () => {
         <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-accent/5 to-transparent overflow-hidden">
           <CardContent className="p-6 md:p-8">
             <div className="flex flex-col md:flex-row items-start gap-4">
-              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                <Trophy className="h-8 w-8 text-primary-foreground" />
+              <div className="shrink-0">
+                <TournamentLogoLockup tournamentName={tournament.name} />
               </div>
               <div className="flex-1">
                 <h1 className="font-display text-3xl md:text-4xl font-bold">{tournament.name}</h1>

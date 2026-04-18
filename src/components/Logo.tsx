@@ -7,7 +7,14 @@ export type LogoName =
   | 'match-scoring'
   | 'certificates'
   | 'community'
-  | 'admin';
+  | 'admin'
+  | 'management-hub'
+  | 'documents-vault'
+  | 'news-room-wire'
+  | 'leaderboards-elite'
+  | 'match-center-live'
+  | 'hall-of-glory'
+  | 'tournament-cup';
 
 interface LogoProps {
   name: LogoName;
@@ -25,6 +32,13 @@ const logoSrcByName: Record<LogoName, string> = {
   certificates: '/assets/logos/certificates.svg',
   community: '/assets/logos/community.svg',
   admin: '/assets/logos/admin.svg',
+  'management-hub': '/assets/logos/management-hub.svg',
+  'documents-vault': '/assets/logos/documents-vault.svg',
+  'news-room-wire': '/assets/logos/news-room-wire.svg',
+  'leaderboards-elite': '/assets/logos/leaderboards-elite.svg',
+  'match-center-live': '/assets/logos/match-center-live.svg',
+  'hall-of-glory': '/assets/logos/hall-of-glory.svg',
+  'tournament-cup': '/assets/logos/tournament-cup.svg',
 };
 
 const logoAltByName: Record<LogoName, string> = {
@@ -35,6 +49,13 @@ const logoAltByName: Record<LogoName, string> = {
   certificates: 'Certificates and Achievements Logo',
   community: 'Community and Communication Logo',
   admin: 'System Administration Logo',
+  'management-hub': 'Board Management Hub Logo',
+  'documents-vault': 'Documents Portal Vault Logo',
+  'news-room-wire': 'News Room Wire Logo',
+  'leaderboards-elite': 'Leaderboards Elite Logo',
+  'match-center-live': 'Match Center Live Logo',
+  'hall-of-glory': 'Hall of Glory Logo',
+  'tournament-cup': 'Tournament Cup Logo',
 };
 
 export function Logo({ name, size = 24, className, alt, lazy = false }: LogoProps) {

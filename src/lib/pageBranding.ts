@@ -1,3 +1,4 @@
+import { type LogoName } from '@/components/Logo';
 import { type LucideIcon, FileText, Newspaper, ShieldCheck, Trophy, Users, Zap } from 'lucide-react';
 
 export interface PageBranding {
@@ -7,6 +8,7 @@ export interface PageBranding {
   emoji?: string;
   icon?: LucideIcon;
   departmentId?: string;
+  logoName?: LogoName;
 }
 
 export const PAGE_BRANDING: Record<string, PageBranding> = {
@@ -17,6 +19,7 @@ export const PAGE_BRANDING: Record<string, PageBranding> = {
     emoji: '👑',
     departmentId: 'executive_board',
     icon: Users,
+    logoName: 'management-hub',
   },
   '/documents-portal': {
     route: '/documents-portal',
@@ -25,6 +28,7 @@ export const PAGE_BRANDING: Record<string, PageBranding> = {
     emoji: '🛡️',
     departmentId: 'governance',
     icon: FileText,
+    logoName: 'documents-vault',
   },
   '/news-room': {
     route: '/news-room',
@@ -33,6 +37,7 @@ export const PAGE_BRANDING: Record<string, PageBranding> = {
     emoji: '📰',
     departmentId: 'media_community',
     icon: Newspaper,
+    logoName: 'news-room-wire',
   },
   '/leaderboards': {
     route: '/leaderboards',
@@ -41,6 +46,7 @@ export const PAGE_BRANDING: Record<string, PageBranding> = {
     emoji: '🏆',
     departmentId: 'competition_operations',
     icon: Trophy,
+    logoName: 'leaderboards-elite',
   },
   '/admin/match-center': {
     route: '/admin/match-center',
@@ -49,6 +55,7 @@ export const PAGE_BRANDING: Record<string, PageBranding> = {
     emoji: '🏏',
     departmentId: 'competition_operations',
     icon: Zap,
+    logoName: 'match-center-live',
   },
   '/hall-of-glory': {
     route: '/hall-of-glory',
@@ -57,6 +64,7 @@ export const PAGE_BRANDING: Record<string, PageBranding> = {
     emoji: '🏆',
     departmentId: 'tournament',
     icon: ShieldCheck,
+    logoName: 'hall-of-glory',
   },
 };
 
