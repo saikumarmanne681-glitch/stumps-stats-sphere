@@ -13,7 +13,7 @@ import { v2api } from '@/lib/v2api';
 import { CertificateRecord, isCertificateAuthentic, normalizeCertificateId } from '@/lib/certificates';
 import { DigitalScorelist } from '@/lib/v2types';
 import { verifyScorelist } from '@/lib/scorelist';
-import { AlertTriangle, Camera, CheckCircle2, ClipboardList, FileUp, Loader2, Lock, ScanLine, Search, ShieldCheck, ShieldX, Sparkles, Timer, Upload, XCircle } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, ClipboardList, FileUp, Loader2, Lock, RefreshCcw, ScanLine, Search, ShieldCheck, ShieldX, Sparkles, Timer, Upload, XCircle } from 'lucide-react';
 
 type VerifyMode = 'certificate' | 'scorelist';
 
@@ -105,6 +105,7 @@ export default function VerificationPage() {
   const [scannerMessage, setScannerMessage] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerBusy, setScannerBusy] = useState(false);
+  const [scannerLive, setScannerLive] = useState(false);
   const [uploadName, setUploadName] = useState('');
   const [uploadError, setUploadError] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -203,6 +204,9 @@ export default function VerificationPage() {
     [loadingData, totalRecords],
   );
 
+  const sampleCertificateId = useMemo(() => normalizeCertificateId(certificates[0]?.id || ''), [certificates]);
+  const sampleScorelistId = useMemo(() => String(scorelists[0]?.scorelist_id || '').trim(), [scorelists]);
+
   const runVerification = async (value: string, selectedMode: VerifyMode): Promise<boolean> => {
     const parsed = parseVerificationInput(value, selectedMode);
     if (!parsed?.id) {
@@ -285,9 +289,13 @@ export default function VerificationPage() {
     setInputValue(extracted);
   };
 
-  const startScanner = async () => {
+  const openScanner = () => {
     setScannerMessage('');
     setScannerOpen(true);
+  };
+
+  const startScanner = async () => {
+    setScannerMessage('');
 
     const BarcodeDetectorCtor = (window as Window & { BarcodeDetector?: new (...args: any[]) => { detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>> } }).BarcodeDetector;
     if (!BarcodeDetectorCtor) {
@@ -303,6 +311,8 @@ export default function VerificationPage() {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+      setScannerLive(true);
+      setScannerMessage('Camera active. Hold QR steady in the frame.');
 
       const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
       scannerIntervalRef.current = window.setInterval(async () => {
@@ -320,6 +330,7 @@ export default function VerificationPage() {
           scannerStreamRef.current?.getTracks().forEach((track) => track.stop());
           scannerStreamRef.current = null;
           setScannerBusy(false);
+          setScannerLive(false);
           const isSuccess = await runVerification(value, mode);
           if (isSuccess) {
             setInputValue('');
@@ -331,6 +342,7 @@ export default function VerificationPage() {
     } catch {
       setScannerMessage('Unable to access camera. Check permission and use URL/ID verification instead.');
       setScannerBusy(false);
+      setScannerLive(false);
     }
   };
 
@@ -342,6 +354,7 @@ export default function VerificationPage() {
     scannerStreamRef.current?.getTracks().forEach((track) => track.stop());
     scannerStreamRef.current = null;
     setScannerBusy(false);
+    setScannerLive(false);
     setScannerOpen(false);
   };
 
@@ -386,6 +399,24 @@ export default function VerificationPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="grid gap-3 rounded-xl border bg-muted/10 p-4 md:grid-cols-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step 1</p>
+                  <p className="mt-1 text-sm font-medium">Choose verification type</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Switch between certificate and digital scorelist before searching.</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step 2</p>
+                  <p className="mt-1 text-sm font-medium">Provide ID, URL, file, or QR</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Use whichever source you have — all methods connect to the same checks.</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step 3</p>
+                  <p className="mt-1 text-sm font-medium">Review trust result</p>
+                  <p className="mt-1 text-xs text-muted-foreground">You’ll see clear status plus official record details for cross-checking.</p>
+                </div>
+              </div>
+
               <Tabs value={mode} onValueChange={(value) => setMode(value as VerifyMode)}>
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="certificate">Certificate</TabsTrigger>
@@ -410,6 +441,40 @@ export default function VerificationPage() {
                   <p className="text-xs text-muted-foreground">Accepted formats: full verification URL, raw certificate ID, or scorelist ID.</p>
                 </div>
 
+                {(sampleCertificateId || sampleScorelistId) && (
+                  <div className="rounded-lg border bg-background p-3">
+                    <p className="text-xs font-medium text-muted-foreground">Quick fill examples</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {sampleCertificateId && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setMode('certificate');
+                            setInputValue(sampleCertificateId);
+                          }}
+                        >
+                          Try certificate sample
+                        </Button>
+                      )}
+                      {sampleScorelistId && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setMode('scorelist');
+                            setInputValue(sampleScorelistId);
+                          }}
+                        >
+                          Try scorelist sample
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="rounded-lg border border-dashed bg-background p-3">
                   <Label htmlFor="verify-upload" className="mb-2 flex items-center gap-2 text-sm">
                     <Upload className="h-4 w-4" /> Upload ID/URL file (TXT, CSV, JSON under 1 MB)
@@ -428,8 +493,21 @@ export default function VerificationPage() {
                     {verifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                     Verify now
                   </Button>
-                  <Button type="button" variant="outline" onClick={startScanner} className="transition-colors duration-200 motion-reduce:transition-none">
+                  <Button type="button" variant="outline" onClick={openScanner} className="transition-colors duration-200 motion-reduce:transition-none">
                     <Camera className="mr-2 h-4 w-4" /> Scan QR
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setInputValue('');
+                      setResult({ kind: 'idle' });
+                      setUploadName('');
+                      setUploadError('');
+                    }}
+                  >
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Reset
                   </Button>
                 </div>
               </form>
@@ -443,9 +521,15 @@ export default function VerificationPage() {
                   <CardContent className="space-y-2">
                     <video ref={videoRef} className="w-full rounded-md border bg-black/90" muted playsInline />
                     {scannerMessage && <p className="text-sm text-muted-foreground">{scannerMessage}</p>}
-                    <Button type="button" variant="secondary" onClick={stopScanner} disabled={!scannerBusy && !scannerMessage}>
-                      Close scanner
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="default" onClick={startScanner} disabled={scannerBusy || scannerLive}>
+                        {scannerBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
+                        {scannerLive ? 'Camera running' : 'Start camera'}
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={stopScanner}>
+                        Stop & close
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               )}
