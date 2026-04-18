@@ -46,6 +46,11 @@ function isOverdue(dateValue?: string) {
   return date.getTime() < Date.now();
 }
 
+function isLockedScorelist(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  return ['true', '1', 'yes', 'y', 'locked'].includes(String(value ?? '').trim().toLowerCase());
+}
+
 export default function AdminWorkQueuePage() {
   const { isAdmin, user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -124,7 +129,7 @@ export default function AdminWorkQueuePage() {
       });
 
     scorelists
-      .filter((scorelist) => !scorelist.locked)
+      .filter((scorelist) => !isLockedScorelist(scorelist.locked))
       .forEach((scorelist) => {
         const roadmap = getScorelistRoadmap(scorelist, managementUsers);
         const pendingStep = roadmap.find((step) => step.stage !== 'draft' && !step.completed);
