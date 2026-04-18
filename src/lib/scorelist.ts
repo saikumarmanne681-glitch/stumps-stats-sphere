@@ -4,6 +4,7 @@ import { v2api, istNow, logAudit } from "./v2api";
 import { getAppsScriptUrl } from "./googleSheets";
 
 const LOCAL_SCORELIST_SECRET = "CRICKET_CLUB_SCORELIST_SECRET_v2";
+export const SCORELIST_SECURITY_VERSION = "SEC-v3";
 
 type VerificationResult = { valid: boolean; reason?: string };
 
@@ -96,6 +97,7 @@ export async function generateMatchScorelist(
     due_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
     priority: 'medium',
     escalation_state: 'normal',
+    security_version: SCORELIST_SECURITY_VERSION,
   };
 
   await v2api.addScorelist(scorelist);
@@ -158,6 +160,7 @@ export async function generateTournamentScorelist(
     due_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
     priority: 'high',
     escalation_state: 'normal',
+    security_version: SCORELIST_SECURITY_VERSION,
   };
 
   await v2api.addScorelist(scorelist);
@@ -235,6 +238,23 @@ export async function verifyScorelist(scorelist: DigitalScorelist): Promise<Veri
   }
 
   return { valid: false, reason: "Hash mismatch — payload has been tampered with" };
+}
+
+export type VerificationConfidenceMode = "server_signed" | "crypto_verified" | "legacy_mode" | "unverified";
+
+export async function getVerificationConfidenceMode(scorelist: DigitalScorelist): Promise<VerificationConfidenceMode> {
+  const payload = String(scorelist.payload_json || '');
+  const recomputedHash = await sha256(payload);
+  const storedHash = String(scorelist.hash_digest || '').trim().toLowerCase();
+  if (storedHash !== recomputedHash) return canTrustLegacyCertifiedScorelist(scorelist, recomputedHash) ? "legacy_mode" : "unverified";
+
+  const remoteResult = await verifyWithRemoteService(scorelist, recomputedHash);
+  if (remoteResult?.valid) return "server_signed";
+
+  const recomputedSig = await localSignatureFor(payload, recomputedHash);
+  if (recomputedSig === String(scorelist.signature || '').trim()) return "crypto_verified";
+  if (isOfficiallyCertified(scorelist)) return "legacy_mode";
+  return "unverified";
 }
 
 export function exportScorelistAsJSON(scorelist: DigitalScorelist): string {
