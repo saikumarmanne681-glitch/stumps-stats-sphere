@@ -11,6 +11,8 @@ import { PublicScheduleRecord } from '@/lib/v2types';
 import { generateId } from '@/lib/utils';
 import { Download, FileText, Globe, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ScheduleMatch, ScheduleRecord } from '@/schedules/types';
+import { formatScheduleSlotInIST } from '@/lib/time';
 
 const SHEET_NAME = 'PUBLIC_SCHEDULES';
 
@@ -74,19 +76,39 @@ const emptyForm = {
   pdf_url: '',
 };
 
+interface PublishedMatchSchedule {
+  id: string;
+  title: string;
+  tournament: string;
+  season: string;
+  source: 'manual_file' | 'governance_release';
+  fileUrl?: string;
+  publishedAt: string;
+  matches: ScheduleMatch[];
+}
+
 export default function SchedulesPage() {
   const { isAdmin, user } = useAuth();
   const { toast } = useToast();
   const [rows, setRows] = useState<PublicScheduleRecord[]>([]);
+  const [governanceSchedules, setGovernanceSchedules] = useState<ScheduleRecord[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const refresh = async () => {
-    const data = await v2api.getCustomSheet<PublicScheduleRecord>(SHEET_NAME);
+    const [data, certified] = await Promise.all([
+      v2api.getCustomSheet<PublicScheduleRecord>(SHEET_NAME),
+      v2api.getCustomSheet<ScheduleRecord>('schedules'),
+    ]);
     setRows(
       data
         .filter((item) => item.schedule_id && item.pdf_url)
         .sort((a, b) => (b.published_at || b.updated_at || '').localeCompare(a.published_at || a.updated_at || '')),
+    );
+    setGovernanceSchedules(
+      certified
+        .filter((item) => item.schedule_id && item.status === 'approved' && item.matches_json)
+        .sort((a, b) => (b.certified_at || b.timestamp || '').localeCompare(a.certified_at || a.timestamp || '')),
     );
   };
 
@@ -94,7 +116,40 @@ export default function SchedulesPage() {
     void refresh();
   }, []);
 
-  const publishedSchedules = useMemo(() => rows.filter((item) => String(item.status || '').toLowerCase() === 'published'), [rows]);
+  const publishedSchedules = useMemo<PublishedMatchSchedule[]>(() => {
+    const manual = rows
+      .filter((item) => String(item.status || '').toLowerCase() === 'published')
+      .map((item) => ({
+        id: item.schedule_id,
+        title: item.title,
+        tournament: item.tournament || 'General',
+        season: item.season || '',
+        source: 'manual_file' as const,
+        fileUrl: item.pdf_url,
+        publishedAt: item.published_at || item.updated_at || '',
+        matches: [],
+      }));
+
+    const governance = governanceSchedules.map((item) => {
+      let matches: ScheduleMatch[] = [];
+      try {
+        matches = JSON.parse(item.matches_json) as ScheduleMatch[];
+      } catch {
+        matches = [];
+      }
+      return {
+        id: `${item.schedule_id}:fixture`,
+        title: `${item.tournament_name} · Official Fixture (v${item.version_number})`,
+        tournament: item.tournament_name,
+        season: item.timestamp?.slice(0, 4) || '',
+        source: 'governance_release' as const,
+        publishedAt: item.certified_at || item.timestamp || '',
+        matches,
+      };
+    });
+
+    return [...governance, ...manual].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  }, [rows, governanceSchedules]);
 
   const createSchedule = async () => {
     if (!isAdmin) return;
@@ -127,9 +182,9 @@ export default function SchedulesPage() {
     toast({ title: 'Schedule published' });
   };
 
-  const removeSchedule = async (row: PublicScheduleRecord) => {
+  const removeSchedule = async (scheduleId: string) => {
     if (!isAdmin) return;
-    const ok = await v2api.deleteCustomSheetRow(SHEET_NAME, { schedule_id: row.schedule_id });
+    const ok = await v2api.deleteCustomSheetRow(SHEET_NAME, { schedule_id: scheduleId });
     if (!ok) {
       toast({ title: 'Unable to delete schedule', variant: 'destructive' });
       return;
@@ -172,7 +227,7 @@ export default function SchedulesPage() {
 
         <div className="space-y-4">
           {publishedSchedules.map((item) => (
-            <Card key={item.schedule_id} className="overflow-hidden">
+            <Card key={item.id} className="overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -181,17 +236,48 @@ export default function SchedulesPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">Published</Badge>
-                    <Button asChild size="sm" variant="outline"><a href={item.pdf_url} target="_blank" rel="noreferrer"><Download className="mr-1 h-3.5 w-3.5" /> Open file</a></Button>
-                    {isAdmin && (
-                      <Button size="sm" variant="destructive" onClick={() => void removeSchedule(item)}><Trash2 className="mr-1 h-3.5 w-3.5" /> Delete</Button>
+                    <Badge variant={item.source === 'governance_release' ? 'default' : 'secondary'}>
+                      {item.source === 'governance_release' ? 'Season release' : 'Uploaded file'}
+                    </Badge>
+                    {item.fileUrl && <Button asChild size="sm" variant="outline"><a href={item.fileUrl} target="_blank" rel="noreferrer"><Download className="mr-1 h-3.5 w-3.5" /> Open file</a></Button>}
+                    {isAdmin && item.source === 'manual_file' && (
+                      <Button size="sm" variant="destructive" onClick={() => void removeSchedule(item.id)}><Trash2 className="mr-1 h-3.5 w-3.5" /> Delete</Button>
                     )}
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-[68vh] w-full overflow-hidden rounded-lg border bg-muted/10">
-                  <iframe title={item.title} src={getScheduleEmbedUrl(item.pdf_url)} className="h-full w-full" />
-                </div>
+                {item.fileUrl ? (
+                  <div className="h-[68vh] w-full overflow-hidden rounded-lg border bg-muted/10">
+                    <iframe title={item.title} src={getScheduleEmbedUrl(item.fileUrl)} className="h-full w-full" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Official season fixture generated from the governance scheduler and released after certification.</p>
+                    <div className="max-h-[55vh] overflow-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-muted/50">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium">Slot (IST)</th>
+                            <th className="px-3 py-2 text-left font-medium">Match</th>
+                            <th className="px-3 py-2 text-left font-medium">Venue</th>
+                            <th className="px-3 py-2 text-left font-medium">Stage</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {item.matches.map((match) => (
+                            <tr key={match.match_id} className="border-t">
+                              <td className="px-3 py-2 whitespace-nowrap">{formatScheduleSlotInIST(match.date, match.time)}</td>
+                              <td className="px-3 py-2">{match.team_a} vs {match.team_b}</td>
+                              <td className="px-3 py-2">{match.venue}</td>
+                              <td className="px-3 py-2">{match.stage}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
