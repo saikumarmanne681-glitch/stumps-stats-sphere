@@ -10,6 +10,8 @@ interface GeneratorInput {
 interface TeamAvailability {
   lastDayPlayed?: string;
   dayCounts: Record<string, number>;
+  totalMatches: number;
+  venues: Record<string, number>;
 }
 
 const stageLabelByFormat: Record<ScheduleFormat, string> = {
@@ -43,28 +45,63 @@ function combinations(teams: string[]) {
   return pairs;
 }
 
-function matchesByFormat(format: ScheduleFormat, teams: string[]) {
-  if (format === 'round_robin') return combinations(teams);
-  if (format === 'double_round_robin') {
-    const firstLeg = combinations(teams);
-    const secondLeg = firstLeg.map(([a, b]) => [b, a] as [string, string]);
-    return [...firstLeg, ...secondLeg];
+function rotateForRoundRobin(teams: string[]) {
+  if (teams.length <= 2) return teams;
+  const fixed = teams[0];
+  const rotating = teams.slice(1);
+  const last = rotating.pop();
+  if (!last) return teams;
+  rotating.unshift(last);
+  return [fixed, ...rotating];
+}
+
+function roundRobinMatches(teams: string[], doubleLeg: boolean) {
+  const normalized = teams.length % 2 === 0 ? [...teams] : [...teams, 'BYE'];
+  const rounds = normalized.length - 1;
+  let rotation = [...normalized];
+  const matches: Array<[string, string]> = [];
+
+  for (let round = 0; round < rounds; round += 1) {
+    for (let i = 0; i < rotation.length / 2; i += 1) {
+      const home = rotation[i];
+      const away = rotation[rotation.length - 1 - i];
+      if (home === 'BYE' || away === 'BYE') continue;
+      const shouldSwap = round % 2 === 1;
+      matches.push(shouldSwap ? [away, home] : [home, away]);
+    }
+    rotation = rotateForRoundRobin(rotation);
   }
 
-  if (format === 'single_elimination') {
-    const seeded = [...teams];
-    const out: Array<[string, string]> = [];
+  if (!doubleLeg) return matches;
+  return [...matches, ...matches.map(([a, b]) => [b, a] as [string, string])];
+}
+
+function eliminationMatches(teams: string[]) {
+  let seeded = [...teams];
+  const output: Array<[string, string]> = [];
+
+  while (seeded.length > 1) {
+    const roundPairs: Array<[string, string]> = [];
+    const winnerPlaceholders: string[] = [];
     while (seeded.length > 1) {
       const home = seeded.shift()!;
       const away = seeded.pop()!;
-      out.push([home, away]);
+      roundPairs.push([home, away]);
+      winnerPlaceholders.push(`Winner of ${home} vs ${away}`);
     }
-    return out;
+    if (seeded.length === 1) winnerPlaceholders.push(seeded[0]);
+    output.push(...roundPairs);
+    seeded = winnerPlaceholders;
   }
 
-  const primary = combinations(teams);
-  const reversed = primary.map(([a, b]) => [b, a] as [string, string]);
-  return [...primary, ...reversed];
+  return output;
+}
+
+function matchesByFormat(format: ScheduleFormat, teams: string[]) {
+  if (format === 'round_robin') return roundRobinMatches(teams, false);
+  if (format === 'double_round_robin') return roundRobinMatches(teams, true);
+  if (format === 'single_elimination') return eliminationMatches(teams);
+  return [...eliminationMatches(teams), ...combinations(teams)];
 }
 
 function canPlace(
@@ -77,7 +114,7 @@ function canPlace(
 ) {
   const teams = [teamA, teamB];
   return teams.every((team) => {
-    const state = availability[team] || { dayCounts: {} };
+    const state = availability[team] || { dayCounts: {}, totalMatches: 0, venues: {} };
     const dayCount = state.dayCounts[day] || 0;
     if (!allowSameDayMultipleMatches && dayCount >= 1) return false;
     if (!allowConsecutiveDays && state.lastDayPlayed) {
@@ -92,14 +129,31 @@ function canPlace(
 
 function markPlaced(teamA: string, teamB: string, day: string, availability: Record<string, TeamAvailability>) {
   [teamA, teamB].forEach((team) => {
-    if (!availability[team]) availability[team] = { dayCounts: {} };
+    if (!availability[team]) availability[team] = { dayCounts: {}, totalMatches: 0, venues: {} };
     availability[team].dayCounts[day] = (availability[team].dayCounts[day] || 0) + 1;
     availability[team].lastDayPlayed = day;
+    availability[team].totalMatches += 1;
   });
+}
+
+function matchFairnessScore(teamA: string, teamB: string, day: string, venue: string, availability: Record<string, TeamAvailability>) {
+  const stateA = availability[teamA] || { dayCounts: {}, totalMatches: 0, venues: {} };
+  const stateB = availability[teamB] || { dayCounts: {}, totalMatches: 0, venues: {} };
+  const matchesGapPenalty = Math.abs(stateA.totalMatches - stateB.totalMatches) * 10;
+  const dateDistancePenalty = [stateA.lastDayPlayed, stateB.lastDayPlayed].reduce((acc, lastDay) => {
+    if (!lastDay) return acc;
+    const diffDays = (new Date(`${day}T00:00:00Z`).getTime() - new Date(`${lastDay}T00:00:00Z`).getTime()) / (1000 * 60 * 60 * 24);
+    return acc + (diffDays <= 2 ? (3 - diffDays) * 5 : 0);
+  }, 0);
+  const venueRepeatPenalty = (stateA.venues[venue] || 0) + (stateB.venues[venue] || 0);
+  return matchesGapPenalty + dateDistancePenalty + venueRepeatPenalty;
 }
 
 export function generateTournamentSchedule(input: GeneratorInput): ScheduleMatch[] {
   const { teams, policy } = input;
+  if (!policy.start_date || !policy.end_date || new Date(policy.start_date).getTime() > new Date(policy.end_date).getTime()) {
+    return [];
+  }
   const days = listDays(policy.start_date, policy.end_date);
   const candidateMatches = matchesByFormat(policy.format, teams);
   const availability: Record<string, TeamAvailability> = {};
@@ -114,26 +168,33 @@ export function generateTournamentSchedule(input: GeneratorInput): ScheduleMatch
 
   for (const slot of slots) {
     if (!queue.length) break;
+    const venue = policy.venues[slot.slotIndex % Math.max(1, policy.venues.length)] || 'Main Ground';
 
-    const nextIndex = queue.findIndex(([teamA, teamB]) => canPlace(
-      teamA,
-      teamB,
-      slot.day,
-      availability,
-      policy.allow_same_day_multiple_matches,
-      policy.allow_consecutive_days,
-    ));
+    const selectable = queue
+      .map(([teamA, teamB], index) => ({ teamA, teamB, index }))
+      .filter(({ teamA, teamB }) => canPlace(
+        teamA,
+        teamB,
+        slot.day,
+        availability,
+        policy.allow_same_day_multiple_matches,
+        policy.allow_consecutive_days,
+      ))
+      .map((entry) => ({ ...entry, score: matchFairnessScore(entry.teamA, entry.teamB, slot.day, venue, availability) }))
+      .sort((a, b) => a.score - b.score);
 
-    if (nextIndex < 0) continue;
+    if (!selectable.length) continue;
 
-    const [teamA, teamB] = queue.splice(nextIndex, 1)[0];
+    const [teamA, teamB] = queue.splice(selectable[0].index, 1)[0];
     markPlaced(teamA, teamB, slot.day, availability);
+    availability[teamA].venues[venue] = (availability[teamA].venues[venue] || 0) + 1;
+    availability[teamB].venues[venue] = (availability[teamB].venues[venue] || 0) + 1;
 
     output.push({
       match_id: generateId('SCHM'),
       date: slot.day,
       time: slot.time,
-      venue: policy.venues[slot.slotIndex % Math.max(1, policy.venues.length)] || 'Main Ground',
+      venue,
       team_a: teamA,
       team_b: teamB,
       stage: stageLabelByFormat[policy.format],
