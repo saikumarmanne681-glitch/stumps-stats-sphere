@@ -13,7 +13,7 @@ import { v2api } from '@/lib/v2api';
 import { CertificateRecord, isCertificateAuthentic, normalizeCertificateId } from '@/lib/certificates';
 import { DigitalScorelist } from '@/lib/v2types';
 import { verifyScorelist } from '@/lib/scorelist';
-import { AlertTriangle, Camera, CheckCircle2, FileUp, Loader2, Search, ShieldCheck, ShieldX, Upload, XCircle } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, ClipboardList, FileUp, Loader2, Lock, ScanLine, Search, ShieldCheck, ShieldX, Sparkles, Timer, Upload, XCircle } from 'lucide-react';
 
 type VerifyMode = 'certificate' | 'scorelist';
 
@@ -180,6 +180,28 @@ export default function VerificationPage() {
   }, [result]);
 
   const verificationTone = useMemo(() => getVerificationTone(result), [result]);
+  const totalRecords = certificates.length + scorelists.length;
+
+  const statusHighlights = useMemo(
+    () => [
+      {
+        label: 'Verification Readiness',
+        value: loadingData ? 'Preparing' : 'Live',
+        icon: Sparkles,
+      },
+      {
+        label: 'Tracked Records',
+        value: loadingData ? 'Loading…' : totalRecords.toLocaleString(),
+        icon: ClipboardList,
+      },
+      {
+        label: 'Primary Intake',
+        value: 'URL • ID • QR • File',
+        icon: ScanLine,
+      },
+    ],
+    [loadingData, totalRecords],
+  );
 
   const runVerification = async (value: string, selectedMode: VerifyMode): Promise<boolean> => {
     const parsed = parseVerificationInput(value, selectedMode);
@@ -326,13 +348,41 @@ export default function VerificationPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container mx-auto max-w-6xl px-4 py-8">
-        <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-          <Card className="transition-shadow duration-300 motion-reduce:transition-none hover:shadow-lg">
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <Card className="mb-6 overflow-hidden border-primary/20 bg-gradient-to-r from-primary/15 via-background to-background shadow-sm">
+          <CardContent className="grid gap-6 p-6 md:grid-cols-[1.35fr_0.65fr] md:items-center">
+            <div className="space-y-3">
+              <Badge variant="secondary" className="w-fit border border-primary/30 bg-primary/10 text-foreground">
+                Enterprise-grade validation
+              </Badge>
+              <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Public Verification Portal</h1>
+              <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
+                Validate certificates and digital scorelists through a redesigned trust console built for fast public checks, clear status feedback, and reduced verification errors.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1">
+              {statusHighlights.map((item) => (
+                <div key={item.label} className="rounded-lg border bg-background/80 p-3 backdrop-blur">
+                  <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <item.icon className="h-3.5 w-3.5" />
+                    {item.label}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <Card className="border-primary/20 shadow-sm transition-shadow duration-300 motion-reduce:transition-none hover:shadow-lg">
             <CardHeader>
-              <CardTitle>Public Verification Portal</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                Verify official records
+              </CardTitle>
               <CardDescription>
-                Verify digital scorelists and certificates instantly with URL/ID search, QR scan, or file upload.
+                Use the smart intake panel below to verify by URL/ID, scan an on-document QR code, or upload a lightweight ID file.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -345,7 +395,7 @@ export default function VerificationPage() {
                 <TabsContent value="scorelist" />
               </Tabs>
 
-              <form onSubmit={onSubmit} className="space-y-4">
+              <form onSubmit={onSubmit} className="space-y-4 rounded-xl border bg-muted/20 p-4">
                 <div className="grid gap-2">
                   <Label htmlFor="verify-input">
                     {mode === 'certificate' ? 'Certificate URL / Certificate ID' : 'Scorelist URL / Scorelist ID'}
@@ -360,7 +410,7 @@ export default function VerificationPage() {
                   <p className="text-xs text-muted-foreground">Accepted formats: full verification URL, raw certificate ID, or scorelist ID.</p>
                 </div>
 
-                <div className="rounded-lg border border-dashed p-3">
+                <div className="rounded-lg border border-dashed bg-background p-3">
                   <Label htmlFor="verify-upload" className="mb-2 flex items-center gap-2 text-sm">
                     <Upload className="h-4 w-4" /> Upload ID/URL file (TXT, CSV, JSON under 1 MB)
                   </Label>
@@ -385,7 +435,7 @@ export default function VerificationPage() {
               </form>
 
               {scannerOpen && (
-                <Card className="border-dashed">
+                <Card className="border-dashed bg-muted/20">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">QR Scanner</CardTitle>
                     <CardDescription>Point your camera at a verification QR code.</CardDescription>
@@ -465,53 +515,83 @@ export default function VerificationPage() {
             </CardContent>
           </Card>
 
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle className="text-lg">Guidance & Trust Center</CardTitle>
-              <CardDescription>Why we verify, what to upload, and what happens next.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-md border bg-muted/20 p-3 text-sm">
-                <p className="font-medium">Expected review and verification timeline</p>
-                <p className="mt-1 text-muted-foreground">Automated checks return instantly. Manual escalation (if needed) is typically reviewed within 24 hours.</p>
-              </div>
+          <div className="space-y-6">
+            <Card className="h-fit border-primary/20 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Guidance & Trust Center</CardTitle>
+                <CardDescription>Why we verify, what to upload, and what happens next.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                  <div className="rounded-md border bg-muted/20 p-3 text-sm">
+                    <p className="flex items-center gap-2 font-medium">
+                      <Timer className="h-4 w-4 text-primary" />
+                      Expected timeline
+                    </p>
+                    <p className="mt-1 text-muted-foreground">Automated checks return instantly. Manual escalation (if needed) is typically reviewed within 24 hours.</p>
+                  </div>
 
-              <div className="rounded-md border bg-muted/20 p-3 text-sm">
-                <p className="font-medium">Privacy first</p>
-                <p className="mt-1 text-muted-foreground">Submitted identifiers are used only to validate official records and are not shared externally.</p>
-              </div>
+                  <div className="rounded-md border bg-muted/20 p-3 text-sm">
+                    <p className="flex items-center gap-2 font-medium">
+                      <Lock className="h-4 w-4 text-primary" />
+                      Privacy first
+                    </p>
+                    <p className="mt-1 text-muted-foreground">Submitted identifiers are used only to validate official records and are not shared externally.</p>
+                  </div>
 
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="accepted-docs">
-                  <AccordionTrigger>Accepted file inputs</AccordionTrigger>
-                  <AccordionContent>
-                    Upload TXT, CSV, or JSON files. JSON keys supported: <span className="font-mono">verificationId</span>, <span className="font-mono">url</span>, or <span className="font-mono">id</span>.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="verification-fails">
-                  <AccordionTrigger>What if verification fails?</AccordionTrigger>
-                  <AccordionContent>
-                    Re-check ID formatting, confirm source authenticity, then retry. If the issue persists, contact support with the original source document.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="support">
-                  <AccordionTrigger>Need support?</AccordionTrigger>
-                  <AccordionContent>
-                    Share the identifier and issue details with the operations desk. The support team can assist with resubmission and manual checks.
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                  <div className="rounded-md border bg-muted/20 p-3 text-sm">
+                    <p className="flex items-center gap-2 font-medium">
+                      <ScanLine className="h-4 w-4 text-primary" />
+                      Intake flexibility
+                    </p>
+                    <p className="mt-1 text-muted-foreground">Paste full URLs, raw IDs, scan QR tags, or upload TXT/CSV/JSON files with verification tokens.</p>
+                  </div>
+                </div>
 
-              <Button variant="secondary" className="w-full" asChild>
-                <Link to="/documents">Open documents portal</Link>
-              </Button>
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="accepted-docs">
+                    <AccordionTrigger>Accepted file inputs</AccordionTrigger>
+                    <AccordionContent>
+                      Upload TXT, CSV, or JSON files. JSON keys supported: <span className="font-mono">verificationId</span>, <span className="font-mono">url</span>, or <span className="font-mono">id</span>.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="verification-fails">
+                    <AccordionTrigger>What if verification fails?</AccordionTrigger>
+                    <AccordionContent>
+                      Re-check ID formatting, confirm source authenticity, then retry. If the issue persists, contact support with the original source document.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="support">
+                    <AccordionTrigger>Need support?</AccordionTrigger>
+                    <AccordionContent>
+                      Share the identifier and issue details with the operations desk. The support team can assist with resubmission and manual checks.
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
 
-              <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                <p className="flex items-center gap-2 font-medium text-foreground"><FileUp className="h-4 w-4" /> Pro tip</p>
-                <p className="mt-1">Keep a plain-text copy of each issued ID to speed up bulk checks and reduce formatting errors.</p>
-              </div>
-            </CardContent>
-          </Card>
+                <Button variant="secondary" className="w-full" asChild>
+                  <Link to="/documents">Open documents portal</Link>
+                </Button>
+
+                <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-2 font-medium text-foreground"><FileUp className="h-4 w-4" /> Pro tip</p>
+                  <p className="mt-1">Keep a plain-text copy of each issued ID to speed up bulk checks and reduce formatting errors.</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Verification quality checklist</CardTitle>
+                <CardDescription>Use these checks for higher first-pass success rates.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" /> Ensure the identifier includes all characters (hyphens, prefixes, and suffixes).</p>
+                <p className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" /> Prefer direct portal links from official scorelists or issued certificates.</p>
+                <p className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-primary" /> When scanning QR codes, keep the camera steady for 1–2 seconds in good lighting.</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
