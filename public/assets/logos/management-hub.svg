@@ -1,0 +1,14 @@
+<svg width="320" height="320" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Board Management Hub Logo</title>
+  <desc id="desc">Shield-inspired executive board logo.</desc>
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="272" height="272" rx="56" fill="#eff6ff"/>
+  <path d="M160 66l78 28v50c0 58-36 94-78 112-42-18-78-54-78-112V94l78-28z" fill="url(#g1)"/>
+  <path d="M122 144h76M122 172h76" stroke="white" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="160" cy="112" r="16" fill="white"/>
+</svg>

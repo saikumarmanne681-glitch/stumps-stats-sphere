@@ -1,0 +1,14 @@
+<svg width="320" height="320" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Hall of Glory Logo</title>
+  <desc id="desc">Champions hall icon.</desc>
+  <defs>
+    <linearGradient id="g6" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="272" height="272" rx="56" fill="#f5f3ff"/>
+  <circle cx="160" cy="134" r="56" fill="url(#g6)"/>
+  <path d="M126 134l20 20 48-48" stroke="white" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="108" y="206" width="104" height="28" rx="12" fill="#7c3aed"/>
+</svg>
