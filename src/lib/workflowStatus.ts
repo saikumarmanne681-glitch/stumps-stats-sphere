@@ -47,13 +47,35 @@ function normalizeDesignation(designation?: string) {
   return String(designation || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-export function resolveStageFromDesignation(designation?: string): (typeof scorelistStageOrder)[number] | null {
-  const value = normalizeDesignation(designation);
+function normalizeRoleHint(value?: string) {
+  return String(value || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+}
+
+function normalizeIdentity(value?: string) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isTruthyFlag(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (!normalized) return false;
+  if (['true', '1', 'yes', 'y', 'locked', 'official_certified'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'n', 'unlocked', 'draft'].includes(normalized)) return false;
+  return false;
+}
+
+export function isScorelistLocked(scorelist: DigitalScorelist) {
+  return isTruthyFlag(scorelist.locked);
+}
+
+export function resolveStageFromDesignation(designation?: string, role?: string): (typeof scorelistStageOrder)[number] | null {
+  const value = `${normalizeDesignation(designation)} ${normalizeRoleHint(role)}`.trim();
   if (!value) return null;
-  if (value.includes('scoring')) return 'scoring_completed';
+  if (value.includes('scoring') || value.includes('scorer') || value.includes('score keeper')) return 'scoring_completed';
   if (value.includes('referee')) return 'referee_verified';
   if (value.includes('director')) return 'director_approved';
-  if (value.includes('president')) return 'official_certified';
+  if (value.includes('president') || value.includes('vice president') || value.includes('vice-president')) return 'official_certified';
   return null;
 }
 
@@ -88,7 +110,7 @@ export interface ScorelistRoadmapStep {
 export function getScorelistRoadmap(scorelist: DigitalScorelist, managementUsers: ManagementUser[]): ScorelistRoadmapStep[] {
   const certifications = readScorelistCertifications(scorelist);
   const effectiveStatus = readScorelistStatus(scorelist, certifications);
-  const effectiveLocked = Boolean(scorelist.locked);
+  const effectiveLocked = isScorelistLocked(scorelist);
 
   return scorelistStageOrder.map((stage) => {
     if (stage === 'draft') {
@@ -110,8 +132,15 @@ export function getScorelistRoadmap(scorelist: DigitalScorelist, managementUsers
     }
 
     const approvals = certifications.filter((item) => item.stage === stage);
-    const requiredApprovers = managementUsers.filter((member) => resolveStageFromDesignation(member.designation) === stage);
-    const pendingApprovers = requiredApprovers.filter((member) => !approvals.some((item) => item.approver_id === member.management_id));
+    const requiredApprovers = managementUsers.filter((member) => resolveStageFromDesignation(member.designation, member.role) === stage);
+    const pendingApprovers = requiredApprovers.filter((member) => {
+      const managementId = normalizeIdentity(member.management_id);
+      const username = normalizeIdentity(member.username);
+      return !approvals.some((item) => {
+        const approverId = normalizeIdentity(item.approver_id);
+        return approverId === managementId || approverId === username;
+      });
+    });
     const completed = stage === 'official_certified'
       ? approvals.length > 0 || effectiveLocked
       : stage === effectiveStatus
@@ -132,7 +161,7 @@ export function getScorelistRoadmap(scorelist: DigitalScorelist, managementUsers
 export function getScorelistDetailedStatus(scorelist: DigitalScorelist, managementUsers: ManagementUser[]) {
   const roadmap = getScorelistRoadmap(scorelist, managementUsers);
   const officialStep = roadmap.find((step) => step.stage === 'official_certified');
-  if (scorelist.locked && officialStep?.approvals[0]) {
+  if (isScorelistLocked(scorelist) && officialStep?.approvals[0]) {
     return `Officially certified by ${officialStep.approvals[0].approver_name} (${officialStep.approvals[0].designation})`;
   }
 

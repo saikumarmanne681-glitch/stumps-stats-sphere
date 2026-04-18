@@ -14,6 +14,11 @@ import { PageLoader } from '@/components/LoadingOverlay';
 import { compareSheetDatesDesc, findTournamentById, formatSheetDate, hasSheetDate, normalizeId } from '@/lib/dataUtils';
 import { TournamentLogoLockup } from '@/components/TournamentLogoLockup';
 
+const isLockedScorelist = (value: unknown) => {
+  if (typeof value === 'boolean') return value;
+  return ['true', '1', 'yes', 'y', 'locked'].includes(String(value ?? '').trim().toLowerCase());
+};
+
 const TournamentPage = () => {
   const { id } = useParams();
   const { tournaments, seasons, matches, batting, bowling, players, loading } = useData();
@@ -34,7 +39,7 @@ const TournamentPage = () => {
         if (!active) return;
         const filtered = items.filter((s) => {
           const status = String(s.certification_status || '').toLowerCase();
-          return normalizeId(s.tournament_id) === tournamentId && !!s.locked && status === 'official_certified';
+          return normalizeId(s.tournament_id) === tournamentId && isLockedScorelist(s.locked) && status === 'official_certified';
         });
         setOfficialScorelists(filtered);
       })

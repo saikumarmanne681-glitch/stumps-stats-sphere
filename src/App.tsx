@@ -155,7 +155,7 @@ const App = () => (
                   <Route path="/player" element={<PlayerDashboard />} />
                   <Route path="/admin/match-center" element={<RequireRole allow={['admin']}><MatchCenter /></RequireRole>} />
                   <Route path="/admin/backups" element={<RequireRole allow={['admin']}><AdminBackups /></RequireRole>} />
-                  <Route path="/admin/scorelists" element={<RequireRole allow={['admin']}><AdminScorelistsPage /></RequireRole>} />
+                  <Route path="/admin/scorelists" element={<RequireRole allow={['admin', 'management']}><AdminScorelistsPage /></RequireRole>} />
                   <Route path="/admin/management" element={<RequireRole allow={['admin']}><AdminManagement /></RequireRole>} />
                   <Route path="/admin/work-queue" element={<RequireRole allow={['admin']}><AdminWorkQueuePage /></RequireRole>} />
                   <Route path="/admin/ops-center" element={<RequireRole allow={['admin', 'management']}><AdminOpsCenter /></RequireRole>} />

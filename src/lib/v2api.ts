@@ -86,6 +86,20 @@ function normalizeV2Payload(payload: Record<string, unknown>) {
   );
 }
 
+function normalizeScorelistRecord(row: DigitalScorelist): DigitalScorelist {
+  const lockedValue = (() => {
+    if (typeof row.locked === 'boolean') return row.locked;
+    const normalized = String(row.locked ?? '').trim().toLowerCase();
+    return ['true', '1', 'yes', 'y', 'locked'].includes(normalized);
+  })();
+  return {
+    ...row,
+    locked: lockedValue,
+    certification_status: String(row.certification_status || '').trim() || 'draft',
+    certifications_json: String(row.certifications_json || '').trim() || '[]',
+  };
+}
+
 export const v2api = {
   syncHeaders: async () => {
     const url = getAppsScriptUrl();
@@ -140,7 +154,10 @@ export const v2api = {
   addPresence: (p: UserPresence) => writeV2Sheet('USER_PRESENCE', 'add', p),
 
   // Scorelists
-  getScorelists: () => fetchV2Sheet<DigitalScorelist>('DIGITAL_SCORELISTS'),
+  getScorelists: async () => {
+    const rows = await fetchV2Sheet<DigitalScorelist>('DIGITAL_SCORELISTS');
+    return rows.map((row) => normalizeScorelistRecord(row));
+  },
   addScorelist: (s: DigitalScorelist) => writeV2Sheet('DIGITAL_SCORELISTS', 'add', s),
   updateScorelist: (s: DigitalScorelist) => writeV2Sheet('DIGITAL_SCORELISTS', 'update', s),
 

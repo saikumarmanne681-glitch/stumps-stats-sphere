@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 import { v2api } from '@/lib/v2api';
-import { BoardConfiguration, ManagementUser } from '@/lib/v2types';
+import { BoardConfiguration, DigitalScorelist, ManagementUser } from '@/lib/v2types';
 import { BOARD_DEPARTMENTS, inferDepartmentFromManagementUser, parseDepartmentAssignments } from '@/lib/boardDepartments';
 import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
+import { readScorelistCertifications, resolveStageFromDesignation, scorelistStageOrder } from '@/lib/workflowStatus';
+import { useAuth } from '@/lib/auth';
 
 const pendingActions = [
   {
@@ -43,6 +45,7 @@ const tagStyles: Record<string, string> = {
 };
 
 const ManagementPage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<ManagementUser[]>([]);
@@ -50,6 +53,7 @@ const ManagementPage = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [designationFilter, setDesignationFilter] = useState('All designations');
+  const [pendingMyApprovals, setPendingMyApprovals] = useState<DigitalScorelist[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,13 +61,34 @@ const ManagementPage = () => {
     const load = async () => {
       setLoading(true);
       try {
-        const [managementUsers, boardConfigs] = await Promise.all([
+        const [managementUsers, boardConfigs, scorelistRows] = await Promise.all([
           v2api.getManagementUsers(),
           v2api.getBoardConfiguration(),
+          v2api.getScorelists(),
         ]);
         if (cancelled) return;
-        setUsers(managementUsers.filter((member) => String(member.status || '').toLowerCase() !== 'inactive'));
+        const activeUsers = managementUsers.filter((member) => String(member.status || '').toLowerCase() !== 'inactive');
+        setUsers(activeUsers);
         setBoardConfig(selectLatestBoardConfiguration(boardConfigs));
+        const myStage = resolveStageFromDesignation(user?.designation, user?.role);
+        const myId = String(user?.management_id || '').trim().toLowerCase();
+        const myUsername = String(user?.username || '').trim().toLowerCase();
+        const pending = !myStage
+          ? []
+          : scorelistRows.filter((scorelist) => {
+              if (scorelist.locked) return false;
+              const current = String(scorelist.certification_status || 'draft');
+              const idx = scorelistStageOrder.indexOf(current as (typeof scorelistStageOrder)[number]);
+              const nextStage = idx >= 0 && idx < scorelistStageOrder.length - 1 ? scorelistStageOrder[idx + 1] : null;
+              if (!nextStage || nextStage !== myStage) return false;
+              const certs = readScorelistCertifications(scorelist);
+              return !certs.some((entry) => {
+                if (entry.stage !== myStage) return false;
+                const signer = String(entry.approver_id || '').trim().toLowerCase();
+                return signer === myId || signer === myUsername;
+              });
+            });
+        setPendingMyApprovals(pending);
         setLoadError(null);
       } catch {
         if (cancelled) return;
@@ -77,7 +102,7 @@ const ManagementPage = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user?.designation, user?.management_id, user?.role, user?.username]);
 
   const boardMembers = useMemo<BoardMemberCard[]>(() => {
     const adminTeamIds = new Set(
@@ -194,6 +219,28 @@ const ManagementPage = () => {
         {loadError && (
           <Card className="border-destructive/30">
             <CardContent className="p-4 text-sm text-destructive">{loadError}</CardContent>
+          </Card>
+        )}
+
+        {!!pendingMyApprovals.length && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="font-display text-lg sm:text-xl">✅ Your pending scorelist approvals</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {pendingMyApprovals.slice(0, 3).map((item) => (
+                <div key={item.scorelist_id} className="flex items-center justify-between rounded-lg border bg-background p-3">
+                  <div>
+                    <p className="font-mono text-xs text-muted-foreground">{item.scorelist_id}</p>
+                    <p className="text-sm">Approval required at your stage.</p>
+                  </div>
+                  <Button size="sm" onClick={() => navigate('/admin/scorelists')}>Approve now</Button>
+                </div>
+              ))}
+              {pendingMyApprovals.length > 3 && (
+                <p className="text-xs text-muted-foreground">+{pendingMyApprovals.length - 3} more awaiting your sign-off.</p>
+              )}
+            </CardContent>
           </Card>
         )}
 
