@@ -83,6 +83,7 @@ export interface DigitalScorelist {
   certification_status?: string;
   certifications_json?: string;
   locked?: boolean;
+  security_version?: string;
 }
 
 export interface AuditEvent {

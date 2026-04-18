@@ -24,21 +24,21 @@ import { getPublicVerifyScorelistUrl } from '@/lib/publicUrl';
 import { normalizeId, resolvePlayerFromIdentity } from '@/lib/dataUtils';
 
 
-const registrationBandRows = 16;
+const registrationBandRows = 12;
 
-function buildRegistrationBandMarkup(scorelistId: string) {
-  const registrationText = scorelistId.toUpperCase();
+function buildRegistrationBandMarkup(registrationText: string, side: 'front' | 'back') {
+  const safeText = registrationText.toUpperCase();
   const rows = Array.from({ length: registrationBandRows }, (_, index) => {
     const rotation = index % 2 === 0 ? '-90deg' : '90deg';
     return `<div class="registration-row" style="--row-index:${index};--row-rotation:${rotation}">
-      <span class="registration-half registration-half-front">${registrationText}</span>
-      <span class="registration-window">${registrationText}</span>
-      <span class="registration-half registration-half-back">${registrationText}</span>
+      <span class="registration-half registration-half-front">${safeText}</span>
+      <span class="registration-window">${safeText}</span>
+      <span class="registration-half registration-half-back">${safeText}</span>
     </div>`;
   }).join('');
 
-  return `<div class="registration-band">
-    <div class="registration-band-label">Registered denomination • Scorelist ID</div>
+  return `<div class="registration-band registration-band-${side}">
+    <div class="registration-band-label">${side === 'front' ? 'Front side (50%)' : 'Back side (50%)'} • Registration alignment strip</div>
     <div class="registration-band-rows">${rows}</div>
   </div>`;
 }
@@ -426,7 +426,9 @@ const AdminScorelistsPage = () => {
     const certRows = certs.map(c => `<tr><td>${escapeHtml(c.approver_name)}</td><td>${escapeHtml(c.designation)}</td><td>${escapeHtml(stageLabels[c.stage] || c.stage.replace(/_/g, ' '))}</td><td>${escapeHtml(formatInIST(c.timestamp))}</td><td style="font-family:monospace;font-size:10px">${escapeHtml(truncateDisplay(c.token, 12))}</td></tr>`).join('');
     const draftTimestamp = sl.generated_at || new Date().toISOString();
     const draftBy = sl.generated_by || 'System';
-    const verifyUrl = getPublicVerifyScorelistUrl(sl.scorelist_id);
+    const verifyExpiry = Date.now() + 1000 * 60 * 45;
+    const verifyNonce = Math.random().toString(36).slice(2, 10).toUpperCase();
+    const verifyUrl = `${getPublicVerifyScorelistUrl(sl.scorelist_id)}?exp=${verifyExpiry}&nonce=${encodeURIComponent(verifyNonce)}&sv=${encodeURIComponent(sl.security_version || 'SEC-v2')}`;
     const normalizedHashDigest = asDisplayText(sl.hash_digest, `NO-HASH-${sl.scorelist_id}`);
     const qrMarkup = renderVerificationQrMarkup(verifyUrl, sl.scorelist_id, normalizedHashDigest, 160);
     const verificationIntaglioId = `${sl.scorelist_id} • ${truncateDisplay(normalizedHashDigest, 16).toUpperCase()}`;
@@ -436,7 +438,16 @@ const AdminScorelistsPage = () => {
         <div class="security-feature-title">${feature.title}</div>
         <p>${feature.description}</p>
       </div>`).join('');
-    const registrationBandMarkup = buildRegistrationBandMarkup(sl.scorelist_id);
+    const sideThreadText = `${sl.scorelist_id} • ${truncateDisplay(normalizedHashDigest, 12).toUpperCase()} • CLUB RECORD`;
+    const splitAt = Math.ceil(sideThreadText.length / 2);
+    const registrationBandMarkupFront = buildRegistrationBandMarkup(sideThreadText.slice(0, splitAt), 'front');
+    const registrationBandMarkupBack = buildRegistrationBandMarkup(sideThreadText.slice(splitAt), 'back');
+    const securityVersion = sl.security_version || 'SEC-v2';
+    const confidenceModeLabel = effectiveLocked ? 'Server-Signed' : (sl.certification_status ? 'Legacy Mode' : 'Cryptographically Verified');
+    const confidenceClass = effectiveLocked ? 'confidence-server' : (sl.certification_status ? 'confidence-legacy' : 'confidence-crypto');
+    const signerPanelMarkup = certs.length > 0
+      ? certs.map((entry, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(entry.approver_name)}</td><td>${escapeHtml(entry.designation)}</td><td>${escapeHtml(stageLabels[entry.stage] || entry.stage)}</td><td>${escapeHtml(formatInIST(entry.timestamp))}</td><td style="font-family:monospace;font-size:10px">${escapeHtml(truncateDisplay(entry.token, 16))}</td></tr>`).join('')
+      : '<tr><td colspan="6" style="text-align:center;color:#777">No signer records yet</td></tr>';
     const draftRow = `<tr><td>${escapeHtml(draftBy)}</td><td>Scorelist Engine</td><td>${escapeHtml(stageLabels.draft)}</td><td>${escapeHtml(formatInIST(draftTimestamp))}</td><td style="font-family:monospace;font-size:10px">DRAFT</td></tr>`;
     const certTimelineRows = `${draftRow}${certRows}`;
     const pendingRows = pendingApprovals.map((p) => `<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.designation)}</td><td>${escapeHtml(stageLabels[p.stage] || p.stage)}</td><td>Pending with ${escapeHtml(p.designation)}</td></tr>`).join('');
@@ -484,7 +495,7 @@ const AdminScorelistsPage = () => {
     });
 
     const html = `<!DOCTYPE html><html><head><title>Scorelist ${sl.scorelist_id}</title>
-<style>* { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; } body{font-family:Arial,sans-serif;margin:40px 94px 54px 40px;color:#1a1a1a;position:relative;background-color:#fff;background-image:repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03)), repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03));background-size:20px 20px;background-position:0 0,10px 10px}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
+<style>* { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; } body{font-family:Arial,sans-serif;margin:40px 132px 54px 40px;color:#1a1a1a;position:relative;background-color:#fff;background-image:repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03)), repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03));background-size:20px 20px;background-position:0 0,10px 10px}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
 table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,255,0.94)}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f0f7f0;text-align:left}
 .scoreboard{display:flex;justify-content:space-around;text-align:center;background:rgba(240,247,240,0.96);padding:20px;border-radius:8px;margin:20px 0;border:1px solid rgba(30,107,58,0.14)}
 .team-score{font-size:28px;font-weight:bold;color:#1e6b3a}.watermark{position:fixed;top:40%;left:10%;transform:rotate(-30deg);font-size:80px;color:rgba(30,107,58,0.04);white-space:nowrap;pointer-events:none;z-index:-1}.secure-pattern{position:fixed;inset:0;pointer-events:none;z-index:-3}.secure-pattern-notice{margin:10px 0 18px;padding:10px 14px;border:1px dashed #7ab28d;border-radius:10px;background:rgba(232,245,233,0.92);color:#145c36;font-size:11px;font-weight:700;letter-spacing:0.08em;text-align:center;text-transform:uppercase}
@@ -493,9 +504,17 @@ table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,
 .match-book-page{page-break-before:always}
 .intaglio{letter-spacing:0.12em;text-transform:uppercase;font-weight:900;text-shadow:0.8px 0.8px 0 rgba(255,255,255,0.92), -0.8px -0.8px 0 rgba(0,0,0,0.42), 0 0 1px rgba(10,70,35,0.55), 0 0 2px rgba(10,70,35,0.35);color:#0d4b27;-webkit-text-stroke:0.35px rgba(7,55,28,0.75);filter:contrast(1.12) saturate(1.08)}
 .security-grid{position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03)), repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03));background-size:20px 20px;background-position:0 0,10px 10px}
-.security-thread{position:fixed;top:0;bottom:0;right:14px;width:15px;pointer-events:none;z-index:-1;background:repeating-linear-gradient(180deg, rgba(11,89,53,0.3) 0px, rgba(255,255,255,0.4) 4px, rgba(194,160,63,0.3) 8px);box-shadow:inset 0 0 4px rgba(0,0,0,0.1)}
-.registration-band{position:fixed;top:92px;bottom:96px;right:34px;width:44px;pointer-events:none;z-index:0;border-radius:18px;border:1px solid rgba(20,92,54,0.34);background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(232,245,233,0.96) 34%, rgba(255,255,255,0.98));box-shadow:inset 0 0 0 1px rgba(255,255,255,0.88), inset 0 0 18px rgba(20,92,54,0.08), 0 0 0 1px rgba(20,92,54,0.04)}.registration-band::before{content:'';position:absolute;inset:14px 8px;border-radius:14px;background:linear-gradient(180deg, rgba(196,223,204,0.36), rgba(255,255,255,0.06) 22%, rgba(255,255,255,0.06) 78%, rgba(196,223,204,0.36));box-shadow:inset 0 0 0 1px rgba(20,92,54,0.08)}.registration-band-label{position:absolute;left:50%;bottom:-72px;width:150px;transform:translateX(-50%) rotate(90deg);transform-origin:center;white-space:nowrap;font-size:8px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(20,92,54,0.72)}.registration-band-rows{position:absolute;inset:18px 8px;display:grid;grid-template-rows:repeat(16,minmax(0,1fr));gap:4px}.registration-row{position:relative;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden;border-radius:999px;background:linear-gradient(90deg, rgba(20,92,54,0.06), rgba(255,255,255,0.96) 28%, rgba(255,255,255,0.96) 72%, rgba(20,92,54,0.06));box-shadow:inset 0 0 0 1px rgba(20,92,54,0.05)}.registration-half,.registration-window{position:absolute;left:50%;top:50%;font-family:'Arial Black',Arial,sans-serif;font-size:9px;font-weight:900;letter-spacing:0.08em;white-space:nowrap;transform:translate(-50%,-50%) rotate(var(--row-rotation));transform-origin:center center}.registration-half-front{color:transparent;-webkit-text-stroke:0.75px rgba(20,92,54,0.92);clip-path:inset(0 50% 0 0)}.registration-window{color:rgba(255,255,255,0.98);text-shadow:0 0 1px rgba(255,255,255,0.98), 0 0 6px rgba(255,255,255,0.95);font-size:8px;letter-spacing:0.14em}.registration-half-back{color:rgba(20,92,54,0.78);clip-path:inset(0 0 0 50%);text-shadow:0.25px 0.25px 0 rgba(255,255,255,0.72)}
-.microtext{position:fixed;left:18px;right:92px;bottom:10px;overflow:hidden;white-space:nowrap;text-align:left;font-size:6px;letter-spacing:2px;color:rgba(10,89,52,0.6);opacity:0.6;pointer-events:none;z-index:-1;text-transform:uppercase}
+.security-thread{position:fixed;top:0;bottom:0;right:18px;width:14px;pointer-events:none;z-index:-1;background:repeating-linear-gradient(180deg, rgba(11,89,53,0.3) 0px, rgba(255,255,255,0.4) 4px, rgba(194,160,63,0.3) 8px);box-shadow:inset 0 0 4px rgba(0,0,0,0.1)}
+.registration-band{position:fixed;top:92px;bottom:96px;right:38px;width:68px;pointer-events:none;z-index:0;border-radius:18px;border:1px solid rgba(20,92,54,0.34);background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(232,245,233,0.96) 34%, rgba(255,255,255,0.98));box-shadow:inset 0 0 0 1px rgba(255,255,255,0.88), inset 0 0 18px rgba(20,92,54,0.08), 0 0 0 1px rgba(20,92,54,0.04)}.registration-band::before{content:'';position:absolute;inset:14px 8px;border-radius:14px;background:linear-gradient(180deg, rgba(196,223,204,0.36), rgba(255,255,255,0.06) 22%, rgba(255,255,255,0.06) 78%, rgba(196,223,204,0.36));box-shadow:inset 0 0 0 1px rgba(20,92,54,0.08)}.registration-band-label{position:absolute;left:50%;bottom:-84px;width:180px;transform:translateX(-50%) rotate(90deg);transform-origin:center;white-space:nowrap;font-size:8px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:rgba(20,92,54,0.72)}.registration-band-rows{position:absolute;inset:18px 8px;display:grid;grid-template-rows:repeat(12,minmax(0,1fr));gap:5px}.registration-row{position:relative;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden;border-radius:999px;background:linear-gradient(90deg, rgba(20,92,54,0.06), rgba(255,255,255,0.96) 28%, rgba(255,255,255,0.96) 72%, rgba(20,92,54,0.06));box-shadow:inset 0 0 0 1px rgba(20,92,54,0.05)}.registration-half,.registration-window{position:absolute;left:50%;top:50%;font-family:'Arial Black',Arial,sans-serif;font-size:8px;font-weight:900;letter-spacing:0.06em;white-space:nowrap;transform:translate(-50%,-50%) rotate(var(--row-rotation));transform-origin:center center}.registration-half-front{color:transparent;-webkit-text-stroke:0.75px rgba(20,92,54,0.92);clip-path:inset(0 50% 0 0)}.registration-window{color:rgba(255,255,255,0.98);text-shadow:0 0 1px rgba(255,255,255,0.98), 0 0 6px rgba(255,255,255,0.95);font-size:7px;letter-spacing:0.12em}.registration-half-back{color:rgba(20,92,54,0.78);clip-path:inset(0 0 0 50%);text-shadow:0.25px 0.25px 0 rgba(255,255,255,0.72)}
+.registration-band-front{opacity:0.96}.registration-band-back{opacity:0.96;right:auto;left:18px}
+	.signer-grid{margin:14px 0;border:1px solid #b7d5c0;border-radius:8px;overflow:hidden;background:#fff}
+	.signer-grid th,.signer-grid td{font-size:11px}
+	.confidence-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid #b7d5c0;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase}
+	.confidence-server{background:rgba(16,185,129,0.15);color:#065f46;border-color:rgba(16,185,129,0.4)}
+	.confidence-crypto{background:rgba(59,130,246,0.16);color:#1d4ed8;border-color:rgba(59,130,246,0.45)}
+	.confidence-legacy{background:rgba(245,158,11,0.18);color:#92400e;border-color:rgba(245,158,11,0.45)}
+	.hard-label{margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid rgba(20,92,54,0.2);font-size:11px}
+	.microtext{position:fixed;left:18px;right:92px;bottom:10px;overflow:hidden;white-space:nowrap;text-align:left;font-size:6px;letter-spacing:2px;color:rgba(10,89,52,0.6);opacity:0.6;pointer-events:none;z-index:-1;text-transform:uppercase}
 .cert-grid{border:1px solid #b7d5c0;background-image:linear-gradient(rgba(30,107,58,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(30,107,58,0.08) 1px, transparent 1px);background-size:18px 18px;padding:8px;border-radius:8px;background-color:rgba(255,255,255,0.9)}
 .status-chip{display:inline-block;margin:8px auto 0;padding:4px 10px;border-radius:999px;background:#e8f5e9;border:1px solid #8ac8a1;color:#145c36;font-weight:bold;font-size:11px;text-shadow:0.5px 0.5px 0px rgba(255,255,255,0.8), -0.5px -0.5px 0px rgba(0,0,0,0.3)}.verification-panel{position:relative;display:flex;gap:18px;align-items:center;justify-content:space-between;margin:18px 0 24px;padding:18px 18px 20px;border:1px solid #b7d5c0;border-radius:12px;background:linear-gradient(135deg, rgba(232,245,233,0.94), rgba(244,250,246,0.99));overflow:hidden;isolation:isolate}.verification-panel::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg, rgba(255,255,255,0.34), rgba(30,107,58,0.03));z-index:0}.verification-panel::after{content:'';position:absolute;inset:12px;border:1px solid rgba(20,92,54,0.14);border-radius:10px;z-index:0}.verification-copy,.verification-qr{position:relative;z-index:2}.verification-copy{flex:1}.verification-copy p{margin:4px 0}.verification-url{font-family:monospace;font-size:11px;word-break:break-all;color:#145c36}.verification-qr{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:12px;border:1px solid #9cc8ab;background:#fff;box-shadow:inset 0 0 0 4px rgba(30,107,58,0.06)}.verification-qr-id{font-family:'Courier New',monospace;font-size:9px;line-height:1.2;letter-spacing:1.6px;text-transform:uppercase;color:#0f5132;font-weight:700;text-align:center;word-break:break-word;max-width:164px}.verification-intaglio-field{position:absolute;inset:10px 10px 10px 10px;pointer-events:none;z-index:1;overflow:hidden}.verification-intaglio-field .band{display:block;white-space:nowrap;font-family:'Courier New',monospace;font-size:12px;line-height:1.9;letter-spacing:2.8px;text-transform:uppercase;color:rgba(11,89,53,0.17);text-shadow:0.45px 0.45px 0 rgba(255,255,255,0.75), -0.45px -0.45px 0 rgba(8,56,29,0.18);transform:rotate(-12deg) translateX(-40px);transform-origin:left center}.verification-intaglio-badge{display:inline-flex;align-items:center;gap:8px;margin:8px 0 6px;padding:6px 12px;border-radius:999px;border:1px solid rgba(20,92,54,0.26);background:rgba(255,255,255,0.72);color:#145c36;font-size:10px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase}.verification-intaglio-meta{margin-top:8px;font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#145c36;font-weight:700}.security-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 22px}.security-feature-card{border:1px solid #b7d5c0;border-radius:10px;background:rgba(252,254,253,0.94);padding:12px 14px}.security-feature-card p{margin:6px 0 0;font-size:11px;line-height:1.45;color:#355244}.security-feature-title{font-weight:700;color:#124928}.security-seal{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid #7ab28d;background:#fff;color:#145c36;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
 
@@ -503,7 +522,7 @@ table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,
 ${securePattern.enabled ? `<div class="secure-pattern" style="${securePattern.style}"></div>` : ''}
 <div class="security-grid"></div>
 <div class="security-thread"></div>
-${registrationBandMarkup}
+${registrationBandMarkupFront}
 <div class="microtext">${`${sl.scorelist_id} • ${normalizedHashDigest} • `.repeat(18)}${securePattern.enabled ? `${securePattern.microtext} • ` : ''}</div>
 <div class="watermark">VERIFIED MATCH RECORD</div>
 <p style="text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#666">Cricket Club Portal</p>
@@ -511,6 +530,7 @@ ${registrationBandMarkup}
 <p style="text-align:center;font-family:monospace;font-size:11px;color:#999">${escapeHtml(sl.scorelist_id)}</p>
 ${securePattern.enabled ? `<div class="secure-pattern-notice">Visible anti-copy background active • ${securePattern.visibleLabel}</div>` : ''}
 <p style="text-align:center"><span class="status-chip intaglio">${detailedStatus}${effectiveLocked ? ' • LOCKED' : ''}</span></p>
+<p style="text-align:center;margin:4px 0 10px"><span class="confidence-chip ${confidenceClass}">${confidenceModeLabel}</span> <span class="confidence-chip">Security Version: ${escapeHtml(securityVersion)}</span></p>
 <div class="verification-panel">
   <div class="verification-intaglio-field">
     ${Array.from({ length: 6 }, () => `<span class="band">${verificationIntaglioBands}</span>`).join('')}
@@ -520,11 +540,14 @@ ${securePattern.enabled ? `<div class="secure-pattern-notice">Visible anti-copy 
     <div class="verification-intaglio-badge intaglio">Visible intaglio print • ${escapeHtml(sl.scorelist_id)}</div>
     <p><strong>Verify this scorelist instantly:</strong> scan the QR code or open the secure verification URL below.</p>
     <p class="verification-url">${escapeHtml(verifyUrl)}</p>
-    <p style="font-size:11px;color:#355244">The QR target is bound to this document ID so reviewers can confirm hash-backed authenticity from the verification page.</p>
+    <p style="font-size:11px;color:#355244">The QR target includes short-lived expiry + nonce to limit replay of stale verification links.</p>
     <p class="verification-intaglio-meta intaglio">Intaglio ID: ${verificationIntaglioId}</p>
+    <div class="hard-label">${confidenceModeLabel === 'Server-Signed' ? 'Integrity + signer attestation validated.' : 'This verifies integrity only, not identity.'}</div>
   </div>
   <div class="verification-qr">${qrMarkup}<div class="verification-qr-id intaglio">${verificationIntaglioId}</div></div>
 </div>
+<h2>🔏 Signer Chain (Prominent)</h2>
+<table class="signer-grid"><tr><th>#</th><th>Signer</th><th>Designation</th><th>Stage</th><th>Timestamp</th><th>Token Ref</th></tr>${signerPanelMarkup}</table>
 <div class="security-features">${securityFeaturesMarkup}</div>
 <p style="text-align:center;margin:6px 0"><strong>Tournament:</strong> ${escapeHtml(tournament?.name || '-')} | <strong>Format:</strong> ${escapeHtml(tournament?.format || '-')} | <strong>Overs:</strong> ${escapeHtml(tournament?.overs || '-')}</p>
 <p style="text-align:center;margin:6px 0"><strong>Season:</strong> ${escapeHtml(season?.year || '-')} | <strong>Dates:</strong> ${escapeHtml(season?.start_date || '-')} to ${escapeHtml(season?.end_date || '-')}</p>
@@ -537,6 +560,7 @@ ${payloadMatches.length > 0 ? `<p style="text-align:center;font-weight:bold;back
 ${tournamentMatchBlocks}
 <h2>🏛️ Certification Timeline</h2><div class="cert-grid"><table><tr><th>Name</th><th>Designation</th><th>Stage</th><th>Timestamp</th><th>Token</th></tr>${certTimelineRows}</table></div>
 <h2>🧾 Pending Approvals</h2><table><tr><th>Name</th><th>Designation</th><th>Required Stage</th><th>Status</th></tr>${pendingRows || '<tr><td colspan="4" style="text-align:center;color:#1e6b3a;font-weight:bold">All required approvals completed</td></tr>'}</table>
+${registrationBandMarkupBack}
 ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MATCH RESULT</div>' : ''}
 <div class="footer"><p>Document ID: ${escapeHtml(sl.scorelist_id)} | Hash: ${escapeHtml(truncateDisplay(normalizedHashDigest, 32))}...</p><p>Official League Record • Tampering Invalidates Document • This document is digitally certified. Any alteration invalidates authenticity.</p></div>
 </body></html>`;
