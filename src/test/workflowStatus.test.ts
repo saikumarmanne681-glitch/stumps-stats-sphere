@@ -22,6 +22,7 @@ describe('workflow status helpers', () => {
   it('maps scorer-like designations and role hints to scoring stage', () => {
     expect(resolveStageFromDesignation('Scorer')).toBe('scoring_completed');
     expect(resolveStageFromDesignation('Match Official', 'scoring official')).toBe('scoring_completed');
+    expect(resolveStageFromDesignation('', 'SCORING_OFFICIAL')).toBe('scoring_completed');
   });
 
   it('treats sheet string boolean values consistently for lock state', () => {
@@ -62,5 +63,37 @@ describe('workflow status helpers', () => {
     const scoringStep = roadmap.find((step) => step.stage === 'scoring_completed');
     expect(scoringStep?.pendingApprovers.length).toBe(0);
     expect(scoringStep?.completed).toBe(true);
+  });
+
+  it('matches signer IDs case-insensitively', () => {
+    const managementUsers: ManagementUser[] = [{
+      management_id: 'mgt-2',
+      username: 'official.user',
+      name: 'Official User',
+      email: 'official@example.com',
+      phone: '',
+      designation: 'Scoring Official',
+      role: 'Scoring Official',
+      authority_level: 3,
+      signature_image: '',
+      status: 'active',
+      created_at: '',
+      password: '',
+    }];
+
+    const roadmap = getScorelistRoadmap({
+      ...baseScorelist,
+      certifications_json: JSON.stringify([{
+        approver_id: 'MGT-2',
+        approver_name: 'Official User',
+        designation: 'Scoring Official',
+        timestamp: '2026-04-18T00:00:00.000Z',
+        token: 'CERT_CASE',
+        stage: 'scoring_completed',
+      }]),
+    }, managementUsers);
+
+    const scoringStep = roadmap.find((step) => step.stage === 'scoring_completed');
+    expect(scoringStep?.pendingApprovers.length).toBe(0);
   });
 });

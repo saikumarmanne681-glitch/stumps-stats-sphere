@@ -51,6 +51,10 @@ function normalizeRoleHint(value?: string) {
   return String(value || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
 }
 
+function normalizeIdentity(value?: string) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function isTruthyFlag(value: unknown) {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value === 1;
@@ -129,7 +133,14 @@ export function getScorelistRoadmap(scorelist: DigitalScorelist, managementUsers
 
     const approvals = certifications.filter((item) => item.stage === stage);
     const requiredApprovers = managementUsers.filter((member) => resolveStageFromDesignation(member.designation, member.role) === stage);
-    const pendingApprovers = requiredApprovers.filter((member) => !approvals.some((item) => item.approver_id === member.management_id || item.approver_id === member.username));
+    const pendingApprovers = requiredApprovers.filter((member) => {
+      const managementId = normalizeIdentity(member.management_id);
+      const username = normalizeIdentity(member.username);
+      return !approvals.some((item) => {
+        const approverId = normalizeIdentity(item.approver_id);
+        return approverId === managementId || approverId === username;
+      });
+    });
     const completed = stage === 'official_certified'
       ? approvals.length > 0 || effectiveLocked
       : stage === effectiveStatus
