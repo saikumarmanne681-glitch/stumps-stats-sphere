@@ -235,12 +235,15 @@ const AdminScorelistsPage = () => {
   };
   const readLocked = (sl: DigitalScorelist): boolean => {
     if (typeof sl.locked === 'boolean') return sl.locked;
+    const normalizedLocked = String(sl.locked ?? '').trim().toLowerCase();
+    if (['true', '1', 'yes', 'y', 'locked'].includes(normalizedLocked)) return true;
+    if (['false', '0', 'no', 'n', 'unlocked'].includes(normalizedLocked)) return false;
     const payload = safeParsePayload(sl);
     return !!payload?.__certification?.locked;
   };
 
   const requiredApproversByStage = stageOrder.reduce<Record<string, ManagementUser[]>>((acc, stage) => {
-    acc[stage] = managementUsers.filter((m) => resolveStageFromDesignation(m.designation) === stage);
+    acc[stage] = managementUsers.filter((m) => resolveStageFromDesignation(m.designation, m.role) === stage);
     return acc;
   }, {} as Record<string, ManagementUser[]>);
 
@@ -613,7 +616,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
   const getPayload = (sl: DigitalScorelist) => { try { return JSON.parse(sl.payload_json); } catch { return null; } };
 
   // Determine which certification stage this management user can approve
-  const userStage = isManagement && user?.designation ? resolveStageFromDesignation(user.designation) : null;
+  const userStage = isManagement && user?.designation ? resolveStageFromDesignation(user.designation, user.role) : null;
 
   const getNextStage = (sl: DigitalScorelist): string | null => {
     const current = sl.certification_status || 'draft';
@@ -728,7 +731,11 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
             const roadmap = getScorelistRoadmap(sl, managementUsers);
             const detailedStatus = getScorelistDetailedStatus(sl, managementUsers);
             const userId = user?.management_id || user?.username || 'admin';
-            const alreadySignedThisStage = certs.some(c => c.approver_id === userId && c.stage === userStage);
+            const alreadySignedThisStage = certs.some((c) => {
+              if (c.stage !== userStage) return false;
+              const approverId = String(c.approver_id || '').trim();
+              return approverId === String(user?.management_id || '').trim() || approverId === String(user?.username || '').trim();
+            });
 
             return (
               <Card key={sl.scorelist_id} className={`transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${effectiveLocked ? 'border-primary/40 bg-primary/5' : ''}`}>

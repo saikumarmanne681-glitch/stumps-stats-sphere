@@ -30,6 +30,11 @@ import { AdminForms } from '@/components/admin/AdminForms';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
 
+const isLockedScorelist = (value: unknown) => {
+  if (typeof value === 'boolean') return value;
+  return ['true', '1', 'yes', 'y', 'locked'].includes(String(value ?? '').trim().toLowerCase());
+};
+
 const AdminDashboard = () => {
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
@@ -59,7 +64,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const loadCounts = () => Promise.all([v2api.getScorelists(), v2api.getCertificates()]).then(([scorelistRows, certificateRows]) => {
-      setPendingScorelists(scorelistRows.filter((item) => !item.locked && item.certification_status !== 'official_certified').length);
+      setPendingScorelists(scorelistRows.filter((item) => !isLockedScorelist(item.locked) && item.certification_status !== 'official_certified').length);
       setPendingCertificates(certificateRows.filter((item) => {
         const status = normalizeCertificateStatus(item.status);
         return status === 'PENDING_APPROVAL' || status === 'APPROVED';

@@ -25,6 +25,10 @@ function minutesAgo(value?: string) {
   if (!parsed) return null;
   return Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 60000));
 }
+function isLockedScorelist(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  return ['true', '1', 'yes', 'y', 'locked'].includes(String(value ?? '').trim().toLowerCase());
+}
 
 const AdminOpsCenter = () => {
   const { user, isAdmin } = useAuth();
@@ -41,7 +45,7 @@ const AdminOpsCenter = () => {
   const pendingApprovals = useMemo(() => {
     if (!data) return [];
 
-    const scorelistItems = data.scorelists.filter((item) => !item.locked && item.certification_status !== 'official_certified');
+    const scorelistItems = data.scorelists.filter((item) => !isLockedScorelist(item.locked) && item.certification_status !== 'official_certified');
     const certificateItems = data.certificates.filter((item) => ['PENDING_APPROVAL', 'APPROVED'].includes(item.status));
 
     const overdueScorelists = scorelistItems.filter((item) => {
