@@ -291,13 +291,23 @@ const ManagementPage = () => {
               <CardTitle className="font-display text-lg sm:text-xl">✅ Your pending scorelist approvals</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {pendingMyApprovals.slice(0, 3).map((item) => (
-                <div key={item.scorelist_id} className="flex items-center justify-between rounded-lg border bg-background p-3">
+              {pendingMyApprovals.slice(0, 5).map((item) => (
+                <div key={item.scorelist_id} className="flex flex-col gap-2 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-mono text-xs text-muted-foreground">{item.scorelist_id}</p>
-                    <p className="text-sm">Approval required at your stage.</p>
+                    <p className="text-sm">Approval required at your stage ({user?.designation || 'approver'}).</p>
                   </div>
-                  <Button size="sm" onClick={() => navigate('/admin/scorelists')}>Approve now</Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(item)}
+                      loading={signingId === item.scorelist_id}
+                      loadingText="Signing..."
+                    >
+                      ✓ Approve & Sign
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/admin/scorelists')}>Open</Button>
+                  </div>
                 </div>
               ))}
               {pendingMyApprovals.length > 3 && (
