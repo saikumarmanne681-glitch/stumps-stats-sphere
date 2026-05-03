@@ -12,7 +12,7 @@ export const CERTIFICATE_TYPES = [
 export type CertificateType = (typeof CERTIFICATE_TYPES)[number] | string;
 export type CertificateStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'REJECTED' | 'APPROVED' | 'CERTIFIED';
 export type ApprovalDecision = 'pending' | 'approved' | 'rejected';
-export type ApproverRole = 'treasurer' | 'referee' | 'tournament_director';
+export type ApproverRole = 'media_manager' | 'secretary' | 'treasurer' | 'president_or_vice_president';
 
 export interface CertificateRecord {
   id: string;
@@ -91,28 +91,30 @@ export function resolveCertificateTemplate(
 }
 
 export interface ApprovalStatusByRole {
+  media_manager: ApprovalDecision;
+  secretary: ApprovalDecision;
   treasurer: ApprovalDecision;
-  referee: ApprovalDecision;
-  tournament_director: ApprovalDecision;
+  president_or_vice_president: ApprovalDecision;
 }
 
-export const APPROVER_ROLES: ApproverRole[] = ['treasurer', 'referee', 'tournament_director'];
+export const APPROVER_ROLES: ApproverRole[] = ['media_manager', 'secretary', 'treasurer', 'president_or_vice_president'];
 
 export function emptyApprovalStatus(): ApprovalStatusByRole {
-  return { treasurer: 'pending', referee: 'pending', tournament_director: 'pending' };
+  return { media_manager: 'pending', secretary: 'pending', treasurer: 'pending', president_or_vice_president: 'pending' };
 }
 
 export function mapDesignationToApproverRole(designation?: string, role?: string): ApproverRole | null {
   const value = `${String(designation || '')} ${String(role || '')}`.trim().toLowerCase();
   if (!value) return null;
+  if (value.includes('media manager')) return 'media_manager';
+  if (value.includes('secretary')) return 'secretary';
   if (value.includes('treasurer')) return 'treasurer';
-  if (value.includes('referee') || value.includes('umpire')) return 'referee';
   if (
-    value.includes('tournament director')
-    || value.includes('tournament_director')
-    || value.includes('tournamentdirector')
-    || value.includes('director')
-  ) return 'tournament_director';
+    value.includes('president')
+    || value.includes('vice president')
+    || value.includes('vice-president')
+    || value.includes('vice_president')
+  ) return 'president_or_vice_president';
   return null;
 }
 
@@ -135,9 +137,10 @@ export function normalizeCertificateStatus(value?: string | null): CertificateSt
 
 export function normalizeApproverRole(value?: string | null): ApproverRole | null {
   const normalized = String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+  if (normalized === 'media_manager') return 'media_manager';
+  if (normalized === 'secretary') return 'secretary';
   if (normalized === 'treasurer') return 'treasurer';
-  if (normalized === 'referee' || normalized === 'umpire') return 'referee';
-  if (normalized === 'tournament_director' || normalized === 'director') return 'tournament_director';
+  if (normalized === 'president_or_vice_president' || normalized === 'president' || normalized === 'vice_president') return 'president_or_vice_president';
   return null;
 }
 
@@ -163,7 +166,8 @@ export function canFinalize(status: ApprovalStatusByRole): boolean {
 }
 
 export function approverLabel(role: ApproverRole) {
-  if (role === 'tournament_director') return 'Tournament Director';
+  if (role === 'media_manager') return 'Media Manager';
+  if (role === 'president_or_vice_president') return 'President / Vice President';
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
@@ -173,7 +177,7 @@ export function getApproversByRole(users: ManagementUser[]) {
     if (!role) return acc;
     acc[role].push(user);
     return acc;
-  }, { treasurer: [], referee: [], tournament_director: [] });
+  }, { media_manager: [], secretary: [], treasurer: [], president_or_vice_president: [] });
 }
 
 export function normalizeCertificateId(value?: string | null): string {
