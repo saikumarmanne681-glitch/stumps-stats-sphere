@@ -93,7 +93,7 @@ const TABS = {
   NEWS_ROOM_POSTS: ["post_id","title","body","audience","status","posted_by_id","posted_by_name","posted_by_role","published_at","updated_at"],
   MAIL_DIAGNOSTICS: ["mail_log_id","triggered_at","triggered_by","trigger_source","trigger_entity_type","trigger_entity_id","recipient","subject","body_html","body_text","from_email","reply_to","mail_provider","status","failure_reason","raw_response"],
   CERTIFICATES: ["id","type","tournament","season","match_id","recipient_type","recipient_id","recipient_name","linked_player_id","linked_team_name","template_id","status","created_by","created_at","details_json","performance_json","verification_code","certified_at","certified_by","approval_status","approvals_json","signatures_json","certificate_html","verification_url","verification_token","security_hash","tamper_evident_payload","delivery_status","render_provider","render_status","render_error","rendered_at","canva_template_id","canva_job_id","canva_export_url"],
-  CERTIFICATE_APPROVALS: ["certificate_id","role","status","approved_by","approved_at","remarks"],
+  CERTIFICATE_APPROVALS: ["certificate_id","role","status","approved_by","approved_at","remarks","approval_order","pending_with","timeline_json","last_action_at","last_action_by"],
   CERTIFICATE_TEMPLATES: ["template_id","type","template_name","image_url","design_config"],
   CANVA_CERTIFICATE_JOBS: ["job_id","certificate_id","template_id","recipient_name","payload_json","status","export_url","error","requested_by","requested_at","completed_at"],
   OFFICIAL_DOCUMENTS: ["document_id","title","category","department","source_url","source_type","status","allowed_management_ids","allow_preview","allow_download","created_by","created_at","updated_at","department_id"],
@@ -1138,23 +1138,75 @@ function doPost(e) {
   }
 
   if (tabName === "CERTIFICATE_APPROVALS") {
+    const APPROVAL_CHAIN = ["media_manager", "secretary", "treasurer", "president_or_vice_president"];
+    const nowIso = new Date().toISOString();
     const certificateId = normalizeKeyValue((data && data.certificate_id) || "");
-    const role = normalizeKeyValue((data && data.role) || "");
+    const role = normalizeKeyValue((data && data.role) || "").toLowerCase().replace(/\s+/g, "_");
+    const statusNormalized = normalizeKeyValue((data && data.status) || "pending").toLowerCase();
     if (!certificateId || !role) {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: "Missing certificate_id/role" })).setMimeType(
         ContentService.MimeType.JSON,
       );
     }
-    const rowIdx = findRowIndexByTabKey(sheet, tabName, data || {});
-    const next = headers.map((h) => normalizeSheetValue(h, data[h]));
+    const rowIdx = findRowIndexByTabKey(sheet, tabName, { certificate_id: certificateId, role: role });
+    const existingRows = sheetToJson(sheet).filter((row) => normalizeKeyValue(row.certificate_id) === certificateId);
+    const history = existingRows
+      .map((row) => ({
+        role: normalizeKeyValue(row.role),
+        status: normalizeKeyValue(row.status || "pending").toLowerCase(),
+        approved_by: normalizeKeyValue(row.approved_by),
+        approved_at: normalizeKeyValue(row.approved_at),
+        remarks: normalizeKeyValue(row.remarks),
+      }));
+    const existingIdx = history.findIndex((entry) => normalizeKeyValue(entry.role) === role);
+    const eventPayload = {
+      role: role,
+      status: statusNormalized || "pending",
+      approved_by: normalizeKeyValue((data && data.approved_by) || ""),
+      approved_at: normalizeKeyValue((data && data.approved_at) || nowIso),
+      remarks: normalizeKeyValue((data && data.remarks) || ""),
+    };
+    if (existingIdx >= 0) history[existingIdx] = eventPayload;
+    else history.push(eventPayload);
+
+    const roleStatusMap = {};
+    history.forEach((entry) => { roleStatusMap[entry.role] = entry.status; });
+    const pendingWith = APPROVAL_CHAIN.find((chainRole) => (roleStatusMap[chainRole] || "pending") !== "approved") || "";
+    const rejectedBy = APPROVAL_CHAIN.find((chainRole) => (roleStatusMap[chainRole] || "") === "rejected") || "";
+    const approvalOrder = String(Math.max(1, APPROVAL_CHAIN.indexOf(role) + 1));
+
+    const rowPayload = Object.assign({}, data || {}, {
+      certificate_id: certificateId,
+      role: role,
+      status: statusNormalized || "pending",
+      approval_order: approvalOrder,
+      pending_with: rejectedBy || pendingWith,
+      timeline_json: JSON.stringify(history.sort((a, b) => String(a.approved_at).localeCompare(String(b.approved_at)))),
+      last_action_at: nowIso,
+      last_action_by: normalizeKeyValue((data && (data.approved_by || data.last_action_by)) || ""),
+    });
+    const next = headers.map((h) => normalizeSheetValue(h, rowPayload[h]));
 
     if (action === "add" || action === "update") {
       if (rowIdx !== -1) {
         sheet.getRange(rowIdx, 1, 1, headers.length).setValues([next]);
-        return ContentService.createTextOutput(JSON.stringify({ success: true, mode: "overwrite" })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        sheet.appendRow(next);
       }
-      sheet.appendRow(next);
-      return ContentService.createTextOutput(JSON.stringify({ success: true, mode: "insert" })).setMimeType(ContentService.MimeType.JSON);
+      const certificatesSheet = getOrCreateSheet(ss, "CERTIFICATES");
+      ensureSheetSchema(certificatesSheet, TABS.CERTIFICATES);
+      const certRowIdx = findCertificateRowIndex(certificatesSheet, { id: certificateId });
+      if (certRowIdx !== -1) {
+        const certHeaders = certificatesSheet.getRange(1, 1, 1, certificatesSheet.getLastColumn()).getValues()[0];
+        const certRow = certificatesSheet.getRange(certRowIdx, 1, 1, certHeaders.length).getValues()[0];
+        const nextCert = TABS.CERTIFICATES.map((col, idx) => certRow[idx] || "");
+        const approvalStatusIdx = TABS.CERTIFICATES.indexOf("approval_status");
+        const approvalsJsonIdx = TABS.CERTIFICATES.indexOf("approvals_json");
+        if (approvalStatusIdx !== -1) nextCert[approvalStatusIdx] = rejectedBy ? "REJECTED" : (pendingWith ? "PENDING_APPROVAL" : "APPROVED");
+        if (approvalsJsonIdx !== -1) nextCert[approvalsJsonIdx] = JSON.stringify(history);
+        certificatesSheet.getRange(certRowIdx, 1, 1, TABS.CERTIFICATES.length).setValues([nextCert]);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ success: true, mode: rowIdx !== -1 ? "overwrite" : "insert", pending_with: rejectedBy || pendingWith })).setMimeType(ContentService.MimeType.JSON);
     }
 
     if (action === "delete") {

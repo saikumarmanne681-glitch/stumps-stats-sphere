@@ -249,6 +249,21 @@ export default function DocumentsPortalPage() {
   const effectivePreviewAllowed = isAdmin ? securityProfile.allowPreview : managementPreviewAllowed;
   const effectiveDownloadAllowed = isAdmin ? (securityProfile.allowDownload && !securityProfile.viewOnly) : managementDownloadAllowed;
 
+  useEffect(() => {
+    if (!visibleDocs.length) {
+      setSelectedDocId('');
+      return;
+    }
+    if (!selectedDocId || !visibleDocs.some((doc) => doc.document_id === selectedDocId)) {
+      setSelectedDocId(visibleDocs[0].document_id);
+    }
+  }, [selectedDocId, visibleDocs]);
+
+  useEffect(() => {
+    setPreviewCandidateIndex(0);
+    setViewerUnlocked(false);
+  }, [selectedDocId]);
+
   const extractDriveFolderId = (url: string) => {
     const value = String(url || '').trim();
     if (!value) return '';
@@ -762,8 +777,8 @@ export default function DocumentsPortalPage() {
           </Card>
         )}
 
-        <div className="grid gap-4 lg:grid-cols-5">
-          <div className="lg:col-span-3 grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-5">
+          <div className="xl:col-span-3 grid gap-4 md:grid-cols-2">
             {visibleDocs.map((doc) => (
               <Card key={doc.document_id} className="border-primary/20">
                 <CardContent className="p-4 space-y-3">
@@ -792,7 +807,7 @@ export default function DocumentsPortalPage() {
             )}
           </div>
 
-          <Card className="lg:col-span-2 border-primary/30">
+          <Card className="xl:col-span-2 border-primary/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" /> Document Security Console</CardTitle>
             </CardHeader>
@@ -909,7 +924,7 @@ export default function DocumentsPortalPage() {
                         title={`${selectedDoc.title} preview`}
                         src={previewCandidates[previewCandidateIndex] || previewCandidates[0]}
                         className={`w-full ${securityProfile.disableCopy ? 'select-none' : ''}`}
-                        style={{ height: 'min(78vh, calc(100vw * 1.2))', minHeight: 420 }}
+                        style={{ height: 'min(78vh, calc(100vw * 1.2))', minHeight: 320 }}
                       />
                     </div>
                   )}
