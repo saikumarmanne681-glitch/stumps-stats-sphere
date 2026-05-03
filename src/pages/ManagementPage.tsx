@@ -13,6 +13,7 @@ import { BOARD_DEPARTMENTS, inferDepartmentFromManagementUser, parseDepartmentAs
 import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
 import { readScorelistCertifications, resolveStageFromDesignation, scorelistStageOrder } from '@/lib/workflowStatus';
 import { useAuth } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 
 const pendingActions = [
   {
@@ -47,6 +48,7 @@ const tagStyles: Record<string, string> = {
 const ManagementPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<ManagementUser[]>([]);
   const [boardConfig, setBoardConfig] = useState<BoardConfiguration | null>(null);
@@ -54,12 +56,36 @@ const ManagementPage = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [designationFilter, setDesignationFilter] = useState('All designations');
   const [pendingMyApprovals, setPendingMyApprovals] = useState<DigitalScorelist[]>([]);
+  const [signingId, setSigningId] = useState<string | null>(null);
+
+  const myStage = useMemo(
+    () => resolveStageFromDesignation(user?.designation, user?.role),
+    [user?.designation, user?.role],
+  );
 
   useEffect(() => {
     let cancelled = false;
+    const myId = String(user?.management_id || '').trim().toLowerCase();
+    const myUsername = String(user?.username || '').trim().toLowerCase();
 
-    const load = async () => {
-      setLoading(true);
+    const computePending = (rows: DigitalScorelist[]) => {
+      if (!myStage) return [];
+      return rows.filter((scorelist) => {
+        if (scorelist.locked) return false;
+        const current = String(scorelist.certification_status || 'draft');
+        const idx = scorelistStageOrder.indexOf(current as (typeof scorelistStageOrder)[number]);
+        const nextStage = idx >= 0 && idx < scorelistStageOrder.length - 1 ? scorelistStageOrder[idx + 1] : null;
+        if (!nextStage || nextStage !== myStage) return false;
+        const certs = readScorelistCertifications(scorelist);
+        return !certs.some((entry) => {
+          if (entry.stage !== myStage) return false;
+          const signer = String(entry.approver_id || '').trim().toLowerCase();
+          return signer === myId || signer === myUsername;
+        });
+      });
+    };
+
+    const loadAll = async () => {
       try {
         const [managementUsers, boardConfigs, scorelistRows] = await Promise.all([
           v2api.getManagementUsers(),
@@ -70,39 +96,76 @@ const ManagementPage = () => {
         const activeUsers = managementUsers.filter((member) => String(member.status || '').toLowerCase() !== 'inactive');
         setUsers(activeUsers);
         setBoardConfig(selectLatestBoardConfiguration(boardConfigs));
-        const myStage = resolveStageFromDesignation(user?.designation, user?.role);
-        const myId = String(user?.management_id || '').trim().toLowerCase();
-        const myUsername = String(user?.username || '').trim().toLowerCase();
-        const pending = !myStage
-          ? []
-          : scorelistRows.filter((scorelist) => {
-              if (scorelist.locked) return false;
-              const current = String(scorelist.certification_status || 'draft');
-              const idx = scorelistStageOrder.indexOf(current as (typeof scorelistStageOrder)[number]);
-              const nextStage = idx >= 0 && idx < scorelistStageOrder.length - 1 ? scorelistStageOrder[idx + 1] : null;
-              if (!nextStage || nextStage !== myStage) return false;
-              const certs = readScorelistCertifications(scorelist);
-              return !certs.some((entry) => {
-                if (entry.stage !== myStage) return false;
-                const signer = String(entry.approver_id || '').trim().toLowerCase();
-                return signer === myId || signer === myUsername;
-              });
-            });
-        setPendingMyApprovals(pending);
+        setPendingMyApprovals(computePending(scorelistRows));
         setLoadError(null);
       } catch {
-        if (cancelled) return;
-        setLoadError('Board data could not be loaded right now.');
+        if (!cancelled) setLoadError('Board data could not be loaded right now.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
-    void load();
+    const refreshScorelists = async () => {
+      try {
+        const rows = await v2api.getScorelists();
+        if (!cancelled) setPendingMyApprovals(computePending(rows));
+      } catch {
+        // silent
+      }
+    };
+
+    void loadAll();
+    const id = window.setInterval(refreshScorelists, 5000);
+    const onVisibility = () => { if (document.visibilityState === 'visible') void refreshScorelists(); };
+    const onStorage = (event: StorageEvent) => { if (event.key === 'scorelists:last-updated') void refreshScorelists(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('storage', onStorage);
     return () => {
       cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('storage', onStorage);
     };
-  }, [user?.designation, user?.management_id, user?.role, user?.username]);
+  }, [myStage, user?.management_id, user?.username]);
+
+  const handleApprove = async (sl: DigitalScorelist) => {
+    if (!myStage) return;
+    setSigningId(sl.scorelist_id);
+    try {
+      const certs = readScorelistCertifications(sl);
+      const userId = user?.management_id || user?.username || '';
+      const normUser = String(userId).trim().toLowerCase();
+      if (certs.some((c) => c.stage === myStage && String(c.approver_id || '').trim().toLowerCase() === normUser)) {
+        toast({ title: 'Already signed this stage' });
+        return;
+      }
+      certs.push({
+        approver_id: userId,
+        approver_name: user?.name || user?.designation || 'Approver',
+        designation: user?.designation || '',
+        timestamp: new Date().toISOString(),
+        token: `CERT_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        stage: myStage,
+      });
+      const locked = myStage === 'official_certified';
+      const persisted = await v2api.updateScorelist({
+        ...sl,
+        certification_status: myStage,
+        certifications_json: JSON.stringify(certs),
+        locked,
+      });
+      if (!persisted) {
+        toast({ title: 'Approval could not be saved', description: 'Check connectivity and retry.', variant: 'destructive' });
+        return;
+      }
+      localStorage.setItem('scorelists:last-updated', new Date().toISOString());
+      toast({ title: '✅ Approved', description: `Signed as ${user?.designation || 'approver'}.` });
+      // Optimistically remove from list
+      setPendingMyApprovals((prev) => prev.filter((p) => p.scorelist_id !== sl.scorelist_id));
+    } finally {
+      setSigningId(null);
+    }
+  };
 
   const boardMembers = useMemo<BoardMemberCard[]>(() => {
     const adminTeamIds = new Set(
@@ -228,13 +291,23 @@ const ManagementPage = () => {
               <CardTitle className="font-display text-lg sm:text-xl">✅ Your pending scorelist approvals</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {pendingMyApprovals.slice(0, 3).map((item) => (
-                <div key={item.scorelist_id} className="flex items-center justify-between rounded-lg border bg-background p-3">
+              {pendingMyApprovals.slice(0, 5).map((item) => (
+                <div key={item.scorelist_id} className="flex flex-col gap-2 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-mono text-xs text-muted-foreground">{item.scorelist_id}</p>
-                    <p className="text-sm">Approval required at your stage.</p>
+                    <p className="text-sm">Approval required at your stage ({user?.designation || 'approver'}).</p>
                   </div>
-                  <Button size="sm" onClick={() => navigate('/admin/scorelists')}>Approve now</Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(item)}
+                      loading={signingId === item.scorelist_id}
+                      loadingText="Signing..."
+                    >
+                      ✓ Approve & Sign
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/admin/scorelists')}>Open</Button>
+                  </div>
                 </div>
               ))}
               {pendingMyApprovals.length > 3 && (
