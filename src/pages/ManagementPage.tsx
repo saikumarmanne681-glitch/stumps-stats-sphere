@@ -13,6 +13,7 @@ import { BOARD_DEPARTMENTS, inferDepartmentFromManagementUser, parseDepartmentAs
 import { selectLatestBoardConfiguration } from '@/lib/boardConfig';
 import { readScorelistCertifications, resolveStageFromDesignation, scorelistStageOrder } from '@/lib/workflowStatus';
 import { useAuth } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 
 const pendingActions = [
   {
