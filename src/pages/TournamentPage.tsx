@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Calendar, MapPin, Users, Shield, ExternalLink, Medal, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Shield, ExternalLink, Medal, BarChart3, Lock } from 'lucide-react';
 import { v2api } from '@/lib/v2api';
 import { DigitalScorelist } from '@/lib/v2types';
 import { SecurityShieldBadge, DataIntegrityBadge, SecurityWatermark } from '@/components/SecurityBadge';

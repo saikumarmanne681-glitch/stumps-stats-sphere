@@ -20,11 +20,11 @@ const MatchPage = () => {
   const { matches, batting, bowling, players, tournaments, seasons, loading } = useData();
   const { toast } = useToast();
   const [sharing, setSharing] = useState(false);
+  const match = matches.find(m => m.match_id === match_id);
   const isLiveMatch = match?.status === 'live';
   const { data: polledBatting = [], isFetching: liveBattingRefreshing } = useBattingQuery({ live: isLiveMatch });
   const { data: polledBowling = [], isFetching: liveBowlingRefreshing } = useBowlingQuery({ live: isLiveMatch });
 
-  const match = matches.find(m => m.match_id === match_id);
   const tournament = match ? tournaments.find(t => t.tournament_id === match.tournament_id) : null;
   const season = match ? seasons.find(s => s.season_id === match.season_id) : null;
   const matchBatting = (isLiveMatch ? polledBatting : batting).filter((entry) => entry.match_id === match_id);

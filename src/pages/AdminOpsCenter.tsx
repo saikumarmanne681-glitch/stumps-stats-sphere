@@ -43,7 +43,8 @@ const AdminOpsCenter = () => {
   const liveMatches = useMemo(() => (data?.matches || []).filter((match) => match.status === 'live'), [data?.matches]);
 
   const pendingApprovals = useMemo(() => {
-    if (!data) return [];
+    if (!data) return { total: 0, overdue: 0, scorelistItems: [], certificateItems: [] };
+
 
     const scorelistItems = data.scorelists.filter((item) => !isLockedScorelist(item.locked) && item.certification_status !== 'official_certified');
     const certificateItems = data.certificates.filter((item) => ['PENDING_APPROVAL', 'APPROVED'].includes(item.status));
