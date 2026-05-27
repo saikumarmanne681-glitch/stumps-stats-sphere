@@ -87,6 +87,23 @@ function normalizeV2Payload(payload: Record<string, unknown>) {
   );
 }
 
+
+async function postCustomAction<T = unknown>(action: string, data?: Record<string, unknown>): Promise<T | null> {
+  const url = getAppsScriptUrl();
+  if (!url) return null;
+  try {
+    const res = await fetchWithPolicy(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, ...(data ? data : {}) }),
+    });
+    if (!res.ok) return null;
+    return await res.json() as T;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeScorelistRecord(row: DigitalScorelist): DigitalScorelist {
   const lockedValue = (() => {
     if (typeof row.locked === 'boolean') return row.locked;
@@ -102,6 +119,22 @@ function normalizeScorelistRecord(row: DigitalScorelist): DigitalScorelist {
 }
 
 export const v2api = {
+  ensureMajorTabsV3: async () => postCustomAction<{ success: boolean }>('ensureMajorTabsV3'),
+  runSchemaValidationV3: async () => postCustomAction<{ success: boolean; result?: unknown }>('runSchemaValidationV3'),
+  runAppScriptHealthCheckV3: async () => postCustomAction<{ success: boolean; result?: unknown }>('runAppScriptHealthCheckV3'),
+  getFeatureFlagsV3: async () => {
+    const url = getAppsScriptUrl();
+    if (!url) return null;
+    try {
+      const res = await fetchWithPolicy(`${url}?action=getFeatureFlagsV3`, { method: 'GET' });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+  setFeatureFlagV3: async (flag_key: string, flag_value: boolean, actor = 'admin') => postCustomAction<{ success: boolean }>('setFeatureFlagV3', { flag_key, flag_value, actor }),
+
   syncHeaders: async () => {
     const url = getAppsScriptUrl();
     if (!url) return false;

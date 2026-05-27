@@ -35,10 +35,12 @@ export function Navbar() {
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/"><Home className="h-3.5 w-3.5 mr-1.5" /> Home</Link></Button>
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/leaderboards"><Trophy className="h-3.5 w-3.5 mr-1.5" /> Leaderboards</Link></Button>
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/live"><Radio className="h-3.5 w-3.5 mr-1.5" /> Live</Link></Button>
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/watch"><Radio className="h-3.5 w-3.5 mr-1.5" /> Watch</Link></Button>
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/seasons"><Layers3 className="h-3.5 w-3.5 mr-1.5" /> Seasons</Link></Button>
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/schedules"><CalendarDays className="h-3.5 w-3.5 mr-1.5" /> Schedules</Link></Button>
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/hall-of-glory"><Crown className="h-3.5 w-3.5 mr-1.5" /> Glory</Link></Button>
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/verify"><BadgeCheck className="h-3.5 w-3.5 mr-1.5" /> Verify</Link></Button>
+        <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/about-contact-sponsors"><FileText className="h-3.5 w-3.5 mr-1.5" /> About</Link></Button>
 
         {mobile && user && <MobileSection title="Workspace" />}
         {user && (
@@ -85,6 +87,9 @@ export function Navbar() {
             </Button>
             <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
               <Link to="/admin/ops-center"><ClipboardList className="h-3.5 w-3.5 mr-1.5" /> Ops</Link>
+            </Button>
+            <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
+              <Link to="/admin/power-tools"><Shield className="h-3.5 w-3.5 mr-1.5" /> Tools</Link>
             </Button>
             <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
               <Link to="/admin/backups"><Database className="h-3.5 w-3.5 mr-1.5" /> Backup</Link>
