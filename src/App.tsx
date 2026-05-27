@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { RouteChangeIndicator } from "@/components/RouteChangeIndicator";
 import { GlobalActivityIndicator } from "@/components/GlobalActivityIndicator";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
+import { MaintenanceModeBanner } from "@/components/MaintenanceModeBanner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
@@ -65,6 +66,10 @@ const VerificationPage = lazyWithRetry(() => import("./pages/VerificationPage"),
 const FormsPortalPage = lazyWithRetry(() => import("./pages/FormsPortalPage"), "FormsPortalPage");
 const AdminOpsCenter = lazyWithRetry(() => import("./pages/AdminOpsCenter"), "AdminOpsCenter");
 const SchedulesPage = lazyWithRetry(() => import("./pages/SchedulesPage"), "SchedulesPage");
+const MajorUpdatesPage = lazyWithRetry(() => import("./pages/MajorUpdatesPage"), "MajorUpdatesPage");
+const AdminPowerToolsPage = lazyWithRetry(() => import("./pages/AdminPowerToolsPage"), "AdminPowerToolsPage");
+const AboutContactSponsorsPage = lazyWithRetry(() => import("./pages/AboutContactSponsorsPage"), "AboutContactSponsorsPage");
+const PublicWatchPage = lazyWithRetry(() => import("./pages/PublicWatchPage"), "PublicWatchPage");
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -146,6 +151,7 @@ const App = () => (
             <RouteChangeIndicator />
             <GlobalActivityIndicator />
             <NetworkStatusBanner />
+            <MaintenanceModeBanner />
             <RouteErrorBoundary>
               <Suspense fallback={<RouteLoader />}>
                 <Routes>
@@ -159,6 +165,8 @@ const App = () => (
                   <Route path="/admin/management" element={<RequireRole allow={['admin']}><AdminManagement /></RequireRole>} />
                   <Route path="/admin/work-queue" element={<RequireRole allow={['admin']}><AdminWorkQueuePage /></RequireRole>} />
                   <Route path="/admin/ops-center" element={<RequireRole allow={['admin', 'management']}><AdminOpsCenter /></RequireRole>} />
+                  <Route path="/admin/major-updates" element={<RequireRole allow={['admin', 'management']}><MajorUpdatesPage /></RequireRole>} />
+                  <Route path="/admin/power-tools" element={<RequireRole allow={['admin', 'management']}><AdminPowerToolsPage /></RequireRole>} />
                   <Route path="/leaderboards" element={<LeaderboardsPage />} />
                   <Route path="/match/:match_id" element={<MatchPage />} />
                   <Route path="/player/:player_id" element={<PlayerPage />} />
@@ -167,6 +175,7 @@ const App = () => (
                   <Route path="/management" element={<RequireRole allow={['management', 'admin']}><ManagementPage /></RequireRole>} />
                   <Route path="/management/teams-dashboard" element={<RequireRole allow={['team', 'management', 'admin']}><TeamsDashboardPage /></RequireRole>} />
                   <Route path="/live" element={<LiveMatchPage />} />
+                  <Route path="/watch" element={<PublicWatchPage />} />
                   <Route path="/seasons" element={<SeasonsOverviewPage />} />
                   <Route path="/schedules" element={<SchedulesPage />} />
                   <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
@@ -174,6 +183,7 @@ const App = () => (
                   <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
                   <Route path="/verify" element={<VerificationPage />} />
                   <Route path="/verify/:type/:id" element={<VerificationPage />} />
+                  <Route path="/about-contact-sponsors" element={<AboutContactSponsorsPage />} />
                   <Route path="/forms" element={<RequireAuth><FormsPortalPage /></RequireAuth>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
