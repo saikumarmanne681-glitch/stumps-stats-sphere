@@ -1,4 +1,5 @@
-import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, TeamProfile, TeamTitleRecord, TeamAccessUser, CertificateRecord, CertificateApprovalRecord, CertificateTemplateRecord, DynamicFormDefinition, DynamicFormEntry } from './v2types';
+import { SupportTicket, SupportMessage, SupportCSAT, UserEmailLink, UserNotificationPreferences, UserPresence, DigitalScorelist, AuditEvent, MailDiagnostic, ManagementUser, MatchTimeline, BoardConfiguration, NewsRoomPost, TeamProfile, TeamTitleRecord, TeamAccessUser, DynamicFormDefinition, DynamicFormEntry } from './v2types';
+import type { CertificateRecord, CertificateApprovalRecord, CertificateTemplateRecord } from './certificates';
 import { getAppsScriptUrl } from './googleSheets';
 import { nowIso } from './time';
 import { normalizeCertificateRecord } from './certificates';

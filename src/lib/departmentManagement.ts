@@ -124,7 +124,7 @@ const defaultWidgetsByDepartment: Record<string, DepartmentWidget[]> = {
 export const getDepartmentBySlug = (slug?: string) => DEPARTMENTS.find((department) => department.slug === slug);
 export const getDefaultWidgets = (slug: string) => defaultWidgetsByDepartment[slug] || [];
 
-const parseList = <T extends Record<string, unknown>>(rows: T[]) => (Array.isArray(rows) ? rows : []);
+const parseList = <T>(rows: T[]): T[] => (Array.isArray(rows) ? rows : []);
 
 export async function getDepartmentMembers(departmentId: string) {
   const rows = await v2api.getCustomSheet<DepartmentMember>("DEPARTMENT_MEMBERS");
