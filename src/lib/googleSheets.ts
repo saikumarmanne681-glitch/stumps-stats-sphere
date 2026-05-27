@@ -17,7 +17,7 @@ const STORAGE_KEY = getEnvStorageKey("appsScriptUrl");
 
 let APPS_SCRIPT_URL =
   localStorage.getItem(STORAGE_KEY) ||
-  "https://script.google.com/macros/s/AKfycbyFOTa7-mlQCndHISpErq5M-2Mpx9Le00yFqSTC5K8XoX_mlrB-TRVRO1FYnuCo8-gYKw/exec";
+  "https://script.google.com/macros/s/AKfycbxX3tRBAuXIL9aNV6pz-F9Ts7oqAedLlNvyhS6STJu1Z5cEJK34BxhuLFaOVUygNGmUww/exec";
 
 export function getAppsScriptUrl() {
   return APPS_SCRIPT_URL;
