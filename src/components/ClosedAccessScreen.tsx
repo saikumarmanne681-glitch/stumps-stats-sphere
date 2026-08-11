@@ -18,31 +18,33 @@ export function ClosedAccessScreen({
   const reasonText = reason?.trim() || 'This section is temporarily unavailable. Please check back shortly.';
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden rounded-2xl border border-white/15 bg-slate-950 text-slate-100 shadow-2xl">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(99,102,241,0.35),transparent_45%),radial-gradient(circle_at_80%_15%,rgba(236,72,153,0.25),transparent_35%),radial-gradient(circle_at_50%_100%,rgba(56,189,248,0.25),transparent_45%)]" />
-      <div className="pointer-events-none absolute inset-0 animate-pulse bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-cyan-400/10" />
+    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden rounded-[1.75rem] border border-primary/12 bg-gradient-surface shadow-elevated">
+      <div className="pointer-events-none absolute inset-0 soft-dot-grid opacity-60" />
+      <div className="pointer-events-none absolute -left-20 top-0 h-64 w-64 rounded-full bg-primary/12 blur-3xl" />
+      <div className="pointer-events-none absolute -right-16 bottom-0 h-64 w-64 rounded-full bg-gold/15 blur-3xl" />
 
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-3xl flex-col items-center justify-center px-6 py-16 text-center">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-violet-300/30 bg-violet-500/15 px-4 py-1 text-xs uppercase tracking-[0.25em] text-violet-100">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-accent/10 px-4 py-1 text-xs uppercase tracking-[0.25em] text-accent-foreground">
           <Crown className="h-3.5 w-3.5" /> Feature Access Control
         </div>
 
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-white/15 bg-white/5 shadow-[0_0_40px_rgba(167,139,250,0.45)]">
-          <Lock className="h-9 w-9 text-violet-200" />
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-primary/15 bg-card shadow-glow">
+          <Lock className="h-9 w-9 text-primary" />
         </div>
 
-        <h1 className="font-display text-3xl font-bold leading-tight text-white md:text-4xl">{title}</h1>
-        <p className="mt-5 max-w-2xl rounded-xl border border-white/10 bg-white/5 px-5 py-4 text-sm text-slate-200 md:text-base">
+        <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-foreground md:text-4xl">{title}</h1>
+        <div className="mx-auto mt-4 h-0.5 w-24 gold-divider" />
+        <p className="mt-5 max-w-2xl rounded-2xl border border-primary/12 bg-card/80 px-5 py-4 text-sm text-muted-foreground shadow-soft md:text-base">
           {reasonText}
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button asChild variant="outline" className="border-white/20 bg-transparent text-slate-100 hover:bg-white/10">
+          <Button asChild variant="outline">
             <Link to={backHref}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Link>
           </Button>
-          <Button asChild className="bg-white text-slate-900 hover:bg-slate-200">
+          <Button asChild variant="premium">
             <Link to={homeHref}>
               <Home className="mr-2 h-4 w-4" /> Home
             </Link>
