@@ -1,189 +1,46 @@
+# Premium UI Refresh — Emerald Prestige
 
-# Major Update Catalog — Pick by Number
+A full visual upgrade of Stumps Stats Sphere: one light, premium design language (emerald green + gold on ivory, no black/dark surfaces), new typography, richer buttons/chips/cards, next-gen loading graphics, and layered motion — applied across public pages and the admin/management side, fully responsive on mobile, tablet and desktop.
 
-Below is a numbered menu of upgrades. Reply with the numbers you want (e.g. "Build 3, 7, 12, 24") and I'll plan + build only those.
+## The look
 
----
+- **Palette (light only):** ivory page background `#f7faf7`, soft green surfaces `#e6f0e8`, emerald primary `#1f8a5c`, gold accent `#c9a84c`. Deepest ink used for text is a dark green-slate, never black.
+- **Typography:** Sora for headings/display, Manrope for body. Replaces Oswald + Source Sans across the app.
+- **Surfaces:** frosted glass panels, soft ivory-to-mint gradients, layered emerald-tinted shadows, generous rounded corners (16–28px), gold hairline separators on premium/hero elements.
+- **Motion (level 4 of 5):** entrance fades/rises on sections, staggered card reveals, hover lift on cards and rows, gold shimmer sweep on primary CTAs, animated number counters on stats, spring-y active press, animated skeleton shimmer. All motion honours `prefers-reduced-motion`.
 
-## A. Critical Fixes & Stability (1–15)
+## What changes
 
-1. Fix Docs Portal end-to-end (uploads, previews, permissions, empty-state, mobile layout)
-2. Fix Scorelist approval realtime (no polling — switch to event-driven refresh + optimistic UI)
-3. Fix Certificate generation overlaps (text/image/QR collision detector before save)
-4. Fix mobile responsiveness across all preview surfaces (Match Center, Scorelist, Certificates, Docs, News)
-5. Fix IST date drift in standings, audit logs, certificate dates
-6. Fix Service Worker stale cache (force update banner + skipWaiting)
-7. Fix login race conditions (admin/player/management/team) + session expiry banner
-8. Fix Apps Script timeout on large reads (pagination + ETag caching)
-9. Fix double-submit on every mutation (idempotency tokens)
-10. Fix presence flicker (online/away/offline) with smoother thresholds
-11. Fix Newsroom ticker overlap on small screens
-12. Fix Leaderboard sort stability + tie-breakers
-13. Fix Match Center undo/redo edge cases (over rollover, retired hurt)
-14. Fix scorecard import OCR mis-mapping for team abbreviations
-15. Fix broken external image fallbacks (player/team avatars)
+### 1. Design system foundation
+- Rewrite the color tokens in `index.css` to the Emerald Prestige scale (light + a light-tinted "dark" mode that stays bright, so no black ever appears).
+- Add gradient, glow, shadow, and glass tokens: `--gradient-hero`, `--gradient-gold`, `--gradient-surface`, `--shadow-soft/elevated/glow`, `--ring-gold`.
+- Load Sora + Manrope, update `tailwind.config.ts` font families, radius scale, new keyframes (rise-in, stagger-in, shimmer, gold-sweep, float, count-pop, pulse-ring) and matching animation utilities.
+- New shared utility classes: `.premium-card`, `.glass-panel` (refreshed), `.stat-tile`, `.gold-divider`, `.section-shell`, `.chip`.
 
-## B. Certificates (16–30)
+### 2. Core components
+- **Button:** new variants — `premium` (emerald gradient + gold sweep on hover), `gold`, `soft` (tinted surface), `glass`, plus refined default/outline/ghost with lift + spring press. Sizes gain an `xs` and touch-friendly heights on mobile.
+- **Badge/Chip:** new `gold`, `soft`, `success`, `warning`, `info`, `live` (pulsing dot) variants; consistent pill sizing and icon slot.
+- **Card / Table / Tabs / Dialog / Select / Input:** rounded, tinted borders, hover states, focus rings in emerald/gold; dialogs and sheets become full-height scrollable on mobile.
+- **Loading graphics (`LoadingOverlay.tsx`):** replace with a next-gen set — an animated cricket-ball/orbit loader, shimmering skeletons that mirror real layout, a slim top route-progress bar, and inline button spinners.
 
-16. 10 new premium certificate templates (Royal Gold, Minimal Mono, Cricket Stadium, Neon Sport, Vintage Press, Glassmorphism, Hologram, Art Deco, Heritage Crest, Championship Foil)
-17. Certificate approval chain: Media Manager → Secretary → Treasurer → President/VP
-18. Approval roadmap visualization with stage badges + ETA
-19. Bulk certificate generation (whole tournament / whole team in one click)
-20. Certificate revocation + reissue with audit trail
-21. QR-verifiable certificates with public verify page redesign
-22. Player/Team dashboard "Pending vs Approved" certificate tabs
-23. Email delivery only after final approval (with branded template)
-24. Anti-forgery: per-certificate signed hash + watermark
-25. Admin template designer (drag-drop fields on SVG)
-26. Auto-fill performance stats per certificate type
-27. Print-safe A4/Letter export with bleed marks
-28. Multi-language certificate support (EN + regional)
-29. Certificate analytics (issued, pending, approval lead-time)
-30. Achievement-based auto-suggested certificates (man of match, hat-trick, century)
+### 3. Global chrome
+- **Navbar:** glass sticky header, gold underline active indicator, compact scroll-shrink, cleanly aligned overflow menu on desktop and a full-screen animated drawer on mobile/iPad.
+- **PageHeader:** hero band with gradient + logo lockup, responsive title scale, department chip row.
+- **Footer & tickers:** refreshed gradient ticker and announcement box matching the new tokens.
 
-## C. Scorelists & Scoring (31–42)
+### 4. Public pages
+Home (hero, leaderboards, matches grid, horizontal scroller), Leaderboards, Seasons Overview, Schedules, Match/Tournament/Player pages, News Room, Documents & Forms portals, Verification pages, Login — restyled onto the new shells, stat tiles, chips and motion. Grid breakpoints audited for 375px / 768px / 1024px / 1440px.
 
-31. Inline approve/reject for management on dashboard cards
-32. Scorelist diff viewer (before vs after edit)
-33. Live "currently scoring" indicator on home page
-34. Ball-by-ball commentary auto-generated
-35. Wagon wheel + pitch map per batter
-36. Partnership tracker live
-37. Powerplay / Death-over splits
-38. Predictive score (run-rate based)
-39. Scorelist PDF export with team logos
-40. Scorer assignment + handoff workflow
-41. Match review queue with SLA timers
-42. Voice-input ball entry (mobile scorer)
+### 5. Admin & management
+Admin Dashboard, Ops Center, Work Queue, Matches & Scorecards, Scorelists, Certificates queue/builder, Management Board, Department dashboards, Presence/Audit panels — same tokens, premium cards, sticky section headers, tables that switch to stacked cards under 768px, consistent toolbars and action chips.
 
-## D. Player & Team Experience (43–55)
+### 6. Cleanup
+Replace the hardcoded `text-white` / `bg-white` / `bg-black` style utilities found in ~14 component files with semantic tokens so theming stays consistent.
 
-43. Player profile redesign (hero stat card, career arc chart)
-44. Career milestones timeline (50s, 100s, 5-wickets)
-45. Head-to-head player comparison tool
-46. Team profile pages with squad, history, trophies
-47. Team dashboard for captains (squad availability, fitness notes)
-48. Player availability toggle per match
-49. Injury & fitness log (private to player + management)
-50. Player-of-the-tournament auto-calculator
-51. Personal best alerts + share card
-52. Player media gallery (photos, video links)
-53. Endorsement / sponsor field on profile
-54. Social share cards (auto-generated PNG for milestones)
-55. Player-to-player private DMs (extends current messaging)
+## Out of scope
+No changes to data fetching, Apps Script, certificate PDF export logic, approval rules, or any business logic — this pass is presentation only. Certificate PDF/print styling is left as-is unless the token swap requires a color fix.
 
-## E. Tournaments & Seasons (56–66)
-
-56. Bracket visualizer for knockouts
-57. Group-stage points table live widget
-58. Tournament home page with hero, schedule, standings, top performers
-59. Multi-season comparison dashboard
-60. Season archive with downloadable record book PDF
-61. Fixture auto-generator (round-robin, double round-robin, knockout)
-62. Venue/ground management module
-63. Umpire & referee roster
-64. Toss recorder with auto-broadcast
-65. Awards night module (nominees, voting, results)
-66. Sponsorship slots per tournament (logos, mentions)
-
-## F. Management & Governance (67–76)
-
-67. Management dashboard redesign (KPIs, pending actions, SLA)
-68. Board elections module (nominations, votes, results)
-69. Meeting minutes repository
-70. Department budgets + expense logs
-71. Designation-based permission matrix (visual editor)
-72. Broadcast notice composer with audience targeting
-73. Audit log explorer with filters + CSV export
-74. Two-person rule for sensitive ops (delete season, lock match)
-75. Management heatmap (who's approving what, throughput)
-76. Internal task board (kanban per department)
-
-## G. Communication & Engagement (77–86)
-
-77. Push notifications (browser + PWA)
-78. Email digest (weekly highlights)
-79. WhatsApp deep-link share for fixtures/results
-80. In-app announcement modal scheduler
-81. Comments on news posts
-82. Polls & predictions (man of the match guess)
-83. Fan reactions (emoji) on live matches
-84. Birthday & anniversary auto-greetings
-85. Newsletter signup + archive
-86. RSS feed for news
-
-## H. Public-facing Site (87–95)
-
-87. New marketing landing page with hero animation
-88. SEO overhaul (meta, OG tags, sitemap, JSON-LD)
-89. Public stats explorer (filter by season/team/player)
-90. Hall of Glory redesign with 3D trophy gallery
-91. Public schedule with calendar/list/map toggle
-92. Live-match public watch page (read-only ticker)
-93. About / Contact / Sponsors pages
-94. Verification page redesign (cleaner QR landing)
-95. Multi-theme toggle (light/dark/stadium)
-
-## I. Data, Search, Performance (96–105)
-
-96. Global command palette (Cmd/Ctrl-K) with deep search
-97. Full-text search across players, matches, news, docs
-98. Offline-first read mode (cache standings/last 5 matches)
-99. Image CDN + lazy-load all avatars
-100. Bundle-size audit & code-splitting per route
-101. TanStack Query devtools gated behind admin
-102. Apps Script response compression (gzip JSON)
-103. Background sync queue for offline mutations
-104. Snapshot backups (daily ZIP to admin email)
-105. Data integrity dashboard (orphans, duplicates, mismatches)
-
-## J. Security & Compliance (106–113)
-
-106. Email OTP hardening + rate-limit
-107. Login attempt lockout + IP log
-108. Session device manager (revoke sessions)
-109. Password change & recovery flow for all roles
-110. Role-based audit trail on every write
-111. Privacy policy + terms pages
-112. Export-my-data (GDPR-style) for players
-113. Admin 2FA (TOTP)
-
-## K. Mobile & PWA (114–120)
-
-114. Install-as-app banner
-115. Mobile bottom-nav for primary routes
-116. Pull-to-refresh on lists
-117. Haptic feedback on key actions
-118. Dark-mode tuned for OLED
-119. Offline indicator with retry
-120. Native share sheet integration
-
-## L. AI / Smart Features (121–128)
-
-121. AI match summary auto-write (post-match)
-122. AI commentary generator (toggle on live page)
-123. AI player Q&A ("how did I perform vs Team X?")
-124. Smart highlight reel suggester (key overs)
-125. AI-assisted news article drafting for media manager
-126. Anomaly detection (suspicious score edits)
-127. Form-builder AI assist (describe → fields)
-128. Translation assistant for announcements
-
-## M. Admin Power Tools (129–135)
-
-129. One-click "rebuild standings" recompute
-130. Schema validator (Sheets vs frontend types)
-131. Apps Script health monitor + alert
-132. Test-data seeder UI (refresh demo data safely)
-133. Feature flags panel (toggle modules on/off)
-134. Maintenance mode banner + scheduled windows
-135. Cross-environment data copier (dev ↔ prod, guarded)
-
----
-
-## How to respond
-
-Reply with the numbers you want, e.g.:
-> Build 1, 4, 16, 17, 22, 67, 96, 121
-
-You can also say "all of section B" or "everything in A + C". I'll then create a focused implementation plan per batch (small batches ship faster + safer than mega-PRs).
+## Technical notes
+- Tokens live in `src/index.css` as HSL; Tailwind reads them via `tailwind.config.ts`. Components consume semantic classes only.
+- Animations are CSS keyframes + Tailwind utilities (no new animation library), keeping bundle size and load time unchanged.
+- Work order: tokens/config → core UI primitives → chrome (Navbar/PageHeader/loaders) → public pages → admin/management → responsive sweep at four breakpoints with screenshots.
