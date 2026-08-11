@@ -408,7 +408,7 @@ export default function TeamsDashboardPage() {
 
           <TabsContent value="tickets" className="space-y-4">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <Card className="lg:col-span-2 border-primary/20 shadow-sm">
+              <Card className="lg:col-span-2 border-primary/20 shadow-soft">
                 <CardHeader><CardTitle>Raise support ticket</CardTitle></CardHeader>
                 <CardContent className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-2">
@@ -464,7 +464,7 @@ export default function TeamsDashboardPage() {
               <CardHeader><CardTitle className="flex items-center gap-2"><Ticket className="h-5 w-5" /> Latest support tickets</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {visibleTickets.sort((a, b) => compareTimestampsDesc(a.created_at, b.created_at)).slice(0, 20).map((ticket) => (
-                  <button type="button" key={ticket.ticket_id} onClick={() => setSelectedTicket(ticket)} className="w-full rounded-2xl border border-primary/15 bg-gradient-to-br from-background via-background to-primary/5 p-3 text-left shadow-sm transition hover:border-primary/40 sm:p-4">
+                  <button type="button" key={ticket.ticket_id} onClick={() => setSelectedTicket(ticket)} className="w-full rounded-2xl border border-primary/15 bg-gradient-to-br from-background via-background to-primary/5 p-3 text-left shadow-soft transition hover:border-primary/40 sm:p-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-semibold text-sm sm:text-base">{ticket.subject}</p>

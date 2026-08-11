@@ -244,7 +244,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
             <Badge variant={match.status === 'completed' ? 'default' : 'secondary'}>{match.status.toUpperCase()}</Badge>
           </div>
 
-          <div className="mt-2 flex items-center justify-between rounded-xl border border-primary/10 bg-background/80 p-2.5 shadow-sm sm:rounded-[1.25rem] sm:p-3">
+          <div className="mt-2 flex items-center justify-between rounded-xl border border-primary/10 bg-background/80 p-2.5 shadow-soft sm:rounded-[1.25rem] sm:p-3">
             <div className="text-center flex-1">
               <p className="font-display text-sm sm:text-base md:text-lg font-bold">{match.team_a}</p>
               {teamACaptain && (
@@ -295,7 +295,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
                 <AlertTriangle className="h-3 w-3" /> Report Issue with this Match
               </Button>
             ) : (
-              <div className="space-y-4 rounded-[1.5rem] border border-primary/10 bg-gradient-to-br from-background via-background to-primary/5 p-4 shadow-sm">
+              <div className="space-y-4 rounded-[1.5rem] border border-primary/10 bg-gradient-to-br from-background via-background to-primary/5 p-4 shadow-soft">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold">Report Issue</p>

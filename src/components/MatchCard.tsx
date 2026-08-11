@@ -51,7 +51,7 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
       className={`group relative overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98] ${
         isPremiumKnockout
           ? "border border-amber-300/70 bg-gradient-to-br from-amber-100/80 via-orange-50 to-rose-100/70 shadow-[0_8px_30px_-20px_rgba(194,65,12,0.6)] hover:shadow-[0_18px_40px_-24px_rgba(194,65,12,0.7)]"
-          : "border-l-4 border-l-primary hover:border-l-accent hover:shadow-lg"
+          : "border-l-4 border-l-primary hover:border-l-accent hover:shadow-elevated"
       }`}
       onClick={onClick}
     >

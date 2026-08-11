@@ -343,7 +343,7 @@ export function AdminMessages() {
             const lastMessage = thread[thread.length - 1];
 
             return (
-              <div key={rootId} className={`overflow-hidden rounded-[1.5rem] border transition-all ${isExpanded ? 'border-primary/30 shadow-lg shadow-primary/10' : 'border-primary/10 shadow-sm'}`}>
+              <div key={rootId} className={`overflow-hidden rounded-[1.5rem] border transition-all ${isExpanded ? 'border-primary/30 shadow-lg shadow-primary/10' : 'border-primary/10 shadow-soft'}`}>
                 <div
                   className={`cursor-pointer p-4 transition ${unreadCount > 0 ? 'bg-accent/5' : 'bg-background'} hover:bg-primary/5`}
                   onClick={() => {
@@ -376,7 +376,7 @@ export function AdminMessages() {
                     <div className="max-h-[420px] space-y-4 overflow-y-auto p-4 scrollbar-thin">
                       {thread.map((message) => (
                         <div key={message.id} className={`flex ${message.from_id === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[88%] rounded-[1.25rem] border px-4 py-3 shadow-sm ${message.from_id === 'admin' ? 'border-primary/20 bg-primary/10' : 'border-border bg-card'}`}>
+                          <div className={`max-w-[88%] rounded-[1.25rem] border px-4 py-3 shadow-soft ${message.from_id === 'admin' ? 'border-primary/20 bg-primary/10' : 'border-border bg-card'}`}>
                             <div className="mb-1 flex flex-wrap items-center gap-2">
                               <span className="text-xs font-semibold uppercase tracking-wide text-foreground">{getDisplayName(message.from_id)}</span>
                               <span className="text-xs text-muted-foreground">{formatInIST(message.timestamp || message.date)}</span>
@@ -389,7 +389,7 @@ export function AdminMessages() {
                     </div>
 
                     <div className="border-t border-primary/10 p-4">
-                      <div className="rounded-[1.25rem] border border-primary/10 bg-background p-3 shadow-sm">
+                      <div className="rounded-[1.25rem] border border-primary/10 bg-background p-3 shadow-soft">
                         <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
                           <Sparkles className="h-4 w-4 text-accent" /> Quick reply
                         </div>

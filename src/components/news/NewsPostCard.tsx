@@ -27,7 +27,7 @@ export const NewsPostCard = ({ post, publishedLabel, featured = false }: NewsPos
   const audience = (post.audience || 'all') as 'all' | 'players' | 'management';
 
   return (
-    <Card className={cn('border-border/60 shadow-sm transition-colors hover:border-primary/40', featured && 'border-primary/30 bg-primary/5')}>
+    <Card className={cn('border-border/60 shadow-soft transition-colors hover:border-primary/40', featured && 'border-primary/30 bg-primary/5')}>
       <CardContent className={cn('space-y-4 p-5 md:p-6', featured && 'md:p-7')}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Badge variant={featured ? 'default' : 'outline'} className="gap-1">

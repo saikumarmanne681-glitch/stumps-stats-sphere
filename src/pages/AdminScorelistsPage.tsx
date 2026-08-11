@@ -1058,7 +1058,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
 
                       <div className="grid gap-3 md:grid-cols-3 text-left">
                         {securityFeatureItems.map((feature) => (
-                          <div key={feature.title} className="rounded-lg border bg-background/90 p-3 shadow-sm">
+                          <div key={feature.title} className="rounded-lg border bg-background/90 p-3 shadow-soft">
                             <p className="text-xs font-semibold uppercase tracking-wide text-primary">{feature.title}</p>
                             <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
                           </div>

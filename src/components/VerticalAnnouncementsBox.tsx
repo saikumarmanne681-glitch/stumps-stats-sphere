@@ -19,7 +19,7 @@ export function VerticalAnnouncementsBox() {
   if (activeAnnouncements.length === 0) return null;
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/10 shadow-sm">
+    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/10 shadow-soft">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 font-display text-lg">
@@ -40,7 +40,7 @@ export function VerticalAnnouncementsBox() {
         <div className="max-h-64 overflow-hidden rounded-xl border border-primary/15 bg-background/70 p-3">
           <div className="space-y-3 animate-vertical-news [animation-duration:28s] hover:[animation-play-state:paused]">
             {[...activeAnnouncements, ...activeAnnouncements].map((item, index) => (
-              <div key={`${item.id}-${index}`} className="rounded-lg border border-primary/10 bg-background/80 p-3 shadow-sm">
+              <div key={`${item.id}-${index}`} className="rounded-lg border border-primary/10 bg-background/80 p-3 shadow-soft">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold">{item.title}</p>
                   {index < activeAnnouncements.length && (

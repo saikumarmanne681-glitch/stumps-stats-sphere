@@ -215,7 +215,7 @@ const TournamentPage = () => {
                   const sMatches = matches.filter(m => m.season_id === s.season_id);
                   const sLive = sMatches.filter(m => m.status === 'live').length;
                   return (
-                    <Card key={s.season_id} id={`season-${s.season_id}`} className="border hover:shadow-lg transition-all group scroll-mt-24">
+                    <Card key={s.season_id} id={`season-${s.season_id}`} className="border hover:shadow-elevated transition-all group scroll-mt-24">
                       <CardContent className="p-4 space-y-2">
                         <div className="flex items-center justify-between">
                           <p className="font-display text-2xl font-bold text-primary">{s.year}</p>

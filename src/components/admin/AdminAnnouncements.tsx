@@ -248,7 +248,7 @@ export function AdminAnnouncements() {
 
             <div className="space-y-4">
               {(filteredAnnouncements.slice(0, 3)).map((item) => (
-                <div key={item.id} className="rounded-[1.5rem] border border-primary/10 bg-gradient-to-br from-background via-background to-accent/5 p-5 shadow-sm">
+                <div key={item.id} className="rounded-[1.5rem] border border-primary/10 bg-gradient-to-br from-background via-background to-accent/5 p-5 shadow-soft">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Featured notice</p>

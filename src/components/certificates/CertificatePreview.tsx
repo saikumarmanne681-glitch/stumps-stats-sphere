@@ -407,7 +407,7 @@ export const CertificatePreview = memo(function CertificatePreview({
   ].slice(0, 6);
 
   return (
-    <Card className="overflow-hidden border border-primary/20 bg-background shadow-sm">
+    <Card className="overflow-hidden border border-primary/20 bg-background shadow-soft">
       <CardContent className="p-0">
         {/* Collapsed header bar */}
         <button

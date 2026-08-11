@@ -109,7 +109,7 @@ export default function TournamentHonorsPage() {
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
       <Navbar />
       <div className="container mx-auto space-y-8 px-4 py-8">
-        <section className="relative overflow-hidden rounded-2xl border bg-gradient-to-r from-primary/10 via-accent/10 to-transparent p-6 shadow-sm">
+        <section className="relative overflow-hidden rounded-2xl border bg-gradient-to-r from-primary/10 via-accent/10 to-transparent p-6 shadow-soft">
           <Sparkles className="absolute -right-3 -top-3 h-24 w-24 text-primary/15" />
           <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Public honours portal</p>
           <div className="mt-2">

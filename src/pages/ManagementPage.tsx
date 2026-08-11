@@ -409,7 +409,7 @@ const ManagementPage = () => {
                   className="rounded-xl border border-border bg-gradient-to-br from-card via-background to-primary/5 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-sm font-bold text-primary-foreground shadow-sm">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-sm font-bold text-primary-foreground shadow-soft">
                       {member.name.slice(0, 1)}
                     </div>
                     <div className="min-w-0">

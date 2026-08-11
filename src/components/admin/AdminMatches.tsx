@@ -1010,7 +1010,7 @@ export function AdminMatches() {
                 const scoreA = m.team_a_score || getMatchScore(m, m.team_a);
                 const scoreB = m.team_b_score || getMatchScore(m, m.team_b);
                 return (
-                  <div key={m.match_id} className="rounded-xl border bg-card p-3 shadow-sm">
+                  <div key={m.match_id} className="rounded-xl border bg-card p-3 shadow-soft">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-medium">{m.team_a} vs {m.team_b}</p>

@@ -509,7 +509,7 @@ const PlayerDashboard = () => {
               const isExpanded = expandedThread === rootId;
 
               return (
-                <Card key={rootId} className={`overflow-hidden rounded-[1.5rem] transition-all ${threadUnread > 0 ? 'border-l-4 border-l-accent shadow-sm' : 'border-primary/10'} ${isExpanded ? 'ring-1 ring-primary/20 shadow-lg shadow-primary/10' : ''}`}>
+                <Card key={rootId} className={`overflow-hidden rounded-[1.5rem] transition-all ${threadUnread > 0 ? 'border-l-4 border-l-accent shadow-soft' : 'border-primary/10'} ${isExpanded ? 'ring-1 ring-primary/20 shadow-lg shadow-primary/10' : ''}`}>
                   <div
                     className="cursor-pointer bg-gradient-to-r from-background to-primary/5 p-4 transition-colors hover:bg-muted/30"
                     onClick={() => {
@@ -533,7 +533,7 @@ const PlayerDashboard = () => {
                       <div className="max-h-[420px] overflow-y-auto space-y-4 py-4 scrollbar-thin">
                         {thread.map(msg => (
                           <div key={msg.id} className={`flex ${msg.from_id === user.player_id ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[84%] rounded-[1.25rem] border p-4 shadow-sm ${msg.from_id === user.player_id ? 'bg-primary/10 border-primary/20' : 'bg-card border-border'}`}>
+                            <div className={`max-w-[84%] rounded-[1.25rem] border p-4 shadow-soft ${msg.from_id === user.player_id ? 'bg-primary/10 border-primary/20' : 'bg-card border-border'}`}>
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-xs font-semibold">{getDisplayName(msg.from_id)}</span>
                                 <span className="text-xs text-muted-foreground">{formatInIST(msg.timestamp || msg.date)}</span>

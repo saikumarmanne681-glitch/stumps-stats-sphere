@@ -7,7 +7,7 @@ interface DepartmentStatsWidgetProps {
 
 export function DepartmentStatsWidget({ widget }: DepartmentStatsWidgetProps) {
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-soft">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <span className="text-lg" aria-hidden>{widget.icon}</span>
