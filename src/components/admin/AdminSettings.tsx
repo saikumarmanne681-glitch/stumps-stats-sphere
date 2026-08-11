@@ -221,7 +221,7 @@ export function AdminSettings() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <Badge className={currentEnv === 'dev' ? 'bg-blue-600 text-white' : currentEnv === 'qa' ? 'bg-amber-500 text-black' : 'bg-primary text-primary-foreground'}>
+            <Badge className={currentEnv === 'dev' ? 'bg-info text-info-foreground' : currentEnv === 'qa' ? 'bg-warning text-warning-foreground' : 'bg-primary text-primary-foreground'}>
               {ENV_LABELS[currentEnv]}
             </Badge>
             <span className="text-sm text-muted-foreground">

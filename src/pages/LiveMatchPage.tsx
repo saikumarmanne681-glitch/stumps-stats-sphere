@@ -118,26 +118,26 @@ const LiveMatchPage = () => {
 
           {isLive && (
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-white p-4">
+              <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-card p-4">
                 <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary"><User2 className="h-3.5 w-3.5" /> Batters Live</div>
                 <div className="space-y-2">
                   {strikerRows.length > 0 ? strikerRows.map((entry) => (
-                    <div key={entry.id} className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2 text-sm">
+                    <div key={entry.id} className="flex items-center justify-between rounded-xl bg-card/85 px-3 py-2 text-sm">
                       <span>{entry.player_id}</span>
                       <span className="font-semibold text-primary">{entry.runs} ({entry.balls})</span>
                     </div>
-                  )) : <div className="rounded-xl bg-white/70 px-3 py-2 text-sm text-muted-foreground">Waiting for batting updates from score input.</div>}
+                  )) : <div className="rounded-xl bg-card/70 px-3 py-2 text-sm text-muted-foreground">Waiting for batting updates from score input.</div>}
                 </div>
               </div>
-              <div className="rounded-2xl border border-accent/30 bg-gradient-to-br from-accent/10 to-white p-4">
+              <div className="rounded-2xl border border-accent/30 bg-gradient-to-br from-accent/10 to-card p-4">
                 <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary"><Activity className="h-3.5 w-3.5" /> Current Bowler</div>
                 <div className="space-y-2">
                   {bowlerRows.length > 0 ? bowlerRows.map((entry) => (
-                    <div key={entry.id} className="rounded-xl bg-white/80 px-3 py-2 text-sm">
+                    <div key={entry.id} className="rounded-xl bg-card/85 px-3 py-2 text-sm">
                       <div className="flex items-center justify-between"><span>{entry.player_id}</span><span className="font-semibold text-primary">{entry.wickets}/{entry.runs_conceded}</span></div>
                       <div className="mt-1 text-xs text-muted-foreground">Overs: {entry.overs} • Economy: {entry.economy || 0} • Extras: {entry.extras || 0}</div>
                     </div>
-                  )) : <div className="rounded-xl bg-white/70 px-3 py-2 text-sm text-muted-foreground">Bowling figures will appear after the first scoring sync.</div>}
+                  )) : <div className="rounded-xl bg-card/70 px-3 py-2 text-sm text-muted-foreground">Bowling figures will appear after the first scoring sync.</div>}
                 </div>
               </div>
             </div>

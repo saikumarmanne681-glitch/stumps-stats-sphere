@@ -519,7 +519,7 @@ export default function VerificationPage() {
                     <CardDescription>Point your camera at a verification QR code.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <video ref={videoRef} className="w-full rounded-md border bg-black/90" muted playsInline />
+                    <video ref={videoRef} className="w-full rounded-md border bg-muted" muted playsInline />
                     {scannerMessage && <p className="text-sm text-muted-foreground">{scannerMessage}</p>}
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="default" onClick={startScanner} disabled={scannerBusy || scannerLive}>

@@ -48,7 +48,7 @@ export default function SeasonsOverviewPage() {
         </Select>
       </div>
       {seasonCards.length === 0 ? <p className='py-10 text-center text-muted-foreground'>No seasons found for the selected tournament.</p> : <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3'>
-        {seasonCards.map(({ season, tournament, totalMatches, completedMatches, liveMatches, teams }) => <Card key={season.season_id} className='flex h-full flex-col border-l-4 border-l-primary/60 bg-gradient-to-br from-white via-primary/5 to-accent/10 shadow-sm transition-all hover:shadow-lg'>
+        {seasonCards.map(({ season, tournament, totalMatches, completedMatches, liveMatches, teams }) => <Card key={season.season_id} className='flex h-full flex-col border-l-4 border-l-primary/60 bg-gradient-surface shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-elevated'>
           <CardContent className='flex h-full flex-col gap-3 p-5'>
             <div className='flex items-center justify-between'>
               <div className='flex items-center gap-2'><Trophy className='h-4 w-4 text-primary' /><span className='font-display text-lg font-bold'>{tournament?.name}</span></div>
@@ -60,7 +60,7 @@ export default function SeasonsOverviewPage() {
               <div className='rounded-lg bg-muted/50 p-2'><p className='text-lg font-bold text-primary'>{completedMatches}</p><p className='text-xs text-muted-foreground'>Completed</p></div>
               <div className='rounded-lg bg-muted/50 p-2'><p className='text-lg font-bold text-primary'>{teams}</p><p className='text-xs text-muted-foreground'>Teams</p></div>
             </div>
-            {liveMatches > 0 && <Badge className='bg-rose-500 text-white'>{liveMatches} Live</Badge>}
+            {liveMatches > 0 && <Badge variant='live'>{liveMatches} Live</Badge>}
             {hasSheetDate(season.start_date) && hasSheetDate(season.end_date) && <p className='text-xs text-muted-foreground'>{formatSheetDate(season.start_date, 'dd MMM')} – {formatSheetDate(season.end_date, 'dd MMM yyyy')}</p>}
             {(season.winner_team || season.runner_up_team) && (
               <div className='rounded-lg border bg-background/70 p-3 text-sm'>
@@ -68,7 +68,7 @@ export default function SeasonsOverviewPage() {
                 {season.runner_up_team && <p className='mt-1 flex items-center gap-2 text-muted-foreground'><Medal className='h-4 w-4' /> Runner-up: {season.runner_up_team}</p>}
               </div>
             )}
-            <div className='rounded-xl border bg-white/70 p-3'>
+            <div className='rounded-xl border border-primary/10 bg-card/80 p-3'>
               <div className='flex items-center justify-between gap-2'>
                 <div><p className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>Quick access</p><p className='text-sm font-medium'>Standings, tournament page and season anchor</p></div>
                 <Shield className='h-4 w-4 text-primary' />

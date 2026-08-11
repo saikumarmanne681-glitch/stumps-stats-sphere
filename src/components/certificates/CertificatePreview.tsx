@@ -395,7 +395,7 @@ export const CertificatePreview = memo(function CertificatePreview({
     }
   };
 
-  const statusColor = status === 'CERTIFIED' ? 'bg-emerald-600 text-white' : status === 'APPROVED' ? 'bg-emerald-500 text-white' : status === 'PENDING_APPROVAL' ? 'bg-amber-500 text-white' : status === 'REJECTED' ? 'bg-red-500 text-white' : 'bg-muted text-muted-foreground';
+  const statusColor = status === 'CERTIFIED' ? 'bg-primary text-primary-foreground' : status === 'APPROVED' ? 'bg-success text-success-foreground' : status === 'PENDING_APPROVAL' ? 'bg-warning text-warning-foreground' : status === 'REJECTED' ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground';
 
   /* Derive certificate sub-title label */
   const certTypeLabel = title.length <= 22 ? title : 'Achievement';
