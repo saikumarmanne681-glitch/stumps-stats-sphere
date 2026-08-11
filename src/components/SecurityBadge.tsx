@@ -51,7 +51,7 @@ export function SessionFingerprint() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/40 font-mono cursor-default select-none hover:text-muted-foreground/70 transition-colors">
+        <span className="inline-flex cursor-default select-none items-center gap-1 rounded-full border border-current/20 px-2 py-0.5 font-mono text-[10px] opacity-70 transition-opacity hover:opacity-100">
           <Fingerprint className="h-3 w-3" />
           {fp}
         </span>
