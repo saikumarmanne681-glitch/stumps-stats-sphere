@@ -28,7 +28,7 @@ export const NewsComposer = ({
   onPublish,
 }: NewsComposerProps) => {
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5 shadow-sm">
+    <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5 shadow-soft">
       <CardHeader>
         <CardTitle className="font-display text-2xl">Post a news update</CardTitle>
       </CardHeader>

@@ -19,32 +19,32 @@ export function VerticalAnnouncementsBox() {
   if (activeAnnouncements.length === 0) return null;
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/10 shadow-sm">
+    <Card className="border-primary/15 bg-gradient-surface shadow-soft animate-rise-in">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 font-display text-lg">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="flex items-center gap-2 font-display text-base sm:text-lg">
             <Newspaper className="h-5 w-5 text-primary" />
             All Announcements (Vertical Feed)
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="text-[11px]">
               {activeAnnouncements.length} active
             </Badge>
-            <Badge className="border-none bg-primary/10 text-[10px] text-primary">
+            <Badge variant="soft" className="text-[10px]">
               <PauseCircle className="mr-1 h-3 w-3" /> Hover pauses
             </Badge>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="max-h-64 overflow-hidden rounded-xl border border-primary/15 bg-background/70 p-3">
+        <div className="max-h-64 overflow-hidden rounded-xl border border-primary/15 bg-card/70 p-3">
           <div className="space-y-3 animate-vertical-news [animation-duration:28s] hover:[animation-play-state:paused]">
             {[...activeAnnouncements, ...activeAnnouncements].map((item, index) => (
-              <div key={`${item.id}-${index}`} className="rounded-lg border border-primary/10 bg-background/80 p-3 shadow-sm">
+              <div key={`${item.id}-${index}`} className="rounded-lg border border-primary/10 bg-card/85 p-3 shadow-soft">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold">{item.title}</p>
                   {index < activeAnnouncements.length && (
-                    <Badge className="h-5 border-none bg-primary/10 text-[10px] text-primary">
+                    <Badge variant="soft" className="h-5 text-[10px]">
                       Latest
                     </Badge>
                   )}

@@ -51,7 +51,7 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
       className={`group relative overflow-hidden transition-all duration-300 cursor-pointer active:scale-[0.98] ${
         isPremiumKnockout
           ? "border border-amber-300/70 bg-gradient-to-br from-amber-100/80 via-orange-50 to-rose-100/70 shadow-[0_8px_30px_-20px_rgba(194,65,12,0.6)] hover:shadow-[0_18px_40px_-24px_rgba(194,65,12,0.7)]"
-          : "border-l-4 border-l-primary hover:border-l-accent hover:shadow-lg"
+          : "border-l-4 border-l-primary hover:border-l-accent hover:shadow-elevated"
       }`}
       onClick={onClick}
     >
@@ -62,14 +62,14 @@ export function MatchCard({ match, tournament, season, players, batting = [], on
             <div className="absolute -left-12 bottom-2 h-36 w-36 rounded-full bg-gradient-to-tr from-rose-300/30 to-transparent blur-sm" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.45)_0%,transparent_35%),radial-gradient(circle_at_10%_85%,rgba(255,255,255,0.35)_0%,transparent_40%)]" />
           </div>
-          <div className="pointer-events-none absolute right-3 top-3 hidden rounded-full border border-amber-400/40 bg-white/65 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-800 backdrop-blur sm:flex sm:items-center sm:gap-1">
+          <div className="pointer-events-none absolute right-3 top-3 hidden rounded-full border border-amber-400/40 bg-card/70 px-2 py-1 text-[10px] font-semibold tracking-wide text-amber-800 backdrop-blur sm:flex sm:items-center sm:gap-1">
             <Sparkles className="h-3 w-3" /> Premium Fixture
           </div>
         </>
       )}
       <CardContent className="p-3 sm:p-4">
         {isPremiumKnockout && (
-          <div className="relative z-10 mb-3 rounded-xl border border-amber-300/70 bg-white/75 px-3 py-2 backdrop-blur">
+          <div className="relative z-10 mb-3 rounded-xl border border-amber-300/70 bg-card/80 px-3 py-2 backdrop-blur">
             <div className="flex items-center justify-between gap-2">
               <p className="font-display text-xs uppercase tracking-[0.2em] text-amber-900/80">{marqueeTitle}</p>
               <Trophy className="h-3.5 w-3.5 text-amber-700" />

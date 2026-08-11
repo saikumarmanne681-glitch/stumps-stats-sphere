@@ -80,7 +80,7 @@ const queryClient = new QueryClient({
 
 const RouteLoader = () => (
   <div className="flex min-h-[40vh] items-center justify-center px-4">
-    <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-card px-6 py-4 text-sm font-semibold text-muted-foreground shadow-sm">
+    <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-card px-6 py-4 text-sm font-semibold text-muted-foreground shadow-soft">
       <Loader2 className="h-4 w-4 animate-spin text-primary" />
       Loading...
     </div>
@@ -114,7 +114,7 @@ class RouteErrorBoundary extends Component<{ children: ReactNode }, RouteErrorBo
     if (this.state.hasError) {
       return (
         <div className="flex min-h-screen items-center justify-center px-4">
-          <div className="max-w-md rounded-2xl border border-destructive/20 bg-card p-6 text-center shadow-sm">
+          <div className="max-w-md rounded-2xl border border-destructive/20 bg-card p-6 text-center shadow-soft">
             <h1 className="text-lg font-semibold text-foreground">We couldn't load this page</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               A temporary update issue occurred while loading the app. Please retry.

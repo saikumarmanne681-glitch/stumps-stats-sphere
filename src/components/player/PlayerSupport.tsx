@@ -269,7 +269,7 @@ export function PlayerSupport({ playerId }: PlayerSupportProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {tickets.map((ticket) => (
-          <Card key={ticket.ticket_id} className="cursor-pointer hover:border-primary/40 transition-all hover:shadow-sm" onClick={() => setSelectedTicket(ticket)}>
+          <Card key={ticket.ticket_id} className="cursor-pointer hover:border-primary/40 transition-all hover:shadow-soft" onClick={() => setSelectedTicket(ticket)}>
             <CardContent className="p-4 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div>

@@ -414,7 +414,7 @@ export function AdminForms() {
                   const fieldStateKey = `${field.key}-${index}`;
                   const expanded = expandedFields[fieldStateKey] ?? index < 2;
                   return (
-                    <div key={fieldStateKey} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                    <div key={fieldStateKey} className="rounded-2xl border border-border bg-card p-4 shadow-soft">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <p className="font-medium">Field {index + 1}: {field.label || 'Untitled field'}</p>

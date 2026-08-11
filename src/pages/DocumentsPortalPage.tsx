@@ -697,7 +697,7 @@ export default function DocumentsPortalPage() {
           <CardContent>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
               {latestVisibleDocs.map((doc) => (
-                <div key={`scroll-${doc.document_id}`} className="min-w-[280px] rounded-xl border border-primary/20 bg-background/80 p-3 shadow-sm">
+                <div key={`scroll-${doc.document_id}`} className="min-w-[280px] rounded-xl border border-primary/20 bg-background/80 p-3 shadow-soft">
                   <p className="line-clamp-2 text-sm font-semibold">{doc.title}</p>
                   <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
                     <CalendarClock className="h-3.5 w-3.5" /> Updated {formatSheetDate(doc.updated_at, 'dd MMM yyyy', doc.updated_at)}

@@ -362,7 +362,7 @@ export default function VerificationPage() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto max-w-7xl px-4 py-8">
-        <Card className="mb-6 overflow-hidden border-primary/20 bg-gradient-to-r from-primary/15 via-background to-background shadow-sm">
+        <Card className="mb-6 overflow-hidden border-primary/20 bg-gradient-to-r from-primary/15 via-background to-background shadow-soft">
           <CardContent className="grid gap-6 p-6 md:grid-cols-[1.35fr_0.65fr] md:items-center">
             <div className="space-y-3">
               <Badge variant="secondary" className="w-fit border border-primary/30 bg-primary/10 text-foreground">
@@ -388,7 +388,7 @@ export default function VerificationPage() {
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <Card className="border-primary/20 shadow-sm transition-shadow duration-300 motion-reduce:transition-none hover:shadow-lg">
+          <Card className="border-primary/20 shadow-soft transition-shadow duration-300 motion-reduce:transition-none hover:shadow-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-primary" />
@@ -519,7 +519,7 @@ export default function VerificationPage() {
                     <CardDescription>Point your camera at a verification QR code.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <video ref={videoRef} className="w-full rounded-md border bg-black/90" muted playsInline />
+                    <video ref={videoRef} className="w-full rounded-md border bg-muted" muted playsInline />
                     {scannerMessage && <p className="text-sm text-muted-foreground">{scannerMessage}</p>}
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="default" onClick={startScanner} disabled={scannerBusy || scannerLive}>
@@ -600,7 +600,7 @@ export default function VerificationPage() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="h-fit border-primary/20 shadow-sm">
+            <Card className="h-fit border-primary/20 shadow-soft">
               <CardHeader>
                 <CardTitle className="text-lg">Guidance & Trust Center</CardTitle>
                 <CardDescription>Why we verify, what to upload, and what happens next.</CardDescription>

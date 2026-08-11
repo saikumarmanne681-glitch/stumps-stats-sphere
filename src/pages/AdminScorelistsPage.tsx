@@ -858,7 +858,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
               };
 
               return (
-                <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-white/95 p-3 md:p-4 before:pointer-events-none before:absolute before:inset-0 before:bg-[repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03)),repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03))] before:bg-[length:20px_20px] before:bg-[position:0_0,10px_10px]">
+                <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-card/95 p-3 md:p-4 before:pointer-events-none before:absolute before:inset-0 before:bg-[repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03)),repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03))] before:bg-[length:20px_20px] before:bg-[position:0_0,10px_10px]">
                   <div className="pointer-events-none absolute bottom-2 left-10 right-3 overflow-hidden whitespace-nowrap text-left font-mono text-[6px] uppercase tracking-[0.35em] text-primary/60 opacity-60">
                     {`${`${viewScorelist.scorelist_id} • ${viewScorelist.hash_digest} • `.repeat(10)}`}
                   </div>
@@ -1048,7 +1048,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                     <details className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4 md:p-5">
                       <summary className="cursor-pointer list-none text-sm font-semibold text-primary">Security & QR verification details</summary>
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6">
-                        <div className="rounded-xl border border-primary/20 bg-white p-3 shadow-sm" dangerouslySetInnerHTML={{ __html: renderVerificationQrMarkup(getPublicVerifyScorelistUrl(viewScorelist.scorelist_id), viewScorelist.scorelist_id, asDisplayText(viewScorelist.hash_digest, `NO-HASH-${viewScorelist.scorelist_id}`), 148) }} />
+                        <div className="rounded-xl border border-primary/20 bg-card p-3 shadow-soft" dangerouslySetInnerHTML={{ __html: renderVerificationQrMarkup(getPublicVerifyScorelistUrl(viewScorelist.scorelist_id), viewScorelist.scorelist_id, asDisplayText(viewScorelist.hash_digest, `NO-HASH-${viewScorelist.scorelist_id}`), 148) }} />
                         <div className="text-sm text-center sm:text-left">
                           <p className="font-semibold">Scan to Verify</p>
                           <p className="text-xs text-muted-foreground font-mono break-all max-w-[250px]">{getPublicVerifyScorelistUrl(viewScorelist.scorelist_id)}</p>
@@ -1058,7 +1058,7 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
 
                       <div className="grid gap-3 md:grid-cols-3 text-left">
                         {securityFeatureItems.map((feature) => (
-                          <div key={feature.title} className="rounded-lg border bg-background/90 p-3 shadow-sm">
+                          <div key={feature.title} className="rounded-lg border bg-background/90 p-3 shadow-soft">
                             <p className="text-xs font-semibold uppercase tracking-wide text-primary">{feature.title}</p>
                             <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
                           </div>

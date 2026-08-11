@@ -195,7 +195,7 @@ export function ApprovalPanel({ mode }: Props) {
     const isPending = certStatus === 'PENDING_APPROVAL';
 
     return (
-      <div key={certificate.id} className={`rounded-xl border p-4 transition-all duration-200 ${isSelected ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/30 hover:shadow-sm'}`}>
+      <div key={certificate.id} className={`rounded-xl border p-4 transition-all duration-200 ${isSelected ? 'border-primary bg-primary/5 shadow-md' : 'border-border hover:border-primary/30 hover:shadow-soft'}`}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
