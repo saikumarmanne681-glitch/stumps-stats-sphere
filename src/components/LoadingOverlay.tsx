@@ -18,7 +18,7 @@ export function OrbitLoader({ size = 96, className = '' }: { size?: number; clas
 /** Full page loading spinner */
 export function PageLoader({ message = 'Loading, please wait...' }: { message?: string }) {
   return (
-    <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-[2rem] border border-primary/12 bg-gradient-surface px-6 py-20 text-center shadow-elevated animate-fade-in">
+    <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-[2rem] border border-primary/10 bg-gradient-surface px-6 py-20 text-center shadow-elevated animate-fade-in">
       <div className="absolute inset-0 soft-dot-grid opacity-60" />
       <OrbitLoader className="relative" />
       <div className="relative mt-6 flex items-center gap-1.5">
@@ -97,7 +97,7 @@ export function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
 /** Inline loading indicator for actions */
 export function ActionLoader({ text = 'Processing...' }: { text?: string }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-sm text-muted-foreground shadow-soft">
+    <span className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-sm text-muted-foreground shadow-soft">
       <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
       <span>{text}</span>
     </span>

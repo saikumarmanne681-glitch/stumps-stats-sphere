@@ -18,9 +18,9 @@ export function ClosedAccessScreen({
   const reasonText = reason?.trim() || 'This section is temporarily unavailable. Please check back shortly.';
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden rounded-[1.75rem] border border-primary/12 bg-gradient-surface shadow-elevated">
+    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden rounded-[1.75rem] border border-primary/10 bg-gradient-surface shadow-elevated">
       <div className="pointer-events-none absolute inset-0 soft-dot-grid opacity-60" />
-      <div className="pointer-events-none absolute -left-20 top-0 h-64 w-64 rounded-full bg-primary/12 blur-3xl" />
+      <div className="pointer-events-none absolute -left-20 top-0 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 bottom-0 h-64 w-64 rounded-full bg-gold/15 blur-3xl" />
 
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-3xl flex-col items-center justify-center px-6 py-16 text-center">
@@ -34,7 +34,7 @@ export function ClosedAccessScreen({
 
         <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-foreground md:text-4xl">{title}</h1>
         <div className="mx-auto mt-4 h-0.5 w-24 gold-divider" />
-        <p className="mt-5 max-w-2xl rounded-2xl border border-primary/12 bg-card/80 px-5 py-4 text-sm text-muted-foreground shadow-soft md:text-base">
+        <p className="mt-5 max-w-2xl rounded-2xl border border-primary/10 bg-card/80 px-5 py-4 text-sm text-muted-foreground shadow-soft md:text-base">
           {reasonText}
         </p>
 

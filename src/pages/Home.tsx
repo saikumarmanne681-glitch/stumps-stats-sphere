@@ -81,7 +81,7 @@ const Home = () => {
 
       <div className="container mx-auto px-4 py-8 space-y-10">
         {loading && (
-          <div className="flex items-center gap-3 rounded-2xl border border-primary/12 bg-card/80 px-4 py-3 text-sm text-muted-foreground shadow-soft">
+          <div className="flex items-center gap-3 rounded-2xl border border-primary/10 bg-card/80 px-4 py-3 text-sm text-muted-foreground shadow-soft">
             <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
             Loading latest data, please wait...
           </div>
@@ -115,7 +115,7 @@ const Home = () => {
               )}
             </div>
           </div>
-          <div className="mb-5 grid gap-3 rounded-2xl border border-primary/12 bg-card/80 p-4 shadow-soft lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+          <div className="mb-5 grid gap-3 rounded-2xl border border-primary/10 bg-card/80 p-4 shadow-soft lg:grid-cols-[1fr_1fr_auto] lg:items-end">
             <Select value={filterTournament} onValueChange={(v) => { setFilterTournament(v); setFilterSeason("all"); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Tournament" />
@@ -190,7 +190,7 @@ const Home = () => {
               </Button>
             </div>
           </div>
-          <div className="mb-4 inline-flex rounded-full border border-primary/15 bg-primary/8 p-1.5 shadow-soft">
+          <div className="mb-4 inline-flex rounded-full border border-primary/15 bg-primary/10 p-1.5 shadow-soft">
             <Button
               size="sm"
               variant={!showAllMatches ? "default" : "ghost"}

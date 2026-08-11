@@ -29,7 +29,7 @@ export function PageHeader({ route, title, subtitle, className }: PageHeaderProp
   const logoName = meta?.logoName || departmentLogoById[meta?.departmentId || ''] || 'main-logo';
 
   return (
-    <div className={cn('relative overflow-hidden rounded-[1.75rem] border border-primary/12 bg-gradient-surface px-4 py-7 shadow-soft animate-rise-in md:px-8 md:py-9', className)}>
+    <div className={cn('relative overflow-hidden rounded-[1.75rem] border border-primary/10 bg-gradient-surface px-4 py-7 shadow-soft animate-rise-in md:px-8 md:py-9', className)}>
       <span className="pointer-events-none absolute inset-0 soft-dot-grid opacity-50" />
       <span className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
       <span className="pointer-events-none absolute -right-12 -top-10 h-40 w-40 rounded-full bg-gold/15 blur-3xl" />

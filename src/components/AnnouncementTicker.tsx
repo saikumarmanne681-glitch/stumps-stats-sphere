@@ -64,7 +64,7 @@ export function AnnouncementTicker() {
 
         {/* Right badges — desktop only */}
         <div className="hidden md:flex shrink-0 items-center gap-1.5 mr-3">
-          <Badge className="border-none bg-primary-foreground/12 text-primary-foreground text-[9px] h-5">
+          <Badge className="border-none bg-primary-foreground/10 text-primary-foreground text-[9px] h-5">
             <Shield className="mr-0.5 h-2.5 w-2.5" /> Verified
           </Badge>
         </div>

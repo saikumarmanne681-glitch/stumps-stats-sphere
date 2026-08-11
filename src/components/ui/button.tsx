@@ -11,19 +11,19 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-soft hover:-translate-y-0.5 hover:bg-primary/92 hover:shadow-glow",
+          "bg-primary text-primary-foreground shadow-soft hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-glow",
         premium:
           "bg-gradient-primary text-primary-foreground shadow-glow hover:-translate-y-0.5 hover:shadow-elevated before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-gold-light/45 before:to-transparent before:transition-transform before:duration-700 hover:before:translate-x-full",
         gold:
           "bg-gradient-gold text-accent-foreground shadow-gold hover:-translate-y-0.5 hover:brightness-105",
         soft:
-          "bg-primary/10 text-primary hover:bg-primary/16 hover:-translate-y-0.5",
+          "bg-primary/10 text-primary hover:bg-primary/15 hover:-translate-y-0.5",
         glass:
           "border border-primary/15 bg-card/70 text-foreground backdrop-blur-md shadow-soft hover:-translate-y-0.5 hover:border-primary/30",
         destructive:
           "bg-destructive text-destructive-foreground shadow-soft hover:bg-destructive/90 hover:-translate-y-0.5",
         outline:
-          "border border-primary/20 bg-card/70 text-foreground hover:border-primary/40 hover:bg-primary/8 hover:-translate-y-0.5",
+          "border border-primary/20 bg-card/70 text-foreground hover:border-primary/40 hover:bg-primary/10 hover:-translate-y-0.5",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:-translate-y-0.5",
         ghost: "text-foreground hover:bg-primary/10 hover:text-primary",
