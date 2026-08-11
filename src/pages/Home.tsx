@@ -47,17 +47,24 @@ const Home = () => {
       <Navbar />
       <AnnouncementTicker />
 
-      <section className="bg-gradient-to-br from-primary to-primary/80 py-16 px-4">
-        <div className="container mx-auto text-center">
-          <h1 className="font-display text-4xl md:text-6xl font-bold text-primary-foreground mb-4">
-            Stumps Stats Sphere
+      <section className="relative overflow-hidden hero-surface px-4 py-16 md:py-20">
+        <span className="pointer-events-none absolute inset-0 opacity-30 mandala-sports-bg" />
+        <span className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-gold/20 blur-3xl animate-float" />
+        <span className="pointer-events-none absolute -right-16 bottom-0 h-64 w-64 rounded-full bg-primary-foreground/10 blur-3xl" />
+        <div className="container relative mx-auto text-center">
+          <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary-foreground/90 backdrop-blur animate-fade-in">
+            <Sparkles className="h-3.5 w-3.5" /> Premium Cricket Intelligence
+          </span>
+          <h1 className="mb-4 font-display text-4xl font-extrabold tracking-tight text-primary-foreground animate-rise-in md:text-6xl">
+            Stumps <span className="text-gradient-gold">Stats</span> Sphere
           </h1>
-          <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto">
+          <div className="mx-auto mb-5 h-0.5 w-28 gold-divider" />
+          <p className="mx-auto max-w-xl text-base text-primary-foreground/85 animate-rise-in md:text-lg">
             Unified platform for cricket operations, scoring, player management, certificates, and community workflows.
           </p>
-          <div className="flex justify-center gap-2 mt-6 flex-wrap">
-            {tournaments.map((t) => (
-              <Badge key={t.tournament_id} variant="secondary" className="text-sm">
+          <div className="mt-7 flex flex-wrap justify-center gap-2">
+            {tournaments.map((t, i) => (
+              <Badge key={t.tournament_id} variant="outline" className="animate-scale-in border-primary-foreground/25 bg-primary-foreground/10 text-sm text-primary-foreground backdrop-blur" style={{ animationDelay: `${i * 60}ms` }}>
                 {t.name} • {t.format}
               </Badge>
             ))}
@@ -74,19 +81,20 @@ const Home = () => {
 
       <div className="container mx-auto px-4 py-8 space-y-10">
         {loading && (
-          <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3 rounded-2xl border border-primary/12 bg-card/80 px-4 py-3 text-sm text-muted-foreground shadow-soft">
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
             Loading latest data, please wait...
           </div>
         )}
         {!navigator.onLine && (
-          <div className="rounded-md border border-amber-400/40 bg-amber-100/40 px-4 py-3 text-sm text-amber-900">
+          <div className="rounded-2xl border border-warning/35 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
             You are offline. Showing last available data snapshot.
           </div>
         )}
         <VerticalAnnouncementsBox />
 
         {/* Leaderboards */}
-        <section className="rounded-3xl border border-primary/10 bg-gradient-to-br from-background via-primary/5 to-accent/5 p-5 md:p-6">
+        <section className="section-shell animate-rise-in">
           <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h2 className="font-display text-2xl font-bold">🏆 Leaderboards</h2>
             <div className="flex flex-wrap items-center gap-2">
@@ -107,7 +115,7 @@ const Home = () => {
               )}
             </div>
           </div>
-          <div className="mb-5 grid gap-3 rounded-2xl border border-primary/15 bg-background/80 p-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+          <div className="mb-5 grid gap-3 rounded-2xl border border-primary/12 bg-card/80 p-4 shadow-soft lg:grid-cols-[1fr_1fr_auto] lg:items-end">
             <Select value={filterTournament} onValueChange={(v) => { setFilterTournament(v); setFilterSeason("all"); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Tournament" />
@@ -148,7 +156,7 @@ const Home = () => {
           />
         </section>
 
-        <section className="rounded-3xl border border-primary/10 bg-gradient-to-r from-primary/5 via-accent/10 to-primary/5 px-6 py-5">
+        <section className="section-shell animate-rise-in">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="font-display text-2xl font-bold">📋 Seasons Overview moved to its own page</h2>
@@ -161,7 +169,7 @@ const Home = () => {
         </section>
 
         {/* Matches */}
-        <section className="rounded-3xl border border-primary/10 bg-gradient-to-br from-background via-background to-primary/5 p-5 md:p-6">
+        <section className="section-shell animate-rise-in">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             <div>
               <h2 className="font-display text-2xl font-bold">📅 {showAllMatches ? "All Matches" : "Latest Matches"}</h2>
@@ -182,7 +190,7 @@ const Home = () => {
               </Button>
             </div>
           </div>
-          <div className="mb-4 inline-flex rounded-full border border-primary/20 bg-primary/5 p-1">
+          <div className="mb-4 inline-flex rounded-full border border-primary/15 bg-primary/8 p-1.5 shadow-soft">
             <Button
               size="sm"
               variant={!showAllMatches ? "default" : "ghost"}
@@ -201,7 +209,8 @@ const Home = () => {
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {displayMatches.map((match) => (
+            {displayMatches.map((match, i) => (
+              <div key={match.match_id} className="animate-rise-in" style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}>
               <MatchCard
                 key={match.match_id}
                 match={match}
@@ -211,6 +220,7 @@ const Home = () => {
                 batting={batting}
                 onClick={() => handleMatchClick(match)}
               />
+              </div>
             ))}
           </div>
           {displayMatches.length === 0 && <p className="text-muted-foreground text-center py-8">No matches found.</p>}
@@ -232,7 +242,7 @@ const Home = () => {
         }
       />
 
-      <footer className="bg-card border-t py-6 mt-8">
+      <footer className="mt-10 border-t border-primary/10 bg-card/80 py-7 backdrop-blur">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-2"><Logo name="main-logo" size={24} alt="Stumps Stats Sphere logo" /> © Stumps Stats Sphere</span> · Last data refresh: {lastRefresh ? `${formatInIST(lastRefresh)} IST` : 'N/A'}.
         </div>
