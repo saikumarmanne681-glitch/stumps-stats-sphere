@@ -162,7 +162,7 @@ const Home = () => {
               <h2 className="font-display text-2xl font-bold">📋 Seasons Overview moved to its own page</h2>
               <p className="text-sm text-muted-foreground">Home now stays focused on leaderboards and latest matches. Open the dedicated seasons hub for tournament-season browsing.</p>
             </div>
-            <Button asChild>
+            <Button asChild variant="premium" className="shrink-0">>
               <Link to="/seasons">Open Seasons Overview</Link>
             </Button>
           </div>
