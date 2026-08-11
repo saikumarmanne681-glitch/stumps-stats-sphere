@@ -16,7 +16,7 @@ export function Navbar() {
     const close = () => mobile && setOpen(false);
     const base = mobile
       ? 'w-full justify-start text-sm h-10'
-      : 'h-9 text-xs px-2.5 md:text-sm';
+      : 'h-9 rounded-full px-3 text-xs md:text-[13px]';
     const MobileSection = ({ title, children }: { title: string; children?: ReactNode }) => (
       <>
         <p className="px-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
@@ -135,13 +135,14 @@ export function Navbar() {
   };
 
   return (
-    <nav className="bg-card border-b shadow-sm sticky top-0 z-40">
-      <div className="container mx-auto px-3 md:px-4 flex items-center justify-between min-h-14 py-2 gap-2">
+    <nav className="sticky top-0 z-40 border-b border-primary/10 bg-card/85 shadow-soft backdrop-blur-xl">
+      <span className="absolute inset-x-0 bottom-0 h-px bg-gradient-gold opacity-60" />
+      <div className="container relative mx-auto flex min-h-14 items-center justify-between gap-2 px-3 py-2 md:px-4">
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <Logo name="main-logo" size={40} className="hidden lg:block h-10 w-10" />
           <Logo name="main-logo" size={36} className="hidden md:block lg:hidden h-9 w-9" />
           <Logo name="main-logo" size={32} className="md:hidden h-8 w-8" />
-          <span className="font-display text-sm sm:text-base md:text-lg font-bold text-primary leading-none">Stumps Stats Sphere</span>
+          <span className="font-display text-sm font-extrabold leading-none tracking-tight text-primary sm:text-base md:text-lg">Stumps Stats Sphere</span>
         </Link>
 
         <CommandPalette />
@@ -157,7 +158,7 @@ export function Navbar() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72 pt-10 px-4">
+            <SheetContent side="right" className="w-[88vw] max-w-sm border-l border-primary/10 bg-gradient-surface px-4 pt-10">
               <NavItems mobile />
             </SheetContent>
           </Sheet>
