@@ -337,11 +337,12 @@ export function CommandPalette() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="hidden md:flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm text-muted-foreground hover:text-foreground"
+        className="hidden h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-primary/15 bg-muted/50 px-3 text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary-soft hover:text-primary lg:flex"
       >
         <Search className="h-4 w-4" />
-        Search or run command
-        <span className="rounded border bg-muted px-1.5 py-0.5 text-xs">⌘/Ctrl+K</span>
+        <span className="hidden xl:inline">Search or run command</span>
+        <span className="xl:hidden">Search</span>
+        <span className="hidden rounded-full border border-primary/15 bg-card px-1.5 py-0.5 text-[10px] xl:inline">⌘K</span>
       </button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>

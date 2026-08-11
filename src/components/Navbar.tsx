@@ -16,7 +16,7 @@ export function Navbar() {
     const close = () => mobile && setOpen(false);
     const base = mobile
       ? 'w-full justify-start text-sm h-10'
-      : 'h-9 rounded-full px-3 text-xs md:text-[13px]';
+      : 'h-9 shrink-0 whitespace-nowrap rounded-full px-2.5 text-xs xl:px-3 xl:text-[13px]';
     const MobileSection = ({ title, children }: { title: string; children?: ReactNode }) => (
       <>
         <p className="px-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
@@ -25,7 +25,7 @@ export function Navbar() {
     );
 
     return (
-      <div className={mobile ? 'flex flex-col gap-1 overflow-y-auto max-h-[78vh] pb-4' : 'flex items-center gap-1 flex-wrap'}>
+      <div className={mobile ? 'flex flex-col gap-1 overflow-y-auto max-h-[78vh] pb-4' : 'flex items-center gap-1 flex-nowrap'}>
         {mobile && (
           <Button variant="outline" size="sm" className={base} onClick={() => { close(); window.dispatchEvent(new CustomEvent('open-command-palette')); }}>
             <Search className="h-4 w-4 mr-2" /> Search / Commands
@@ -147,7 +147,7 @@ export function Navbar() {
 
         <CommandPalette />
 
-        <div className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-thin max-w-[72vw] py-0.5">
+        <div className="hidden min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto scrollbar-thin py-0.5 md:flex">
           <NavItems />
         </div>
 
