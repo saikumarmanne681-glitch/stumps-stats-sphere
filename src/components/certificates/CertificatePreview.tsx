@@ -325,6 +325,14 @@ export const CertificatePreview = memo(function CertificatePreview({
   }, [id, verificationUrl]);
   const detailLines = useMemo(() => detailLinesFrom(certificate.details_json), [certificate.details_json]);
   const performanceLines = useMemo(() => detailLinesFrom(certificate.performance_json), [certificate.performance_json]);
+  // Decorative guilloche engraving — presentation only, never part of verification data.
+  const guilloche = useMemo(() => buildGuillocheLayer({
+    seed: `${id}|${verificationCode || recipient}`,
+    color: theme.outerBorder,
+    accentColor: theme.accentColor || theme.innerBorder,
+    opacity: 0.2,
+    size: 280,
+  }), [id, verificationCode, recipient, theme.outerBorder, theme.accentColor, theme.innerBorder]);
 
   useEffect(() => {
     const templateId = String(certificate.template_id || '').trim();
