@@ -467,6 +467,35 @@ export const CertificatePreview = memo(function CertificatePreview({
                   borderRadius: '4px',
                 }}
               >
+                {/* Guilloche engraving (decorative) */}
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'none',
+                    backgroundImage: `url("${guilloche.dataUri}")`,
+                    backgroundRepeat: 'repeat',
+                    backgroundSize: '280px 280px',
+                    opacity: 0.75,
+                  }}
+                />
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    width: '520px',
+                    height: '520px',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                    backgroundImage: `url("${guilloche.rosetteDataUri}")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: 'contain',
+                    opacity: 0.35,
+                  }}
+                />
                 {!theme.simplifyOrnaments && (
                   <>
                     {/* Scalloped decorative border */}
