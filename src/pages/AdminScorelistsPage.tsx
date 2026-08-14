@@ -510,7 +510,15 @@ const AdminScorelistsPage = () => {
       enableSecurePattern: true,
     });
 
+    // Decorative only — never used in hashing/signing/verification.
+    const guilloche = buildGuillocheLayer({
+      seed: `${sl.scorelist_id}|${normalizedHashDigest}`,
+      opacity: 0.2,
+      size: 300,
+    });
+
     const html = `<!DOCTYPE html><html><head><title>Scorelist ${sl.scorelist_id}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>* { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; } body{font-family:Arial,sans-serif;margin:40px 136px 54px 136px;color:#1a1a1a;position:relative;background-color:#fff;background-image:repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03)), repeating-linear-gradient(45deg, rgba(30, 107, 58, 0.03) 25%, transparent 25%, transparent 75%, rgba(30, 107, 58, 0.03) 75%, rgba(30, 107, 58, 0.03));background-size:20px 20px;background-position:0 0,10px 10px}h1{text-align:center;color:#1e6b3a}h2{color:#1e6b3a;border-bottom:2px solid #1e6b3a;padding-bottom:4px}
 table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,255,0.94)}th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px}th{background:#f0f7f0;text-align:left}
 .scoreboard{display:flex;justify-content:space-around;text-align:center;background:rgba(240,247,240,0.96);padding:20px;border-radius:8px;margin:20px 0;border:1px solid rgba(30,107,58,0.14)}
