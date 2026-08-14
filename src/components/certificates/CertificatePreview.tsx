@@ -12,6 +12,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 import { formatInIST } from '@/lib/time';
 import { Logo } from '@/components/Logo';
+import { buildGuillocheLayer } from '@/lib/guillochePattern';
 
 interface Props {
   certificate: Partial<CertificateRecord>;
@@ -325,6 +326,14 @@ export const CertificatePreview = memo(function CertificatePreview({
   }, [id, verificationUrl]);
   const detailLines = useMemo(() => detailLinesFrom(certificate.details_json), [certificate.details_json]);
   const performanceLines = useMemo(() => detailLinesFrom(certificate.performance_json), [certificate.performance_json]);
+  // Decorative guilloche engraving — presentation only, never part of verification data.
+  const guilloche = useMemo(() => buildGuillocheLayer({
+    seed: `${id}|${verificationCode || recipient}`,
+    color: theme.outerBorder,
+    accentColor: theme.accentColor || theme.innerBorder,
+    opacity: 0.2,
+    size: 280,
+  }), [id, verificationCode, recipient, theme.outerBorder, theme.accentColor, theme.innerBorder]);
 
   useEffect(() => {
     const templateId = String(certificate.template_id || '').trim();
@@ -458,6 +467,19 @@ export const CertificatePreview = memo(function CertificatePreview({
                   borderRadius: '4px',
                 }}
               >
+                {/* Guilloche engraving (decorative) */}
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'none',
+                    backgroundImage: `url("${guilloche.dataUri}")`,
+                    backgroundRepeat: 'repeat',
+                    backgroundSize: '280px 280px',
+                    opacity: 0.75,
+                  }}
+                />
                 {!theme.simplifyOrnaments && (
                   <>
                     {/* Scalloped decorative border */}
@@ -500,7 +522,10 @@ export const CertificatePreview = memo(function CertificatePreview({
                   left: theme.simplifyOrnaments ? '6%' : '32px',
                   right: theme.simplifyOrnaments ? '6%' : '32px',
                   bottom: theme.simplifyOrnaments ? '10%' : '32px',
-                  background: theme.simplifyOrnaments ? 'rgba(255,255,255,0.92)' : theme.centerBg,
+                  backgroundColor: theme.simplifyOrnaments ? 'rgba(255,255,255,0.92)' : theme.centerBg,
+                  backgroundImage: `url("${guilloche.dataUri}")`,
+                  backgroundRepeat: 'repeat',
+                  backgroundSize: '280px 280px',
                   display: 'flex',
                   flexDirection: 'column',
                   boxSizing: 'border-box',
