@@ -546,6 +546,18 @@ export const CertificatePreview = memo(function CertificatePreview({
                   border: theme.simplifyOrnaments ? `1px solid ${theme.outerBorder}22` : undefined,
                   boxShadow: theme.simplifyOrnaments ? '0 8px 28px rgba(11, 61, 130, 0.08)' : undefined,
                 }}>
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      pointerEvents: 'none',
+                      backgroundImage: `url("${guilloche.dataUri}")`,
+                      backgroundRepeat: 'repeat',
+                      backgroundSize: '280px 280px',
+                      opacity: 0.4,
+                    }}
+                  />
                   {!theme.simplifyOrnaments && (
                     <>
                       <DiamondGridOverlay color={theme.outerBorder} />
