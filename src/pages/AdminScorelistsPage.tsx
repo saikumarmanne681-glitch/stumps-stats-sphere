@@ -865,6 +865,12 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
               const match = payload?.match;
               const roadmap = getScorelistRoadmap(viewScorelist, managementUsers);
               const detailedStatus = getScorelistDetailedStatus(viewScorelist, managementUsers);
+              // Decorative guilloche (presentation only, no security impact)
+              const previewGuilloche = buildGuillocheLayer({
+                seed: `${viewScorelist.scorelist_id}|${viewScorelist.hash_digest || ''}`,
+                opacity: 0.18,
+                size: 260,
+              });
               const calcScore = (team: string) => {
                 const rows = (payload?.battingData || []).filter((b: any) => b.team === team);
                 const runs = rows.reduce((s: number, b: any) => s + (b.runs || 0), 0);
