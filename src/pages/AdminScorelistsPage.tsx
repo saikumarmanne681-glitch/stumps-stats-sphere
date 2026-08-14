@@ -15,6 +15,7 @@ import { DigitalScorelist, CertificationApproval, ManagementUser } from '@/lib/v
 import { getScorelistDetailedStatus, getScorelistRoadmap, readScorelistCertifications, resolveStageFromDesignation, scorelistStageLabels, scorelistStageOrder } from '@/lib/workflowStatus';
 import { verifyScorelist, exportScorelistAsJSON, generateMatchScorelist, generateTournamentScorelist } from '@/lib/scorelist';
 import { buildSecurePatternLayer } from '@/lib/scorelistSecurePattern';
+import { buildGuillocheLayer } from '@/lib/guillochePattern';
 import { sendScorelistApprovalRequestBulk, getAdminNotificationRecipient, explainMailFailure } from '@/lib/mailer';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ShieldCheck, ShieldX, Lock, Eye, Download, CheckCircle, FileText } from 'lucide-react';
