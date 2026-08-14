@@ -12,6 +12,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 import { formatInIST } from '@/lib/time';
 import { Logo } from '@/components/Logo';
+import { buildGuillocheLayer } from '@/lib/guillochePattern';
 
 interface Props {
   certificate: Partial<CertificateRecord>;
