@@ -331,9 +331,11 @@ export const CertificatePreview = memo(function CertificatePreview({
     seed: `${id}|${verificationCode || recipient}`,
     color: theme.outerBorder,
     accentColor: theme.accentColor || theme.innerBorder,
-    opacity: 0.2,
+    opacity: 0.36,
     size: 280,
+    idText: String(id || ''),
   }), [id, verificationCode, recipient, theme.outerBorder, theme.accentColor, theme.innerBorder]);
+
 
   useEffect(() => {
     const templateId = String(certificate.template_id || '').trim();
