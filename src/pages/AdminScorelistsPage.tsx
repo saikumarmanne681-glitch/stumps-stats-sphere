@@ -513,9 +513,11 @@ const AdminScorelistsPage = () => {
     // Decorative only — never used in hashing/signing/verification.
     const guilloche = buildGuillocheLayer({
       seed: `${sl.scorelist_id}|${normalizedHashDigest}`,
-      opacity: 0.2,
+      opacity: 0.36,
       size: 300,
+      idText: String(sl.scorelist_id || ''),
     });
+
 
     const html = `<!DOCTYPE html><html><head><title>Scorelist ${sl.scorelist_id}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
