@@ -479,9 +479,46 @@ export const CertificatePreview = memo(function CertificatePreview({
                     backgroundImage: `url("${guilloche.dataUri}")`,
                     backgroundRepeat: 'repeat',
                     backgroundSize: '280px 280px',
-                    opacity: 0.75,
+                    opacity: 1,
                   }}
                 />
+                {/* Semi-visible certificate ID engraving */}
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'none',
+                    backgroundImage: `url("${guilloche.idLayerDataUri}")`,
+                    backgroundRepeat: 'repeat',
+                    backgroundSize: '420px 420px',
+                    opacity: 0.95,
+                  }}
+                />
+                {/* Corner rosette medallions */}
+                {[
+                  { top: '26px', left: '26px' },
+                  { top: '26px', right: '26px' },
+                  { bottom: '26px', left: '26px' },
+                  { bottom: '26px', right: '26px' },
+                ].map((pos, index) => (
+                  <div
+                    key={`rosette-${index}`}
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      ...pos,
+                      width: '150px',
+                      height: '150px',
+                      pointerEvents: 'none',
+                      backgroundImage: `url("${guilloche.rosetteDataUri}")`,
+                      backgroundSize: 'contain',
+                      backgroundRepeat: 'no-repeat',
+                      opacity: 0.8,
+                    }}
+                  />
+                ))}
+
                 {!theme.simplifyOrnaments && (
                   <>
                     {/* Scalloped decorative border */}
