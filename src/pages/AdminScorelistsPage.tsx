@@ -893,15 +893,26 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                 <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-card/95 p-3 md:p-4 before:pointer-events-none before:absolute before:inset-0 before:bg-[repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03)),repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03))] before:bg-[length:20px_20px] before:bg-[position:0_0,10px_10px]">
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-0 opacity-80"
+                    className="pointer-events-none absolute inset-0 z-0"
                     style={{ backgroundImage: `url("${previewGuilloche.dataUri}")`, backgroundRepeat: 'repeat', backgroundSize: '260px 260px' }}
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 z-0"
+                    style={{ backgroundImage: `url("${previewGuilloche.idLayerDataUri}")`, backgroundRepeat: 'repeat', backgroundSize: '380px 380px' }}
                   />
                   <div aria-hidden="true" className="pointer-events-none absolute inset-2 z-0 rounded-xl border border-primary/25 shadow-[inset_0_0_0_3px_rgba(255,255,255,0.55),inset_0_0_0_4px_rgba(176,141,55,0.28)]" />
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute left-3 top-3 z-0 hidden h-24 w-24 opacity-60 sm:block"
+                    className="pointer-events-none absolute left-3 top-3 z-0 hidden h-28 w-28 opacity-80 sm:block"
                     style={{ backgroundImage: `url("${previewGuilloche.rosetteDataUri}")`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }}
                   />
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-3 right-3 z-0 hidden h-28 w-28 opacity-80 sm:block"
+                    style={{ backgroundImage: `url("${previewGuilloche.rosetteDataUri}")`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }}
+                  />
+
                   <div className="pointer-events-none absolute bottom-2 left-10 right-3 overflow-hidden whitespace-nowrap text-left font-mono text-[6px] uppercase tracking-[0.35em] text-primary/60 opacity-60">
                     {`${`${viewScorelist.scorelist_id} • ${viewScorelist.hash_digest} • `.repeat(10)}`}
                   </div>
