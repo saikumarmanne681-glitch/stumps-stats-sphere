@@ -875,9 +875,11 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
               // Decorative guilloche (presentation only, no security impact)
               const previewGuilloche = buildGuillocheLayer({
                 seed: `${viewScorelist.scorelist_id}|${viewScorelist.hash_digest || ''}`,
-                opacity: 0.18,
+                opacity: 0.34,
                 size: 260,
+                idText: String(viewScorelist.scorelist_id || ''),
               });
+
               const calcScore = (team: string) => {
                 const rows = (payload?.battingData || []).filter((b: any) => b.team === team);
                 const runs = rows.reduce((s: number, b: any) => s + (b.runs || 0), 0);
