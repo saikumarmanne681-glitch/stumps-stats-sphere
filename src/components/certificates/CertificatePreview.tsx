@@ -12,7 +12,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { getPublicVerifyCertificateUrl } from '@/lib/publicUrl';
 import { formatInIST } from '@/lib/time';
 import { Logo } from '@/components/Logo';
-import { buildGuillocheLayer } from '@/lib/guillochePattern';
 
 interface Props {
   certificate: Partial<CertificateRecord>;
@@ -326,16 +325,6 @@ export const CertificatePreview = memo(function CertificatePreview({
   }, [id, verificationUrl]);
   const detailLines = useMemo(() => detailLinesFrom(certificate.details_json), [certificate.details_json]);
   const performanceLines = useMemo(() => detailLinesFrom(certificate.performance_json), [certificate.performance_json]);
-  // Decorative guilloche engraving — presentation only, never part of verification data.
-  const guilloche = useMemo(() => buildGuillocheLayer({
-    seed: `${id}|${verificationCode || recipient}`,
-    color: theme.outerBorder,
-    accentColor: theme.accentColor || theme.innerBorder,
-    opacity: 0.36,
-    size: 280,
-    idText: String(id || ''),
-  }), [id, verificationCode, recipient, theme.outerBorder, theme.accentColor, theme.innerBorder]);
-
 
   useEffect(() => {
     const templateId = String(certificate.template_id || '').trim();
@@ -469,56 +458,6 @@ export const CertificatePreview = memo(function CertificatePreview({
                   borderRadius: '4px',
                 }}
               >
-                {/* Guilloche engraving (decorative) */}
-                <div
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    pointerEvents: 'none',
-                    backgroundImage: `url("${guilloche.dataUri}")`,
-                    backgroundRepeat: 'repeat',
-                    backgroundSize: '280px 280px',
-                    opacity: 1,
-                  }}
-                />
-                {/* Semi-visible certificate ID engraving */}
-                <div
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    pointerEvents: 'none',
-                    backgroundImage: `url("${guilloche.idLayerDataUri}")`,
-                    backgroundRepeat: 'repeat',
-                    backgroundSize: '420px 420px',
-                    opacity: 0.95,
-                  }}
-                />
-                {/* Corner rosette medallions */}
-                {[
-                  { top: '26px', left: '26px' },
-                  { top: '26px', right: '26px' },
-                  { bottom: '26px', left: '26px' },
-                  { bottom: '26px', right: '26px' },
-                ].map((pos, index) => (
-                  <div
-                    key={`rosette-${index}`}
-                    aria-hidden="true"
-                    style={{
-                      position: 'absolute',
-                      ...pos,
-                      width: '150px',
-                      height: '150px',
-                      pointerEvents: 'none',
-                      backgroundImage: `url("${guilloche.rosetteDataUri}")`,
-                      backgroundSize: 'contain',
-                      backgroundRepeat: 'no-repeat',
-                      opacity: 0.8,
-                    }}
-                  />
-                ))}
-
                 {!theme.simplifyOrnaments && (
                   <>
                     {/* Scalloped decorative border */}
@@ -561,11 +500,7 @@ export const CertificatePreview = memo(function CertificatePreview({
                   left: theme.simplifyOrnaments ? '6%' : '32px',
                   right: theme.simplifyOrnaments ? '6%' : '32px',
                   bottom: theme.simplifyOrnaments ? '10%' : '32px',
-                  backgroundColor: theme.simplifyOrnaments ? 'rgba(255,255,255,0.92)' : theme.centerBg,
-                  backgroundImage: `url("${guilloche.idLayerDataUri}"), url("${guilloche.dataUri}")`,
-                  backgroundRepeat: 'repeat, repeat',
-                  backgroundSize: '420px 420px, 280px 280px',
-
+                  background: theme.simplifyOrnaments ? 'rgba(255,255,255,0.92)' : theme.centerBg,
                   display: 'flex',
                   flexDirection: 'column',
                   boxSizing: 'border-box',
