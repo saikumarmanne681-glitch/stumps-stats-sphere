@@ -513,9 +513,11 @@ const AdminScorelistsPage = () => {
     // Decorative only — never used in hashing/signing/verification.
     const guilloche = buildGuillocheLayer({
       seed: `${sl.scorelist_id}|${normalizedHashDigest}`,
-      opacity: 0.2,
+      opacity: 0.36,
       size: 300,
+      idText: String(sl.scorelist_id || ''),
     });
+
 
     const html = `<!DOCTYPE html><html><head><title>Scorelist ${sl.scorelist_id}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -542,16 +544,21 @@ table{width:100%;border-collapse:collapse;margin:10px 0;background:rgba(255,255,
   .microtext{position:fixed;left:24px;right:108px;bottom:10px;overflow:hidden;white-space:nowrap;text-align:left;font-size:6px;letter-spacing:2px;color:rgba(10,89,52,0.6);opacity:0.5;pointer-events:none;z-index:-2;text-transform:uppercase}
 .cert-grid{border:1px solid #b7d5c0;background-image:linear-gradient(rgba(30,107,58,0.08) 1px, transparent 1px),linear-gradient(90deg, rgba(30,107,58,0.08) 1px, transparent 1px);background-size:18px 18px;padding:8px;border-radius:8px;background-color:rgba(255,255,255,0.9)}
 .status-chip{display:inline-block;margin:8px auto 0;padding:4px 10px;border-radius:999px;background:#e8f5e9;border:1px solid #8ac8a1;color:#145c36;font-weight:bold;font-size:11px;text-shadow:0.5px 0.5px 0px rgba(255,255,255,0.8), -0.5px -0.5px 0px rgba(0,0,0,0.3)}.verification-panel{position:relative;display:flex;gap:18px;align-items:center;justify-content:space-between;margin:18px 0 24px;padding:18px 18px 20px;border:1px solid #b7d5c0;border-radius:12px;background:linear-gradient(135deg, rgba(232,245,233,0.94), rgba(244,250,246,0.99));overflow:hidden;isolation:isolate}.verification-panel::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg, rgba(255,255,255,0.34), rgba(30,107,58,0.03));z-index:0}.verification-panel::after{content:'';position:absolute;inset:12px;border:1px solid rgba(20,92,54,0.14);border-radius:10px;z-index:0}.verification-copy,.verification-qr{position:relative;z-index:2}.verification-copy{flex:1}.verification-copy p{margin:4px 0}.verification-url{font-family:monospace;font-size:11px;word-break:break-all;color:#145c36}.verification-qr{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:12px;border:1px solid #9cc8ab;background:#fff;box-shadow:inset 0 0 0 4px rgba(30,107,58,0.06)}.verification-qr-id{font-family:'Courier New',monospace;font-size:9px;line-height:1.2;letter-spacing:1.6px;text-transform:uppercase;color:#0f5132;font-weight:700;text-align:center;word-break:break-word;max-width:164px}.verification-intaglio-field{position:absolute;inset:10px 10px 10px 10px;pointer-events:none;z-index:1;overflow:hidden}.verification-intaglio-field .band{display:block;white-space:nowrap;font-family:'Courier New',monospace;font-size:12px;line-height:1.9;letter-spacing:2.8px;text-transform:uppercase;color:rgba(11,89,53,0.17);text-shadow:0.45px 0.45px 0 rgba(255,255,255,0.75), -0.45px -0.45px 0 rgba(8,56,29,0.18);transform:rotate(-12deg) translateX(-40px);transform-origin:left center}.verification-intaglio-badge{display:inline-flex;align-items:center;gap:8px;margin:8px 0 6px;padding:6px 12px;border-radius:999px;border:1px solid rgba(20,92,54,0.26);background:rgba(255,255,255,0.72);color:#145c36;font-size:10px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase}.verification-intaglio-meta{margin-top:8px;font-family:'Courier New',monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#145c36;font-weight:700}.security-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 22px}.security-feature-card{border:1px solid #b7d5c0;border-radius:10px;background:rgba(252,254,253,0.94);padding:12px 14px}.security-feature-card p{margin:6px 0 0;font-size:11px;line-height:1.45;color:#355244}.security-feature-title{font-weight:700;color:#124928}.security-seal{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid #7ab28d;background:#fff;color:#145c36;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
-.guilloche-layer{position:fixed;inset:0;pointer-events:none;z-index:-4;opacity:0.85}
+.guilloche-layer{position:fixed;inset:0;pointer-events:none;z-index:-4;opacity:1}
+.guilloche-id-layer{position:fixed;inset:0;pointer-events:none;z-index:-3;opacity:0.95}
 .guilloche-frame{position:fixed;inset:18px;pointer-events:none;z-index:-1;border:1px solid rgba(20,92,54,0.28);border-radius:12px;box-shadow:inset 0 0 0 4px rgba(255,255,255,0.6), inset 0 0 0 5px rgba(176,141,55,0.35)}
-.guilloche-rosette{position:fixed;pointer-events:none;z-index:-1;width:150px;height:150px;background-repeat:no-repeat;background-size:contain;opacity:0.6}
-.guilloche-rosette.tl{top:26px;left:26px}.guilloche-rosette.br{bottom:26px;right:26px}
-@media screen and (max-width:820px){ body{margin:18px 14px 26px 14px} .security-thread,.registration-band,.guilloche-rosette{display:none} .verification-panel{flex-direction:column;align-items:flex-start} .security-features{grid-template-columns:1fr} .microtext{left:10px;right:10px} table{display:block;overflow-x:auto;white-space:nowrap} }
-@media print{ .watermark{display:block;} .guilloche-layer,.guilloche-frame,.guilloche-rosette{display:block} * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; } }</style></head><body>
+.guilloche-rosette{position:fixed;pointer-events:none;z-index:-1;width:170px;height:170px;background-repeat:no-repeat;background-size:contain;opacity:0.8}
+.guilloche-rosette.tl{top:22px;left:22px}.guilloche-rosette.br{bottom:22px;right:22px}.guilloche-rosette.tr{top:22px;right:22px}.guilloche-rosette.bl{bottom:22px;left:22px}
+@media screen and (max-width:820px){ body{margin:18px 14px 26px 14px} .security-thread,.registration-band,.guilloche-rosette{display:none} .guilloche-id-layer{background-size:340px 340px} .verification-panel{flex-direction:column;align-items:flex-start} .security-features{grid-template-columns:1fr} .microtext{left:10px;right:10px} table{display:block;overflow-x:auto;white-space:nowrap} }
+@media print{ .watermark{display:block;} .guilloche-layer,.guilloche-id-layer,.guilloche-frame,.guilloche-rosette{display:block} * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; } }</style></head><body>
 <div class="guilloche-layer" style="${guilloche.style}"></div>
+<div class="guilloche-id-layer" style="${guilloche.idLayerStyle}"></div>
 <div class="guilloche-frame"></div>
 <div class="guilloche-rosette tl" style="background-image:url('${guilloche.rosetteDataUri}')"></div>
+<div class="guilloche-rosette tr" style="background-image:url('${guilloche.rosetteDataUri}')"></div>
+<div class="guilloche-rosette bl" style="background-image:url('${guilloche.rosetteDataUri}')"></div>
 <div class="guilloche-rosette br" style="background-image:url('${guilloche.rosetteDataUri}')"></div>
+
 ${securePattern.enabled ? `<div class="secure-pattern" style="${securePattern.style}"></div>` : ''}
 <div class="security-grid"></div>
 <div class="security-thread"></div>
@@ -868,9 +875,11 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
               // Decorative guilloche (presentation only, no security impact)
               const previewGuilloche = buildGuillocheLayer({
                 seed: `${viewScorelist.scorelist_id}|${viewScorelist.hash_digest || ''}`,
-                opacity: 0.18,
+                opacity: 0.34,
                 size: 260,
+                idText: String(viewScorelist.scorelist_id || ''),
               });
+
               const calcScore = (team: string) => {
                 const rows = (payload?.battingData || []).filter((b: any) => b.team === team);
                 const runs = rows.reduce((s: number, b: any) => s + (b.runs || 0), 0);
@@ -884,15 +893,26 @@ ${effectiveLocked ? '<div class="certified intaglio">✔ OFFICIALLY CERTIFIED MA
                 <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-card/95 p-3 md:p-4 before:pointer-events-none before:absolute before:inset-0 before:bg-[repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03)),repeating-linear-gradient(45deg,rgba(30,107,58,0.03)_25%,transparent_25%,transparent_75%,rgba(30,107,58,0.03)_75%,rgba(30,107,58,0.03))] before:bg-[length:20px_20px] before:bg-[position:0_0,10px_10px]">
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-0 opacity-80"
+                    className="pointer-events-none absolute inset-0 z-0"
                     style={{ backgroundImage: `url("${previewGuilloche.dataUri}")`, backgroundRepeat: 'repeat', backgroundSize: '260px 260px' }}
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 z-0"
+                    style={{ backgroundImage: `url("${previewGuilloche.idLayerDataUri}")`, backgroundRepeat: 'repeat', backgroundSize: '380px 380px' }}
                   />
                   <div aria-hidden="true" className="pointer-events-none absolute inset-2 z-0 rounded-xl border border-primary/25 shadow-[inset_0_0_0_3px_rgba(255,255,255,0.55),inset_0_0_0_4px_rgba(176,141,55,0.28)]" />
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute left-3 top-3 z-0 hidden h-24 w-24 opacity-60 sm:block"
+                    className="pointer-events-none absolute left-3 top-3 z-0 hidden h-28 w-28 opacity-80 sm:block"
                     style={{ backgroundImage: `url("${previewGuilloche.rosetteDataUri}")`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }}
                   />
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-3 right-3 z-0 hidden h-28 w-28 opacity-80 sm:block"
+                    style={{ backgroundImage: `url("${previewGuilloche.rosetteDataUri}")`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }}
+                  />
+
                   <div className="pointer-events-none absolute bottom-2 left-10 right-3 overflow-hidden whitespace-nowrap text-left font-mono text-[6px] uppercase tracking-[0.35em] text-primary/60 opacity-60">
                     {`${`${viewScorelist.scorelist_id} • ${viewScorelist.hash_digest} • `.repeat(10)}`}
                   </div>
