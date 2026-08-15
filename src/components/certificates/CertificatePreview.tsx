@@ -562,9 +562,10 @@ export const CertificatePreview = memo(function CertificatePreview({
                   right: theme.simplifyOrnaments ? '6%' : '32px',
                   bottom: theme.simplifyOrnaments ? '10%' : '32px',
                   backgroundColor: theme.simplifyOrnaments ? 'rgba(255,255,255,0.92)' : theme.centerBg,
-                  backgroundImage: `url("${guilloche.dataUri}")`,
-                  backgroundRepeat: 'repeat',
-                  backgroundSize: '280px 280px',
+                  backgroundImage: `url("${guilloche.idLayerDataUri}"), url("${guilloche.dataUri}")`,
+                  backgroundRepeat: 'repeat, repeat',
+                  backgroundSize: '420px 420px, 280px 280px',
+
                   display: 'flex',
                   flexDirection: 'column',
                   boxSizing: 'border-box',
