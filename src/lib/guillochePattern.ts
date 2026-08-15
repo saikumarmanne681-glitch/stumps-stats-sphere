@@ -109,13 +109,13 @@ export function buildGuillocheLayer(options: GuillocheOptions): GuillocheLayer {
   const twistBase = (seed % 360) * (Math.PI / 180);
 
   // 1. Dense central rosette bundle — the classic engraved "sunburst" of a banknote.
-  const centralBundle = Array.from({ length: 22 }, (_, index) => {
-    const shrink = 1 - index * 0.026;
+  const centralBundle = Array.from({ length: 16 }, (_, index) => {
+    const shrink = 1 - index * 0.036;
     const base = baseR * 0.5 * shrink;
     const amp = baseR * 0.3 * shrink;
     const stroke = index % 3 === 0 ? accent : color;
     const strokeOpacity = opacity * (0.55 + (index % 4) * 0.14);
-    return `<path d="${petalPath(half, half, base, amp, lobes, twistBase + index * 0.045, 540)}" stroke="${stroke}" stroke-width="0.5" fill="none" stroke-opacity="${strokeOpacity.toFixed(3)}"/>`;
+    return `<path d="${petalPath(half, half, base, amp, lobes, twistBase + index * 0.06, 360)}" stroke="${stroke}" stroke-width="0.5" fill="none" stroke-opacity="${strokeOpacity.toFixed(3)}"/>`;
   }).join('');
 
   // 2. Spirograph interference rings (moiré effect).
@@ -124,7 +124,7 @@ export function buildGuillocheLayer(options: GuillocheOptions): GuillocheLayer {
     const d = baseR * (0.22 + ((seed >> (index * 4 + 2)) % 7) * 0.02);
     const turns = 4 + (((seed >> (index * 5)) % 5) as number);
     const stroke = index % 2 === 0 ? color : accent;
-    return `<path d="${spiroPath(baseR - index * 5, r, d, half, half, turns, 900)}" stroke="${stroke}" stroke-width="${(0.45 + index * 0.05).toFixed(2)}" fill="none" stroke-opacity="${(opacity * 0.85).toFixed(3)}"/>`;
+    return `<path d="${spiroPath(baseR - index * 5, r, d, half, half, turns, 560)}" stroke="${stroke}" stroke-width="${(0.45 + index * 0.05).toFixed(2)}" fill="none" stroke-opacity="${(opacity * 0.85).toFixed(3)}"/>`;
   }).join('');
 
   // 3. Corner medallions so tiles interlock seamlessly across the sheet.
@@ -162,11 +162,11 @@ export function buildGuillocheLayer(options: GuillocheOptions): GuillocheLayer {
   // Rosette medallion — dense, high-detail, for corners / seals.
   const rosetteSize = 260;
   const rHalf = rosetteSize / 2;
-  const rosetteOuter = Array.from({ length: 26 }, (_, index) => {
-    const shrink = 1 - index * 0.022;
+  const rosetteOuter = Array.from({ length: 20 }, (_, index) => {
+    const shrink = 1 - index * 0.028;
     const base = rHalf * 0.56 * shrink;
     const amp = rHalf * 0.3 * shrink;
-    return `<path d="${petalPath(rHalf, rHalf, base, amp, lobes + 4, twistBase + index * 0.05, 640)}" stroke="${index % 3 === 0 ? accent : color}" stroke-width="0.55" fill="none" stroke-opacity="${Math.min(1, opacity * 1.5).toFixed(3)}"/>`;
+    return `<path d="${petalPath(rHalf, rHalf, base, amp, lobes + 4, twistBase + index * 0.06, 420)}" stroke="${index % 3 === 0 ? accent : color}" stroke-width="0.55" fill="none" stroke-opacity="${Math.min(1, opacity * 1.5).toFixed(3)}"/>`;
   }).join('');
   const rosetteInner = Array.from({ length: 16 }, (_, index) => {
     const rr = rHalf * (0.3 - index * 0.014);
@@ -175,7 +175,7 @@ export function buildGuillocheLayer(options: GuillocheOptions): GuillocheLayer {
   const rosetteSpiro = [0, 1, 2].map((index) => {
     const R = rHalf * (0.9 - index * 0.14);
     const r = R * (0.32 + index * 0.05);
-    return `<path d="${spiroPath(R, r, R * 0.3, rHalf, rHalf, 5 + index, 900)}" stroke="${index % 2 ? accent : color}" stroke-width="0.4" fill="none" stroke-opacity="${Math.min(1, opacity * 1.2).toFixed(3)}"/>`;
+    return `<path d="${spiroPath(R, r, R * 0.3, rHalf, rHalf, 5 + index, 560)}" stroke="${index % 2 ? accent : color}" stroke-width="0.4" fill="none" stroke-opacity="${Math.min(1, opacity * 1.2).toFixed(3)}"/>`;
   }).join('');
   const rosetteSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${rosetteSize}" height="${rosetteSize}" viewBox="0 0 ${rosetteSize} ${rosetteSize}">
     <g shape-rendering="geometricPrecision">${rosetteSpiro}${rosetteOuter}${rosetteInner}</g>
