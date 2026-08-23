@@ -1,4 +1,5 @@
 import { BattingScorecard, BowlingScorecard, Match } from '@/lib/types';
+import { isSameTeam } from '@/lib/dataUtils';
 
 export interface TeamScoreSummary {
   runs: number;
@@ -33,7 +34,7 @@ export function getTeamScoreSummary(
   fallbackScore?: string,
   bowling?: BowlingScorecard[],
 ): TeamScoreSummary {
-  const rows = batting.filter((entry) => entry.team === team);
+  const rows = batting.filter((entry) => isSameTeam(entry.team, team));
   const fallback = normalizeFallbackScore(fallbackScore);
   if (rows.length === 0) {
     return fallback || {
@@ -52,7 +53,7 @@ export function getTeamScoreSummary(
     return dismissal && dismissal !== 'not out';
   }).length;
   const wicketsFromBowling = (bowling || [])
-    .filter((entry) => entry.team !== team)
+    .filter((entry) => !isSameTeam(entry.team, team))
     .reduce((sum, entry) => sum + (entry.wickets || 0), 0);
   const ballsFromBatting = rows.reduce((sum, entry) => sum + (entry.balls || 0), 0);
 

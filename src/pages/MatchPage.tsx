@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Award, Crown, Share2, ArrowLeft } from 'lucide-react';
-import { formatSheetDate, resolvePlayerFromIdentity } from '@/lib/dataUtils';
+import { formatSheetDate, resolvePlayerFromIdentity, selectTeamScorecardRows } from '@/lib/dataUtils';
 import { useToast } from '@/hooks/use-toast';
 import { PageLoader } from '@/components/LoadingOverlay';
 import { SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
@@ -92,9 +92,16 @@ const MatchPage = () => {
     }
   };
 
-  const renderTeamScorecard = (team: string) => {
-    const teamBat = matchBatting.filter(b => b.team === team);
-    const teamBowl = matchBowling.filter(b => b.team === team);
+  const renderTeamScorecard = (team: string, side: 'a' | 'b') => {
+    const teamBat = selectTeamScorecardRows(matchBatting, match.team_a, match.team_b, side);
+    const teamBowl = selectTeamScorecardRows(matchBowling, match.team_a, match.team_b, side);
+    if (teamBat.length === 0 && teamBowl.length === 0) {
+      return (
+        <p className="rounded-2xl border border-dashed border-primary/20 bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
+          No scorecard rows have been published for {team} yet.
+        </p>
+      );
+    }
     return (
       <div className="space-y-4">
         {teamBat.length > 0 && (
@@ -221,8 +228,8 @@ const MatchPage = () => {
               <TabsTrigger value="teamB">{match.team_b}</TabsTrigger>
             </TabsList>
             <CardContent className="pt-4">
-              <TabsContent value="teamA">{renderTeamScorecard(match.team_a)}</TabsContent>
-              <TabsContent value="teamB">{renderTeamScorecard(match.team_b)}</TabsContent>
+              <TabsContent value="teamA">{renderTeamScorecard(match.team_a, 'a')}</TabsContent>
+              <TabsContent value="teamB">{renderTeamScorecard(match.team_b, 'b')}</TabsContent>
             </CardContent>
           </Tabs>
         </Card>

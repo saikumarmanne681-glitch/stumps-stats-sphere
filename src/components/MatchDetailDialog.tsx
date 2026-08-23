@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Match, BattingScorecard, BowlingScorecard, Player, Tournament, Season } from '@/lib/types';
 import { Calendar, MapPin, Award, Crown, AlertTriangle, Loader2 } from 'lucide-react';
-import { formatSheetDate, resolvePlayerFromIdentity } from '@/lib/dataUtils';
+import { formatSheetDate, resolvePlayerFromIdentity, isSameTeam, selectTeamScorecardRows } from '@/lib/dataUtils';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
@@ -28,7 +28,7 @@ interface MatchDetailDialogProps {
 }
 
 function calcTeamScore(batting: BattingScorecard[], team: string): string {
-  const rows = batting.filter(b => b.team === team);
+  const rows = batting.filter(b => isSameTeam(b.team, team));
   if (rows.length === 0) return '-';
   const runs = rows.reduce((s, b) => s + b.runs, 0);
   const wkts = rows.filter(b => b.how_out && b.how_out !== 'not out').length;
@@ -141,9 +141,9 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
     }
   };
 
-  const renderTeamScorecard = (team: string) => {
-    const teamBat = matchBatting.filter(b => b.team === team);
-    const teamBowl = matchBowling.filter(b => b.team === team);
+  const renderTeamScorecard = (team: string, side: 'a' | 'b') => {
+    const teamBat = selectTeamScorecardRows(matchBatting, match.team_a, match.team_b, side);
+    const teamBowl = selectTeamScorecardRows(matchBowling, match.team_a, match.team_b, side);
     const totalRuns = teamBat.reduce((s, b) => s + b.runs, 0);
     const totalWickets = teamBat.filter(b => b.how_out && b.how_out !== 'not out').length;
     const totalBalls = teamBat.reduce((s, b) => s + b.balls, 0);
@@ -282,8 +282,8 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
               <TabsTrigger value="teamA" className="text-xs md:text-sm">{match.team_a}</TabsTrigger>
               <TabsTrigger value="teamB" className="text-xs md:text-sm">{match.team_b}</TabsTrigger>
             </TabsList>
-            <TabsContent value="teamA">{renderTeamScorecard(match.team_a)}</TabsContent>
-            <TabsContent value="teamB">{renderTeamScorecard(match.team_b)}</TabsContent>
+            <TabsContent value="teamA">{renderTeamScorecard(match.team_a, 'a')}</TabsContent>
+            <TabsContent value="teamB">{renderTeamScorecard(match.team_b, 'b')}</TabsContent>
           </Tabs>
         </div>
 
