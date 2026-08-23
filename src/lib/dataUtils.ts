@@ -110,8 +110,9 @@ function parseSlashDate(value: string) {
 
   if (!left || !middle || !year) return null;
 
-  const day = left > 12 ? left : middle > 12 ? middle : left;
-  const month = left > 12 ? middle : left;
+  // Sheets entries are dd/mm/yyyy first; only flip when the first part cannot be a day-of-month
+  const day = middle > 12 && left <= 12 ? middle : left;
+  const month = middle > 12 && left <= 12 ? left : middle;
   const parsed = new Date(Date.UTC(year, month - 1, day));
 
   return Number.isNaN(parsed.getTime()) ? null : parsed;
