@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Match, BattingScorecard, BowlingScorecard, Player, Tournament, Season } from '@/lib/types';
 import { Calendar, MapPin, Award, Crown, AlertTriangle, Loader2 } from 'lucide-react';
-import { formatSheetDate, resolvePlayerFromIdentity, isSameTeam, selectTeamScorecardRows } from '@/lib/dataUtils';
+import { formatSheetDate, resolvePlayerFromIdentity, isSameTeam, normalizeId, selectTeamScorecardRows } from '@/lib/dataUtils';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { v2api, istNow, logAudit } from '@/lib/v2api';
@@ -87,8 +87,8 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
 
   if (!match) return null;
 
-  const matchBatting = batting.filter(b => b.match_id === match.match_id);
-  const matchBowling = bowling.filter(b => b.match_id === match.match_id);
+  const matchBatting = batting.filter(b => normalizeId(b.match_id) === normalizeId(match.match_id));
+  const matchBowling = bowling.filter(b => normalizeId(b.match_id) === normalizeId(match.match_id));
   const mom = resolvePlayerFromIdentity(match.man_of_match, players);
   const teamACaptain = resolvePlayerFromIdentity(match.team_a_captain, players);
   const teamBCaptain = resolvePlayerFromIdentity(match.team_b_captain, players);
@@ -218,7 +218,7 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
           </div>
         )}
         {teamBat.length === 0 && teamBowl.length === 0 && (
-          <p className="text-sm text-muted-foreground py-4 text-center">No scorecard data available.</p>
+          <p className="text-sm text-muted-foreground py-4 text-center">No scorecard rows have been published for this match yet.</p>
         )}
       </div>
     );

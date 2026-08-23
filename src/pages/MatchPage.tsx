@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Award, Crown, Share2, ArrowLeft } from 'lucide-react';
-import { formatSheetDate, resolvePlayerFromIdentity, selectTeamScorecardRows } from '@/lib/dataUtils';
+import { formatSheetDate, normalizeId, resolvePlayerFromIdentity, selectTeamScorecardRows } from '@/lib/dataUtils';
 import { useToast } from '@/hooks/use-toast';
 import { PageLoader } from '@/components/LoadingOverlay';
 import { SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
@@ -27,8 +27,8 @@ const MatchPage = () => {
 
   const tournament = match ? tournaments.find(t => t.tournament_id === match.tournament_id) : null;
   const season = match ? seasons.find(s => s.season_id === match.season_id) : null;
-  const matchBatting = (isLiveMatch ? polledBatting : batting).filter((entry) => entry.match_id === match_id);
-  const matchBowling = (isLiveMatch ? polledBowling : bowling).filter((entry) => entry.match_id === match_id);
+  const matchBatting = (isLiveMatch ? polledBatting : batting).filter((entry) => normalizeId(entry.match_id) === normalizeId(match_id));
+  const matchBowling = (isLiveMatch ? polledBowling : bowling).filter((entry) => normalizeId(entry.match_id) === normalizeId(match_id));
   const liveRefreshing = liveBattingRefreshing || liveBowlingRefreshing;
   const mom = match ? resolvePlayerFromIdentity(match.man_of_match, players) : null;
   const teamACaptain = match ? resolvePlayerFromIdentity(match.team_a_captain, players) : null;

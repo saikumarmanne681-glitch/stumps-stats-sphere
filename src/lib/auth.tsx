@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { AuthUser } from "./types";
 import { startHeartbeat, stopHeartbeat } from "./presence";
-import { v2api } from "./v2api";
+import { logAudit, v2api } from "./v2api";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -115,11 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string, role: "admin" | "player" | "management" | "team"): Promise<boolean> => {
     const response = await v2api.login(username, password, role);
     if (!response.success || !response.user) {
+      logAudit(username || 'unknown', 'LOGIN_FAILED', 'AUTH', username || 'unknown', JSON.stringify({ role, reason: response.error || 'invalid_credentials' }));
       return false;
     }
     const resolvedType = response.user.type || role;
     if (resolvedType === 'admin') {
-      return createAdminSession(response.user.name);
+      const created = createAdminSession(response.user.name);
+      logAudit('admin', 'LOGIN_SUCCESS', 'AUTH', 'admin', JSON.stringify({ role: 'admin', username }));
+      return created;
     }
 
     const u: AuthUser = {
@@ -138,10 +141,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistSession(u);
     const heartbeatUserId = u.player_id || u.management_id || u.team_id || u.username;
     startHeartbeat(heartbeatUserId);
+    logAudit(heartbeatUserId, 'LOGIN_SUCCESS', 'AUTH', heartbeatUserId, JSON.stringify({ role: resolvedType, username: u.username, name: u.name || '' }));
     return true;
   };
 
   const logout = () => {
+    const actor = user ? (user.type === 'admin' ? 'admin' : user.player_id || user.management_id || user.team_id || user.username) : '';
+    if (actor) {
+      logAudit(actor, 'LOGOUT', 'AUTH', actor, JSON.stringify({ role: user?.type || '' }));
+    }
     stopHeartbeat();
     setUser(null);
     clearSession();
