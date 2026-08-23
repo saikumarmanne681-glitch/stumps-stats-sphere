@@ -41,7 +41,9 @@ describe('Login role redirects', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: /management/i }));
+    const managementTab = screen.getByRole('tab', { name: /management/i });
+    fireEvent.mouseDown(managementTab);
+    fireEvent.click(managementTab);
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'mgmt_user' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret' } });
     fireEvent.click(screen.getByRole('button', { name: /login as management/i }));
@@ -59,7 +61,9 @@ describe('Login role redirects', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: /team/i }));
+    const teamTab = screen.getByRole('tab', { name: /team/i });
+    fireEvent.mouseDown(teamTab);
+    fireEvent.click(teamTab);
     fireEvent.change(screen.getByLabelText('Team Username / Team Name'), { target: { value: 'royals' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret' } });
     fireEvent.click(screen.getByRole('button', { name: /login as team/i }));
