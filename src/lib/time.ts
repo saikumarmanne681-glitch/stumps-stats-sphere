@@ -6,11 +6,13 @@ function isValidDate(value: Date) {
 
 export function parseTimestamp(value?: string | null) {
   if (!value) return null;
-  const parsed = new Date(value);
-  if (isValidDate(parsed)) return parsed;
 
+  // dd/mm/yyyy is checked first: native Date parsing would read it as mm/dd in local time
   const parts = String(value).match(/(\d+)\/(\d+)\/(\d+),?\s*(\d+):(\d+)(?::(\d+))?\s*(am|pm)?/i);
-  if (!parts) return null;
+  if (!parts) {
+    const nativeParsed = new Date(value);
+    return isValidDate(nativeParsed) ? nativeParsed : null;
+  }
 
   let [, day, month, year, hours, minutes, seconds = '0', ampm] = parts;
   let h = Number.parseInt(hours, 10);
@@ -82,6 +84,22 @@ export function formatScheduleSlotInIST(date?: string, time?: string) {
   const normalizedTime = timePart
     ? (/^\d{2}:\d{2}$/.test(timePart) ? `${timePart}:00` : timePart)
     : '00:00:00';
+
+  const isoSlot = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const timeSlot = normalizedTime.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (isoSlot && timeSlot) {
+    // Slot dates/times are recorded in IST, so build the instant explicitly
+    const utc = Date.UTC(
+      Number(isoSlot[1]),
+      Number(isoSlot[2]) - 1,
+      Number(isoSlot[3]),
+      Number(timeSlot[1]) - 5,
+      Number(timeSlot[2]) - 30,
+      Number(timeSlot[3] || 0),
+    );
+    const slotDate = new Date(utc);
+    if (isValidDate(slotDate)) return `${formatDateInIST(slotDate)} · ${formatTimeInIST(slotDate)}`;
+  }
 
   const parsed =
     parseTimestamp(`${datePart}T${normalizedTime}`) ??

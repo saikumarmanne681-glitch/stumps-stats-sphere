@@ -110,8 +110,9 @@ function parseSlashDate(value: string) {
 
   if (!left || !middle || !year) return null;
 
-  const day = left > 12 ? left : middle > 12 ? middle : left;
-  const month = left > 12 ? middle : left;
+  // Sheets entries are dd/mm/yyyy first; only flip when the first part cannot be a day-of-month
+  const day = middle > 12 && left <= 12 ? middle : left;
+  const month = middle > 12 && left <= 12 ? left : middle;
   const parsed = new Date(Date.UTC(year, month - 1, day));
 
   return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -265,4 +266,54 @@ export function findTournamentById(
       directTournament?.description ||
       "Tournament metadata is still syncing from the linked Google Sheet. Related seasons and matches are shown below.",
   } satisfies Tournament;
+}
+
+/**
+ * Team labels in the sheets are entered by hand and drift over time
+ * ("Dayakar Team", "dayakar team", "Dayakar", "DYK"). Scorecards were rendering
+ * blank whenever a scorecard row's team label did not string-match the match row.
+ */
+export function normalizeTeamKey(value: unknown) {
+  return normalizeId(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((part) => part && part !== "team" && part !== "xi" && part !== "cc")
+    .join("");
+}
+
+export function isSameTeam(a: unknown, b: unknown) {
+  const keyA = normalizeTeamKey(a);
+  const keyB = normalizeTeamKey(b);
+  if (!keyA || !keyB) return false;
+  return keyA === keyB || keyA.includes(keyB) || keyB.includes(keyA);
+}
+
+/**
+ * Resolve which scorecard rows belong to a side, tolerating label drift:
+ * 1. rows whose team label matches the side
+ * 2. if only the opponent matched, everything else belongs to this side
+ * 3. if neither label matched, split the innings by distinct label order
+ */
+export function selectTeamScorecardRows<T extends { team?: string }>(
+  rows: T[],
+  teamA: string,
+  teamB: string,
+  side: "a" | "b",
+): T[] {
+  const target = side === "a" ? teamA : teamB;
+  const other = side === "a" ? teamB : teamA;
+
+  const direct = rows.filter((row) => isSameTeam(row.team, target));
+  if (direct.length > 0) return direct;
+
+  const otherDirect = rows.filter((row) => isSameTeam(row.team, other));
+  if (otherDirect.length > 0) return rows.filter((row) => !isSameTeam(row.team, other));
+
+  const labels = Array.from(new Set(rows.map((row) => normalizeTeamKey(row.team))));
+  if (labels.length >= 2) {
+    const key = side === "a" ? labels[0] : labels[1];
+    return rows.filter((row) => normalizeTeamKey(row.team) === key);
+  }
+  return side === "a" ? rows : [];
 }

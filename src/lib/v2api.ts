@@ -311,5 +311,10 @@ export function logAudit(actor: string, eventType: string, entityType: string, e
     metadata: metadataPayload,
     timestamp: istNow(),
   };
-  v2api.addAuditEvent(evt).catch(console.error);
+  v2api
+    .addAuditEvent(evt)
+    .then((ok) => {
+      if (!ok) console.warn('[audit] event was not persisted to AUDIT_EVENTS', evt.event_type, evt.entity_id);
+    })
+    .catch(console.error);
 }
