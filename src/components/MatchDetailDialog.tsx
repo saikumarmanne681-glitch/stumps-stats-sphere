@@ -218,8 +218,14 @@ export function MatchDetailDialog({ match, open, onOpenChange, batting, bowling,
           </div>
         )}
         {teamBat.length === 0 && teamBowl.length === 0 && (
-          <p className="text-sm text-muted-foreground py-4 text-center">No scorecard rows have been published for this match yet.</p>
+          <div className="rounded-2xl border border-dashed border-primary/20 bg-muted/40 px-4 py-5 text-center">
+            <p className="text-sm font-medium">Summary score only: {displayScore}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              A ball-by-ball scorecard was never recorded for this legacy match, so only the final team total is available.
+            </p>
+          </div>
         )}
+
       </div>
     );
   };
