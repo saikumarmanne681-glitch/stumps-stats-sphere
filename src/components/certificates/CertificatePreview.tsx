@@ -355,20 +355,29 @@ export const CertificatePreview = memo(function CertificatePreview({
       const widthSource = hasStableContainerWidth ? Math.min(containerWidth, safeViewportWidth) : safeViewportWidth;
       const availableWidth = Math.max(260, widthSource);
       const scale = Math.min(1, availableWidth / PREVIEW_BASE_WIDTH);
-      setAutoScale(scale);
+      setAutoScale((prev) => (Math.abs(prev - scale) < 0.005 ? prev : scale));
     };
     measure();
     const raf = window.requestAnimationFrame(measure);
     const deferredMeasure = window.setTimeout(measure, 180);
-    const ro = new ResizeObserver(measure);
+    let roFrame = 0;
+    const ro = new ResizeObserver(() => {
+      if (roFrame) return;
+      roFrame = window.requestAnimationFrame(() => {
+        roFrame = 0;
+        measure();
+      });
+    });
     ro.observe(el);
     window.addEventListener('resize', measure);
     return () => {
       window.cancelAnimationFrame(raf);
+      if (roFrame) window.cancelAnimationFrame(roFrame);
       window.clearTimeout(deferredMeasure);
       ro.disconnect();
       window.removeEventListener('resize', measure);
     };
+
   }, [expanded, isMobile, PREVIEW_BASE_WIDTH]);
 
   const handleDownload = async () => {

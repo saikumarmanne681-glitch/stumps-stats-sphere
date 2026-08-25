@@ -96,12 +96,17 @@ const MatchPage = () => {
     const teamBat = selectTeamScorecardRows(matchBatting, match.team_a, match.team_b, side);
     const teamBowl = selectTeamScorecardRows(matchBowling, match.team_a, match.team_b, side);
     if (teamBat.length === 0 && teamBowl.length === 0) {
+      const summary = (side === 'a' ? teamAScore : teamBScore)?.display || '—';
       return (
-        <p className="rounded-2xl border border-dashed border-primary/20 bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
-          No scorecard rows have been published for {team} yet.
-        </p>
+        <div className="rounded-2xl border border-dashed border-primary/20 bg-muted/40 px-4 py-6 text-center">
+          <p className="text-sm font-medium">Summary score only: {summary}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            A detailed scorecard was never recorded for {team} in this legacy match, so only the final team total is available.
+          </p>
+        </div>
       );
     }
+
     return (
       <div className="space-y-4">
         {teamBat.length > 0 && (
