@@ -20,7 +20,7 @@ export function AnnouncementTicker() {
 
   if (activeAnnouncements.length === 0) return null;
 
-  const duration = `${Math.max(28, activeAnnouncements.length * 12)}s`;
+  const duration = `${Math.max(60, activeAnnouncements.length * 26)}s`;
 
   const Item = ({ a, i }: { a: typeof activeAnnouncements[number]; i: number }) => (
     <span className="mr-3 inline-flex shrink-0 items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 py-1 pl-2 pr-3 align-middle backdrop-blur-sm">
@@ -51,14 +51,7 @@ export function AnnouncementTicker() {
 
   return (
     <div className="group relative overflow-hidden border-b border-accent/40 bg-gradient-to-r from-primary via-primary/85 to-primary shadow-sm">
-      {/* stadium stripe texture */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.12]"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(115deg, hsl(var(--primary-foreground)) 0 10px, transparent 10px 26px)',
-        }}
-      />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,hsl(var(--primary-foreground)/0.12),transparent_60%)]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent" />
 
       <div className="relative flex h-11 items-center">
