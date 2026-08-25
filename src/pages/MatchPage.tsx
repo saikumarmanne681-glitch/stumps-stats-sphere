@@ -96,7 +96,7 @@ const MatchPage = () => {
     const teamBat = selectTeamScorecardRows(matchBatting, match.team_a, match.team_b, side);
     const teamBowl = selectTeamScorecardRows(matchBowling, match.team_a, match.team_b, side);
     if (teamBat.length === 0 && teamBowl.length === 0) {
-      const summary = side === 'a' ? teamAScore : teamBScore;
+      const summary = (side === 'a' ? teamAScore : teamBScore)?.display || '—';
       return (
         <div className="rounded-2xl border border-dashed border-primary/20 bg-muted/40 px-4 py-6 text-center">
           <p className="text-sm font-medium">Summary score only: {summary}</p>
