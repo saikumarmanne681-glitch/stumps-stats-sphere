@@ -5,7 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { RouteChangeIndicator } from "@/components/RouteChangeIndicator";
 import { GlobalActivityIndicator } from "@/components/GlobalActivityIndicator";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
+import { UnsavedChangesIndicator } from "@/components/UnsavedChangesIndicator";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { persistQueryCache, restoreQueryCache } from "@/lib/queryPersistence";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import { DataProvider } from "@/lib/DataContext";
@@ -78,6 +80,11 @@ const queryClient = new QueryClient({
   },
 });
 
+if (typeof window !== 'undefined') {
+  restoreQueryCache(queryClient);
+  persistQueryCache(queryClient);
+}
+
 const RouteLoader = () => (
   <div className="flex min-h-[40vh] items-center justify-center px-4">
     <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-card px-6 py-4 text-sm font-semibold text-muted-foreground shadow-soft">
@@ -146,6 +153,7 @@ const App = () => (
             <RouteChangeIndicator />
             <GlobalActivityIndicator />
             <NetworkStatusBanner />
+            <UnsavedChangesIndicator />
             <RouteErrorBoundary>
               <Suspense fallback={<RouteLoader />}>
                 <Routes>

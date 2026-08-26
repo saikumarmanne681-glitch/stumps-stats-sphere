@@ -1,6 +1,7 @@
 import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message, ScorecardReplaceRequest, ScorecardReplaceResult } from "./types";
 import { normalizeSheetRows } from "./dataUtils";
 import { getEnvStorageKey } from "./environment";
+import { getQueuedWrites, markQueuedWriteAttempt, queueWrite, removeQueuedWrite } from "./writeQueue";
 import {
   mockPlayers,
   mockTournaments,
@@ -72,21 +73,51 @@ async function fetchSheet<T>(sheet: string): Promise<T[]> {
   }
 }
 
+async function postWrite(sheet: string, action: "add" | "update" | "delete", data: Record<string, unknown>, requestId: string): Promise<boolean> {
+  const res = await fetchWithPolicy(APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain", "X-Idempotency-Key": requestId },
+    // request_id is intentionally in the body: Apps Script web apps do not expose custom headers reliably.
+    body: JSON.stringify({ action, sheet, data, request_id: requestId }),
+  });
+  if (!res.ok) return false;
+  const result = await res.json();
+  return !!result.success;
+}
+
 async function writeSheet<T>(sheet: string, action: "add" | "update" | "delete", payload: T): Promise<boolean> {
   if (USE_MOCK()) return true;
   const normalizedPayload = normalizePayload(payload as Record<string, unknown>);
+  const requestId = crypto.randomUUID?.() || `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   try {
-    const res = await fetchWithPolicy(APPS_SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ action, sheet, data: normalizedPayload }),
-    });
-    if (!res.ok) return false;
-    const result = await res.json();
-    return !!result.success;
+    const success = await postWrite(sheet, action, normalizedPayload, requestId);
+    if (!success) queueWrite({ sheet, action, data: normalizedPayload }, requestId);
+    return success;
   } catch {
+    queueWrite({ sheet, action, data: normalizedPayload }, requestId);
     return false;
   }
+}
+
+/** Retries queued writes in order. A failed write stays queued and does not block newer local data. */
+export async function retryQueuedWrites(): Promise<number> {
+  if (USE_MOCK() || (typeof navigator !== "undefined" && !navigator.onLine)) return 0;
+  let synced = 0;
+  for (const write of getQueuedWrites()) {
+    try {
+      const success = await postWrite(write.sheet, write.action, write.data, write.id);
+      if (success) {
+        removeQueuedWrite(write.id);
+        synced += 1;
+      } else {
+        markQueuedWriteAttempt(write.id);
+      }
+    } catch {
+      markQueuedWriteAttempt(write.id);
+      break;
+    }
+  }
+  return synced;
 }
 
 async function replaceScorecardAtomic(payload: ScorecardReplaceRequest): Promise<ScorecardReplaceResult> {
