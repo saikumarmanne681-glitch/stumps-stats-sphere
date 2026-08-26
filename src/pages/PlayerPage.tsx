@@ -7,7 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Trophy, Target } from 'lucide-react';
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { calcBattingStats, calcBowlingStats, getPlayerMatchCount } from '@/lib/calculations';
+import { playerBadges, playerForm } from '@/lib/cricketInsights';
 import { formatDateInIST } from '@/lib/time';
 
 const PlayerPage = () => {
@@ -29,6 +31,8 @@ const PlayerPage = () => {
     return matches.filter(m => matchIds.has(m.match_id))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [playerBatting, playerBowling, matches]);
+  const form = useMemo(() => player_id ? playerForm(player_id, batting, bowling, matches) : [], [player_id, batting, bowling, matches]);
+  const badges = useMemo(() => player_id ? playerBadges(player_id, batting, bowling) : [], [player_id, batting, bowling]);
 
   if (!player) return (
     <div className="min-h-screen bg-background">
@@ -63,6 +67,18 @@ const PlayerPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader><CardTitle className="font-display">Form graph <span className="text-sm font-normal text-muted-foreground">last 10 innings</span></CardTitle></CardHeader>
+            <CardContent><div className="h-56">
+              <ResponsiveContainer width="100%" height="100%"><LineChart data={form}><XAxis dataKey="label" /><YAxis /><Tooltip /><Line type="monotone" dataKey="runs" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 3 }} /><Line type="monotone" dataKey="wickets" stroke="hsl(var(--accent))" strokeWidth={2} /></LineChart></ResponsiveContainer>
+            </div></CardContent>
+          </Card>
+          <Card><CardHeader><CardTitle className="font-display">Milestone chips</CardTitle></CardHeader><CardContent className="flex flex-wrap gap-2">
+            {badges.length ? badges.map((badge) => <Badge key={badge.id} className={badge.tone === 'gold' ? 'bg-amber-500 hover:bg-amber-500' : ''}>{badge.label} · {badge.detail}</Badge>) : <p className="text-sm text-muted-foreground">No scorecard milestones yet.</p>}
+          </CardContent></Card>
+        </div>
 
         {/* Career Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

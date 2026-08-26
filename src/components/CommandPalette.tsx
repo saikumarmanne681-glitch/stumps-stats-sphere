@@ -1,6 +1,6 @@
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ClipboardList, FileText, FolderLock, Home, Newspaper, Search, Shield, Target, Trophy, User, Users, Zap } from 'lucide-react';
+import { ClipboardList, FileText, FolderLock, Home, Newspaper, Search, Shield, Target, Trophy, User, Users, Zap, ChartNoAxesCombined } from 'lucide-react';
 
 import {
   CommandDialog,
@@ -155,6 +155,16 @@ export function CommandPalette() {
         icon: <Trophy className="h-4 w-4" />,
         route: '/leaderboards',
         action: () => navigate('/leaderboards'),
+      },
+      {
+        id: 'route-insights',
+        label: 'Cricket Insights',
+        description: 'Head-to-head, form, awards and venue analytics',
+        keywords: 'insights analytics head to head form mvp awards bracket venue toss',
+        section: 'Routes',
+        icon: <ChartNoAxesCombined className="h-4 w-4" />,
+        route: '/insights',
+        action: () => navigate('/insights'),
       },
       {
         id: 'route-live',
