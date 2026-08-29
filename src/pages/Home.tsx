@@ -17,6 +17,7 @@ import { Link } from "react-router-dom";
 import { SessionFingerprint, SecurityShieldBadge } from "@/components/SecurityBadge";
 import { VerticalAnnouncementsBox } from "@/components/VerticalAnnouncementsBox";
 import { formatInIST } from "@/lib/time";
+import { HomeSkeleton } from "@/components/skeletons/PageSkeletons";
 
 
 
@@ -40,6 +41,8 @@ const Home = () => {
     setSelectedMatch(match);
     setDetailOpen(true);
   };
+
+  const showSkeleton = loading && matches.length === 0;
 
 
   return (
@@ -227,6 +230,7 @@ const Home = () => {
           </div>
           {displayMatches.length === 0 && <p className="text-muted-foreground text-center py-8">No matches found.</p>}
         </section>
+        </>}
       </div>
 
       <MatchDetailDialog
