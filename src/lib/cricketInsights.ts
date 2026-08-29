@@ -66,7 +66,10 @@ export function venueAndTossSummary(matches: Match[]) {
     const tossTeam = match.toss_winner.toLowerCase();
     const tossBatted = match.toss_decision.toLowerCase().includes('bat');
     const tossWon = tossTeam && result.includes(tossTeam) && (result.includes('won') || result.includes('beat'));
-    if (tossWon) (tossBatted ? batFirstWins : chaseWins) += 1;
+    if (tossWon) {
+      if (tossBatted) batFirstWins += 1;
+      else chaseWins += 1;
+    }
   });
   return { venues: [...venues.entries()].map(([venue, value]) => ({ venue, ...value })).sort((a, b) => b.played - a.played), batFirstWins, chaseWins };
 }
