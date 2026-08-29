@@ -1,7 +1,7 @@
 import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message, ScorecardReplaceRequest, ScorecardReplaceResult } from "./types";
 import { normalizeSheetRows } from "./dataUtils";
 import { getEnvStorageKey } from "./environment";
-import { getQueuedWrites, markQueuedWriteAttempt, queueWrite, removeQueuedWrite } from "./writeQueue";
+import { emitWriteFailure, getQueuedWrites, markQueuedWriteAttempt, queueWrite, removeQueuedWrite } from "./writeQueue";
 import {
   mockPlayers,
   mockTournaments,
@@ -89,12 +89,17 @@ async function writeSheet<T>(sheet: string, action: "add" | "update" | "delete",
   if (USE_MOCK()) return true;
   const normalizedPayload = normalizePayload(payload as Record<string, unknown>);
   const requestId = crypto.randomUUID?.() || `req_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const offline = typeof navigator !== "undefined" && !navigator.onLine;
   try {
     const success = await postWrite(sheet, action, normalizedPayload, requestId);
-    if (!success) queueWrite({ sheet, action, data: normalizedPayload }, requestId);
+    if (!success) {
+      queueWrite({ sheet, action, data: normalizedPayload }, requestId);
+      emitWriteFailure({ id: requestId, sheet, action, reason: offline ? "offline" : "rejected" });
+    }
     return success;
   } catch {
     queueWrite({ sheet, action, data: normalizedPayload }, requestId);
+    emitWriteFailure({ id: requestId, sheet, action, reason: offline ? "offline" : "network" });
     return false;
   }
 }

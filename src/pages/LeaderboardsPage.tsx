@@ -9,9 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Target, TrendingUp, Medal } from 'lucide-react';
 import { useLeaderboardData } from '@/lib/dataHooks';
 import { PageHeader } from '@/components/PageHeader';
+import { LeaderboardTableSkeleton } from '@/components/skeletons/PageSkeletons';
 
 const LeaderboardsPage = () => {
-  const { players, tournaments, seasons } = useData();
+  const { players, tournaments, seasons, matches, loading } = useData();
+  const showSkeleton = loading && matches.length === 0;
   const [searchParams, setSearchParams] = useSearchParams();
   const filterTournament = searchParams.get('tournament') || 'all';
   const filterSeason = searchParams.get('season') || 'all';
@@ -130,6 +132,16 @@ const LeaderboardsPage = () => {
           </div>
         </div>
 
+        {showSkeleton ? (
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="h-9 w-36 animate-pulse rounded-xl bg-muted" />
+              <div className="h-9 w-28 animate-pulse rounded-xl bg-muted" />
+              <div className="h-9 w-28 animate-pulse rounded-xl bg-muted" />
+            </div>
+            <LeaderboardTableSkeleton rows={8} cols={8} />
+          </div>
+        ) : (
         <Tabs defaultValue="teams">
           <TabsList>
             <TabsTrigger value="teams" className="gap-1"><Trophy className="h-4 w-4" /> Team Standings</TabsTrigger>
@@ -248,6 +260,7 @@ const LeaderboardsPage = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        )}
       </div>
     </div>
   );

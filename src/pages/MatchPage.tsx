@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Award, Crown, Share2, ArrowLeft } from 'lucide-react';
 import { formatSheetDate, normalizeId, resolvePlayerFromIdentity, selectTeamScorecardRows } from '@/lib/dataUtils';
 import { useToast } from '@/hooks/use-toast';
-import { PageLoader } from '@/components/LoadingOverlay';
+import { MatchPageSkeleton } from '@/components/skeletons/PageSkeletons';
 import { SecurityShieldBadge, DataIntegrityBadge } from '@/components/SecurityBadge';
 import { getTeamScoreSummary } from '@/lib/liveScoring';
 import { useBattingQuery, useBowlingQuery } from '@/lib/dataHooks';
@@ -53,7 +53,7 @@ const MatchPage = () => {
   if (loading) return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <PageLoader message="Loading match details..." />
+      <MatchPageSkeleton />
     </div>
   );
 

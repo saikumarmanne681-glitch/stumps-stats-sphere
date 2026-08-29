@@ -6,6 +6,7 @@ import { RouteChangeIndicator } from "@/components/RouteChangeIndicator";
 import { GlobalActivityIndicator } from "@/components/GlobalActivityIndicator";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 import { UnsavedChangesIndicator } from "@/components/UnsavedChangesIndicator";
+import { WriteFailureToaster } from "@/components/WriteFailureToaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { persistQueryCache, restoreQueryCache } from "@/lib/queryPersistence";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -155,6 +156,7 @@ const App = () => (
             <GlobalActivityIndicator />
             <NetworkStatusBanner />
             <UnsavedChangesIndicator />
+            <WriteFailureToaster />
             <RouteErrorBoundary>
               <Suspense fallback={<RouteLoader />}>
                 <Routes>
