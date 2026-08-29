@@ -1,10 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useData } from '@/lib/DataContext';
 import { Radio, CalendarDays, Shield } from 'lucide-react';
 import { formatSheetDate } from '@/lib/dataUtils';
+import { getAnnouncementNumber } from '@/lib/announcements';
+import { AnnouncementDocumentDialog } from '@/components/AnnouncementDocumentDialog';
+import type { Announcement } from '@/lib/types';
 
 export function AnnouncementTicker() {
   const { announcements, loading } = useData();
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
 
   const activeAnnouncements = useMemo(() => [...announcements]
     .filter(a => a.active)
@@ -23,7 +27,7 @@ export function AnnouncementTicker() {
   const duration = `${Math.max(60, activeAnnouncements.length * 26)}s`;
 
   const Item = ({ a, i }: { a: typeof activeAnnouncements[number]; i: number }) => (
-    <span className="mr-3 inline-flex shrink-0 items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 py-1 pl-2 pr-3 align-middle backdrop-blur-sm">
+    <button type="button" onClick={() => setSelectedAnnouncement(a)} className="mr-3 inline-flex shrink-0 items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 py-1 pl-2 pr-3 align-middle backdrop-blur-sm transition hover:bg-primary-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-label={`Open official announcement ${getAnnouncementNumber(a)}: ${a.title}`}>
       <span className="grid h-5 w-5 place-items-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground">
         {i + 1}
       </span>
@@ -38,7 +42,7 @@ export function AnnouncementTicker() {
         <CalendarDays className="h-2.5 w-2.5" />
         {formatSheetDate(a.date, 'dd MMM yyyy')}
       </span>
-    </span>
+    </button>
   );
 
   const track = (keyPrefix: string) => (
@@ -88,6 +92,7 @@ export function AnnouncementTicker() {
           </span>
         </div>
       </div>
+      <AnnouncementDocumentDialog announcement={selectedAnnouncement} open={!!selectedAnnouncement} onOpenChange={(open) => !open && setSelectedAnnouncement(null)} />
     </div>
   );
 }

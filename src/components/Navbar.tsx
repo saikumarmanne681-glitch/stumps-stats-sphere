@@ -42,7 +42,7 @@ export function Navbar() {
         <Button variant="ghost" size="sm" className={base} asChild onClick={close}><Link to="/verify"><BadgeCheck className="h-3.5 w-3.5 mr-1.5" /> Verify</Link></Button>
 
         {mobile && user && <MobileSection title="Workspace" />}
-        {user && (
+        {isManagement && (
           <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
             <Link to="/management"><Users className="h-3.5 w-3.5 mr-1.5" /> Board</Link>
           </Button>
@@ -57,7 +57,7 @@ export function Navbar() {
             <Link to="/news-room"><Newspaper className="h-3.5 w-3.5 mr-1.5" /> News</Link>
           </Button>
         )}
-        {(isManagement || isAdmin) && (
+        {user && (
           <Button variant="ghost" size="sm" className={base} asChild onClick={close}>
             <Link to="/documents-portal"><FolderLock className="h-3.5 w-3.5 mr-1.5" /> Docs</Link>
           </Button>

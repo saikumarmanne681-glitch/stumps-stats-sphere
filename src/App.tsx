@@ -163,7 +163,7 @@ const App = () => (
                   <Route path="/" element={<Home />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/admin" element={<RequireRole allow={['admin']}><AdminDashboard /></RequireRole>} />
-                  <Route path="/player" element={<PlayerDashboard />} />
+                  <Route path="/player" element={<RequireRole allow={['player']}><PlayerDashboard /></RequireRole>} />
                   <Route path="/admin/match-center" element={<RequireRole allow={['admin']}><MatchCenter /></RequireRole>} />
                   <Route path="/admin/backups" element={<RequireRole allow={['admin']}><AdminBackups /></RequireRole>} />
                   <Route path="/admin/scorelists" element={<RequireRole allow={['admin', 'management']}><AdminScorelistsPage /></RequireRole>} />
@@ -182,7 +182,7 @@ const App = () => (
                   <Route path="/seasons" element={<SeasonsOverviewPage />} />
                   <Route path="/schedules" element={<SchedulesPage />} />
                   <Route path="/hall-of-glory" element={<TournamentHonorsPage />} />
-                  <Route path="/news-room" element={<RequireRole allow={['admin', 'management']}><NewsRoomPage /></RequireRole>} />
+                  <Route path="/news-room" element={<RequireRole allow={['admin', 'management', 'player', 'team']}><NewsRoomPage /></RequireRole>} />
                   <Route path="/documents-portal" element={<RequireAuth><DocumentsPortalPage /></RequireAuth>} />
                   <Route path="/verify" element={<VerificationPage />} />
                   <Route path="/verify/:type/:id" element={<VerificationPage />} />
