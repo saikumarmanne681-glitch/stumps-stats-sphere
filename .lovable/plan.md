@@ -1,78 +1,47 @@
-# Next Update Catalog — pick by number
+# Cricket-Themed 404 Page + Next Enhancements
 
-Numbered options across fixes, improvements and new features. Tell me the numbers you want and I'll build only those.
+## 1. Redesigned 404 page (`src/pages/NotFound.tsx`)
 
-## A. Bug fixes / reliability
+A light, premium, cricket-themed "not found" screen — ivory/emerald/gold only, no dark or black surfaces.
 
-1. Legacy matches with summary-only scores: add an admin "backfill scorecard" flow so old matches get real batting/bowling rows.
-2. Audit log coverage sweep: log every admin/management write (match save, scorelist stage change, certificate certify, board edits), not just auth.
-3. Date/IST audit across every date input and display (schedules, seasons, certificates) with a single shared date helper.
-4. Offline/failed-write recovery: queue failed Apps Script writes and retry with a visible "unsaved changes" indicator.
-5. Duplicate-row guard in Sheets writes (idempotency keys) to stop double-submits creating duplicates.
-6. Verification hardening: single verify path shared by scorelists and certificates, with clear reasons when a document fails.
-7. Error boundaries per route so one crashed panel no longer blanks the whole page.
+- **Hero panel:** glass/gradient-surface card centred on the ivory page background, soft emerald and gold blur orbs, dot-grid texture, gold hairline divider.
+- **Headline:** oversized display "404" with a gold gradient text fill, plus a cricket line — "Caught behind! This page is out." with a short supporting sentence.
+- **Cricket motif:** animated stumps + ball graphic built from the existing tokens (SVG, gentle float / spin-slow animation, honours `prefers-reduced-motion`).
+- **Actions:** primary "Back to Home", secondary "Go Back", plus quick links to Leaderboards, Schedules, News Room and Documents as chip-style cards.
+- **Attempted path** shown in a muted mono pill so users see what they typed.
+- **Responsive:** single-column stacked on 375px mobile, two-column quick-link grid on iPad, wide layout on desktop; all text scales via responsive type classes.
+- **SEO/a11y:** single H1, `noindex` meta on this route, descriptive link labels; keeps the existing console error log.
 
-## B. Performance
+No new dependencies; only design-token classes.
 
-8. Split the largest pages (AdminScorelistsPage ~1100 lines, DocumentsPortalPage ~960) into lazy sub-panels.
-9. Cache-first data layer: persist TanStack Query cache to storage so returning users see instant data.
-10. Batch Apps Script reads into one combined "bootstrap" call instead of many sequential fetches.
-11. Virtualised long tables (players, matches, audit events) for smooth scrolling on mobile.
-12. Image/SVG and font loading optimisation plus route prefetch on hover.
+## 2. Suggested enhancements (pick by number)
 
-## C. UI / UX polish
+**Quick wins**
+1. Global search "jump to" (players, matches, tournaments) wired into the existing command palette.
+2. Offline/empty-state illustrations reused from the 404 motif across pages that currently show plain text.
+3. Skeleton loaders that mirror real layout on Home, Leaderboards and Match pages instead of spinners.
+4. Toast + inline retry on any failed Sheets write (currently silent in places).
 
-13. Finish the Emerald Prestige pass on remaining admin panels (Ops Center, Work Queue, Backups, Sheets Console).
-14. Mobile-first table→card conversion everywhere under 768px.
-15. Empty, loading and error states standardised with one shared component set.
-16. Dashboard redesign for players: hero stat tiles, form graph, milestone chips.
-17. Command palette upgrade: recent items, quick actions, keyboard hints.
-18. Print/PDF style pass so every exportable doc (scorelist, certificate, forms) prints identically.
+**Cricket features**
+5. Player comparison view — pick two players, side-by-side batting/bowling/season splits.
+6. Head-to-head team record page (matches, win %, NRR, best performances).
+7. "Form guide" — last 5 results strip per team on standings rows.
+8. Match win-probability / momentum chart from ball-by-ball data where available.
+9. Milestone tracker — alerts when a player nears 500 runs, 50 wickets, etc.
 
-## D. Cricket features
+**Certificates & docs**
+10. Bulk certificate generation for a whole team or a tournament's award list.
+11. Certificate share card (portrait image export for WhatsApp/Instagram).
+12. Document expiry reminders with email notice via the existing mailer.
 
-19. Head-to-head page: any two players or teams compared across seasons.
-20. Player form and trend charts (last 5/10 innings, rolling average, strike rate).
-21. Milestones and badges engine (50s, 100s, 5-wicket hauls, hat-tricks) shown on profiles.
-22. Fantasy-style points and season MVP race table.
-23. Live match commentary feed with over-by-over summary.
-24. Team squad management with roles, captains, and availability per match.
-25. Season awards auto-computation (best batter, bowler, fielder, emerging player).
-26. Playoff/bracket visualiser for knockout stages.
-27. Venue and toss analytics (win % by venue, batting first vs chasing).
+**Admin & ops**
+13. Admin analytics tile row: entries this week, pending approvals ageing, top contributors.
+14. Approval SLA badges (green/amber/red by hours pending) in the work queue.
+15. Audit log filters by actor, action type and date range with CSV export.
 
-## E. Certificates & documents
+**Experience**
+16. Installable PWA polish — proper icons, offline home page, "Add to home screen" prompt.
+17. Season-wise landing switcher so returning users open their preferred season.
+18. Keyboard shortcuts overlay (`?`) listing palette and navigation keys.
 
-28. Ten-plus certificate templates with a template gallery and per-tournament default.
-29. Full certificate approval chain (referee → director → official) mirroring the scorelist stages.
-30. Bulk certificate generation for a whole season or team in one action.
-31. Certificate wall on player/team dashboards with share links.
-32. Documents portal rework: folders, tags, search, version history, access by role.
-33. Digital signature capture (draw/upload) reused across scorelists and certificates.
-
-## F. Communication & engagement
-
-34. In-app notification centre with unread counts and per-type preferences.
-35. Email digest: weekly stats and fixtures to players.
-36. Push notifications (PWA) for match start, result and approvals.
-37. Comments/reactions on news posts.
-38. Announcement scheduling with start/end dates.
-
-## G. Admin & governance
-
-39. Role-based permissions matrix editor instead of hardcoded checks.
-40. Approval work queue v2: SLA timers, assignment, escalation.
-41. Data health dashboard: missing scorecards, unlinked players, orphan rows.
-42. One-click season rollover (clone structure, carry teams forward).
-43. Scheduled backups with restore preview and diff.
-
-## H. AI-assisted (Lovable AI Gateway)
-
-44. Auto match-report writer from a scorecard.
-45. Scorecard PDF/image intake that extracts rows automatically.
-46. Natural-language stats search ("who scored most fours in 2025 finals?").
-47. Smart insights on player pages (strengths, weaknesses, matchup notes).
-
-## Technical notes
-
-Everything stays on the current stack: React + Vite + TypeScript, Google Sheets via Apps Script, TanStack Query, Emerald Prestige tokens in `src/index.css`. AI items (44–47) would use the Lovable AI Gateway. Push notifications (36) need the existing service worker extended. No dark or black surfaces anywhere.
+Tell me which numbers you want and I'll build them after the 404 page.
