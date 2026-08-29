@@ -260,6 +260,7 @@ const LeaderboardsPage = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        )}
       </div>
     </div>
   );
