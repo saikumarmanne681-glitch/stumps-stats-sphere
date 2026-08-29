@@ -132,6 +132,16 @@ const LeaderboardsPage = () => {
           </div>
         </div>
 
+        {showSkeleton ? (
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="h-9 w-36 animate-pulse rounded-xl bg-muted" />
+              <div className="h-9 w-28 animate-pulse rounded-xl bg-muted" />
+              <div className="h-9 w-28 animate-pulse rounded-xl bg-muted" />
+            </div>
+            <LeaderboardTableSkeleton rows={8} cols={8} />
+          </div>
+        ) : (
         <Tabs defaultValue="teams">
           <TabsList>
             <TabsTrigger value="teams" className="gap-1"><Trophy className="h-4 w-4" /> Team Standings</TabsTrigger>
