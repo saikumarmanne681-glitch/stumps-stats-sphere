@@ -1,7 +1,7 @@
 import { Player, Tournament, Season, Match, BattingScorecard, BowlingScorecard, Announcement, Message, ScorecardReplaceRequest, ScorecardReplaceResult } from "./types";
 import { normalizeSheetRows } from "./dataUtils";
 import { getEnvStorageKey } from "./environment";
-import { getQueuedWrites, markQueuedWriteAttempt, queueWrite, removeQueuedWrite } from "./writeQueue";
+import { emitWriteFailure, getQueuedWrites, markQueuedWriteAttempt, queueWrite, removeQueuedWrite } from "./writeQueue";
 import {
   mockPlayers,
   mockTournaments,
