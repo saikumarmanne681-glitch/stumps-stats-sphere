@@ -80,10 +80,10 @@ const Home = () => {
       </section>
 
       <div className="container mx-auto px-4 py-8 space-y-10">
-        {loading && (
+        {loading && matches.length > 0 && (
           <div className="flex items-center gap-3 rounded-2xl border border-primary/10 bg-card/80 px-4 py-3 text-sm text-muted-foreground shadow-soft">
             <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-            Loading latest data, please wait...
+            Refreshing latest data...
           </div>
         )}
         {!navigator.onLine && (
@@ -92,6 +92,8 @@ const Home = () => {
           </div>
         )}
         <VerticalAnnouncementsBox />
+
+        {showSkeleton ? <HomeSkeleton /> : <>
 
         {/* Leaderboards */}
         <section className="section-shell animate-rise-in">
