@@ -9,9 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Target, TrendingUp, Medal } from 'lucide-react';
 import { useLeaderboardData } from '@/lib/dataHooks';
 import { PageHeader } from '@/components/PageHeader';
+import { LeaderboardTableSkeleton } from '@/components/skeletons/PageSkeletons';
 
 const LeaderboardsPage = () => {
-  const { players, tournaments, seasons } = useData();
+  const { players, tournaments, seasons, matches, loading } = useData();
+  const showSkeleton = loading && matches.length === 0;
   const [searchParams, setSearchParams] = useSearchParams();
   const filterTournament = searchParams.get('tournament') || 'all';
   const filterSeason = searchParams.get('season') || 'all';
