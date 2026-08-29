@@ -48,6 +48,28 @@ export function markQueuedWriteAttempt(id: string) {
   persist(getQueuedWrites().map((item) => item.id === id ? { ...item, attempts: item.attempts + 1 } : item));
 }
 
+const FAILURE_EVENT = 'stumps-write-failed';
+
+export type WriteFailureDetail = {
+  id: string;
+  sheet: string;
+  action: QueuedWrite['action'];
+  reason: 'offline' | 'rejected' | 'network';
+};
+
+/** Announces a failed (but queued) write so the UI can toast it with an inline retry. */
+export function emitWriteFailure(detail: WriteFailureDetail) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent<WriteFailureDetail>(FAILURE_EVENT, { detail }));
+}
+
+export function subscribeToWriteFailures(listener: (detail: WriteFailureDetail) => void) {
+  if (typeof window === 'undefined') return () => undefined;
+  const handler = (event: Event) => listener((event as CustomEvent<WriteFailureDetail>).detail);
+  window.addEventListener(FAILURE_EVENT, handler);
+  return () => window.removeEventListener(FAILURE_EVENT, handler);
+}
+
 export function subscribeToQueuedWrites(listener: () => void) {
   if (typeof window === 'undefined') return () => undefined;
   window.addEventListener(CHANGE_EVENT, listener);
