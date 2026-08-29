@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useData } from '@/lib/DataContext';
 import { Announcement } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { generateId } from '@/lib/utils';
+import { createAnnouncementNumber, getAnnouncementNumber } from '@/lib/announcements';
 import { BellRing, CalendarClock, Megaphone, Pencil, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
 import { logAudit } from '@/lib/v2api';
 import { formatDateInIST } from '@/lib/time';
@@ -68,7 +68,7 @@ export function AdminAnnouncements() {
       logAudit('admin', 'admin_save_announcement', 'announcement', editItem.id, JSON.stringify({ title: editItem.title, active: editItem.active }));
       toast({ title: 'Announcement updated' });
     } else {
-      const created = { ...editItem, id: generateId('A') };
+      const created = { ...editItem, id: createAnnouncementNumber(announcements, editItem.date) };
       await addAnnouncement(created);
       logAudit('admin', 'admin_add_announcement', 'announcement', created.id, JSON.stringify({ title: created.title, active: created.active }));
       toast({ title: 'Announcement published' });
@@ -199,7 +199,7 @@ export function AdminAnnouncements() {
                         <div className="space-y-1">
                           <p className="font-semibold">{item.title}</p>
                           <p className="line-clamp-2 max-w-xl text-sm text-muted-foreground">{item.message}</p>
-                          <p className="font-mono text-[11px] text-muted-foreground">{item.id}</p>
+                          <p className="font-mono text-[11px] text-muted-foreground">{getAnnouncementNumber(item)}</p>
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{formatDateInIST(item.date)}</TableCell>

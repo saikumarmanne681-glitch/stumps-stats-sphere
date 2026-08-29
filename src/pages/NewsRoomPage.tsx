@@ -19,7 +19,7 @@ import { NewsRoomPost } from '@/lib/v2types';
 import { parseTimestamp } from '@/lib/time';
 
 const NewsRoomPage = () => {
-  const { user, isManagement, isPlayer, isAdmin } = useAuth();
+  const { user, isManagement, isPlayer, isAdmin, isTeam } = useAuth();
   const { toast } = useToast();
   const [posts, setPosts] = useState<NewsRoomPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,7 @@ const NewsRoomPage = () => {
   const [audienceFilter, setAudienceFilter] = useState<'all' | 'players' | 'management'>('all');
   const [liveTimestamp, setLiveTimestamp] = useState(format(new Date(), 'dd MMM yyyy, hh:mm a'));
 
-  const canView = isManagement || isPlayer || isAdmin;
+  const canView = isManagement || isPlayer || isAdmin || isTeam;
 
   const refresh = async () => {
     const data = await v2api.getNewsRoomPosts();

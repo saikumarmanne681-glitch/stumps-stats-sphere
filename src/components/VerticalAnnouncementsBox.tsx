@@ -1,12 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useData } from '@/lib/DataContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatSheetDate } from '@/lib/dataUtils';
 import { Newspaper, PauseCircle, CalendarDays, Megaphone, Radio } from 'lucide-react';
+import { AnnouncementDocumentDialog } from '@/components/AnnouncementDocumentDialog';
+import { getAnnouncementNumber } from '@/lib/announcements';
+import type { Announcement } from '@/lib/types';
 
 export function VerticalAnnouncementsBox() {
   const { announcements } = useData();
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
 
   const activeAnnouncements = useMemo(
     () =>
@@ -67,9 +71,12 @@ export function VerticalAnnouncementsBox() {
             {[...activeAnnouncements, ...activeAnnouncements].map((item, index) => {
               const isLatest = index % activeAnnouncements.length === 0;
               return (
-                <div
+                <button
+                  type="button"
+                  onClick={() => setSelectedAnnouncement(item)}
+                  aria-label={`Open official announcement ${getAnnouncementNumber(item)}: ${item.title}`}
                   key={`${item.id}-${index}`}
-                  className="group relative flex gap-3 overflow-hidden rounded-2xl border border-primary/10 bg-card/90 p-3 pl-3 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-elegant"
+                  className="group relative flex w-full gap-3 overflow-hidden rounded-2xl border border-primary/10 bg-card/90 p-3 pl-3 text-left shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-elegant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary/15 to-accent/20 text-primary ring-2 ring-card">
                     {isLatest ? <Radio className="h-3 w-3" /> : <Megaphone className="h-3 w-3" />}
@@ -92,14 +99,16 @@ export function VerticalAnnouncementsBox() {
                       <CalendarDays className="h-3 w-3" />
                       {formatSheetDate(item.date, 'dd MMM yyyy', item.date)}
                     </p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-primary/75">{getAnnouncementNumber(item)}</p>
                   </div>
                   <span className="pointer-events-none absolute inset-y-0 right-0 w-1 bg-gradient-to-b from-primary/0 via-accent/60 to-primary/0 opacity-0 transition-opacity group-hover:opacity-100" />
-                </div>
+                </button>
               );
             })}
           </div>
         </div>
       </CardContent>
+      <AnnouncementDocumentDialog announcement={selectedAnnouncement} open={!!selectedAnnouncement} onOpenChange={(open) => !open && setSelectedAnnouncement(null)} />
     </Card>
   );
 }

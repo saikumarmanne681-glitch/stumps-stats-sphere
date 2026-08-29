@@ -118,7 +118,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logAudit(username || 'unknown', 'LOGIN_FAILED', 'AUTH', username || 'unknown', JSON.stringify({ role, reason: response.error || 'invalid_credentials' }));
       return false;
     }
+    // The requested role is authoritative for the destination. Older deployed
+    // Apps Script versions occasionally omit `type`; reject a mismatched type
+    // rather than creating a session that cannot open its dashboard.
     const resolvedType = response.user.type || role;
+    if (resolvedType !== role) {
+      logAudit(username || 'unknown', 'LOGIN_FAILED', 'AUTH', username || 'unknown', JSON.stringify({ role, reason: 'role_mismatch' }));
+      return false;
+    }
     if (resolvedType === 'admin') {
       const created = createAdminSession(response.user.name);
       logAudit('admin', 'LOGIN_SUCCESS', 'AUTH', 'admin', JSON.stringify({ role: 'admin', username }));
